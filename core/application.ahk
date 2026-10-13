@@ -1,0 +1,278 @@
+; =============================================================================
+; Super Hotkey World - shared lifecycle and native thread defaults.
+; Modules never launch another AutoHotkey process or own the application tray.
+; =============================================================================
+class SuiteState {
+    static App := 0
+    static Log := 0
+    static CascadeMenu := 0
+    static ScratchpadMenu := 0
+    static CascadeStatus := ""
+    static ScratchpadStatus := ""
+}
+
+class SuiteApplication {
+    static Name := "Super Hotkey World"
+    static Version := "0.1.0-preview.1"
+
+    __New(dryRun := false, directory := "") {
+        this.dryRun := dryRun
+        if directory = ""
+            directory := dryRun ? A_Temp "\SuperHotkeyWorld-" FormatTime(, "yyyyMMdd-HHmmss") "-" DllCall("GetCurrentProcessId", "uint")
+                : EnvGet("LOCALAPPDATA") "\nroj\SuperHotkeyWorld"
+        this.Settings := SuiteSettings(directory)
+        this.activeModules := this.Settings.modules.Clone()
+        this.manager := 0
+        this.power := 0
+        this.ui := 0
+        this.stopping := false
+        this.systemSuspended := false
+        this.cascadeInitialized := false
+        this.cascadeStarted := false
+        this.scratchpadStarted := false
+        this.mutex := 0
+        this.sessionNotifications := false
+        this.bindingFailure := ""
+        this.exitCallback := ObjBindMethod(this, "Stop")
+        this.errorCallback := ObjBindMethod(this, "UnhandledError")
+        this.powerCallback := ObjBindMethod(this, "PowerEvent")
+        this.sessionCallback := ObjBindMethod(this, "SessionEvent")
+        this.resumeCallback := ObjBindMethod(this, "ResumeInputs")
+        SuiteState.App := this
+        SuiteState.Log := SuiteLog(directory)
+        SuiteState.CascadeMenu := Menu()
+        SuiteState.ScratchpadMenu := Menu()
+    }
+
+    Start(openSettings := false) {
+        name := "Local\nroj.SuperHotkeyWorld" (this.dryRun ? ".Preview." DllCall("GetCurrentProcessId", "uint") : "")
+        this.mutex := DllCall("CreateMutexW", "ptr", 0, "int", false, "str", name, "ptr")
+        if !this.mutex || A_LastError = 183
+            throw Error("Another Super Hotkey World instance is running. Close it before starting another copy.")
+        OnExit(this.exitCallback)
+        OnError(this.errorCallback)
+        if !this.dryRun
+            this.CheckOriginalScripts()
+        Persistent true
+        SetWinDelay 0
+        SetControlDelay -1
+        DetectHiddenWindows true
+        SetTitleMatchMode 2
+        SetStoreCapsLockMode false
+        A_MenuMaskKey := "vkE8"
+        CoordMode "Mouse", "Screen"
+        CoordMode "ToolTip", "Screen"
+        SuiteState.Log.Write("Core", "starting " SuiteApplication.Version " / AutoHotkey " A_AhkVersion)
+        if !FileExist(this.Settings.path)
+            this.Settings.Save(this.Settings.modules)
+        if !this.dryRun
+            this.ImportLegacyModuleSettings()
+        this.InitializeCatalog()
+        this.manager.SetPaused(true)
+        try this.manager.Start()
+        catch Error as failure {
+            if !this.manager.running
+                throw failure
+            this.bindingFailure := failure.Message
+            SuiteState.Log.Error("Keybindings", failure)
+        }
+        this.power.Start()
+        if !this.dryRun {
+            if this.ModuleActive("window-cascade") {
+                this.cascadeStarted := true
+                WindowCascadeModule.Start(this.manager)
+            }
+            if this.ModuleActive("scratchpad") {
+                ScratchpadModule.Start(this.manager)
+                this.scratchpadStarted := true
+            }
+        }
+        this.ui := SuiteInterface(this)
+        this.ui.BuildTray()
+        OnMessage(0x0218, this.powerCallback)
+        OnMessage(0x02B1, this.sessionCallback)
+        this.sessionNotifications := DllCall("Wtsapi32\WTSRegisterSessionNotification",
+            "ptr", A_ScriptHwnd, "uint", 0, "int") != 0
+        this.RefreshInputGate()
+        for id, enabled in this.activeModules
+            SuiteState.Log.Write(SuiteSettings.ModuleNames[id], enabled ? (this.dryRun ? "dry run; effects disabled" : "enabled") : "disabled")
+        SuiteState.Log.Write("Core", "startup complete")
+        if this.bindingFailure != "" {
+            MsgBox(this.bindingFailure "`n`nAll shortcuts remain inactive until the conflict is resolved."
+                . "`nUse Keybindings to restore defaults, or disable a conflicting module and restart.",
+                SuiteApplication.Name, "Icon!")
+            this.manager.ShowSettings()
+        } else if openSettings || this.dryRun
+            this.manager.ShowSettings()
+    }
+
+    InitializeCatalog() {
+        InitializeCascadeState()
+        this.cascadeInitialized := true
+        options := {directory: this.Settings.directory "\keybindings",
+            statusCallback: ObjBindMethod(this, "BindingStatus")}
+        if this.ModuleActive("keyboard-layers")
+            options.layerFactory := (name, status) => LocalKeyboardLayers(name, status)
+        this.manager := Keybindings("super-hotkey-world", SuiteApplication.Name, options)
+        this.manager.AddAction("core.keybindings", "open Keybindings", ObjBindMethod(this, "OpenBindingsEvent"),
+            ["Caps + K", "Ctrl + Alt + K"], {category: "Super Hotkey World"})
+        this.power := PowerHotkeys(this.manager, this.dryRun)
+        WindowCascadeModule.Register(this.manager)
+        ScratchpadModule.Register(this.manager)
+    }
+
+    ModuleActive(id) => this.activeModules.Has(id) && this.activeModules[id]
+
+    BindingStatus(message) {
+        SuiteState.Log.Write("Keybindings", message)
+        if message = "keybinding changes saved" {
+            this.bindingFailure := ""
+            if IsObject(this.power)
+                this.power.SyncEnabledActions()
+            if this.cascadeInitialized
+                SetTimer(RefreshCascadeHelpBindings, -1)
+        }
+    }
+
+    OpenBindingsEvent(event) {
+        if event.phase = "down"
+            SetTimer(ObjBindMethod(this, "ShowKeybindings"), -1)
+    }
+
+    CancelInputs() {
+        if IsObject(this.power)
+            this.power.CancelWork()
+        if this.cascadeStarted {
+            global cascade_command_queue
+            cascade_command_queue := []
+            StopFocusTabClick()
+        }
+    }
+
+    ShowKeybindings(*) {
+        this.CancelInputs()
+        this.manager.ShowSettings()
+    }
+
+    RefreshInputGate() {
+        modulesOpen := IsObject(this.ui) && IsObject(this.ui.modulesWindow)
+        this.manager.SetPaused(this.dryRun || this.stopping || this.systemSuspended || modulesOpen)
+    }
+
+    PowerEvent(event, *) {
+        if event = 4 {
+            this.systemSuspended := true
+            this.RefreshInputGate()
+            this.CancelInputs()
+        } else if event = 7 || event = 0x12 {
+            this.systemSuspended := true
+            this.RefreshInputGate()
+            this.CancelInputs()
+            SetTimer(this.resumeCallback, -500)
+        }
+    }
+
+    SessionEvent(event, *) {
+        if event = 6 || event = 7 {
+            this.systemSuspended := true
+            this.RefreshInputGate()
+            this.CancelInputs()
+        } else if event = 8
+            SetTimer(this.resumeCallback, -500)
+    }
+
+    ResumeInputs(*) {
+        if this.stopping
+            return
+        InstallKeybdHook(true, true)
+        this.systemSuspended := false
+        this.RefreshInputGate()
+        SuiteState.Log.Write("Core", "inputs recovered after resume/unlock")
+    }
+
+    Stop(reason := "Exit", code := 0) {
+        global scratchpad
+        if this.stopping
+            return 0
+        if IsObject(this.manager)
+            this.manager.SetPaused(true)
+        ; Save/close refusal must happen before dismantling the rest of the suite.
+        if this.scratchpadStarted && IsSet(scratchpad) {
+            try scratchpad.PrepareSuiteExit(reason)
+            catch Error as failure {
+                SuiteState.Log.Error("Scratchpad / exit refused", failure)
+                this.RefreshInputGate()
+                MsgBox(failure.Message "`n`nThe suite is still running. No notes were discarded.",
+                    SuiteApplication.Name, "Icon!")
+                return 1
+            }
+        }
+        this.stopping := true
+        SetTimer(this.resumeCallback, 0)
+        if IsObject(this.manager)
+            this.Cleanup("Keybindings", ObjBindMethod(this.manager, "Stop"))
+        if IsObject(this.power)
+            this.Cleanup("Power Hotkey", ObjBindMethod(this.power, "Stop"))
+        if this.cascadeStarted
+            this.Cleanup("Window Cascade", (*) => WindowCascadeModule.Stop())
+        if this.scratchpadStarted && IsSet(scratchpad)
+            this.Cleanup("Scratchpad", (*) => scratchpad.OnScriptExit(reason, code))
+        OnMessage(0x0218, this.powerCallback, 0)
+        OnMessage(0x02B1, this.sessionCallback, 0)
+        if this.sessionNotifications
+            DllCall("Wtsapi32\WTSUnRegisterSessionNotification", "ptr", A_ScriptHwnd, "int")
+        if this.mutex {
+            DllCall("CloseHandle", "ptr", this.mutex)
+            this.mutex := 0
+        }
+        SuiteState.Log.Write("Core", "stopped: " reason " (" code ")")
+        return 0
+    }
+
+    Cleanup(component, callback) {
+        try callback.Call()
+        catch Error as failure
+            SuiteState.Log.Error(component " / cleanup", failure)
+    }
+
+    UnhandledError(failure, mode) {
+        component := "Core"
+        if HasProp(failure, "File") && RegExMatch(failure.File, "i)\\modules\\([^\\]+)\\", &match)
+            component := match[1]
+        SuiteState.Log.Error(component " / " mode, failure)
+        ; Retain AutoHotkey's normal error dialog/termination instead of hiding faults.
+        return 0
+    }
+
+    ImportLegacyModuleSettings() {
+        for id, legacy in Map("window-cascade", "Window Cascade", "scratchpad", "Scratchpad") {
+            destination := this.Settings.directory "\" id
+            DirCreate destination
+            names := id = "scratchpad" ? ["settings.ini", "state.ini", "Notepad3.ini"] : ["settings.ini"]
+            for name in names {
+                source := EnvGet("LOCALAPPDATA") "\" legacy "\" name
+                target := destination "\" name
+                if !FileExist(target) && FileExist(source)
+                    FileCopy(source, target, false)
+            }
+        }
+    }
+
+    CheckOriginalScripts() {
+        previous := A_DetectHiddenWindows
+        DetectHiddenWindows true
+        try {
+            for hwnd in WinGetList("ahk_class AutoHotkey") {
+                if hwnd = A_ScriptHwnd
+                    continue
+                try title := WinGetTitle(hwnd)
+                catch
+                    continue
+                if RegExMatch(title, "i)\\(?:window-cascade|power-hotkey|scratchpad|caps-pause-layers|capslock-layer|pause-command-mode)(?:\([^\\]*\))?\.ahk - AutoHotkey")
+                    throw Error("Close the original AutoHotkey utilities before starting the suite."
+                        . "`nNo process was stopped automatically.`n`nDetected: " title)
+            }
+        }
+        finally DetectHiddenWindows previous
+    }
+}

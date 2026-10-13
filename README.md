@@ -1,26 +1,42 @@
 # Super Hotkey World
 
-a modular Windows productivity suite being consolidated from existing AutoHotkey v2 projects.
+a modular Windows productivity suite built from the existing AutoHotkey utilities.
 
-**status: source migration checkpoint; not a runnable suite.** the initial commit contains pinned source snapshots, licenses, and an entry-point/dependency audit. it does not start any script or change the existing installations.
+**status: integration preview, not a stable release.** the shared runtime is implemented; physical keyboard, window-management and Notepad3 acceptance testing remains necessary before replacing the originals. see `docs/integration-status.md`.
 
-## target
+## run
 
-one AutoHotkey process, one tray icon, one Keybindings manager, centralized logging, and four optional modules: Window Cascade, Power Hotkey, Scratchpad, and Caps + Pause Layers. all four will be enabled by default; Keybindings remains available independently of the layer module.
+requires Windows and **64-bit AutoHotkey v2**. Scratchpad additionally uses the existing dedicated Notepad3 editor; its bridge was originally written for Notepad3 7.26.602.1. one AutoHotkey process does not mean eliminating the Notepad3 process.
 
-reuse the existing implementations. do not add a plugin framework, automatic shortcut reassignment, or profiles. Shell Folders stays separate.
+close the original Window Cascade, Power Hotkey, Scratchpad and keyboard-layer scripts before launching `super-hotkey-world.ahk`. the suite does not stop them or remove their startup entries automatically.
 
-## current layout
+```powershell
+python .\tests\check.py
+& 'C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe' .\super-hotkey-world.ahk --dry-run
+```
 
-- `migration/upstream/`: complete tracked snapshots from the five source repositories, without their Git histories. these are reference implementations, not modules wired into a common launcher.
-- `migration/source-manifest.json`: exact source commits and imported file counts.
-- `docs/initial-audit.md`: verified entry-point findings, scope limits, and blockers.
-- `docs/implementation.md`: the integration order and acceptance checks.
+`--dry-run` opens the shared editor with isolated temporary settings, no active shortcuts, no window management and no Notepad3 launch. omit it for normal operation. `--check` only parses the entire suite and exits. pass `--autohotkey PATH` to the test runner when AutoHotkey is installed elsewhere.
 
-read the audit before creating a combined launcher. including the original entry points directly is not safe: several start services immediately, set process-wide defaults, or install their own hotkeys.
+## controls
 
-## data and retirement
+all four modules are enabled initially. **Modules → Apply and restart** changes their availability. Keybindings is always available from the tray; its defaults are **Caps + K** and **Ctrl + Alt + K**. terminal clearing now defaults to **Caps + Ctrl + K**, avoiding the old collision.
 
-keep the original repositories and utilities intact until behavior parity has been checked on Windows. imported source does not include unpublished local changes or personal settings. Scratchpad notes, editor profiles, and backups must never be deleted by a shortcut or factory reset.
+click either shortcut slot to record. right-click a slot to enter a key name, including bare Escape, CapsLock or Pause. disabled modules keep their editable assignments without reserving inputs. disabled layers leave their assignments inactive; normal replacements still work. an enabled layer owns its prefix keys, so ordinary CapsLock/Pause assignments remain inactive until layers are disabled.
 
-retain upstream licenses and icon attribution when moving source and assets into their final locations. remove the staging copies only after their replacements have been reviewed; they are not a permanent second implementation.
+Scratchpad's global toggle defaults to **Win + F12**. its save, navigation, new-page, delete and hide commands are contextual: they only intercept input inside its owned editor. Caps/Pause retains held chords and short-tap one-shot behavior.
+
+## settings and data
+
+suite settings and the rotating `debug.log` live in `%LOCALAPPDATA%\nroj\SuperHotkeyWorld`. the first normal start copies existing Window Cascade and Scratchpad preferences/state/editor-profile files when the suite copies do not exist. original files are not modified. Scratchpad continues using its configured notes folder.
+
+**old standalone shortcut assignments are not imported automatically.** the suite starts with the reconciled factory catalog; the original keybinding files remain intact.
+
+**Reset all shortcuts** restores assignments, including disabled modules, without changing module choices. **Restore factory defaults** also re-enables modules and resets a whitelist of preferences, with a settings backup. neither deletes notes, changes their folder/editor path, or deletes the Notepad3 profile. both require confirmation. a Scratchpad save failure can veto exit or restart.
+
+## development
+
+`core/` owns lifecycle, settings, logging and the shared manager. `modules/` contains in-process feature implementations. `migration/upstream/` retains the pinned references and their licenses; Shell Folders is not part of this repository.
+
+`migration/integrate.py` is a one-time source migration, not a runtime dependency or plugin loader. it verifies major source hashes and materializes the adapted files; `--check` verifies the committed result. the development-branch Windows workflow checks the migration and native runtime before committing generated outputs. do not run the original entry points as part of the suite.
+
+retain the original installations and repositories until the manual acceptance checks pass. source licenses and icon attribution are retained under `LICENSE`, `assets/` and the reference snapshots.
