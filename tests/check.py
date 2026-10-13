@@ -12,14 +12,57 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def run(arguments: list[str], timeout: int = 60) -> str:
-    result = subprocess.run(arguments, cwd=ROOT, capture_output=True, timeout=timeout,
-                            encoding='utf-8-sig', errors='replace')
-    output = result.stdout + result.stderr
-    print(output, end='' if output.endswith('\n') else '\n')
-    if result.returncode:
-        raise RuntimeError(f'Check exited with code {result.returncode}.')
+def window_diagnostics(process_id: int) -> list[str]:
+    """Read captions only from the test process, never from unrelated applications."""
+    import ctypes
+    from ctypes import wintypes
+    user32 = ctypes.windll.user32
+    callback_type = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+    user32.GetWindowThreadProcessId.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.DWORD)]
+    user32.GetWindowTextW.argtypes = [wintypes.HWND, wintypes.LPWSTR, ctypes.c_int]
+    user32.EnumChildWindows.argtypes = [wintypes.HWND, callback_type, wintypes.LPARAM]
+    output = []
+
+    @callback_type
+    def caption(hwnd, unused):
+        owner = wintypes.DWORD()
+        user32.GetWindowThreadProcessId(hwnd, ctypes.byref(owner))
+        if owner.value == process_id:
+            text = ctypes.create_unicode_buffer(4096)
+            if user32.GetWindowTextW(hwnd, text, len(text)):
+                output.append(text.value)
+        return True
+
+    @callback_type
+    def window(hwnd, unused):
+        owner = wintypes.DWORD()
+        user32.GetWindowThreadProcessId(hwnd, ctypes.byref(owner))
+        if owner.value == process_id:
+            caption(hwnd, 0)
+            user32.EnumChildWindows(hwnd, caption, 0)
+        return True
+
+    user32.EnumWindows(window, 0)
     return output
+
+
+def run(arguments: list[str], timeout: int = 45) -> str:
+    with subprocess.Popen(arguments, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                          encoding='utf-8-sig', errors='replace') as process:
+        try:
+            stdout, stderr = process.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            print('Test process windows:', *window_diagnostics(process.pid), sep='\n')
+            # Only terminate the test process this runner created.
+            process.kill()
+            stdout, stderr = process.communicate()
+            print(stdout + stderr)
+            raise RuntimeError(f'Check timed out after {timeout} seconds.')
+        output = stdout + stderr
+        print(output, end='' if output.endswith('\n') else '\n')
+        if process.returncode or 'Warning:' in output:
+            raise RuntimeError(f'Check failed or emitted a warning (exit {process.returncode}).')
+        return output
 
 
 def find_autohotkey(argument: str | None) -> Path:

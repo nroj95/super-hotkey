@@ -1,25 +1,25 @@
 class ScratchpadMigration {
     BuildTrayMenu() {
-        menu := SuiteState.ScratchpadMenu
-        menu.Delete()
-        menu.Add("Toggle Scratchpad", ObjBindMethod(this, "QueueCommand", "toggle"))
-        menu.Add("Keybindings", (*) => SuiteState.App.ShowKeybindings())
-        menu.Add()
+        moduleMenu := SuiteState.ScratchpadMenu
+        moduleMenu.Delete()
+        moduleMenu.Add("Toggle Scratchpad", ObjBindMethod(this, "QueueCommand", "toggle"))
+        moduleMenu.Add("Keybindings", (*) => SuiteState.App.ShowKeybindings())
+        moduleMenu.Add()
         this.monitor_menu := Menu()
         this.BuildMonitorMenu()
-        menu.Add("Display", this.monitor_menu)
+        moduleMenu.Add("Display", this.monitor_menu)
         this.window_width_menu := Menu()
         for percent in this.window_width_presets
             this.window_width_menu.Add(percent "%", ObjBindMethod(this, "SetWindowSizePercent", "width", percent))
         this.window_height_menu := Menu()
         for percent in this.window_height_presets
             this.window_height_menu.Add(percent "%", ObjBindMethod(this, "SetWindowSizePercent", "height", percent))
-        menu.Add("Window width", this.window_width_menu)
-        menu.Add("Window height", this.window_height_menu)
-        menu.Add()
-        menu.Add("Open scratch folder", (*) => Run('explorer.exe "' this.scratch_directory '"'))
-        menu.Add("Open settings", (*) => Run('notepad.exe "' this.settings_path '"'))
-        menu.Add("How to use", ObjBindMethod(this, "ShowHelp"))
+        moduleMenu.Add("Window width", this.window_width_menu)
+        moduleMenu.Add("Window height", this.window_height_menu)
+        moduleMenu.Add()
+        moduleMenu.Add("Open scratch folder", (*) => Run('explorer.exe "' this.scratch_directory '"'))
+        moduleMenu.Add("Open settings", (*) => Run('notepad.exe "' this.settings_path '"'))
+        moduleMenu.Add("How to use", ObjBindMethod(this, "ShowHelp"))
         this.UpdateTrayChecks()
     }
 

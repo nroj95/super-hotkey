@@ -1,6 +1,6 @@
 #Requires AutoHotkey v2.0 64-bit
 #SingleInstance Force
-#Warn
+#Warn All, StdOut
 
 ; One entry point. Included modules define code; none start another script.
 #Include "%A_ScriptDir%\core\keybindings.ahk"
