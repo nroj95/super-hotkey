@@ -32,6 +32,7 @@ class SuiteChecks {
         this.CheckNoLayers()
         this.CheckLogging()
         this.CheckExitVeto()
+        this.CheckDryRunLifecycle()
     }
 
     static CheckSettings() {
@@ -127,8 +128,8 @@ class SuiteChecks {
             manager.actions[event.actionId].callback.Call(event)
             app.power.keyboard.SendOutput("F13", " down")
             app.power.keyboard.SendOutput("F13", " up")
-            log := FileRead(SuiteState.Log.path, "UTF-8")
-            this.Assert(InStr(log, "dry run: window-cascade.minimize") && InStr(log, "dry run: toggle") && InStr(log, "dry run: send F13"), "feature callbacks use dry-run guards")
+            diagnosticLog := FileRead(SuiteState.Log.path, "UTF-8")
+            this.Assert(InStr(diagnosticLog, "dry run: window-cascade.minimize") && InStr(diagnosticLog, "dry run: toggle") && InStr(diagnosticLog, "dry run: send F13"), "feature callbacks use dry-run guards")
 
             global CPL
             CPL.showIndicator := false
@@ -189,14 +190,35 @@ class SuiteChecks {
     }
 
     static CheckLogging() {
-        log := SuiteLog(this.directory "\logging", 100)
-        log.Write("Core", "first " StrReplace(Format("{:120}", "x"), " ", "x"))
-        log.Write("Scratchpad", "second")
-        this.Assert(FileExist(log.path ".old"), "central log rotates at the size limit")
-        log.Error("Power Hotkey", Error("diagnostic marker", "native checks"))
-        this.Assert(InStr(FileRead(log.path, "UTF-8"), "diagnostic marker"), "errors retain their details and module attribution")
-        log.Clear()
-        this.Assert(InStr(FileRead(log.path, "UTF-8"), "previous log retained"), "clearing the log retains one previous segment")
+        diagnosticLog := SuiteLog(this.directory "\logging", 100)
+        diagnosticLog.Write("Core", "first " StrReplace(Format("{:120}", "x"), " ", "x"))
+        diagnosticLog.Write("Scratchpad", "second")
+        this.Assert(FileExist(diagnosticLog.path ".old"), "central log rotates at the size limit")
+        diagnosticLog.Error("Power Hotkey", Error("diagnostic marker", "native checks"))
+        this.Assert(InStr(FileRead(diagnosticLog.path, "UTF-8"), "diagnostic marker"), "errors retain their details and module attribution")
+        diagnosticLog.Clear()
+        this.Assert(InStr(FileRead(diagnosticLog.path, "UTF-8"), "previous log retained"), "clearing the log retains one previous segment")
+    }
+
+    static CheckDryRunLifecycle() {
+        app := SuiteApplication(true, this.directory "\startup")
+        try {
+            app.Start()
+            this.Assert(app.manager.running && app.manager.paused, "dry-run startup keeps every shortcut inactive")
+            this.Assert(!app.cascadeStarted && !app.scratchpadStarted, "dry-run startup does not start native feature modules")
+            this.Assert(IsObject(app.ui) && IsObject(app.manager.settings), "dry-run startup creates the shared tray and editor")
+            app.ui.ShowModules()
+            this.Assert(IsObject(app.ui.modulesWindow), "module settings window opens")
+            app.ui.CloseModules()
+            this.Assert(app.manager.paused, "closing module settings keeps dry-run inputs inactive")
+        }
+        finally {
+            app.Stop()
+            OnExit(app.exitCallback, 0)
+            OnError(app.errorCallback, 0)
+        }
+        this.Assert(!app.manager.running && !app.mutex, "suite shutdown releases manager and process ownership")
+        this.Assert(!InStr(FileRead(SuiteState.Log.path, "UTF-8"), "ERROR:"), "dry-run startup and shutdown emit no errors")
     }
 
     static CheckExitVeto() {
@@ -206,18 +228,22 @@ class SuiteChecks {
     }
 }
 
-result := 0
-try {
-    SuiteChecks.Run()
-    FileAppend("PASS: native suite checks completed: " SuiteChecks.count " assertions.`n", "*")
+SHW_RunSuiteChecks() {
+    result := 0
+    try {
+        SuiteChecks.Run()
+        FileAppend("PASS: native suite checks completed: " SuiteChecks.count " assertions.`n", "*")
+    }
+    catch Error as failure {
+        FileAppend("FAIL: " failure.Message "`n" failure.File ":" failure.Line "`n" failure.Stack "`n", "**")
+        result := 1
+    }
+    finally {
+        if IsObject(Keybindings.Current)
+            try Keybindings.Current.Stop()
+        try DirDelete(SuiteChecks.directory, true)
+    }
+    ExitApp(result)
 }
-catch Error as failure {
-    FileAppend("FAIL: " failure.Message "`n" failure.File ":" failure.Line "`n" failure.Stack "`n", "**")
-    result := 1
-}
-finally {
-    if IsObject(Keybindings.Current)
-        try Keybindings.Current.Stop()
-    try DirDelete(SuiteChecks.directory, true)
-}
-ExitApp(result)
+
+SHW_RunSuiteChecks()
