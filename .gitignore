@@ -1,0 +1,7 @@
+/.artifacts/
+/data/
+.venv/
+__pycache__/
+*.pyc
+*.log
+*.tmp
