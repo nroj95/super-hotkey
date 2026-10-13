@@ -28,6 +28,13 @@ class ScratchpadMigration {
         this.UpdateWindowSizeMenu()
     }
 
+    SnapshotNotepad3Windows() {
+        editorWindows := Map()
+        for hwnd in WinGetList("ahk_exe Notepad3.exe")
+            editorWindows[hwnd] := true
+        return editorWindows
+    }
+
     ShowHelp(*) {
         MsgBox("Open Keybindings for the current global toggle and editor-only shortcuts."
             . "`nRight-click a shortcut to enter a key name, including Escape."
