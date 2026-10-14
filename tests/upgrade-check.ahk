@@ -15,6 +15,7 @@ class SuiteUpgradeChecks {
     static Run() {
         this.Preferences()
         this.IndependentLayers()
+        this.DisabledModuleWarning()
         this.ScopesAndObservers()
         this.GeometryAndOwnership()
         this.ActiveShortcutVisibility()
@@ -73,6 +74,33 @@ class SuiteUpgradeChecks {
                     "native Pause ownership: " label)
                 this.Assert(this.Route(manager, "core.keybindings", 2).enabled,
                     "ordinary Keybindings shortcut remains available: " label)
+                manager.ShowSettings()
+                expectedTitle := flags[1] && flags[2] ? "Keybindings"
+                    : !flags[1] && !flags[2]
+                        ? "Keybindings — CapsLock and Pause layers disabled (⚠ = inactive)"
+                    : flags[1] ? "Keybindings — Pause layer disabled (⚠ = inactive)"
+                        : "Keybindings — CapsLock layer disabled (⚠ = inactive)"
+                this.Assert(manager.settings.Title = expectedTitle,
+                    "Keybindings title explains the disabled layer state: " label)
+                manager.settings["search"].Value := "open Keybindings"
+                manager._RenderSettings()
+                this.Assert(manager.rows[2].id = "core.keybindings",
+                    "core shortcut remains visible when searching: " label)
+                coreButtons := manager.visibleRows[2]
+                this.Assert(InStr(coreButtons.primary.Text, "⚠") = 1 ? !flags[1] : flags[1],
+                    "Caps binding receives a warning only when inactive: " label)
+                this.Assert(coreButtons.secondary.Text = "Ctrl + Alt + K",
+                    "ordinary fallback is never warned: " label)
+                this.Assert(coreButtons.primary.Enabled,
+                    "inactive bindings remain clickable for reassignment: " label)
+                manager.settings["search"].Value := "show Paper Pad help"
+                manager._RenderSettings()
+                paperButton := manager.visibleRows[2].primary
+                this.Assert(InStr(paperButton.Text, "⚠") = 1 ? !flags[2] : flags[2],
+                    "Pause binding receives a warning only when inactive: " label)
+                this.Assert(paperButton.Enabled,
+                    "Paper Pad Help remains reassignable while Pause is unavailable: " label)
+                manager._CloseSettings()
                 if !flags[1] {
                     configuration := manager.GetConfiguration()
                     configuration["scratchpad.toggle"].bindings[1] := "CapsLock"
@@ -89,6 +117,37 @@ class SuiteUpgradeChecks {
             }
             finally manager.Stop()
         }
+    }
+
+    static DisabledModuleWarning() {
+        app := SuiteApplication(true, SuiteChecks.directory "\disabled-secret-keys")
+        app.activeModules["keyboard-layers"] := false
+        app.InitializeCatalog()
+        manager := app.manager
+        try {
+            manager.SetPaused(true)
+            manager.Start()
+            manager.ShowSettings()
+            this.Assert(manager.settings.Title = "Keybindings — Secret Keys disabled (⚠ = inactive)",
+                "module-disabled Keybindings title describes the unavailable layers")
+            manager.settings["search"].Value := "open Keybindings"
+            manager._RenderSettings()
+            core := manager.visibleRows[2]
+            this.Assert(InStr(core.primary.Text, "⚠ Caps + K") = 1
+                && core.secondary.Text = "Ctrl + Alt + K"
+                && core.primary.Enabled,
+                "disabled Secret Keys marks only the Caps binding and leaves it editable")
+            manager.settings["search"].Value := "show Paper Pad help"
+            manager._RenderSettings()
+            paper := manager.visibleRows[2].primary
+            this.Assert(InStr(paper.Text, "⚠ Pause + F12") = 1 && paper.Enabled,
+                "disabled Secret Keys marks the saved Pause Help binding as reassignable")
+            before := manager.GetConfiguration()["scratchpad.help"].bindings[1]
+            this.Assert(before = Keybindings.Parse("Pause + F12").signature,
+                "warning presentation never modifies the saved shortcut")
+            manager._CloseSettings()
+        }
+        finally manager.Stop()
     }
 
     static ScopesAndObservers() {

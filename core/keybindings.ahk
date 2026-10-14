@@ -915,6 +915,21 @@ class Keybindings {
     ; category-based, immediately saved keybinding screen
     ; =========================================================================
 
+    _SettingsTitle() {
+        if IsObject(SuiteState.App) && !SuiteState.App.ModuleActive("keyboard-layers")
+            return "Keybindings — Secret Keys disabled (⚠ = inactive)"
+
+        capsActive := IsObject(this.client) && this.client.LayerEnabled("caps")
+        pauseActive := IsObject(this.client) && this.client.LayerEnabled("pause")
+        if !capsActive && !pauseActive
+            return "Keybindings — CapsLock and Pause layers disabled (⚠ = inactive)"
+        if !capsActive
+            return "Keybindings — CapsLock layer disabled (⚠ = inactive)"
+        if !pauseActive
+            return "Keybindings — Pause layer disabled (⚠ = inactive)"
+        return "Keybindings"
+    }
+
     ShowSettings(*) {
         if !this.running
             throw Error("Start the keybinding manager first.")
@@ -932,7 +947,7 @@ class Keybindings {
         this.settingsWindowWidth := Min(this.settingsWindowWidth, Max(820, A_ScreenWidth - 100))
         this.settingsWindowHeight := Min(this.settingsWindowHeight, Max(320, A_ScreenHeight - 100))
 
-        window := SuiteGui("+Resize +MinSize820x320 +0x02000000", "Keybindings")
+        window := SuiteGui("+Resize +MinSize820x320 +0x02000000", this._SettingsTitle())
         this.settings := window
         this._SetSettingsIcons(window)
         this._RefreshGate()
@@ -1209,6 +1224,7 @@ class Keybindings {
     _RenderSettings(*) {
         if !IsObject(this.settings)
             return
+        this.settings.Title := this._SettingsTitle()
         search := this.settings["search"].Value
         this.participants[1].actions := this._LocalCatalogSnapshot()
         this.rows := Keybindings.DisplayRows(this.participants, search)
@@ -1252,7 +1268,12 @@ class Keybindings {
             setting := isLocal ? this.configuration[entry.id] : entry.setting
             for slot, control in [row.primary, row.secondary] {
                 parsed := Keybindings.Parse(setting.bindings[slot])
-                control.Text := IsObject(parsed) ? parsed.label : "+ add"
+                if !IsObject(parsed) {
+                    control.Text := "+ add"
+                    continue
+                }
+                inactiveLayer := parsed.layer != "normal" && this.BindingUnavailable(parsed) != ""
+                control.Text := (inactiveLayer ? "⚠ " : "") parsed.label
             }
             if isLocal {
                 defaults := this.actions[entry.id].defaults
