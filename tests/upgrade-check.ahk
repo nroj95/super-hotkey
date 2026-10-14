@@ -384,8 +384,9 @@ class SuiteUpgradeChecks {
             this.Assert(!this.RouteExists(manager, "keyboard-layers.help"),
                 "unassigned Secret Keys Help installs no shortcut")
             this.Assert(InStr(ModuleHelp.Text("keyboard-layers", manager),
-                "show Secret Keys help") > 0,
-                "Secret Keys help lists its newly configurable Help shortcut")
+                "GETTING STARTED") > 0
+                && !InStr(ModuleHelp.Text("keyboard-layers", manager), "CURRENT SAVED SHORTCUTS"),
+                "Secret Keys help provides a practical guide without a shortcut inventory")
             filtered := Keybindings.DisplayRows(manager.DiscoverParticipants(), "Inside the editor")
             this.Assert(filtered.Length > 2 && filtered[1].label = "Paper Pad"
                 && filtered[2].label = "Paper Pad / Inside the editor",
