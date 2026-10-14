@@ -223,6 +223,20 @@ class SuiteUpgradeChecks {
             app.manager._ResizeSettings(editor, 0, adjustedWidth, adjustedHeight)
             this.Assert(markerRow.title.Text = "layout-only marker",
                 "width-only resize does not re-render shortcut labels")
+            expectedPrimaryX := 323 + Floor((adjustedWidth - 820) * 0.48)
+            markerRow.primary.GetPos(&actualPrimaryX)
+            this.Assert(Abs(actualPrimaryX - expectedPrimaryX) <= 2,
+                "batched native movement matches logical control positions")
+            app.manager.settingsResetAll.GetPos(, &oldFooterY)
+            editor.Show("w1080 h700")
+            editor.GetClientPos(, , &shorterWidth, &shorterHeight)
+            app.manager._ResizeSettings(editor, 0, shorterWidth, shorterHeight)
+            app.manager.settingsResetAll.GetPos(, &newFooterY)
+            this.Assert(newFooterY < oldFooterY,
+                "live vertical resize moves the footer as one coherent layout")
+            editor.Show("w1080 h850")
+            editor.GetClientPos(, , &adjustedWidth, &adjustedHeight)
+            app.manager._ResizeSettings(editor, 0, adjustedWidth, adjustedHeight)
             app.manager._RenderSettings()
             this.Assert(expandedRows > initialRows, "resizing taller reveals more shortcut rows")
             app.manager.settingsScroll.GetPos(&scrollX)

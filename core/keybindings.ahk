@@ -888,7 +888,7 @@ class Keybindings {
         this.settingsWindowWidth := Min(this.settingsWindowWidth, Max(820, A_ScreenWidth - 100))
         this.settingsWindowHeight := Min(this.settingsWindowHeight, Max(320, A_ScreenHeight - 100))
 
-        window := SuiteGui("+Resize +MinSize820x320", "Keybindings")
+        window := SuiteGui("+Resize +MinSize820x320 +0x02000000", "Keybindings")
         this.settings := window
         this._SetSettingsIcons(window)
         this._RefreshGate()
@@ -954,24 +954,17 @@ class Keybindings {
             return
 
         this.settingsResizing := true
+        redrawSuspended := false
         try {
             if minMax = 0 {
                 this.settingsWindowWidth := width
                 this.settingsWindowHeight := height
             }
-            if widthChanged {
-                extraWidth := width - 820
-                primaryX := 323 + Floor(extraWidth * 0.48)
-                primaryWidth := 185 + Floor(extraWidth * 0.28)
-                secondaryX := primaryX + primaryWidth + 10
-                secondaryWidth := 170 + extraWidth - (primaryX - 323) - (primaryWidth - 185)
-                resetX := secondaryX + secondaryWidth + 10
-                searchWidth := 400 + Min(200, Floor(extraWidth * 0.5))
-                this.settingsSearch.Move(Floor((width - searchWidth) / 2), 13, searchWidth, 23)
-                this.settingsRefresh.Move(width - 122, 12, 88, 28)
-            }
-
+            positions := []
             if rowsChanged {
+                ; Only suspend painting when controls are created or shown/hidden.
+                SendMessage(0x000B, 0, 0, , window.Hwnd) ; WM_SETREDRAW
+                redrawSuspended := true
                 while this.settingsRowPool.Length < rowCount
                     this._AddSettingsRow()
                 this.visibleRows := []
@@ -987,6 +980,15 @@ class Keybindings {
                 }
             }
 
+            if widthChanged {
+                extraWidth := width - 820
+                searchWidth := 400 + Min(200, Floor(extraWidth * 0.5))
+                positions.Push({control: this.settingsSearch,
+                    x: Floor((width - searchWidth) / 2), y: 13, w: searchWidth, h: 23})
+                positions.Push({control: this.settingsRefresh,
+                    x: width - 122, y: 12, w: 88, h: 28})
+            }
+
             if widthChanged || rowsChanged {
                 extraWidth := width - 820
                 primaryX := 323 + Floor(extraWidth * 0.48)
@@ -996,27 +998,78 @@ class Keybindings {
                 resetX := secondaryX + secondaryWidth + 10
                 for index, row in this.visibleRows {
                     y := 48 + (index - 1) * 35
-                    row.title.Move(22, y + 6, primaryX - 33, 25)
-                    row.categoryTitle.Move(22, y + 6, width - 68, 25)
-                    row.primary.Move(primaryX, y, primaryWidth, 29)
-                    row.secondary.Move(secondaryX, y, secondaryWidth, 29)
-                    row.reset.Move(resetX, y, 76, 29)
+                    positions.Push({control: row.title,
+                        x: 22, y: y + 6, w: primaryX - 33, h: 25})
+                    positions.Push({control: row.categoryTitle,
+                        x: 22, y: y + 6, w: width - 68, h: 25})
+                    positions.Push({control: row.primary,
+                        x: primaryX, y: y, w: primaryWidth, h: 29})
+                    positions.Push({control: row.secondary,
+                        x: secondaryX, y: y, w: secondaryWidth, h: 29})
+                    positions.Push({control: row.reset,
+                        x: resetX, y: y, w: 76, h: 29})
                 }
-                this.settingsScroll.Move(width - 42, 48, 24, rowCount * 35)
+                positions.Push({control: this.settingsScroll,
+                    x: width - 42, y: 48, w: 24, h: rowCount * 35})
             }
 
             if widthChanged || heightChanged {
-                this.settingsDivider.Move(22, height - 64, width - 68, 2)
+                positions.Push({control: this.settingsDivider,
+                    x: 22, y: height - 64, w: width - 68, h: 2})
                 footerX := Floor(width / 2) - 166
-                this.settingsResetAll.Move(footerX, height - 49, 180, 31)
-                this.settingsDone.Move(footerX + 194, height - 49, 130, 31)
+                positions.Push({control: this.settingsResetAll,
+                    x: footerX, y: height - 49, w: 180, h: 31})
+                positions.Push({control: this.settingsDone,
+                    x: footerX + 194, y: height - 49, w: 130, h: 31})
             }
+            this._MoveSettingsControls(window, positions, width)
             if rowsChanged
                 this._RenderSettings()
             this.settingsRenderedWidth := width
             this.settingsRenderedHeight := height
         }
-        finally this.settingsResizing := false
+        finally {
+            if redrawSuspended {
+                SendMessage(0x000B, 1, 0, , window.Hwnd)
+                DllCall("RedrawWindow", "ptr", window.Hwnd, "ptr", 0, "ptr", 0,
+                    "uint", 0x185, "int") ; invalidate, erase and refresh child controls once
+            }
+            this.settingsResizing := false
+        }
+    }
+
+    _MoveSettingsControls(window, positions, logicalWidth) {
+        if !positions.Length
+            return
+        rect := Buffer(16, 0)
+        if !DllCall("GetClientRect", "ptr", window.Hwnd, "ptr", rect, "int")
+            throw OSError(A_LastError, "GetClientRect")
+        physicalWidth := NumGet(rect, 8, "int")
+        window.GetClientPos(, , &currentLogicalWidth)
+        scale := physicalWidth / currentLogicalWidth
+        if currentLogicalWidth <= 0 || scale <= 0
+            throw Error("Invalid Keybindings display scale.")
+
+        try {
+            batch := DllCall("BeginDeferWindowPos", "int", positions.Length, "ptr")
+            if !batch
+                throw OSError(A_LastError, "BeginDeferWindowPos")
+            for item in positions {
+                batch := DllCall("DeferWindowPos", "ptr", batch, "ptr", item.control.Hwnd,
+                    "ptr", 0, "int", Round(item.x * scale), "int", Round(item.y * scale),
+                    "int", Round(item.w * scale), "int", Round(item.h * scale),
+                    "uint", 0x114, "ptr") ; no Z-order/activation/pixel-copy
+                if !batch
+                    throw OSError(A_LastError, "DeferWindowPos")
+            }
+            if !DllCall("EndDeferWindowPos", "ptr", batch, "int")
+                throw OSError(A_LastError, "EndDeferWindowPos")
+        }
+        catch Error as failure {
+            SuiteState.Log.Error("Keybindings / resize batch", failure)
+            for item in positions
+                item.control.Move(item.x, item.y, item.w, item.h)
+        }
     }
 
     _SetSettingsIcons(window) {
