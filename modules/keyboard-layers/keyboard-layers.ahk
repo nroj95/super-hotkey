@@ -75,6 +75,13 @@ class LocalKeyboardLayers {
                 this.prefixes.Push(key)
             }
             this.hooksInstalled := true
+        } else {
+            ; Restore prefix interception only after the suite input gate reopens.
+            HotIf()
+            for key in this.prefixes {
+                Hotkey("$*" key, "On")
+                Hotkey("$*" key " Up", "On")
+            }
         }
         this.session := 1
         CPL.enabled := true
@@ -92,6 +99,15 @@ class LocalKeyboardLayers {
         this.session := 0
         CPL.enabled := false
         CPL_Reset("pause")
+        if this.hooksInstalled {
+            ; Turn off the registered prefix handlers so native CapsLock/Pause
+            ; input passes through while suspended or a Settings window is open.
+            HotIf()
+            for key in this.prefixes {
+                Hotkey("$*" key, "Off")
+                Hotkey("$*" key " Up", "Off")
+            }
+        }
         for route in this.bindings
             route.state := "paused"
     }

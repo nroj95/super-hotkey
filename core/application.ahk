@@ -28,6 +28,7 @@ class SuiteApplication {
         this.ui := 0
         this.stopping := false
         this.systemSuspended := false
+        this.hotkeysSuspended := false
         this.cascadeInitialized := false
         this.cascadeStarted := false
         this.scratchpadStarted := false
@@ -182,7 +183,8 @@ class SuiteApplication {
         modulesOpen := IsObject(this.ui) && this.ui.HasSettingsOpen()
         if !IsObject(this.manager) || this.manager.disposed
             return
-        this.manager.SetPaused(this.dryRun || this.stopping || this.systemSuspended || modulesOpen)
+        this.manager.SetPaused(this.dryRun || this.stopping
+            || this.systemSuspended || this.hotkeysSuspended || modulesOpen)
     }
 
     PowerEvent(event, *) {

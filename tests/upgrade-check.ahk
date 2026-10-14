@@ -65,6 +65,7 @@ class SuiteUpgradeChecks {
     static Run() {
         this.Preferences()
         this.IndependentLayers()
+        this.HotkeySuspension()
         this.DisabledModuleWarning()
         this.ScopesAndObservers()
         this.GeometryAndOwnership()
@@ -166,6 +167,58 @@ class SuiteUpgradeChecks {
                 }
             }
             finally manager.Stop()
+        }
+    }
+
+    static HotkeySuspension() {
+        app := SuiteApplication(true, SuiteChecks.directory "\hotkey-suspension")
+        app.InitializeCatalog()
+        manager := app.manager
+        try {
+            manager.SetPaused(true)
+            manager.Start()
+            app.ui := SuiteInterface(app)
+            app.ui.BuildTray()
+            app.hotkeysSuspended := true
+            app.dryRun := false
+            app.RefreshInputGate()
+            this.Assert(manager.paused && manager.gated,
+                "suspending the input manager does not require stopping the application")
+            if IsObject(manager.client)
+                this.Assert(!manager.client.session,
+                    "suspension releases the native CapsLock and Pause hooks")
+            this.Assert(!manager._Eligible(Keybindings.Parse("Ctrl + Alt + K").signature),
+                "ordinary configured hotkeys are unavailable while suspended")
+
+            app.systemSuspended := true
+            app.ui.ToggleHotkeys()
+            this.Assert(!app.hotkeysSuspended && manager.gated,
+                "resuming hotkeys cannot override a pending Windows suspend")
+            app.systemSuspended := false
+            app.RefreshInputGate()
+            this.Assert(!manager.paused && !manager.gated,
+                "hotkeys resume after every independent pause reason clears")
+            if IsObject(manager.client)
+                this.Assert(manager.client.session,
+                    "CapsLock and Pause layer hooks return when hotkeys resume")
+
+            manager.ShowSettings()
+            this.Assert(manager.gated, "opening Keybindings pauses inputs")
+            app.ui.ToggleHotkeys()
+            this.Assert(manager.gated && app.hotkeysSuspended,
+                "suspending while Keybindings is open keeps inputs gated")
+            manager._CloseSettings()
+            this.Assert(manager.gated && manager.paused,
+                "closing Keybindings does not bypass suspended hotkeys")
+            app.ui.ToggleHotkeys()
+            this.Assert(!manager.paused && !manager.gated,
+                "resuming from the tray restores normal hotkey handling")
+        }
+        finally {
+            app.dryRun := true
+            app.RefreshInputGate()
+            app.ui.CloseAll()
+            manager.Stop()
         }
     }
 
@@ -569,13 +622,14 @@ class SuiteUpgradeChecks {
             this.Assert(A_IconTip = "Super Hotkey v1.0.0 - dry run",
                 "tray hover text includes its assigned version and dry-run suffix")
             count := DllCall("GetMenuItemCount", "ptr", A_TrayMenu.Handle, "int")
-            this.Assert(count = 18,
-                "tray has unified module, log, startup, reload and reset commands")
+            this.Assert(count = 19,
+                "tray includes suspend hotkeys and an explicit app restart")
             loop count
                 this.Assert(!DllCall("GetSubMenu", "ptr", A_TrayMenu.Handle, "int", A_Index - 1, "ptr"),
                     "tray entry has no submenu: " A_Index)
             for item in [[10, "Verbose logging"], [11, "Open settings folder"],
-                [13, "Run at startup"], [14, "Reload"], [15, "Reset to defaults..."]] {
+                [13, "Run at startup"], [14, "Suspend hotkeys"],
+                [15, "Restart Super Hotkey"], [16, "Reset to defaults..."]] {
                 name := Buffer(256, 0)
                 DllCall("GetMenuStringW", "ptr", A_TrayMenu.Handle,
                     "uint", item[1], "ptr", name, "int", 128, "uint", 0x400, "int")
@@ -592,6 +646,18 @@ class SuiteUpgradeChecks {
                 "Run at startup is disabled during safe dry-run testing")
             this.Assert(!HasMethod(app.ui, "ShowAppSettings"),
                 "the redundant App settings window is removed")
+            hotkeyState := (*) => DllCall("GetMenuState", "ptr", A_TrayMenu.Handle,
+                "uint", 14, "uint", 0x400, "uint")
+            this.Assert(!(hotkeyState.Call() & 8) && !app.hotkeysSuspended,
+                "Suspend hotkeys starts unchecked")
+            app.ui.ToggleHotkeys()
+            this.Assert(app.hotkeysSuspended && app.manager.paused
+                && (hotkeyState.Call() & 8),
+                "Suspend hotkeys checks its menu item and gates the keybinding manager")
+            app.ui.ToggleHotkeys()
+            this.Assert(!app.hotkeysSuspended && !(hotkeyState.Call() & 8)
+                && app.manager.paused,
+                "Resume hotkeys preserves another pause reason, including dry run")
             app.ui.ToggleVerboseTray()
             this.Assert(SuiteState.Log.verbose && app.Settings.verbose
                 && (verboseStatus.Call() & 8),

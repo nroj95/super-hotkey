@@ -40,13 +40,34 @@ class SuiteInterface {
         A_TrayMenu.Add("Open settings folder", ObjBindMethod(this, "OpenSettingsFolder"))
         A_TrayMenu.Add()
         A_TrayMenu.Add("Run at startup", ObjBindMethod(this, "ToggleStartupTray"))
-        A_TrayMenu.Add("Reload", (*) => Reload())
+        A_TrayMenu.Add("Suspend hotkeys", ObjBindMethod(this, "ToggleHotkeys"))
+        A_TrayMenu.Add("Restart Super Hotkey", (*) => Reload())
         A_TrayMenu.Add("Reset to defaults...", ObjBindMethod(this, "ResetDefaults"))
         A_TrayMenu.Add()
         A_TrayMenu.Add("Exit", (*) => ExitApp())
         A_TrayMenu.Default := "Keybindings..."
         this.UpdateVerboseTray()
         this.UpdateStartupTray()
+        this.UpdateHotkeySuspension()
+    }
+
+    UpdateHotkeySuspension() {
+        if this.app.hotkeysSuspended
+            A_TrayMenu.Check("Suspend hotkeys")
+        else
+            A_TrayMenu.Uncheck("Suspend hotkeys")
+    }
+
+    ToggleHotkeys(*) {
+        if this.app.stopping
+            return
+        this.app.hotkeysSuspended := !this.app.hotkeysSuspended
+        this.app.RefreshInputGate()
+        if this.app.hotkeysSuspended
+            this.app.CancelInputs()
+        this.UpdateHotkeySuspension()
+        SuiteState.Log.Write("Core", "hotkeys " (this.app.hotkeysSuspended
+            ? "suspended" : "resumed"))
     }
 
     Existing(key) {
