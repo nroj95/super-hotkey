@@ -569,10 +569,29 @@ class SuiteUpgradeChecks {
             this.Assert(A_IconTip = "Super Hotkey v1.0.0 - dry run",
                 "tray hover text includes its assigned version and dry-run suffix")
             count := DllCall("GetMenuItemCount", "ptr", A_TrayMenu.Handle, "int")
-            this.Assert(count = 12, "tray has exactly the agreed flat entries and separators")
+            this.Assert(count = 16, "tray has the unified module, log, reload and reset commands")
             loop count
                 this.Assert(!DllCall("GetSubMenu", "ptr", A_TrayMenu.Handle, "int", A_Index - 1, "ptr"),
                     "tray entry has no submenu: " A_Index)
+            for item in [[10, "Verbose logging"], [12, "Reload"], [13, "Reset to defaults..."]] {
+                name := Buffer(256, 0)
+                DllCall("GetMenuStringW", "ptr", A_TrayMenu.Handle,
+                    "uint", item[1], "ptr", name, "int", 128, "uint", 0x400, "int")
+                this.Assert(StrGet(name, "UTF-16") = item[2],
+                    "tray exposes " item[2] " directly")
+            }
+            verboseStatus := (*) => DllCall("GetMenuState", "ptr", A_TrayMenu.Handle,
+                "uint", 10, "uint", 0x400, "uint")
+            this.Assert(!(verboseStatus.Call() & 8),
+                "verbose logging starts unchecked in the tray")
+            app.ui.ToggleVerboseTray()
+            this.Assert(SuiteState.Log.verbose && app.Settings.verbose
+                && (verboseStatus.Call() & 8),
+                "tray enables and checks persistent verbose logging")
+            app.ui.ToggleVerboseTray()
+            this.Assert(!SuiteState.Log.verbose && !app.Settings.verbose
+                && !(verboseStatus.Call() & 8),
+                "tray disables and unchecks verbose logging")
             firstEditor := app.manager.settings.Hwnd
             app.ShowKeybindings()
             this.Assert(app.manager.settings.Hwnd = firstEditor, "every Keybindings entry reuses the global editor")
@@ -713,6 +732,16 @@ class SuiteUpgradeChecks {
                     "Help opens at a smaller default size: " id)
                 this.AssertCentered(window, SuiteSettings.ModuleNames[id] " Help")
                 this.AssertResizeGrip(window, SuiteSettings.ModuleNames[id] " Help")
+                titlePart := app.ui.helpLayouts[id].header
+                statusPart := app.ui.helpLayouts[id].status
+                titlePart.GetPos(&headingX, , &headingW)
+                statusPart.GetPos(&statusX, , &statusW)
+                this.Assert(titlePart.Text = SuiteSettings.ModuleNames[id] " - "
+                    && statusPart.Text = "dry run; feature effects are inactive"
+                    && app.ui.helpLayouts[id].statusColor = "505050"
+                    && statusX = headingX + headingW
+                    && Abs(headingX + (headingW + statusW) / 2 - helpWidth / 2) <= 2,
+                    "Help module name and status are centered as one line: " id)
                 guideControl := window["helpText"]
                 guideControl.GetPos(, &textY, , &textHeight)
                 this.Assert(guideControl.Type = "Text"
@@ -912,8 +941,10 @@ class SuiteUpgradeChecks {
             app.ui.ShowHelp("scratchpad")
             this.Assert(IsObject(app.ui.windows["help:scratchpad"]),
                 "disabled modules still expose their How to use page")
-            this.Assert(app.ui.helpLayouts["scratchpad"].header.Text = "Paper Pad - disabled",
-                "disabled Help pages use a concise status")
+            this.Assert(app.ui.helpLayouts["scratchpad"].header.Text = "Paper Pad - "
+                && app.ui.helpLayouts["scratchpad"].status.Text = "disabled"
+                && app.ui.helpLayouts["scratchpad"].statusColor = "B02020",
+                "disabled Help pages show a centered red status")
             app.ui.CloseWindow("help:scratchpad")
             for page in ["log", "application-settings", "modules"] {
                 switch page {
@@ -942,9 +973,29 @@ class SuiteUpgradeChecks {
                 if page = "application-settings"
                     this.Assert(IsObject(window),
                         "startup and factory reset remain in app settings")
-                if page = "modules"
+                if page = "modules" {
                     this.Assert(app.ui.moduleControls.Count = 5,
                         "Modules presents all five renamed features")
+                    descriptionCount := 0
+                    for id in SuiteSettings.ModuleOrder {
+                        app.ui.moduleControls[id].GetPos(, &checkY, , &checkHeight)
+                        this.Assert(checkHeight < 40,
+                            "Module checkbox keeps its natural height: " id)
+                        for control in window {
+                            if control.Type != "Text"
+                                || control.Text != SuiteSettings.ModuleDescriptions[id]
+                                continue
+                            control.GetPos(, &descriptionY, , &descriptionHeight)
+                            this.Assert(descriptionY > checkY
+                                && descriptionHeight < 40
+                                && descriptionY + descriptionHeight <= checkY + 58,
+                                "Module description remains readable without overlap: " id)
+                            descriptionCount += 1
+                        }
+                    }
+                    this.Assert(descriptionCount = 5,
+                        "all five Module descriptions are actually present and visible")
+                }
                 window.Show("w" (layout.width + 100) " h" (layout.height + 130))
                 window.GetClientPos(, , &pageW, &pageH)
                 app.ui.ResizePage(page, window, 0, pageW, pageH)

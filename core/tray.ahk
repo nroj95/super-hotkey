@@ -36,9 +36,14 @@ class SuiteInterface {
             A_TrayMenu.Add(SuiteSettings.ModuleNames[id] "...", ObjBindMethod(this, "ShowHelp", id))
         A_TrayMenu.Add()
         A_TrayMenu.Add("Debug log...", ObjBindMethod(this, "OpenLog"))
+        A_TrayMenu.Add("Verbose logging", ObjBindMethod(this, "ToggleVerboseTray"))
+        A_TrayMenu.Add()
+        A_TrayMenu.Add("Reload", (*) => Reload())
+        A_TrayMenu.Add("Reset to defaults...", ObjBindMethod(this, "ResetDefaults"))
         A_TrayMenu.Add()
         A_TrayMenu.Add("Exit", (*) => ExitApp())
         A_TrayMenu.Default := "Keybindings..."
+        this.UpdateVerboseTray()
     }
 
     Existing(key) {
@@ -127,8 +132,8 @@ class SuiteInterface {
         positions := []
         for item in layout.controls {
             positions.Push({control: item.control, x: item.x, y: item.y,
-                w: Max(45, item.w + (item.stretchWidth ? dx : 0)),
-                h: Max(45, item.h + (item.stretchHeight ? dy : 0))})
+                w: item.stretchWidth ? Max(45, item.w + dx) : item.w,
+                h: item.stretchHeight ? Max(45, item.h + dy) : item.h})
         }
         positions.Push({control: layout.footer.divider, x: 20,
             y: height - 64, w: width - 40, h: 2})
@@ -266,7 +271,12 @@ class SuiteInterface {
             state := "dry run; feature effects are inactive"
         ; The original Window Cascade help used regular Cascadia Mono at 10 pt.
         window.SetFont("s10", "Cascadia Mono")
-        header := window.AddText("x20 y18 w860 h25", name " - " state)
+        header := window.AddText("x20 y18 w400 h25", name " - ")
+        statusColor := !this.app.ModuleActive(id) ? "B02020"
+            : this.app.dryRun ? "505050" : "008000"
+        window.SetFont("s10 c" statusColor, "Cascadia Mono")
+        status := window.AddText("x420 y18 w250 h25", state)
+        window.SetFont("s10 cDefault", "Cascadia Mono")
         content := window.AddText("x20 y55 w860 h455 vhelpText",
             ModuleHelp.Text(id, this.app.manager))
         buttons := []
@@ -279,8 +289,9 @@ class SuiteInterface {
         footer := this.Footer(window, buttons, 455, 900)
         width := 820
         height := 480
-        this.helpLayouts[id] := {header: header, content: content, footer: footer,
-            width: width, height: height, renderedWidth: 0, renderedHeight: 0}
+        this.helpLayouts[id] := {header: header, status: status, statusColor: statusColor,
+            content: content, footer: footer, width: width, height: height,
+            renderedWidth: 0, renderedHeight: 0}
         this.helpWindowIds[window.Hwnd] := id
         if !this.helpSizingInstalled {
             OnMessage(0x0214, this.helpSizingCallback)
@@ -304,8 +315,13 @@ class SuiteInterface {
             layout.height := height
         }
 
+        headerWidth := this.HelpHeadingWidth(window, layout.header)
+        statusWidth := this.HelpHeadingWidth(window, layout.status)
+        headerX := Floor((width - headerWidth - statusWidth) / 2)
         positions := [
-            {control: layout.header, x: 20, y: 18, w: width - 40, h: 25},
+            {control: layout.header, x: headerX, y: 18, w: headerWidth, h: 25},
+            {control: layout.status, x: headerX + headerWidth, y: 18,
+                w: statusWidth, h: 25},
             {control: layout.content, x: 20, y: 55, w: width - 40, h: height - 145},
             {control: layout.footer.divider, x: 20, y: height - 64, w: width - 40, h: 2}
         ]
@@ -318,6 +334,31 @@ class SuiteInterface {
         this.MoveHelpControls(window, positions)
         layout.renderedWidth := width
         layout.renderedHeight := height
+    }
+
+    HelpHeadingWidth(window, control) {
+        window.GetClientPos(, , &logicalWidth)
+        dimensions := Buffer(16, 0)
+        if !DllCall("GetClientRect", "ptr", window.Hwnd, "ptr", dimensions, "int")
+            throw OSError(A_LastError, "Measure Help heading")
+        scale := NumGet(dimensions, 8, "int") / Max(1, logicalWidth)
+        hdc := DllCall("GetDC", "ptr", window.Hwnd, "ptr")
+        if !hdc
+            throw OSError(A_LastError, "Get Help heading drawing context")
+        font := SendMessage(0x0031, 0, 0, , control.Hwnd)
+        previous := font ? DllCall("SelectObject", "ptr", hdc, "ptr", font, "ptr") : 0
+        try {
+            bounds := Buffer(8, 0)
+            if !DllCall("GetTextExtentPoint32W", "ptr", hdc, "str", control.Text,
+                "int", StrLen(control.Text), "ptr", bounds, "int")
+                throw OSError(A_LastError, "Measure Help heading text")
+            return Ceil(NumGet(bounds, 0, "int") / scale) + 3
+        }
+        finally {
+            if previous
+                DllCall("SelectObject", "ptr", hdc, "ptr", previous)
+            DllCall("ReleaseDC", "ptr", window.Hwnd, "ptr", hdc)
+        }
     }
 
     HelpTextHeight(id, clientWidth) {
@@ -747,13 +788,31 @@ class SuiteInterface {
         this.ShowPage("log", 800, 505, 720, 430)
     }
 
+    UpdateVerboseTray() {
+        if SuiteState.Log.verbose
+            A_TrayMenu.Check("Verbose logging")
+        else
+            A_TrayMenu.Uncheck("Verbose logging")
+    }
+
+    ApplyVerbose(enabled) {
+        this.app.Settings.Save(this.app.Settings.modules, this.app.Settings.layers, enabled)
+        SuiteState.Log.verbose := enabled
+        SuiteState.Log.Write("Core", "verbose debugging " (enabled ? "enabled" : "disabled"))
+        if this.windows.Has("log")
+            this.windows["log"]["verbose"].Value := enabled
+        this.UpdateVerboseTray()
+        this.RefreshLog()
+    }
+
+    ToggleVerboseTray(*) {
+        try this.ApplyVerbose(!SuiteState.Log.verbose)
+        catch Error as failure
+            this.Report(failure, "Core / logging preference")
+    }
+
     SetVerbose(control, *) {
-        try {
-            this.app.Settings.Save(this.app.Settings.modules, this.app.Settings.layers, control.Value != 0)
-            SuiteState.Log.verbose := control.Value != 0
-            SuiteState.Log.Write("Core", "verbose debugging " (control.Value ? "enabled" : "disabled"))
-            this.RefreshLog()
-        }
+        try this.ApplyVerbose(control.Value != 0)
         catch Error as failure {
             control.Value := SuiteState.Log.verbose
             this.Report(failure, "Core / logging preference")
@@ -798,7 +857,7 @@ class SuiteInterface {
         window.AddText("x20 y115 w760", "One startup entry for the suite. Existing standalone startup entries are never changed automatically.")
         window.AddText("x20 y170 w760", "Settings: " this.app.Settings.directory)
         this.Footer(window, [["Open folder", (*) => Run('explorer.exe "' this.app.Settings.directory '"'), 120],
-            ["Factory defaults...", ObjBindMethod(this, "FactoryDefaults"), 170],
+            ["Reset to defaults...", ObjBindMethod(this, "ResetDefaults"), 170],
             ["Reload", (*) => Reload(), 100],
             ["Close", ObjBindMethod(this, "CloseWindow", key), 100]], 260)
         this.ShowPage(key, 800, 310, 740, 285)
@@ -842,7 +901,7 @@ class SuiteInterface {
         }
     }
 
-    FactoryDefaults(*) {
+    ResetDefaults(*) {
         if MsgBox("Re-enable all five modules and both layers, and restore default shortcuts and preferences?"
             . "`n`nNotes, their folder, editor path, Notepad3 preferences and page state will be kept."
             . "`nA settings backup will be created. The suite will restart.",
@@ -860,11 +919,11 @@ class SuiteInterface {
                 choices[id] := true
             app.Settings.Save(choices, Map("caps", true, "pause", true), false)
             app.Settings.ResetModulePreferences()
-            SuiteState.Log.Write("Core", "factory preferences restored; backup: " backup)
+            SuiteState.Log.Write("Core", "defaults restored; backup: " backup)
             Reload()
         }
         catch Error as failure {
-            SuiteState.Log.Error("Core / factory reset", failure)
+            SuiteState.Log.Error("Core / reset to defaults", failure)
             MsgBox("The reset stopped. Some preferences may have changed; notes were not deleted."
                 . "`n`n" failure.Message "`n`nBackup: " backup, SuiteApplication.Name, "Icon!")
         }
