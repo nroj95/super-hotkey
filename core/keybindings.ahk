@@ -923,16 +923,16 @@ class Keybindings {
 
     _SettingsTitle() {
         if IsObject(SuiteState.App) && !SuiteState.App.ModuleActive("keyboard-layers")
-            return "Keybindings — Secret Keys disabled (⚠ = inactive)"
+            return "Keybindings — Secret Keys disabled"
 
         capsActive := IsObject(this.client) && this.client.LayerEnabled("caps")
         pauseActive := IsObject(this.client) && this.client.LayerEnabled("pause")
         if !capsActive && !pauseActive
-            return "Keybindings — CapsLock and Pause layers disabled (⚠ = inactive)"
+            return "Keybindings — CapsLock and Pause layers disabled"
         if !capsActive
-            return "Keybindings — CapsLock layer disabled (⚠ = inactive)"
+            return "Keybindings — CapsLock layer disabled"
         if !pauseActive
-            return "Keybindings — Pause layer disabled (⚠ = inactive)"
+            return "Keybindings — Pause layer disabled"
         return "Keybindings"
     }
 

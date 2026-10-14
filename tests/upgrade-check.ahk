@@ -77,9 +77,9 @@ class SuiteUpgradeChecks {
                 manager.ShowSettings()
                 expectedTitle := flags[1] && flags[2] ? "Keybindings"
                     : !flags[1] && !flags[2]
-                        ? "Keybindings — CapsLock and Pause layers disabled (⚠ = inactive)"
-                    : flags[1] ? "Keybindings — Pause layer disabled (⚠ = inactive)"
-                        : "Keybindings — CapsLock layer disabled (⚠ = inactive)"
+                        ? "Keybindings — CapsLock and Pause layers disabled"
+                    : flags[1] ? "Keybindings — Pause layer disabled"
+                        : "Keybindings — CapsLock layer disabled"
                 this.Assert(manager.settings.Title = expectedTitle,
                     "Keybindings title explains the disabled layer state: " label)
                 manager.settings["search"].Value := "open Keybindings"
@@ -128,7 +128,7 @@ class SuiteUpgradeChecks {
             manager.SetPaused(true)
             manager.Start()
             manager.ShowSettings()
-            this.Assert(manager.settings.Title = "Keybindings — Secret Keys disabled (⚠ = inactive)",
+            this.Assert(manager.settings.Title = "Keybindings — Secret Keys disabled",
                 "module-disabled Keybindings title describes the unavailable layers")
             manager.settings["search"].Value := "open Keybindings"
             manager._RenderSettings()
