@@ -211,13 +211,16 @@ class SuiteUpgradeChecks {
                 "Keybindings supports native edge resizing and maximizing")
             initialRows := app.manager.visibleRows.Length
             editor.Show("w1120 h850")
-            app.manager._ResizeSettings(editor, 0, 1120, 850)
+            editor.GetClientPos(, , &expandedWidth, &expandedHeight)
+            app.manager._ResizeSettings(editor, 0, expandedWidth, expandedHeight)
             expandedRows := app.manager.visibleRows.Length
             this.Assert(expandedRows > initialRows,
                 "live resizing immediately reveals more shortcut rows")
             markerRow := app.manager.visibleRows[1]
             markerRow.title.Text := "layout-only marker"
-            app.manager._ResizeSettings(editor, 0, 1080, 850)
+            editor.Show("w1080 h850")
+            editor.GetClientPos(, , &adjustedWidth, &adjustedHeight)
+            app.manager._ResizeSettings(editor, 0, adjustedWidth, adjustedHeight)
             this.Assert(markerRow.title.Text = "layout-only marker",
                 "width-only resize does not re-render shortcut labels")
             app.manager._RenderSettings()
@@ -229,15 +232,17 @@ class SuiteUpgradeChecks {
             this.Assert(Abs(doneY - (clientHeight - 49)) <= 2,
                 "done button stays pinned to the bottom")
             editor.Show("w820 h420")
-            app.manager._ResizeSettings(editor, 0, 820, 420)
+            editor.GetClientPos(, , &compactWidth, &compactHeight)
+            app.manager._ResizeSettings(editor, 0, compactWidth, compactHeight)
             this.Assert(app.manager.visibleRows.Length < expandedRows,
                 "resizing smaller reduces the visible row count without losing the catalog")
             app.manager._CloseSettings()
-            this.Assert(IniRead(app.manager.root "\window.ini", "Window", "Width") = "820"
-                && IniRead(app.manager.root "\window.ini", "Window", "Height") = "420",
+            this.Assert(IniRead(app.manager.root "\window.ini", "Window", "Width") = compactWidth
+                && IniRead(app.manager.root "\window.ini", "Window", "Height") = compactHeight,
                 "the chosen editor size is saved between openings")
             app.manager.ShowSettings()
-            this.Assert(app.manager.settingsWindowWidth = 820 && app.manager.settingsWindowHeight = 420,
+            this.Assert(app.manager.settingsWindowWidth = compactWidth
+                && app.manager.settingsWindowHeight = compactHeight,
                 "the editor restores its previous size")
             app.manager._CloseSettings()
             for id in SuiteSettings.ModuleOrder {
