@@ -812,8 +812,8 @@ class SuiteInterface {
         verbose.OnEvent("Click", ObjBindMethod(this, "SetVerbose"))
         window.AddText("x20 y50 w760", "Errors are always logged. Verbose diagnostics may include window titles and paths, not note or clipboard contents.")
         window.AddEdit("x20 y85 w760 h335 ReadOnly +VScroll vlog", SuiteState.Log.Read())
-        this.Footer(window, [["Refresh", ObjBindMethod(this, "RefreshLog"), 100],
-            ["Copy", ObjBindMethod(this, "CopyLog"), 100], ["Clear...", ObjBindMethod(this, "ClearLog"), 100],
+        this.Footer(window, [["Copy", ObjBindMethod(this, "CopyLog"), 100],
+            ["Clear...", ObjBindMethod(this, "ClearLog"), 100],
             ["Open file", ObjBindMethod(this, "OpenLogFile"), 115],
             ["Close", ObjBindMethod(this, "CloseWindow", "log"), 100]], 455)
         this.ShowPage("log", 800, 505, 720, 430)
