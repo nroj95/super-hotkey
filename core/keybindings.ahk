@@ -53,8 +53,7 @@ class Keybindings {
         this.wheelHookActive := false
         this.verticalScrollCallback := ObjBindMethod(this, "_VerticalScrollSettings")
         this.verticalScrollHookActive := false
-        this.enterSizeMoveCallback := ObjBindMethod(this, "_SettingsEnterSizeMove")
-        this.exitSizeMoveCallback := ObjBindMethod(this, "_SettingsExitSizeMove")
+
         this.captureMouse := Map()
         this.observers := []
         this.firstRun := false
@@ -915,29 +914,14 @@ class Keybindings {
         window.OnEvent("Escape", ObjBindMethod(this, "_RequestCloseSettings"))
         this.scrollPosition := 0
         this.settingsResizing := false
-        this.settingsDragActive := false
+        this.settingsRenderedWidth := 0
+        this.settingsRenderedHeight := 0
         this._ResizeSettings(window, 0, this.settingsWindowWidth, this.settingsWindowHeight)
         window.Show("w" this.settingsWindowWidth " h" this.settingsWindowHeight)
         OnMessage(0x020A, this.wheelCallback)
         this.wheelHookActive := true
         OnMessage(0x0115, this.verticalScrollCallback)
         this.verticalScrollHookActive := true
-        OnMessage(0x0231, this.enterSizeMoveCallback) ; WM_ENTERSIZEMOVE
-        OnMessage(0x0232, this.exitSizeMoveCallback)  ; WM_EXITSIZEMOVE
-    }
-
-    _SettingsEnterSizeMove(wParam, lParam, message, hwnd) {
-        if IsObject(this.settings) && hwnd = this.settings.Hwnd
-            this.settingsDragActive := true
-    }
-
-    _SettingsExitSizeMove(wParam, lParam, message, hwnd) {
-        if !IsObject(this.settings) || hwnd != this.settings.Hwnd
-            return
-        this.settingsDragActive := false
-        this.settings.GetClientPos(, , &width, &height)
-        if width != this.settingsRenderedWidth || height != this.settingsRenderedHeight
-            this._ResizeSettings(this.settings, 0, width, height)
     }
 
     _AddSettingsRow() {
@@ -958,56 +942,77 @@ class Keybindings {
     _ResizeSettings(window, minMax, width, height) {
         if !IsObject(this.settings) || this.settings != window || minMax = -1
             return
-        if this.settingsDragActive && minMax = 0
-            return
         if this.settingsResizing
             return
+        width := Max(820, width)
+        height := Max(320, height)
+        widthChanged := width != this.settingsRenderedWidth
+        heightChanged := height != this.settingsRenderedHeight
+        rowCount := Min(128, Max(4, Floor((height - 120) / 35)))
+        rowsChanged := rowCount != this.visibleRows.Length
+        if !widthChanged && !heightChanged && !rowsChanged
+            return
+
         this.settingsResizing := true
         try {
-            width := Max(820, width)
-            height := Max(320, height)
             if minMax = 0 {
                 this.settingsWindowWidth := width
                 this.settingsWindowHeight := height
             }
-
-            extraWidth := width - 820
-            primaryX := 323 + Floor(extraWidth * 0.48)
-            primaryWidth := 185 + Floor(extraWidth * 0.28)
-            secondaryX := primaryX + primaryWidth + 10
-            secondaryWidth := 170 + extraWidth - (primaryX - 323) - (primaryWidth - 185)
-            resetX := secondaryX + secondaryWidth + 10
-            searchWidth := 400 + Min(200, Floor(extraWidth * 0.5))
-            this.settingsSearch.Move(Floor((width - searchWidth) / 2), 13, searchWidth, 23)
-            this.settingsRefresh.Move(width - 122, 12, 88, 28)
-
-            rowCount := Min(128, Max(4, Floor((height - 120) / 35)))
-            while this.settingsRowPool.Length < rowCount
-                this._AddSettingsRow()
-            this.visibleRows := []
-            for index, row in this.settingsRowPool {
-                if index > rowCount {
-                    row.title.Visible := false
-                    row.categoryTitle.Visible := false
-                    row.primary.Visible := false
-                    row.secondary.Visible := false
-                    row.reset.Visible := false
-                    continue
-                }
-                this.visibleRows.Push(row)
-                y := 48 + (index - 1) * 35
-                row.title.Move(22, y + 6, primaryX - 33, 25)
-                row.categoryTitle.Move(22, y + 6, width - 68, 25)
-                row.primary.Move(primaryX, y, primaryWidth, 29)
-                row.secondary.Move(secondaryX, y, secondaryWidth, 29)
-                row.reset.Move(resetX, y, 76, 29)
+            if widthChanged {
+                extraWidth := width - 820
+                primaryX := 323 + Floor(extraWidth * 0.48)
+                primaryWidth := 185 + Floor(extraWidth * 0.28)
+                secondaryX := primaryX + primaryWidth + 10
+                secondaryWidth := 170 + extraWidth - (primaryX - 323) - (primaryWidth - 185)
+                resetX := secondaryX + secondaryWidth + 10
+                searchWidth := 400 + Min(200, Floor(extraWidth * 0.5))
+                this.settingsSearch.Move(Floor((width - searchWidth) / 2), 13, searchWidth, 23)
+                this.settingsRefresh.Move(width - 122, 12, 88, 28)
             }
-            this.settingsScroll.Move(width - 42, 48, 24, rowCount * 35)
-            this.settingsDivider.Move(22, height - 64, width - 68, 2)
-            footerX := Floor(width / 2) - 166
-            this.settingsResetAll.Move(footerX, height - 49, 180, 31)
-            this.settingsDone.Move(footerX + 194, height - 49, 130, 31)
-            this._RenderSettings()
+
+            if rowsChanged {
+                while this.settingsRowPool.Length < rowCount
+                    this._AddSettingsRow()
+                this.visibleRows := []
+                for index, row in this.settingsRowPool {
+                    if index > rowCount {
+                        row.title.Visible := false
+                        row.categoryTitle.Visible := false
+                        row.primary.Visible := false
+                        row.secondary.Visible := false
+                        row.reset.Visible := false
+                    } else
+                        this.visibleRows.Push(row)
+                }
+            }
+
+            if widthChanged || rowsChanged {
+                extraWidth := width - 820
+                primaryX := 323 + Floor(extraWidth * 0.48)
+                primaryWidth := 185 + Floor(extraWidth * 0.28)
+                secondaryX := primaryX + primaryWidth + 10
+                secondaryWidth := 170 + extraWidth - (primaryX - 323) - (primaryWidth - 185)
+                resetX := secondaryX + secondaryWidth + 10
+                for index, row in this.visibleRows {
+                    y := 48 + (index - 1) * 35
+                    row.title.Move(22, y + 6, primaryX - 33, 25)
+                    row.categoryTitle.Move(22, y + 6, width - 68, 25)
+                    row.primary.Move(primaryX, y, primaryWidth, 29)
+                    row.secondary.Move(secondaryX, y, secondaryWidth, 29)
+                    row.reset.Move(resetX, y, 76, 29)
+                }
+                this.settingsScroll.Move(width - 42, 48, 24, rowCount * 35)
+            }
+
+            if widthChanged || heightChanged {
+                this.settingsDivider.Move(22, height - 64, width - 68, 2)
+                footerX := Floor(width / 2) - 166
+                this.settingsResetAll.Move(footerX, height - 49, 180, 31)
+                this.settingsDone.Move(footerX + 194, height - 49, 130, 31)
+            }
+            if rowsChanged
+                this._RenderSettings()
             this.settingsRenderedWidth := width
             this.settingsRenderedHeight := height
         }
@@ -1201,9 +1206,6 @@ class Keybindings {
 
     _CloseSettings(*) {
         this._EndRecording()
-        OnMessage(0x0231, this.enterSizeMoveCallback, 0)
-        OnMessage(0x0232, this.exitSizeMoveCallback, 0)
-        this.settingsDragActive := false
         if this.wheelHookActive {
             OnMessage(0x020A, this.wheelCallback, 0)
             this.wheelHookActive := false

@@ -210,13 +210,17 @@ class SuiteUpgradeChecks {
             this.Assert(!!(editorStyle & 0x00040000) && !!(editorStyle & 0x00010000),
                 "Keybindings supports native edge resizing and maximizing")
             initialRows := app.manager.visibleRows.Length
-            app.manager._SettingsEnterSizeMove(0, 0, 0, editor.Hwnd)
             editor.Show("w1120 h850")
             app.manager._ResizeSettings(editor, 0, 1120, 850)
-            this.Assert(app.manager.visibleRows.Length = initialRows,
-                "continuous native drag leaves shortcut rows untouched")
-            app.manager._SettingsExitSizeMove(0, 0, 0, editor.Hwnd)
             expandedRows := app.manager.visibleRows.Length
+            this.Assert(expandedRows > initialRows,
+                "live resizing immediately reveals more shortcut rows")
+            markerRow := app.manager.visibleRows[1]
+            markerRow.title.Text := "layout-only marker"
+            app.manager._ResizeSettings(editor, 0, 1080, 850)
+            this.Assert(markerRow.title.Text = "layout-only marker",
+                "width-only resize does not re-render shortcut labels")
+            app.manager._RenderSettings()
             this.Assert(expandedRows > initialRows, "resizing taller reveals more shortcut rows")
             app.manager.settingsScroll.GetPos(&scrollX)
             this.Assert(scrollX > 950, "scrollbar stays anchored to the right edge")
