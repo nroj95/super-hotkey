@@ -73,7 +73,7 @@ InitializeCascadeKeybindings(manager)
 CascadeAddAction(manager, id, label, commandId, binding, parameter := 0)
 {
     manager.AddAction("window-cascade." id, label, CascadeBindingEvent.Bind(commandId, parameter),
-        [binding], {category: commandId < 0 ? "Super Hotkey World" : "Cascade Kingdom",
+        [binding], {category: commandId < 0 ? "Global" : "Cascade Kingdom",
             available: (*) => commandId < 0 || SuiteState.App.ModuleActive("window-cascade")})
 }
 

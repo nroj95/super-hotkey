@@ -121,7 +121,7 @@ class SuiteApplication {
         this.manager := Keybindings("super-hotkey-world", SuiteApplication.Name, options)
         this.manager.RegisterScope("paper-pad", PaperPadWindowActive)
         this.manager.AddAction("core.keybindings", "open Keybindings", ObjBindMethod(this, "OpenBindingsEvent"),
-            ["Caps + K", "Ctrl + Alt + K"], {category: "Super Hotkey World"})
+            ["Caps + K", "Ctrl + Alt + K"], {category: "Global"})
         this.power := PowerHotkeys(this.manager, this.dryRun)
         WindowCascadeModule.Register(this.manager)
         ScratchpadModule.Register(this.manager)

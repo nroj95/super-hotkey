@@ -187,9 +187,9 @@ class Keybindings {
             orderedModules := []
             placed := Map()
             if participant.id = participants[1].id {
-                if modules.Has("Super Hotkey World") {
-                    orderedModules.Push("Super Hotkey World")
-                    placed["Super Hotkey World"] := true
+                if modules.Has("Global") {
+                    orderedModules.Push("Global")
+                    placed["Global"] := true
                 }
                 for moduleId in SuiteSettings.ModuleOrder {
                     if moduleId = "keyboard-layers"

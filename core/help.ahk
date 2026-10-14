@@ -57,7 +57,7 @@ class ModuleHelp {
         text .= "`r`n`r`nCURRENT SAVED SHORTCUTS`r`n"
         configuration := manager.GetConfiguration()
         for actionId, action in manager.actions {
-            if InStr(actionId, id ".") != 1 || action.category = "Super Hotkey World"
+            if InStr(actionId, id ".") != 1 || action.category = "Global"
                 continue
             labels := []
             for encoded in configuration[actionId].bindings {

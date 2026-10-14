@@ -219,6 +219,13 @@ class SuiteUpgradeChecks {
                 "large coherent Power-Up Utilities feature sets have their own headings")
             this.Assert(groups["Power-Up Utilities"] > 0,
                 "individual utilities remain directly under Power-Up Utilities")
+            this.Assert(manager.actions["core.keybindings"].category = "Global"
+                && manager.actions["window-cascade.copy-log"].category = "Global"
+                && manager.actions["window-cascade.reset-log"].category = "Global",
+                "core and debug actions share one Global display heading")
+            this.Assert(manager.actions["core.keybindings"].id = "core.keybindings"
+                && manager.actions["window-cascade.copy-log"].id = "window-cascade.copy-log",
+                "Global rename leaves saved action IDs unchanged")
             rows := Keybindings.DisplayRows(manager.DiscoverParticipants())
             mainHeadings := []
             activeParent := ""
@@ -235,7 +242,7 @@ class SuiteUpgradeChecks {
                     mainHeadings.Push(row.label)
                 }
             }
-            expectedOrder := ["Super Hotkey World", "Cascade Kingdom",
+            expectedOrder := ["Global", "Cascade Kingdom",
                 "Wonder Windows", "Power-Up Utilities", "Paper Pad"]
             this.Assert(mainHeadings.Length = expectedOrder.Length,
                 "Keybindings includes exactly the five assignable sections")
