@@ -519,7 +519,6 @@ class SuiteInterface {
             window.AddText("x42 y" (y + 25) " w518", SuiteSettings.ModuleDescriptions[id])
             y += 58
         }
-        window.AddText("x20 y340 w560", "Disabled modules keep their assignments. Their help remains available in the tray.")
         this.Footer(window, [["Apply and restart", ObjBindMethod(this, "SaveModules"), 160],
             ["Cancel", ObjBindMethod(this, "CloseModules"), 100]], 410, 600)
         this.ShowPage("modules", 600, 460, 580, 440)
@@ -756,11 +755,14 @@ class SuiteInterface {
             return
         window := this.NewWindow(key, "Wonder Windows - Settings", true)
         snap := WW_GetNativeWindowsSnapState()
-        status := "Windows Snap: " (snap < 0 ? "unknown" : snap ? "on" : "off")
-            . "`r`nScreenGrid: " (WW_IsScreenGridRunning() ? "running" : "not running")
-            . "`r`nFancyZones: " (WW_IsFancyZonesRunning() ? "running" : "not running")
-        window.AddText("x20 y20 w760", "Use one drag-snapping tool at a time. ScreenGrid is optional; FancyZones remains supported.")
-        window.AddText("x20 y80 w760", status)
+        window.AddText("x20 y20 w760",
+            "Use one drag-snapping tool at a time. ScreenGrid is optional; FancyZones remains supported.")
+        this.WonderStatus(window, "Windows Snap", snap < 0 ? "unknown" : snap ? "on" : "off",
+            80, "snapStatus")
+        this.WonderStatus(window, "ScreenGrid", WW_IsScreenGridRunning() ? "running" : "not running",
+            105, "screenGridStatus")
+        this.WonderStatus(window, "FancyZones", WW_IsFancyZonesRunning() ? "running" : "not running",
+            130, "fancyZonesStatus")
         window.AddText("x20 y180 w760", "Windows and PowerToys preferences are not changed at startup."
             . "`nThe actions below either open settings or ask for confirmation before applying changes."
             . "`nFancyZones owns its zone-window switching shortcuts; they are not registered twice here.")
@@ -770,6 +772,21 @@ class SuiteInterface {
             ["FancyZones...", ObjBindMethod(this, "WonderAction", "fancyzones"), 135],
             ["Back", ObjBindMethod(this, "BackToHelp", "win-key-overhaul"), 90]], 290)
         this.ShowPage(key, 800, 340, 740, 320)
+    }
+
+    WonderStatusColor(value) {
+        switch value {
+            case "on", "running": return "008000"
+            case "off", "not running": return "B02020"
+            default: return "505050"
+        }
+    }
+
+    WonderStatus(window, label, value, y, controlName) {
+        window.AddText("x20 y" y " w150 h23", label ":")
+        window.SetFont("s10 c" this.WonderStatusColor(value), "Cascadia Mono")
+        window.AddText("x175 y" y " w220 h23 v" controlName, value)
+        window.SetFont("s10 cDefault", "Cascadia Mono")
     }
 
     WonderAction(action, *) {

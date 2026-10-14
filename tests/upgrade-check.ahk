@@ -708,10 +708,10 @@ class SuiteUpgradeChecks {
             }
             sameFont := true
             for index, weight in weights
-                if weight != 600 || sizes[index] != sizes[1]
+                if weight != 400 || sizes[index] != sizes[1]
                     sameFont := false
             this.Assert(sameFont,
-                "all Keybindings text uses the same stronger font weight and size")
+                "all Keybindings text uses the same regular font weight and size")
             consistentFamily := true
             for fontFace in faces
                 if fontFace != "Cascadia Mono" && fontFace != "Consolas"
@@ -949,6 +949,35 @@ class SuiteUpgradeChecks {
                         "Settings replaces Help rather than stacking over it: " id)
                     settings := app.ui.windows["settings:" id]
                     settings.GetClientPos(, , &settingsW, &settingsH)
+                    if id = "win-key-overhaul" {
+                        for pair in [["snapStatus", ["on", "off", "unknown"]],
+                            ["screenGridStatus", ["running", "not running"]],
+                            ["fancyZonesStatus", ["running", "not running"]]] {
+                            statusValue := settings[pair[1]].Text
+                            allowed := false
+                            for permitted in pair[2]
+                                if statusValue = permitted
+                                    allowed := true
+                            this.Assert(allowed,
+                                "Wonder Windows shows an explicit " pair[1] " status")
+                        }
+                        this.Assert(app.ui.WonderStatusColor("running") = "008000"
+                            && app.ui.WonderStatusColor("on") = "008000"
+                            && app.ui.WonderStatusColor("off") = "B02020"
+                            && app.ui.WonderStatusColor("not running") = "B02020"
+                            && app.ui.WonderStatusColor("unknown") = "505050",
+                            "Wonder Windows status values use green, red or neutral colors")
+                        statusCoords := []
+                        for name in ["snapStatus", "screenGridStatus", "fancyZonesStatus"] {
+                            settings[name].GetPos(&statusX, &statusY)
+                            statusCoords.Push(statusY)
+                            this.Assert(statusX = 175,
+                                "Wonder Windows " name " value is aligned separately from its label")
+                        }
+                        this.Assert(statusCoords[1] < statusCoords[2]
+                            && statusCoords[2] < statusCoords[3],
+                            "Wonder Windows status rows are spaced in reading order")
+                    }
                     this.Assert(app.ui.pageLayouts.Has("settings:" id)
                         && !!(WinGetStyle("ahk_id " settings.Hwnd) & 0x00040000),
                         "module Settings are resizable: " id)
@@ -1056,6 +1085,12 @@ class SuiteUpgradeChecks {
                 if page = "modules" {
                     this.Assert(app.ui.moduleControls.Count = 5,
                         "Modules presents all five renamed features")
+                    obsoleteLine := false
+                    for control in window
+                        if control.Type = "Text" && InStr(control.Text, "Disabled modules keep")
+                            obsoleteLine := true
+                    this.Assert(!obsoleteLine,
+                        "Modules no longer has the redundant line under Secret Keys")
                     appSettingsFound := false
                     for control in window
                         if control.Type = "Button" && control.Text = "App settings..."
