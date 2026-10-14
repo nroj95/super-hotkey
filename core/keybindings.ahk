@@ -928,7 +928,8 @@ class Keybindings {
         this.settings := window
         this._SetSettingsIcons(window)
         this._RefreshGate()
-        window.SetFont("s10", "Segoe UI")
+        ; Keep headings, shortcut labels, buttons and search at one readable weight.
+        window.SetFont("s10 w600", "Segoe UI")
         this.settingsSearch := window.AddEdit("x210 y13 w400 vsearch")
         DllCall("SendMessageW", "ptr", this.settingsSearch.Hwnd, "uint", 0x1501,
             "uptr", 1, "str", "search... (right-click a shortcut to type it)", "ptr")

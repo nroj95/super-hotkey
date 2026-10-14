@@ -389,6 +389,30 @@ class SuiteUpgradeChecks {
             editorStyle := WinGetStyle("ahk_id " editor.Hwnd)
             this.Assert(!!(editorStyle & 0x00040000) && !!(editorStyle & 0x00010000),
                 "Keybindings supports native edge resizing and maximizing")
+            controls := [app.manager.visibleRows[1].title,
+                app.manager.visibleRows[1].categoryTitle,
+                app.manager.visibleRows[1].primary,
+                app.manager.visibleRows[1].secondary,
+                app.manager.visibleRows[1].reset,
+                app.manager.settingsSearch, app.manager.settingsRefresh,
+                app.manager.settingsResetAll, app.manager.settingsDone]
+            weights := []
+            sizes := []
+            for control in controls {
+                fontHandle := SendMessage(0x0031, 0, 0, , control.Hwnd) ; WM_GETFONT
+                fontData := Buffer(92, 0) ; LOGFONTW
+                this.Assert(fontHandle && DllCall("GetObjectW", "ptr", fontHandle,
+                    "int", fontData.Size, "ptr", fontData, "int") = fontData.Size,
+                    "Keybindings control exposes its font")
+                weights.Push(NumGet(fontData, 16, "int"))
+                sizes.Push(NumGet(fontData, 0, "int"))
+            }
+            sameFont := true
+            for index, weight in weights
+                if weight != 600 || sizes[index] != sizes[1]
+                    sameFont := false
+            this.Assert(sameFont,
+                "all Keybindings text uses the same stronger font weight and size")
             initialRows := app.manager.visibleRows.Length
             editor.Show("w1120 h850")
             editor.GetClientPos(, , &expandedWidth, &expandedHeight)
