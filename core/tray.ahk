@@ -11,6 +11,10 @@ class SuiteInterface {
         this.moduleControls := Map()
         this.helpLayouts := Map()
         this.helpSizePath := app.Settings.directory "\help-window.ini"
+        this.footerButtons := Map()
+        this.footerDrawCallback := ObjBindMethod(this, "DrawFooterButton")
+        this.footerDrawInstalled := false
+        this.footerPaintCount := 0
         this.startupPath := A_Startup "\Super Hotkey.lnk"
         this.legacyStartupPath := A_Startup "\Super Hotkey World.lnk"
     }
@@ -64,6 +68,11 @@ class SuiteInterface {
         for item in buttons {
             buttonWidth := item.Length >= 3 ? item[3] : 130
             control := window.AddButton("x" x " y" y " w" buttonWidth " h30", item[1])
+            this.footerButtons[control.Hwnd] := window.Hwnd
+            if !this.footerDrawInstalled {
+                OnMessage(0x004E, this.footerDrawCallback)
+                this.footerDrawInstalled := true
+            }
             control.OnEvent("Click", item[2])
             controls.Push({button: control, width: buttonWidth})
             x += buttonWidth + 10
@@ -71,8 +80,71 @@ class SuiteInterface {
         return {divider: divider, buttons: controls, total: total}
     }
 
+    DrawFooterButton(wParam, lParam, messageId, receiverHwnd) {
+        hwnd := NumGet(lParam, 0, "ptr")
+        if !this.footerButtons.Has(hwnd) || this.footerButtons[hwnd] != receiverHwnd
+            || NumGet(lParam, 16, "int") != -12 ; NM_CUSTOMDRAW
+            || NumGet(lParam, 24, "uint") != 1 ; CDDS_PREPAINT
+            return
+
+        hdc := NumGet(lParam, 32, "ptr")
+        state := NumGet(lParam, 64, "uint")
+        pressed := !!(state & 0x1)
+        hovered := !!(state & 0x40)
+        enabled := !!DllCall("IsWindowEnabled", "ptr", hwnd, "int")
+        fillColor := pressed ? 0xE5E5E5 : hovered ? 0xF5F5F5 : 0xFFFFFF
+        frameColor := 0xC9C9C9
+        textColor := enabled ? 0x202020 : 0x999999
+        fillBrush := DllCall("CreateSolidBrush", "uint", fillColor, "ptr")
+        frameBrush := DllCall("CreateSolidBrush", "uint", frameColor, "ptr")
+        if !fillBrush || !frameBrush {
+            if fillBrush
+                DllCall("DeleteObject", "ptr", fillBrush)
+            if frameBrush
+                DllCall("DeleteObject", "ptr", frameBrush)
+            return
+        }
+
+        bounds := Buffer(16, 0)
+        DllCall("RtlMoveMemory", "ptr", bounds, "ptr", lParam + 40, "uptr", 16)
+        try {
+            DllCall("FillRect", "ptr", hdc, "ptr", bounds, "ptr", fillBrush, "int")
+            DllCall("FrameRect", "ptr", hdc, "ptr", bounds, "ptr", frameBrush, "int")
+            inner := Buffer(16, 0)
+            DllCall("RtlMoveMemory", "ptr", inner, "ptr", bounds, "uptr", 16)
+            DllCall("InflateRect", "ptr", inner, "int", -5, "int", -3, "int")
+            length := DllCall("GetWindowTextLengthW", "ptr", hwnd, "int")
+            label := Buffer((length + 1) * 2, 0)
+            DllCall("GetWindowTextW", "ptr", hwnd, "ptr", label, "int", length + 1, "int")
+            font := DllCall("SendMessageW", "ptr", hwnd, "uint", 0x31,
+                "uptr", 0, "ptr", 0, "ptr")
+            originalFont := font ? DllCall("SelectObject", "ptr", hdc, "ptr", font, "ptr") : 0
+            originalMode := DllCall("SetBkMode", "ptr", hdc, "int", 1, "int")
+            originalText := DllCall("SetTextColor", "ptr", hdc, "uint", textColor, "uint")
+            try DllCall("DrawTextW", "ptr", hdc, "ptr", label, "int", -1,
+                "ptr", inner, "uint", 0x8825, "int")
+            finally {
+                DllCall("SetTextColor", "ptr", hdc, "uint", originalText)
+                DllCall("SetBkMode", "ptr", hdc, "int", originalMode)
+                if originalFont
+                    DllCall("SelectObject", "ptr", hdc, "ptr", originalFont)
+            }
+            if state & 0x10
+                DllCall("DrawFocusRect", "ptr", hdc, "ptr", inner, "int")
+            this.footerPaintCount += 1
+        }
+        finally {
+            DllCall("DeleteObject", "ptr", fillBrush)
+            DllCall("DeleteObject", "ptr", frameBrush)
+        }
+        return 4 ; CDRF_SKIPDEFAULT
+    }
+
     CloseWindow(key, *) {
         if this.windows.Has(key) {
+            for control in this.windows[key]
+                if control.Type = "Button" && this.footerButtons.Has(control.Hwnd)
+                    this.footerButtons.Delete(control.Hwnd)
             if InStr(key, "help:") = 1 {
                 id := SubStr(key, 6)
                 if this.helpLayouts.Has(id) {
@@ -99,6 +171,11 @@ class SuiteInterface {
     CloseAll() {
         for key in this.windows.Clone()
             this.CloseWindow(key)
+        if this.footerDrawInstalled {
+            OnMessage(0x004E, this.footerDrawCallback, 0)
+            this.footerDrawInstalled := false
+        }
+        this.footerButtons.Clear()
     }
 
     HasSettingsOpen() => this.configurationWindows.Count != 0
@@ -136,7 +213,6 @@ class SuiteInterface {
         buttons.Push(["Keybindings...", ObjBindMethod(this, "OpenKeybindingsFromHelp", id), 135])
         buttons.Push(["Close", ObjBindMethod(this, "CloseWindow", key), 100])
         footer := this.Footer(window, buttons, 455, 900)
-        footer.divider.Visible := false
         savedWidth := IniRead(this.helpSizePath, "Window", "Width", "900")
         savedHeight := IniRead(this.helpSizePath, "Window", "Height", "520")
         width := IsNumber(savedWidth) ? Max(720, Min(2400, Round(savedWidth))) : 900
@@ -166,7 +242,8 @@ class SuiteInterface {
 
         positions := [
             {control: layout.header, x: 20, y: 18, w: width - 40, h: 25},
-            {control: layout.content, x: 20, y: 55, w: width - 40, h: height - 145}
+            {control: layout.content, x: 20, y: 55, w: width - 40, h: height - 145},
+            {control: layout.footer.divider, x: 20, y: height - 64, w: width - 40, h: 2}
         ]
         x := width - 10 - layout.footer.total
         for item in layout.footer.buttons {

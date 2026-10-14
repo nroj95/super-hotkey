@@ -637,8 +637,11 @@ class SuiteUpgradeChecks {
                 guideControl := window["helpText"]
                 guideControl.GetPos(, &textY, , &textHeight)
                 this.Assert(guideControl.Type = "Text"
-                    && !app.ui.helpLayouts[id].footer.divider.Visible,
-                    "help is one plain GUI surface with no inner box or footer separator: " id)
+                    && app.ui.helpLayouts[id].footer.divider.Visible,
+                    "help is plain GUI text with a shared footer divider: " id)
+                app.ui.helpLayouts[id].footer.divider.GetPos(, &dividerY)
+                this.Assert(dividerY > textY + textHeight,
+                    "the Help footer divider stays below the guide: " id)
                 fontHandle := SendMessage(0x0031, 0, 0, , guideControl.Hwnd)
                 fontData := Buffer(92, 0)
                 this.Assert(fontHandle && DllCall("GetObjectW", "ptr", fontHandle,
@@ -665,6 +668,10 @@ class SuiteUpgradeChecks {
                 this.Assert(app.ui.helpLayouts[id].renderedWidth = helpWidth
                     && app.ui.helpLayouts[id].renderedHeight = helpHeight,
                     "help live resizing processes one coherent control layout: " id)
+                app.ui.helpLayouts[id].footer.divider.GetPos(, &dividerY, &dividerWidth)
+                this.Assert(dividerY = helpHeight - 64
+                    && dividerWidth = helpWidth - 40,
+                    "help footer divider stays anchored during resizing: " id)
                 for iteration in [1, 2, 3] {
                     window.Show("w" (960 + iteration * 25) " h" (610 + iteration * 20))
                     window.GetClientPos(, , &helpWidth, &helpHeight)
@@ -686,7 +693,15 @@ class SuiteUpgradeChecks {
                     this.Assert(buttonY > textY + textHeight
                         && buttonX >= 0 && buttonX + buttonWidth <= helpWidth,
                         "help navigation stays in the footer: " id "/" control.Text)
+                    this.Assert(app.ui.footerButtons.Has(control.Hwnd),
+                        "help button uses the shared square-corner styling: " id "/" control.Text)
                 }
+                beforePaint := app.ui.footerPaintCount
+                for item in app.ui.helpLayouts[id].footer.buttons
+                    DllCall("RedrawWindow", "ptr", item.button.Hwnd, "ptr", 0, "ptr", 0,
+                        "uint", 0x185, "int")
+                this.Assert(app.ui.footerPaintCount > beforePaint,
+                    "help footer buttons are painted with square corners: " id)
                 if SuiteIcons.handles.Length
                     this.Assert(SendMessage(0x007F, 0, 0, , window.Hwnd)
                         = SuiteIcons.handles[1], "module help uses one application icon: " id)
@@ -702,6 +717,24 @@ class SuiteUpgradeChecks {
                         if control.Type = "Button" && control.Text = "Back"
                             backFound := true
                     this.Assert(backFound, "module settings provides Back navigation: " id)
+                    settingsDivider := 0
+                    settingsPaintTarget := 0
+                    for control in settings {
+                        if control.Type = "Text"
+                            && (WinGetStyle("ahk_id " control.Hwnd) & 0x00000010)
+                            settingsDivider := control
+                        if control.Type = "Button" && app.ui.footerButtons.Has(control.Hwnd)
+                            settingsPaintTarget := control
+                    }
+                    this.Assert(IsObject(settingsDivider) && settingsDivider.Visible,
+                        "module settings retains the same visible footer divider: " id)
+                    this.Assert(IsObject(settingsPaintTarget),
+                        "module settings footer uses the same square button styling: " id)
+                    beforeSettingsPaint := app.ui.footerPaintCount
+                    DllCall("RedrawWindow", "ptr", settingsPaintTarget.Hwnd,
+                        "ptr", 0, "ptr", 0, "uint", 0x185, "int")
+                    this.Assert(app.ui.footerPaintCount > beforeSettingsPaint,
+                        "module settings footer uses the shared painter: " id)
                     app.ui.BackToHelp(id)
                     this.Assert(!app.ui.configurationWindows.Has("settings:" id)
                         && app.ui.windows.Has(key),
