@@ -84,13 +84,24 @@ class SuiteWindowOwnership {
         QueueFocusCornerUpdate()
     }
 
-    static Release(hwnd) {
-        wasManual := this.IsManual(hwnd)
-        if wasManual {
-            DllCall("RemovePropW", "ptr", hwnd, "str", this.marker, "ptr")
-            this.windows.Delete(hwnd)
+    static Release(hwnd, forAdoption := true) {
+        if !this.IsManual(hwnd)
+            return false
+        if forAdoption {
+            global WW_borderless_windows, WW_horizontal_stretch_windows, WW_vertical_stretch_windows
+            global WW_layout_cycle_windows, WW_center_tile_next_sides, WW_normal_window_placements
+            ; Restore the native frame before handing geometry to the cascade.
+            ; A refused restoration leaves manual ownership and recovery state intact.
+            if WW_borderless_windows.Has(hwnd)
+                WW_RunWindowCommand(WW_RestoreBorderlessWindow, hwnd, false, true)
+            for states in [WW_horizontal_stretch_windows, WW_vertical_stretch_windows,
+                WW_layout_cycle_windows, WW_center_tile_next_sides, WW_normal_window_placements]
+                if states.Has(hwnd)
+                    states.Delete(hwnd)
         }
-        return wasManual
+        DllCall("RemovePropW", "ptr", hwnd, "str", this.marker, "ptr")
+        this.windows.Delete(hwnd)
+        return true
     }
 
     static Prune() {
@@ -100,7 +111,7 @@ class SuiteWindowOwnership {
 
     static Clear() {
         for hwnd in this.windows.Clone()
-            this.Release(hwnd)
+            this.Release(hwnd, false)
     }
 }
 

@@ -1,7 +1,7 @@
 name: Suite checks
 on:
   push:
-    branches: [integrate-suite]
+    branches: [integrate-suite, ui-five-module-work]
   pull_request:
   workflow_dispatch:
 permissions:
@@ -27,3 +27,21 @@ jobs:
       - name: Test the committed runtime without regenerating source
         shell: pwsh
         run: python tests/check.py --autohotkey "$env:AHK"
+      - name: Retain the checked source for review
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: suite-source
+          retention-days: 3
+          include-hidden-files: true
+          path: |
+            super-hotkey-world.ahk
+            core/
+            modules/
+            assets/
+            migration/
+            tests/
+            docs/
+            README.md
+            AGENTS.md
+            LICENSE
