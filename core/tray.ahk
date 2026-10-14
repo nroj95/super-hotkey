@@ -119,16 +119,15 @@ class SuiteInterface {
             return
         name := SuiteSettings.ModuleNames[id]
         window := this.NewWindow(key, name " - How to use", false,
-            "+Resize +MinSize720x540")
+            "+Resize +MinSize720x450 +0x02000000")
         state := this.app.ModuleActive(id) ? "enabled" : "disabled; assignments and settings are retained"
         if this.app.dryRun
             state := "dry run; feature effects are inactive"
-        ; Plain GUI text instead of a nested edit box: one background, no inner scrollbar.
-        window.SetFont("s10 w600", "Consolas")
+        ; The original Window Cascade help used regular Cascadia Mono at 10 pt.
+        window.SetFont("s10", "Cascadia Mono")
         header := window.AddText("x20 y18 w860 h25", name " - " state)
         content := window.AddText("x20 y55 w860 h455 vhelpText",
             ModuleHelp.Text(id, this.app.manager))
-        window.SetFont("s10", "Segoe UI")
         buttons := []
         if id = "scratchpad"
             buttons.Push(["Open Pad", ObjBindMethod(this, "OpenPad"), 110])
@@ -136,15 +135,16 @@ class SuiteInterface {
             buttons.Push(["Settings...", ObjBindMethod(this, "OpenSettingsFromHelp", id), 120])
         buttons.Push(["Keybindings...", ObjBindMethod(this, "OpenKeybindingsFromHelp", id), 135])
         buttons.Push(["Close", ObjBindMethod(this, "CloseWindow", key), 100])
-        footer := this.Footer(window, buttons, 535, 900)
+        footer := this.Footer(window, buttons, 455, 900)
+        footer.divider.Visible := false
         savedWidth := IniRead(this.helpSizePath, "Window", "Width", "900")
-        savedHeight := IniRead(this.helpSizePath, "Window", "Height", "600")
+        savedHeight := IniRead(this.helpSizePath, "Window", "Height", "520")
         width := IsNumber(savedWidth) ? Max(720, Min(2400, Round(savedWidth))) : 900
-        height := IsNumber(savedHeight) ? Max(540, Min(1500, Round(savedHeight))) : 600
+        height := IsNumber(savedHeight) ? Max(450, Min(1500, Round(savedHeight))) : 520
         width := Min(width, Max(720, A_ScreenWidth - 80))
-        height := Min(height, Max(540, A_ScreenHeight - 80))
+        height := Min(height, Max(450, A_ScreenHeight - 80))
         this.helpLayouts[id] := {header: header, content: content, footer: footer,
-            width: width, height: height}
+            width: width, height: height, renderedWidth: 0, renderedHeight: 0}
         window.OnEvent("Size", ObjBindMethod(this, "ResizeHelp", id))
         window.Show("w" width " h" height)
         window.GetClientPos(, , &clientWidth, &clientHeight)
@@ -156,19 +156,57 @@ class SuiteInterface {
             return
         layout := this.helpLayouts[id]
         width := Max(720, width)
-        height := Max(540, height)
+        height := Max(450, height)
+        if width = layout.renderedWidth && height = layout.renderedHeight
+            return
         if minMax = 0 {
             layout.width := width
             layout.height := height
         }
-        layout.header.Move(20, 18, width - 40, 25)
-        layout.content.Move(20, 55, width - 40, height - 145)
-        layout.footer.divider.Move(20, height - 65, width - 40, 2)
+
+        positions := [
+            {control: layout.header, x: 20, y: 18, w: width - 40, h: 25},
+            {control: layout.content, x: 20, y: 55, w: width - 40, h: height - 145}
+        ]
         x := width - 10 - layout.footer.total
         for item in layout.footer.buttons {
-            item.button.Move(x, height - 49, item.width, 30)
+            positions.Push({control: item.button, x: x, y: height - 49,
+                w: item.width, h: 30})
             x += item.width + 10
         }
+        this.MoveHelpControls(window, positions)
+        layout.renderedWidth := width
+        layout.renderedHeight := height
+    }
+
+    MoveHelpControls(window, positions) {
+        window.GetClientPos(, , &logicalWidth)
+        dimensions := Buffer(16, 0)
+        if !logicalWidth || !DllCall("GetClientRect", "ptr", window.Hwnd,
+            "ptr", dimensions, "int")
+            throw Error("Cannot measure the Help window client area.")
+        scale := NumGet(dimensions, 8, "int") / logicalWidth
+
+        batch := DllCall("BeginDeferWindowPos", "int", positions.Length, "ptr")
+        if !batch
+            throw OSError(A_LastError, "Begin Help window resize")
+        for entry in positions {
+            batch := DllCall("DeferWindowPos", "ptr", batch, "ptr", entry.control.Hwnd,
+                "ptr", 0, "int", Round(entry.x * scale), "int", Round(entry.y * scale),
+                "int", Round(entry.w * scale), "int", Round(entry.h * scale),
+                "uint", 0x114, "ptr") ; SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOCOPYBITS
+            if !batch
+                throw OSError(A_LastError, "Position Help control")
+        }
+        if !DllCall("EndDeferWindowPos", "ptr", batch, "int")
+            throw OSError(A_LastError, "Finish Help window resize")
+
+        ; Batch movement avoids intermediate paint states. Explicitly invalidate
+        ; the moved buttons so they do not retain stale fragments after dragging.
+        for entry in positions
+            if entry.control.Type = "Button"
+                DllCall("RedrawWindow", "ptr", entry.control.Hwnd, "ptr", 0,
+                    "ptr", 0, "uint", 0x105, "int")
     }
 
     OpenSettingsFromHelp(id, *) {

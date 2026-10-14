@@ -636,16 +636,20 @@ class SuiteUpgradeChecks {
                 window.GetClientPos(, , &helpWidth, &helpHeight)
                 guideControl := window["helpText"]
                 guideControl.GetPos(, &textY, , &textHeight)
-                this.Assert(guideControl.Type = "Text",
-                    "help content is plain GUI text, not a nested scrollable editor: " id)
+                this.Assert(guideControl.Type = "Text"
+                    && !app.ui.helpLayouts[id].footer.divider.Visible,
+                    "help is one plain GUI surface with no inner box or footer separator: " id)
                 fontHandle := SendMessage(0x0031, 0, 0, , guideControl.Hwnd)
                 fontData := Buffer(92, 0)
                 this.Assert(fontHandle && DllCall("GetObjectW", "ptr", fontHandle,
                     "int", fontData.Size, "ptr", fontData, "int") = fontData.Size
-                    && NumGet(fontData, 16, "int") = 600,
-                    "help guide uses a stronger semibold font: " id)
+                    && NumGet(fontData, 16, "int") = 400,
+                    "help uses the original regular-weight font: " id)
+                fontFace := StrGet(fontData.Ptr + 28, 32, "UTF-16")
+                this.Assert(fontFace = "Cascadia Mono" || fontFace = "Consolas",
+                    "help font is the old Cascadia Mono or the Windows fallback: " id)
                 lineCount := StrSplit(guide, "`n").Length
-                this.Assert(helpWidth >= 720 && helpHeight >= 540
+                this.Assert(helpWidth >= 720 && helpHeight >= 450
                     && textHeight > 350 && textY + textHeight < helpHeight - 60
                     && lineCount * 20 <= textHeight,
                     "initial help page fits its complete guide: " id)
@@ -658,6 +662,23 @@ class SuiteUpgradeChecks {
                 app.ui.ResizeHelp(id, window, 0, helpWidth, helpHeight)
                 window["helpText"].GetPos(, , , &textHeight)
                 this.Assert(textHeight > firstHeight, "help body grows vertically: " id)
+                this.Assert(app.ui.helpLayouts[id].renderedWidth = helpWidth
+                    && app.ui.helpLayouts[id].renderedHeight = helpHeight,
+                    "help live resizing processes one coherent control layout: " id)
+                for iteration in [1, 2, 3] {
+                    window.Show("w" (960 + iteration * 25) " h" (610 + iteration * 20))
+                    window.GetClientPos(, , &helpWidth, &helpHeight)
+                    app.ui.ResizeHelp(id, window, 0, helpWidth, helpHeight)
+                    for item in app.ui.helpLayouts[id].footer.buttons {
+                        item.button.GetPos(&buttonX, &buttonY, &buttonW)
+                        this.Assert(buttonY = helpHeight - 49
+                            && buttonX + buttonW <= helpWidth,
+                            "buttons remain correctly placed after repeated resizing: " id)
+                    }
+                }
+                window.Show("w1080 h750")
+                window.GetClientPos(, , &helpWidth, &helpHeight)
+                app.ui.ResizeHelp(id, window, 0, helpWidth, helpHeight)
                 for control in window {
                     if control.Type != "Button"
                         continue
