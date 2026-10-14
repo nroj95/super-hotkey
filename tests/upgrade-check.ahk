@@ -673,6 +673,8 @@ class SuiteUpgradeChecks {
                     "help explains usage without listing every keybinding: " id)
                 this.Assert(InStr(guide, "GETTING STARTED") > 0,
                     "help starts with practical instructions: " id)
+                this.Assert(InStr(guide, "until you") > 0 || id != "window-cascade",
+                    "Help sentences aren't split by fixed hard line breaks")
                 window.GetClientPos(, , &helpWidth, &helpHeight)
                 this.Assert(helpWidth = 820 && helpHeight = 480,
                     "Help opens at a smaller default size: " id)
@@ -695,10 +697,37 @@ class SuiteUpgradeChecks {
                 this.Assert(fontFace = "Cascadia Mono" || fontFace = "Consolas",
                     "help font is the old Cascadia Mono or the Windows fallback: " id)
                 lineCount := StrSplit(guide, "`n").Length
-                this.Assert(helpWidth >= 720 && helpHeight >= 400
+                this.Assert(helpWidth >= 560 && helpHeight >= 400
                     && textHeight > 310 && textY + textHeight < helpHeight - 60
                     && lineCount * 20 <= textHeight,
                     "initial help page fits its complete guide: " id)
+                this.Assert(app.ui.helpWindowIds.Has(window.Hwnd),
+                    "Help window has its own wrap-aware sizing guard: " id)
+                fullWidthHeight := app.ui.HelpTextHeight(id, 820)
+                narrowHeight := app.ui.HelpTextHeight(id, 560)
+                this.Assert(narrowHeight > fullWidthHeight,
+                    "Help paragraphs wrap into more lines when narrower: " id)
+                this.Assert(560 > app.ui.helpLayouts[id].footer.total + 20,
+                    "minimum width keeps every footer button visible: " id)
+                physicalWindow := Buffer(16, 0)
+                physicalClient := Buffer(16, 0)
+                DllCall("GetWindowRect", "ptr", window.Hwnd, "ptr", physicalWindow, "int")
+                DllCall("GetClientRect", "ptr", window.Hwnd, "ptr", physicalClient, "int")
+                scale := NumGet(physicalClient, 8, "int") / helpWidth
+                borderW := NumGet(physicalWindow, 8, "int")
+                    - NumGet(physicalWindow, 0, "int") - NumGet(physicalClient, 8, "int")
+                borderH := NumGet(physicalWindow, 12, "int")
+                    - NumGet(physicalWindow, 4, "int") - NumGet(physicalClient, 12, "int")
+                sizing := Buffer(16, 0)
+                NumPut("int", 100, sizing, 0)
+                NumPut("int", 100, sizing, 4)
+                NumPut("int", 100 + Round(560 * scale) + borderW, sizing, 8)
+                NumPut("int", 100 + Round(400 * scale) + borderH, sizing, 12)
+                app.ui.KeepHelpTextVisible(8, sizing.Ptr, 0, window.Hwnd)
+                minimumHeight := Ceil(Max(400, 145 + narrowHeight) * scale) + borderH
+                this.Assert(NumGet(sizing, 12, "int") - NumGet(sizing, 4, "int")
+                    >= minimumHeight,
+                    "narrow window can't hide wrapped text under its footer: " id)
                 style := WinGetStyle("ahk_id " window.Hwnd)
                 this.Assert(!!(style & 0x00040000) && !!(style & 0x00010000),
                     "help window is resizable and maximizable: " id)
@@ -734,6 +763,12 @@ class SuiteUpgradeChecks {
                 app.ui.ResizeHelp(id, window, 0, helpWidth, helpHeight)
                 this.Assert(helpWidth = 720 && helpHeight = 400,
                     "Help can shrink below its starting size: " id)
+                window.Show("w560 h650")
+                window.GetClientPos(, , &helpWidth, &helpHeight)
+                app.ui.ResizeHelp(id, window, 0, helpWidth, helpHeight)
+                this.Assert(helpWidth = 560
+                    && app.ui.helpLayouts[id].footer.divider.Visible,
+                    "Help narrows to a footer-safe width and keeps the divider: " id)
                 window.Show("w1080 h750")
                 window.GetClientPos(, , &helpWidth, &helpHeight)
                 app.ui.ResizeHelp(id, window, 0, helpWidth, helpHeight)

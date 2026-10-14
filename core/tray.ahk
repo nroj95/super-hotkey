@@ -10,6 +10,9 @@ class SuiteInterface {
         this.modulesWindow := 0
         this.moduleControls := Map()
         this.helpLayouts := Map()
+        this.helpWindowIds := Map()
+        this.helpSizingCallback := ObjBindMethod(this, "KeepHelpTextVisible")
+        this.helpSizingInstalled := false
         this.pageLayouts := Map()
         this.pageFooters := Map()
         this.footerButtons := Map()
@@ -201,6 +204,8 @@ class SuiteInterface {
 
     CloseWindow(key, *) {
         if this.windows.Has(key) {
+            if this.helpWindowIds.Has(this.windows[key].Hwnd)
+                this.helpWindowIds.Delete(this.windows[key].Hwnd)
             for control in this.windows[key]
                 if control.Type = "Button" && this.footerButtons.Has(control.Hwnd)
                     this.footerButtons.Delete(control.Hwnd)
@@ -223,6 +228,11 @@ class SuiteInterface {
     CloseAll() {
         for key in this.windows.Clone()
             this.CloseWindow(key)
+        if this.helpSizingInstalled {
+            OnMessage(0x0214, this.helpSizingCallback, 0)
+            this.helpSizingInstalled := false
+        }
+        this.helpWindowIds.Clear()
         if this.footerDrawInstalled {
             OnMessage(0x004E, this.footerDrawCallback, 0)
             this.footerDrawInstalled := false
@@ -248,7 +258,7 @@ class SuiteInterface {
             return
         name := SuiteSettings.ModuleNames[id]
         window := this.NewWindow(key, name " - How to use", false,
-            "+Resize +MinSize720x400 +0x02000000")
+            "+Resize +MinSize560x400 +0x02000000")
         state := this.app.ModuleActive(id) ? "enabled" : "disabled"
         if this.app.dryRun && this.app.ModuleActive(id)
             state := "dry run; feature effects are inactive"
@@ -269,6 +279,11 @@ class SuiteInterface {
         height := 480
         this.helpLayouts[id] := {header: header, content: content, footer: footer,
             width: width, height: height, renderedWidth: 0, renderedHeight: 0}
+        this.helpWindowIds[window.Hwnd] := id
+        if !this.helpSizingInstalled {
+            OnMessage(0x0214, this.helpSizingCallback)
+            this.helpSizingInstalled := true
+        }
         window.OnEvent("Size", ObjBindMethod(this, "ResizeHelp", id))
         SuiteShowCentered(window, width, height, ObjBindMethod(this, "ResizeHelp", id))
     }
@@ -277,7 +292,7 @@ class SuiteInterface {
         if minMax = -1 || !this.helpLayouts.Has(id)
             return
         layout := this.helpLayouts[id]
-        width := Max(720, width)
+        width := Max(560, width)
         height := Max(400, height)
         if width = layout.renderedWidth && height = layout.renderedHeight
             return
@@ -300,6 +315,72 @@ class SuiteInterface {
         this.MoveHelpControls(window, positions)
         layout.renderedWidth := width
         layout.renderedHeight := height
+    }
+
+    HelpTextHeight(id, clientWidth) {
+        window := this.windows["help:" id]
+        text := this.helpLayouts[id].content
+        window.GetClientPos(, , &logicalWidth)
+        rect := Buffer(16, 0)
+        if !logicalWidth || !DllCall("GetClientRect", "ptr", window.Hwnd,
+            "ptr", rect, "int")
+            throw OSError(A_LastError, "Measure Help text")
+        scale := NumGet(rect, 8, "int") / logicalWidth
+        hdc := DllCall("GetDC", "ptr", window.Hwnd, "ptr")
+        if !hdc
+            throw OSError(A_LastError, "Get Help text drawing context")
+        font := SendMessage(0x0031, 0, 0, , text.Hwnd)
+        previous := font ? DllCall("SelectObject", "ptr", hdc, "ptr", font, "ptr") : 0
+        try {
+            bounds := Buffer(16, 0)
+            NumPut("int", Max(1, Round((clientWidth - 40) * scale)), bounds, 8)
+            DllCall("DrawTextW", "ptr", hdc, "str", text.Text, "int", -1,
+                "ptr", bounds, "uint", 0xC10, "int") ; word wrap, measure, no prefix
+            return Ceil(NumGet(bounds, 12, "int") / scale)
+        }
+        finally {
+            if previous
+                DllCall("SelectObject", "ptr", hdc, "ptr", previous)
+            DllCall("ReleaseDC", "ptr", window.Hwnd, "ptr", hdc)
+        }
+    }
+
+    KeepHelpTextVisible(edge, proposed, messageId, hwnd) {
+        if !this.helpWindowIds.Has(hwnd)
+            return
+        id := this.helpWindowIds[hwnd]
+        window := this.windows["help:" id]
+        current := Buffer(16, 0)
+        client := Buffer(16, 0)
+        if !DllCall("GetWindowRect", "ptr", hwnd, "ptr", current, "int")
+            || !DllCall("GetClientRect", "ptr", hwnd, "ptr", client, "int")
+            return
+        window.GetClientPos(, , &logicalWidth)
+        if !logicalWidth
+            return
+        scale := NumGet(client, 8, "int") / logicalWidth
+        borderWidth := NumGet(current, 8, "int") - NumGet(current, 0, "int")
+            - NumGet(client, 8, "int")
+        borderHeight := NumGet(current, 12, "int") - NumGet(current, 4, "int")
+            - NumGet(client, 12, "int")
+
+        left := NumGet(proposed, 0, "int")
+        top := NumGet(proposed, 4, "int")
+        right := NumGet(proposed, 8, "int")
+        bottom := NumGet(proposed, 12, "int")
+        clientWidth := Max(560, Floor((right - left - borderWidth) / scale))
+        ; The footer must remain separate from even the longest wrapped guide.
+        requiredClientHeight := Max(400, 145 + this.HelpTextHeight(id, clientWidth))
+        requiredOuterHeight := Ceil(requiredClientHeight * scale) + borderHeight
+        if bottom - top >= requiredOuterHeight
+            return
+
+        ; Preserve the edge being dragged rather than jumping the whole window.
+        if edge = 3 || edge = 4 || edge = 5
+            NumPut("int", bottom - requiredOuterHeight, proposed, 4)
+        else
+            NumPut("int", top + requiredOuterHeight, proposed, 12)
+        return true
     }
 
     MoveHelpControls(window, positions) {
