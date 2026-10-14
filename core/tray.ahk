@@ -19,6 +19,8 @@ class SuiteInterface {
         this.footerDrawCallback := ObjBindMethod(this, "DrawFooterButton")
         this.footerDrawInstalled := false
         this.footerPaintCount := 0
+        this.logColorCallback := ObjBindMethod(this, "ColorLog")
+        OnMessage(0x0138, this.logColorCallback) ; WM_CTLCOLORSTATIC for read-only Edit
         this.startupPath := A_Startup "\Super Hotkey.lnk"
         this.legacyStartupPath := A_Startup "\Super Hotkey World.lnk"
     }
@@ -269,6 +271,7 @@ class SuiteInterface {
             this.footerDrawInstalled := false
         }
         this.footerButtons.Clear()
+        OnMessage(0x0138, this.logColorCallback, 0)
     }
 
     HasSettingsOpen() => this.configurationWindows.Count != 0
@@ -849,6 +852,13 @@ class SuiteInterface {
             control.Value := SuiteState.Log.verbose
             this.Report(failure, "Core / logging preference")
         }
+    }
+
+    ColorLog(hdc, controlHwnd, *) {
+        if !this.windows.Has("log") || controlHwnd != this.windows["log"]["log"].Hwnd
+            return
+        DllCall("SetBkColor", "ptr", hdc, "uint", 0xFFFFFF)
+        return DllCall("GetStockObject", "int", 0, "ptr") ; WHITE_BRUSH
     }
 
     RefreshLog(*) {
