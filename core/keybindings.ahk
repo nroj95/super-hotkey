@@ -966,8 +966,8 @@ class Keybindings {
         window := this.settings
         title := window.AddText("Hidden x22 y48 w290 h25", "")
         categoryTitle := window.AddText("Hidden x22 y48 w752 h25 Center", "")
-        primary := window.AddButton("Hidden x323 y48 w185 h29", "unbound")
-        secondary := window.AddButton("Hidden x518 y48 w170 h29", "unbound")
+        primary := window.AddButton("Hidden x358 y48 w167 h29", "unbound")
+        secondary := window.AddButton("Hidden x535 y48 w153 h29", "unbound")
         reset := window.AddButton("Hidden x698 y48 w76 h29", "reset")
         primary.OnEvent("Click", ObjBindMethod(this, "_BeginRecording", index, 1))
         secondary.OnEvent("Click", ObjBindMethod(this, "_BeginRecording", index, 2))
@@ -1028,11 +1028,15 @@ class Keybindings {
 
             if widthChanged || rowsChanged {
                 extraWidth := width - 820
-                primaryX := 323 + Floor(extraWidth * 0.48)
-                primaryWidth := 185 + Floor(extraWidth * 0.28)
-                secondaryX := primaryX + primaryWidth + 10
-                secondaryWidth := 170 + extraWidth - (primaryX - 323) - (primaryWidth - 185)
-                resetX := secondaryX + secondaryWidth + 10
+                originalPrimaryX := 323 + Floor(extraWidth * 0.48)
+                originalPrimaryWidth := 185 + Floor(extraWidth * 0.28)
+                originalSecondaryWidth := 170 + extraWidth
+                    - (originalPrimaryX - 323) - (originalPrimaryWidth - 185)
+                primaryWidth := Round(originalPrimaryWidth * 0.9)
+                secondaryWidth := Round(originalSecondaryWidth * 0.9)
+                resetX := width - 122
+                secondaryX := resetX - secondaryWidth - 10
+                primaryX := secondaryX - primaryWidth - 10
                 for index, row in this.visibleRows {
                     y := 48 + (index - 1) * 35
                     positions.Push({control: row.title,
@@ -1231,7 +1235,7 @@ class Keybindings {
             if !visible
                 continue
             if !isAction {
-                row.categoryTitle.Text := entry.label
+                row.categoryTitle.Text := entry.label = "Global" ? "★ Global ★" : entry.label
                 continue
             }
             row.title.Text := entry.label

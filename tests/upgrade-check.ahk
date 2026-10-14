@@ -386,6 +386,9 @@ class SuiteUpgradeChecks {
             app.ShowKeybindings()
             this.Assert(app.manager.settings.Hwnd = firstEditor, "every Keybindings entry reuses the global editor")
             editor := app.manager.settings
+            this.Assert(app.manager.rows[1].label = "Global"
+                && app.manager.visibleRows[1].categoryTitle.Text = "★ Global ★",
+                "Global heading has decorative stars without changing its category identity")
             editorStyle := WinGetStyle("ahk_id " editor.Hwnd)
             this.Assert(!!(editorStyle & 0x00040000) && !!(editorStyle & 0x00010000),
                 "Keybindings supports native edge resizing and maximizing")
@@ -427,10 +430,25 @@ class SuiteUpgradeChecks {
             app.manager._ResizeSettings(editor, 0, adjustedWidth, adjustedHeight)
             this.Assert(markerRow.title.Text = "layout-only marker",
                 "width-only resize does not re-render shortcut labels")
-            expectedPrimaryX := 323 + Floor((adjustedWidth - 820) * 0.48)
-            markerRow.primary.GetPos(&actualPrimaryX)
-            this.Assert(Abs(actualPrimaryX - expectedPrimaryX) <= 2,
-                "batched native movement matches logical control positions")
+            extraWidth := adjustedWidth - 820
+            originalPrimaryX := 323 + Floor(extraWidth * 0.48)
+            originalPrimaryWidth := 185 + Floor(extraWidth * 0.28)
+            originalSecondaryWidth := 170 + extraWidth
+                - (originalPrimaryX - 323) - (originalPrimaryWidth - 185)
+            expectedPrimaryWidth := Round(originalPrimaryWidth * 0.9)
+            expectedSecondaryWidth := Round(originalSecondaryWidth * 0.9)
+            expectedPrimaryX := adjustedWidth - 142
+                - expectedPrimaryWidth - expectedSecondaryWidth
+            markerRow.primary.GetPos(&actualPrimaryX, , &actualPrimaryWidth)
+            markerRow.secondary.GetPos(&actualSecondaryX, , &actualSecondaryWidth)
+            markerRow.reset.GetPos(&actualResetX)
+            this.Assert(Abs(actualPrimaryX - expectedPrimaryX) <= 2
+                && Abs(actualPrimaryWidth - expectedPrimaryWidth) <= 2
+                && Abs(actualSecondaryWidth - expectedSecondaryWidth) <= 2,
+                "both binding boxes are 10 percent narrower across resized window widths")
+            this.Assert(Abs(actualSecondaryX - (actualPrimaryX + actualPrimaryWidth + 10)) <= 2
+                && Abs(actualResetX - (actualSecondaryX + actualSecondaryWidth + 10)) <= 2,
+                "narrower binding boxes preserve the gaps and reset button alignment")
             app.manager.settingsResetAll.GetPos(, &oldFooterY)
             editor.Show("w1080 h700")
             editor.GetClientPos(, , &shorterWidth, &shorterHeight)
