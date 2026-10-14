@@ -17,6 +17,7 @@ class SuiteUpgradeChecks {
         this.IndependentLayers()
         this.ScopesAndObservers()
         this.GeometryAndOwnership()
+        this.ActiveShortcutVisibility()
         this.Interfaces()
     }
 
@@ -191,6 +192,98 @@ class SuiteUpgradeChecks {
                 "Wonder Windows dry-run callbacks do not move real windows")
         }
         finally app.manager.Stop()
+    }
+
+
+    static ActiveShortcutVisibility() {
+        app := SuiteApplication(true, SuiteChecks.directory "\visibility")
+        app.InitializeCatalog()
+        manager := app.manager
+        try {
+            manager.SetPaused(true)
+            manager.Start()
+            for actionId, action in manager.actions
+                if InStr(actionId, "power-hotkey.") = 1
+                    this.Assert(action.category = "Power-Up Utilities",
+                        "Power-Up Utilities uses one category: " actionId)
+            rows := Keybindings.DisplayRows(manager.DiscoverParticipants())
+            seenFancy := false
+            for row in rows
+                if InStr(row.id, "win-key-overhaul.zone-") = 1
+                    seenFancy := true
+            this.Assert(!seenFancy, "FancyZones actions are hidden while integration is inactive")
+            this.Assert(!this.RouteExists(manager, "win-key-overhaul.zone-left"),
+                "inactive FancyZones actions reserve no shortcuts")
+            app.activeModules["scratchpad"] := false
+            manager.Apply(manager.GetConfiguration())
+            rows := Keybindings.DisplayRows(manager.DiscoverParticipants())
+            paperFound := false
+            for row in rows
+                if InStr(row.id, "scratchpad.") = 1
+                    paperFound := true
+            this.Assert(!paperFound, "disabled Paper Pad entries disappear completely")
+            configuration := manager.GetConfiguration()
+            this.Assert(configuration["scratchpad.toggle"].bindings[1] != "",
+                "hidden module assignments remain safely stored")
+
+            changed := manager.GetConfiguration()
+            changed["power-hotkey.keyboard.f13"].bindings[1] := "Ctrl + Alt + Left"
+            manager.Apply(changed)
+            this.Assert(this.RouteExists(manager, "power-hotkey.keyboard.f13"),
+                "an unused FancyZones shortcut can be reassigned without conflict")
+
+            global WW_fancyzones_process_id, WW_fancyzones_integration_state
+            WW_fancyzones_process_id := 123456
+            WW_fancyzones_integration_state := {override_snap_enabled: true,
+                relative_position_enabled: false}
+            this.Assert(app.wonder.FancyZonesAvailable("left") && !app.wonder.FancyZonesAvailable("up"),
+                "FancyZones availability respects the active navigation mode")
+            app.wonder.RefreshOptionalActions()
+            this.Assert(!this.RouteExists(manager, "win-key-overhaul.zone-left"),
+                "a newly enabled conflicting integration does not steal an active shortcut")
+            this.Assert(manager.GetConfiguration()["power-hotkey.keyboard.f13"].bindings[1]
+                = Keybindings.Parse("Ctrl + Alt + Left").signature,
+                "optional activation conflicts leave saved bindings untouched")
+
+            changed := manager.GetConfiguration()
+            changed["power-hotkey.keyboard.f13"].bindings[1] := "Caps + Q"
+            manager.Apply(changed)
+            this.Assert(this.RouteExists(manager, "win-key-overhaul.zone-left"),
+                "FancyZones shortcuts activate after their conflict is cleared")
+            rows := Keybindings.DisplayRows(manager.DiscoverParticipants())
+            fancyLeft := false
+            fancyUp := false
+            for row in rows {
+                if row.id = "win-key-overhaul.zone-left"
+                    fancyLeft := true
+                if row.id = "win-key-overhaul.zone-up"
+                    fancyUp := true
+            }
+            this.Assert(fancyLeft && !fancyUp,
+                "only currently usable FancyZones directions are shown")
+            WW_fancyzones_process_id := 0
+            WW_fancyzones_integration_state := false
+            app.wonder.RefreshOptionalActions()
+            this.Assert(!this.RouteExists(manager, "win-key-overhaul.zone-left"),
+                "stopping FancyZones releases its registered shortcuts")
+            this.Assert(manager.GetConfiguration()["win-key-overhaul.zone-left"].bindings[1] != "",
+                "disappearing optional shortcuts preserve their assignments")
+            this.Assert(!InStr(Keybindings.DisplayRows(manager.DiscoverParticipants())[1].label, "disabled"),
+                "Keybindings headings do not acquire disabled suffixes")
+        }
+        finally {
+            global WW_fancyzones_process_id, WW_fancyzones_integration_state
+            WW_fancyzones_process_id := 0
+            WW_fancyzones_integration_state := false
+            manager.Stop()
+        }
+    }
+
+    static RouteExists(manager, actionId) {
+        for route in manager.routes
+            if route.action.id = actionId && route.enabled
+                return true
+        return false
     }
 
     static Interfaces() {

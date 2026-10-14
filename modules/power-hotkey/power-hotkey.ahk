@@ -29,7 +29,7 @@ class PowerHotkeys {
         this.catalog[actionId] := {id: actionId, moduleId: moduleId, kind: kind,
             value: value, needsFocus: needsFocus}
         this.manager.AddAction(actionId, label, ObjBindMethod(this, "Dispatch"),
-            [defaultBinding], {category: "Power-Up Utilities / " PH_Modules.Label(this.modules, moduleId),
+            [defaultBinding], {category: "Power-Up Utilities",
                 available: (*) => SuiteState.App.ModuleActive("power-hotkey")})
     }
 

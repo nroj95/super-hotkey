@@ -103,7 +103,7 @@ class SuiteChecks {
             for row in rows
                 if row.id = "power-hotkey.keyboard.f13"
                     found := true
-            this.Assert(found, "disabled module assignments remain visible and editable")
+            this.Assert(!found, "disabled modules are hidden from the active Keybindings view")
             this.Assert(manager.GetConfiguration()["power-hotkey.keyboard.f13"].bindings[1] = configuration["power-hotkey.keyboard.f13"].bindings[1], "disabling a module preserves its assignments")
             changed := manager.GetConfiguration()
             changed["scratchpad.toggle"].bindings[1] := "Caps + Q"

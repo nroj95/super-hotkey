@@ -190,10 +190,10 @@ class Keybindings {
         result := []
         for actionId, action in this.actions {
             setting := this.configuration[actionId]
-            inactive := !setting.enabled || !this.IsAvailable(action)
+            if !setting.enabled || !this.IsAvailable(action)
+                continue
             result.Push({id: actionId, label: action.label,
-                category: action.category (inactive ? " (disabled)" : ""),
-                enabled: true, bindings: setting.bindings.Clone()})
+                category: action.category, enabled: true, bindings: setting.bindings.Clone()})
         }
         return result
     }

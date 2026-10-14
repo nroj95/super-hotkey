@@ -9,6 +9,7 @@ class WonderWindowsModule {
         this.catalog := Map()
         this.drainCallback := ObjBindMethod(this, "Drain")
         this.pollCallback := ObjBindMethod(this, "PollCompatibility")
+        this.optionalAvailability := "0000"
         this.Add("maximize", "maximize / toggle borderless fullscreen", WW_MaximizeWindowTarget, ["Win + Up"])
         this.Add("restore", "restore the normal window rectangle", WW_RestoreWindowTarget, ["Win + Down"])
         for side in ["left", "right"] {
@@ -43,6 +44,34 @@ class WonderWindowsModule {
 
     Available(*) => SuiteState.App.ModuleActive("win-key-overhaul")
 
+    FancyZonesAvailable(direction, *) {
+        global WW_fancyzones_process_id, WW_fancyzones_integration_state
+        state := WW_fancyzones_integration_state
+        return this.Available() && WW_fancyzones_process_id && IsObject(state)
+            && state.override_snap_enabled
+            && (state.relative_position_enabled || direction = "left" || direction = "right")
+    }
+
+    RefreshOptionalActions(*) {
+        signature := ""
+        for direction in ["left", "right", "up", "down"]
+            signature .= this.FancyZonesAvailable(direction) ? "1" : "0"
+        if signature = this.optionalAvailability || !this.manager.running
+            return
+        this.optionalAvailability := signature
+        try {
+            this.manager.Apply(this.manager.GetConfiguration())
+            if IsObject(this.manager.settings)
+                this.manager._RenderSettings()
+        }
+        catch Error as failure {
+            SuiteState.Log.Error("Wonder Windows / optional shortcuts", failure)
+            if !this.dryRun
+                TrayTip("FancyZones shortcuts could not activate. Resolve the shortcut conflict in Keybindings.",
+                    SuiteApplication.Name, 2)
+        }
+    }
+
     Add(id, label, command, bindings, arguments := unset, fancyZones := false) {
         actionId := "win-key-overhaul." id
         arguments := IsSet(arguments) ? arguments : []
@@ -50,8 +79,10 @@ class WonderWindowsModule {
         context := fancyZones ? ObjBindMethod(this, "FancyZonesContext", arguments[1])
             : ObjBindMethod(this, "WindowContext")
         this.manager.AddAction(actionId, label, ObjBindMethod(this, "Event"), bindings,
-            {category: fancyZones ? "Wonder Windows / Optional FancyZones" : "Wonder Windows",
-                available: ObjBindMethod(this, "Available"), scope: "!paper-pad", context: context})
+            {category: fancyZones ? "Wonder Windows / FancyZones" : "Wonder Windows",
+                available: fancyZones ? ObjBindMethod(this, "FancyZonesAvailable", arguments[1])
+                    : ObjBindMethod(this, "Available"),
+                scope: "!paper-pad", context: context})
     }
 
     WindowContext(*) => !SuiteWindowOwnership.IsSuiteSurface(DllCall("GetForegroundWindow", "ptr"))
@@ -78,6 +109,7 @@ class WonderWindowsModule {
         try WW_CheckFancyZonesStartup()
         catch Error as failure
             SuiteState.Log.Error("Wonder Windows / compatibility", failure)
+        this.RefreshOptionalActions()
         SuiteWindowOwnership.Prune()
     }
 
