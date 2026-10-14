@@ -150,7 +150,8 @@ class Keybindings {
         search := StrLower(Trim(search))
         for participant in participants {
             grouped := Map()
-            categoryOrder := []
+            modules := Map()
+            moduleOrder := []
             allCategories := Map()
             for action in participant.actions {
                 if !action.enabled
@@ -166,36 +167,34 @@ class Keybindings {
                     continue
                 if !grouped.Has(action.category) {
                     grouped[action.category] := []
-                    ; Put a module's general shortcuts before its specialized groups.
-                    if !InStr(action.category, " / ") {
-                        position := 0
-                        for index, previous in categoryOrder {
-                            if InStr(previous, action.category " / ") = 1 {
-                                position := index
-                                break
-                            }
-                        }
-                        if position
-                            categoryOrder.InsertAt(position, action.category)
-                        else
-                            categoryOrder.Push(action.category)
-                    } else
-                        categoryOrder.Push(action.category)
+                    split := InStr(action.category, " / ")
+                    moduleName := split ? SubStr(action.category, 1, split - 1) : action.category
+                    if !modules.Has(moduleName) {
+                        modules[moduleName] := []
+                        moduleOrder.Push(moduleName)
+                    }
+                    if split
+                        modules[moduleName].Push(action.category)
+                    else
+                        modules[moduleName].InsertAt(1, action.category)
                 }
                 grouped[action.category].Push({id: action.id, label: action.label,
                     ownerId: participant.id, setting: action,
                     editable: (participant.id = participants[1].id || participant.controlReady)})
             }
-            if !categoryOrder.Length
-                continue
-            for category in categoryOrder {
-                heading := allCategories.Count > 1 ? category : participant.name
-                if participant.id != participants[1].id && !participant.controlReady
-                    heading .= " (view only)"
-                rows.Push({id: "", kind: "owner", label: heading,
-                    ownerId: participant.id})
-                for entry in grouped[category]
-                    rows.Push(entry)
+            for moduleName in moduleOrder {
+                ; An extension-only module still gets its main heading.
+                if !grouped.Has(moduleName)
+                    rows.Push({id: "", kind: "owner", label: moduleName, ownerId: participant.id})
+                for category in modules[moduleName] {
+                    heading := (InStr(category, " / ") || allCategories.Count > 1) ? category : participant.name
+                    if participant.id != participants[1].id && !participant.controlReady
+                        heading .= " (view only)"
+                    rows.Push({id: "", kind: "owner", label: heading,
+                        ownerId: participant.id})
+                    for entry in grouped[category]
+                        rows.Push(entry)
+                }
             }
         }
         return rows

@@ -230,6 +230,32 @@ class SuiteUpgradeChecks {
             }
             this.Assert(generalHeading > 0 && functionHeading > generalHeading,
                 "general Power-Up Utilities shortcuts precede specialized subcategories")
+            sampleActions := [
+                {id: "alpha.first", category: "Alpha / Shortcuts", label: "first",
+                    enabled: true, bindings: ["", ""]},
+                {id: "beta.one", category: "Beta", label: "other module",
+                    enabled: true, bindings: ["", ""]},
+                {id: "alpha.second", category: "Alpha / Extensions", label: "second",
+                    enabled: true, bindings: ["", ""]},
+                {id: "alpha.general", category: "Alpha", label: "general",
+                    enabled: true, bindings: ["", ""]}
+            ]
+            sample := [{id: "sample", name: "Sample", actions: sampleActions}]
+            sampleRows := Keybindings.DisplayRows(sample)
+            headings := []
+            for row in sampleRows
+                if row.id = ""
+                    headings.Push(row.label)
+            this.Assert(headings.Length = 4 && headings[1] = "Alpha"
+                && headings[2] = "Alpha / Shortcuts"
+                && headings[3] = "Alpha / Extensions" && headings[4] = "Beta",
+                "subcategories follow their module immediately without interleaving")
+            sampleRows := Keybindings.DisplayRows(sample, "Extensions")
+            this.Assert(sampleRows.Length = 3 && sampleRows[1].label = "Alpha"
+                && sampleRows[2].label = "Alpha / Extensions",
+                "search keeps extension headings directly after their parent")
+            this.Assert(sampleRows[2].kind = "owner",
+                "subcategories retain the same heading style as main categories")
             seenFancy := false
             for row in rows
                 if InStr(row.id, "win-key-overhaul.zone-") = 1
