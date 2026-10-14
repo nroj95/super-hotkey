@@ -601,18 +601,9 @@ class SuiteInterface {
         inactive := window.AddDropDownList("x240 y155 w210 vinactiveColor", colors)
         inactive.Choose(focus_corner_inactive_slot_color_name)
         window.AddText("x20 y215 w550", "Changes apply after restarting. Hotkeys remain in the shared Keybindings editor.")
-        this.Footer(window, [["Compatibility...", ObjBindMethod(this, "CascadeCompatibility"), 140],
-            ["Apply and restart", ObjBindMethod(this, "SaveCascade"), 160],
+        this.Footer(window, [["Apply and restart", ObjBindMethod(this, "SaveCascade"), 160],
             ["Back", ObjBindMethod(this, "BackToHelp", "window-cascade"), 100]], 290, 600)
         this.ShowPage(key, 600, 340, 560, 310)
-    }
-
-    CascadeCompatibility(*) {
-        if this.app.dryRun {
-            MsgBox("Compatibility actions are inactive in the dry run.", SuiteApplication.Name, "Iconi")
-            return
-        }
-        CheckCompatibilitySettings()
     }
 
     SaveCascade(*) {

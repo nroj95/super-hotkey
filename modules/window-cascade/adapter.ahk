@@ -20,6 +20,8 @@ class WindowCascadeModule {
         manager.Observe("~*Escape", HasCascadeWindowDrag, (*) => CancelCascadeWindowDrop())
         manager.Observe("~*Space", IsExplorerSpaceReshowIntentContext,
             (*) => CaptureExplorerSpaceReshowIntent())
+        ; Wait until the suite is ready before showing any conflict warning.
+        SetTimer(CheckCompatibilitySettings, -500)
     }
 
     static Stop() {

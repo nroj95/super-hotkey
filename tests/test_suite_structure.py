@@ -48,8 +48,8 @@ class SuiteStructureTests(unittest.TestCase):
         editor = (ROOT / 'core/keybindings.ahk').read_text(encoding='utf-8')
         self.assertIn('"Edit hotkey"', editor)
         self.assertIn('Type a hotkey, for example CapsLock', editor)
-        self.assertIn('Layer hotkeys remain editable', editor)
-        self.assertIn('right-click a binding to type a hotkey', editor)
+        self.assertIn('Leave empty to clear.', editor)
+        self.assertIn('LMB to record, RMB to type', editor)
         for old in ('Edit shortcut', 'Type a shortcut', 'Layer shortcuts',
                     'right-click a shortcut', 'No shortcuts were changed'):
             self.assertNotIn(old, editor)
