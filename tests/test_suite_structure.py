@@ -6,7 +6,7 @@ import re
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-RUNTIME = [ROOT / 'super-hotkey-world.ahk', *sorted((ROOT / 'core').glob('*.ahk')),
+RUNTIME = [ROOT / 'super-hotkey.ahk', *sorted((ROOT / 'core').glob('*.ahk')),
            *sorted((ROOT / 'modules').rglob('*.ahk'))]
 
 
@@ -23,8 +23,21 @@ class SuiteStructureTests(unittest.TestCase):
                 self.assertTrue(target.is_relative_to(ROOT), name)
                 self.assertTrue(target.is_file(), name)
                 walk(target)
-        walk(ROOT / 'super-hotkey-world.ahk')
+        walk(ROOT / 'super-hotkey.ahk')
         self.assertEqual(visited, {path.resolve() for path in RUNTIME})
+
+    def test_app_identity_and_legacy_entrypoint(self):
+        application = (ROOT / 'core/application.ahk').read_text(encoding='utf-8')
+        self.assertIn('static Name := "Super Hotkey"', application)
+        self.assertIn('static Version := "1.0.0"', application)
+        self.assertIn('Keybindings("super-hotkey-world"', application)
+        self.assertIn('SuperHotkeyWorld', application)
+        shim = (ROOT / 'super-hotkey-world.ahk').read_text(encoding='utf-8')
+        self.assertIn('super-hotkey.ahk', shim)
+        self.assertIn('SHW_Main()', shim)
+        tray = (ROOT / 'core/tray.ahk').read_text(encoding='utf-8')
+        self.assertIn('SuiteApplication.Name " v" SuiteApplication.Version', tray)
+        self.assertIn('Super Hotkey.lnk', tray)
 
     def test_global_function_names_do_not_collide(self):
         definitions = {}
@@ -49,7 +62,7 @@ class SuiteStructureTests(unittest.TestCase):
             if path.name == 'windows.ahk' and path.parent.name == 'core':
                 continue
             self.assertIsNone(re.search(r'(?<!\w)Gui\(', path.read_text(encoding='utf-8-sig')), str(path))
-        self.assertEqual([path.name for path in (ROOT / 'assets').glob('*.ico')], ['super-hotkey-world.ico'])
+        self.assertEqual([path.name for path in (ROOT / 'assets').glob('*.ico')], ['super-hotkey.ico'])
         self.assertIn('CC BY 3.0', (ROOT / 'assets/ATTRIBUTION.md').read_text())
 
     def test_debug_switches_are_not_owned_by_modules(self):

@@ -1,7 +1,7 @@
 ; Loaded from a temporary harness at the repository root. No real feature effects.
 class SuiteChecks {
     static count := 0
-    static directory := A_Temp "\SHW-check-" FormatTime(, "yyyyMMdd-HHmmss") "-" DllCall("GetCurrentProcessId", "uint")
+    static directory := A_Temp "\SuperHotkey-check-" FormatTime(, "yyyyMMdd-HHmmss") "-" DllCall("GetCurrentProcessId", "uint")
 
     static Assert(condition, label) {
         if !condition

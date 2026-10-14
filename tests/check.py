@@ -93,14 +93,18 @@ def main() -> None:
         raise RuntimeError('Native checks require Windows; use unittest for migration helper checks elsewhere.')
     executable = find_autohotkey(args.autohotkey)
     run([sys.executable, '-m', 'unittest', 'discover', '-s', 'tests', '-p', 'test_*.py'])
-    parsed = run([str(executable), '/ErrorStdOut=UTF-8', str(ROOT / 'super-hotkey-world.ahk'), '--check'])
-    if 'PASS: Super Hotkey World and every module parsed.' not in parsed:
+    parsed = run([str(executable), '/ErrorStdOut=UTF-8', str(ROOT / 'super-hotkey.ahk'), '--check'])
+    if 'PASS: Super Hotkey and every module parsed.' not in parsed:
         raise RuntimeError('The launcher did not report a successful parse.')
+    legacy = run([str(executable), '/ErrorStdOut=UTF-8',
+                  str(ROOT / 'super-hotkey-world.ahk'), '--check'])
+    if 'PASS: Super Hotkey and every module parsed.' not in legacy:
+        raise RuntimeError('The legacy entry point did not start the renamed launcher.')
     # A_ScriptDir stays at the repository root, matching the real launcher includes.
     with tempfile.NamedTemporaryFile(prefix='.shw-check-', suffix='.ahk', dir=ROOT,
                                      mode='w', encoding='utf-8', delete=False) as stream:
         harness = Path(stream.name)
-        stream.write('#Include "super-hotkey-world.ahk"\n')
+        stream.write('#Include "super-hotkey.ahk"\n')
         stream.write('#Include "%A_ScriptDir%\\tests\\upgrade-check.ahk"\n')
         stream.write('#Include "%A_ScriptDir%\\tests\\runtime-check.ahk"\n#Warn All, StdOut\n')
     try:

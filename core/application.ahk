@@ -1,5 +1,5 @@
 ; =============================================================================
-; Super Hotkey World - shared lifecycle and native thread defaults.
+; Super Hotkey - shared lifecycle and native thread defaults.
 ; Modules never launch another AutoHotkey process or own the application tray.
 ; =============================================================================
 class SuiteState {
@@ -10,13 +10,13 @@ class SuiteState {
 }
 
 class SuiteApplication {
-    static Name := "Super Hotkey World"
-    static Version := "0.2.0-preview.1"
+    static Name := "Super Hotkey"
+    static Version := "1.0.0"
 
     __New(dryRun := false, directory := "") {
         this.dryRun := dryRun
         if directory = ""
-            directory := dryRun ? A_Temp "\SuperHotkeyWorld-" FormatTime(, "yyyyMMdd-HHmmss") "-" DllCall("GetCurrentProcessId", "uint")
+            directory := dryRun ? A_Temp "\SuperHotkey-" FormatTime(, "yyyyMMdd-HHmmss") "-" DllCall("GetCurrentProcessId", "uint")
                 : EnvGet("LOCALAPPDATA") "\nroj\SuperHotkeyWorld"
         this.Settings := SuiteSettings(directory)
         this.activeModules := this.Settings.modules.Clone()
@@ -48,7 +48,7 @@ class SuiteApplication {
         name := "Local\nroj.SuperHotkeyWorld" (this.dryRun ? ".Preview." DllCall("GetCurrentProcessId", "uint") : "")
         this.mutex := DllCall("CreateMutexW", "ptr", 0, "int", false, "str", name, "ptr")
         if !this.mutex || A_LastError = 183
-            throw Error("Another Super Hotkey World instance is running. Close it before starting another copy.")
+            throw Error("Another Super Hotkey instance is running. Close it before starting another copy.")
         OnExit(this.exitCallback)
         OnError(this.errorCallback)
         if !this.dryRun

@@ -9,11 +9,14 @@ class SuiteInterface {
         this.configurationWindows := Map()
         this.modulesWindow := 0
         this.moduleControls := Map()
-        this.startupPath := A_Startup "\Super Hotkey World.lnk"
+        this.startupPath := A_Startup "\Super Hotkey.lnk"
+        this.legacyStartupPath := A_Startup "\Super Hotkey World.lnk"
     }
 
     BuildTray() {
-        A_IconTip := SuiteApplication.Name (this.app.dryRun ? " - dry run" : "")
+        this.MigrateLegacyStartup()
+        A_IconTip := SuiteApplication.Name " v" SuiteApplication.Version
+            . (this.app.dryRun ? " - dry run" : "")
         try TraySetIcon(SuiteIcons.path, , true)
         A_TrayMenu.Delete()
         A_TrayMenu.Add("Modules...", ObjBindMethod(this, "ShowModules"))
@@ -474,8 +477,8 @@ class SuiteInterface {
         if this.Existing(key)
             return
         window := this.NewWindow(key, SuiteApplication.Name " - App settings", true)
-        window.AddText("x20 y20 w760", SuiteApplication.Name " " SuiteApplication.Version)
-        startup := window.AddCheckbox("x20 y65 w760 vstartup", "Run Super Hotkey World at sign-in")
+        window.AddText("x20 y20 w760", SuiteApplication.Name " v" SuiteApplication.Version)
+        startup := window.AddCheckbox("x20 y65 w760 vstartup", "Run Super Hotkey at sign-in")
         startup.Value := !!FileExist(this.startupPath)
         startup.Enabled := !this.app.dryRun
         startup.OnEvent("Click", ObjBindMethod(this, "ToggleStartup"))
@@ -486,6 +489,26 @@ class SuiteInterface {
             ["Reload", (*) => Reload(), 100],
             ["Close", ObjBindMethod(this, "CloseWindow", key), 100]], 260)
         window.Show("w800 h310")
+    }
+
+    MigrateLegacyStartup() {
+        if this.app.dryRun || !FileExist(this.legacyStartupPath) || FileExist(this.startupPath)
+            return
+        try {
+            FileGetShortcut(this.legacyStartupPath, &target, , &arguments)
+            shortcutTarget := StrLower(target " " arguments)
+            if !InStr(shortcutTarget, "super-hotkey-world.ahk")
+                && !InStr(shortcutTarget, "super-hotkey.ahk")
+                return
+            if A_IsCompiled
+                FileCreateShortcut(A_ScriptFullPath, this.startupPath, A_ScriptDir)
+            else
+                FileCreateShortcut(A_AhkPath, this.startupPath, A_ScriptDir,
+                    '"' A_ScriptDir "\super-hotkey.ahk" '"')
+            FileDelete(this.legacyStartupPath)
+        }
+        catch Error as failure
+            SuiteState.Log.Error("Core / startup shortcut rename", failure)
     }
 
     ToggleStartup(control, *) {

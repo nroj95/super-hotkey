@@ -9,7 +9,7 @@ SuiteGui(options := "", title := "") {
 
 class SuiteIcons {
     static handles := []
-    static path := A_ScriptDir "\assets\super-hotkey-world.ico"
+    static path := A_ScriptDir "\assets\super-hotkey.ico"
 
     static Initialize() {
         if this.handles.Length || !FileExist(this.path)

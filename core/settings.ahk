@@ -74,7 +74,7 @@ class SuiteSettings {
             if FileExist(path)
                 FileCopy(path, temporary, true)
             else
-                FileAppend("; Super Hotkey World module preferences`r`n", temporary, "UTF-16")
+                FileAppend("; Super Hotkey module preferences`r`n", temporary, "UTF-16")
             for section, values in changes
                 for key, value in values
                     IniWrite(value, temporary, section, key)

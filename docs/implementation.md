@@ -2,7 +2,7 @@
 
 ## ownership
 
-`super-hotkey-world.ahk` loads explicit includes. `SuiteApplication` owns startup, shutdown, module choices and the one Keybindings manager. `SuiteInterface` owns the flat tray, help, settings and global log viewer. `SuiteGui` applies the shared application icon and marks suite windows before showing them.
+`super-hotkey.ahk` loads explicit includes. `SuiteApplication` owns startup, shutdown, module choices and the one Keybindings manager. `SuiteInterface` owns the flat tray, help, settings and global log viewer. `SuiteGui` applies the shared application icon and marks suite windows before showing them.
 
 module IDs and preference directories stay stable across the user-facing renames. Wonder Windows has its own `win-key-overhaul.*` action IDs and namespaced `WW_` functions/state. no plugin discovery, background layer service, inter-process owner registry or separate module startup entries are used.
 

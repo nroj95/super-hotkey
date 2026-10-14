@@ -19,7 +19,7 @@ class SuiteLog {
             FileAppend(line, this.path, "UTF-8-RAW")
         }
         catch Error as failure
-            OutputDebug("Super Hotkey World: log write failed: " failure.Message)
+            OutputDebug("Super Hotkey: log write failed: " failure.Message)
         finally this.writing := false
     }
 

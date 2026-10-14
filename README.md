@@ -1,8 +1,8 @@
-# Super Hotkey World
+# Super Hotkey
 
 an AutoHotkey v2 64-bit Windows productivity suite: one process, tray icon, Keybindings editor and debug log.
 
-**status: five-module integration preview.** test on your Windows PC before replacing the standalone tools.
+**version 1.0.0 (no GitHub release yet).** the draft integration still needs real-desktop acceptance before publication.
 
 | module | purpose |
 | --- | --- |
@@ -14,11 +14,11 @@ an AutoHotkey v2 64-bit Windows productivity suite: one process, tray icon, Keyb
 
 ## start
 
-run `super-hotkey-world.ahk` with AutoHotkey v2 64-bit. close the standalone replacements first, including Win Key Overhaul. every module is enabled by default; existing suite module choices and shortcut assignments are retained.
+run `super-hotkey.ahk` with AutoHotkey v2 64-bit. close the standalone replacements first, including Win Key Overhaul. every module is enabled by default; existing suite module choices and shortcut assignments are retained.
 
 ```powershell
 python .\tests\check.py
-& "$env:LOCALAPPDATA\Programs\AutoHotkey\v2\AutoHotkey64.exe" .\super-hotkey-world.ahk --dry-run
+& "$env:LOCALAPPDATA\Programs\AutoHotkey\v2\AutoHotkey64.exe" .\super-hotkey.ahk --dry-run
 ```
 
 adjust the executable path for your installation. `--dry-run` uses separate temporary preferences, opens the shared editor and keeps real feature effects inactive. omit it only after inspecting the preview. `--check` parses and exits; `--settings` opens Keybindings on a normal launch.
@@ -31,7 +31,7 @@ factory shortcuts open Keybindings with **Caps + K** or **Ctrl + Alt + K**. modu
 
 ## preferences and safety
 
-suite data lives in `%LOCALAPPDATA%\nroj\SuperHotkeyWorld`. human-facing module names do not change stable action IDs or existing personal paths. Paper Pad retains its existing notes folder and dedicated Notepad3 profile. errors are always logged; optional verbose diagnostics use one global switch.
+suite data remains in `%LOCALAPPDATA%\nroj\SuperHotkeyWorld` so existing settings, shortcut assignments, Paper Pad notes and paths keep working. internal settings ownership and mutex IDs are intentionally stable. the old `super-hotkey-world.ahk` launcher is retained temporarily as a compatibility alias. Paper Pad retains its existing notes folder and dedicated Notepad3 profile. errors are always logged; optional verbose diagnostics use one global switch.
 
 Reset all shortcuts and Restore factory defaults are separate confirmed operations. note files, their folder, the editor path, editor profile and page state are not reset. App settings, including the single opt-in startup entry, is accessible from Modules.
 

@@ -35,6 +35,7 @@ jobs:
           retention-days: 3
           include-hidden-files: true
           path: |
+            super-hotkey.ahk
             super-hotkey-world.ahk
             core/
             modules/
