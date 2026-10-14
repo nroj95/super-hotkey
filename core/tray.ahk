@@ -116,6 +116,7 @@ class SuiteInterface {
     ResizePage(key, window, minMax, width, height) {
         if minMax = -1 || !this.pageLayouts.Has(key)
             return
+        SuiteSizeGrip.Move(window, minMax)
         layout := this.pageLayouts[key]
         width := Max(layout.minWidth, width)
         height := Max(layout.minHeight, height)
@@ -215,6 +216,7 @@ class SuiteInterface {
                 this.helpLayouts.Delete(SubStr(key, 6))
             if this.pageFooters.Has(this.windows[key].Hwnd)
                 this.pageFooters.Delete(this.windows[key].Hwnd)
+            SuiteSizeGrip.Detach(this.windows[key])
             this.windows[key].Destroy()
             this.windows.Delete(key)
         }
@@ -291,6 +293,7 @@ class SuiteInterface {
     ResizeHelp(id, window, minMax, width, height) {
         if minMax = -1 || !this.helpLayouts.Has(id)
             return
+        SuiteSizeGrip.Move(window, minMax)
         layout := this.helpLayouts[id]
         width := Max(560, width)
         height := Max(400, height)

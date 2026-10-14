@@ -4,6 +4,7 @@ SuiteGui(options := "", title := "") {
     SuiteIcons.Apply(window)
     ; Mark before showing: the window-show hook must never adopt our own dialogs.
     DllCall("SetPropW", "ptr", window.Hwnd, "str", "nroj.WindowCascade.Ignore", "ptr", 1, "int")
+    SuiteSizeGrip.Attach(window)
     return window
 }
 
@@ -37,7 +38,58 @@ SuiteShowCentered(window, width, height, layoutCallback := 0) {
     if !DllCall("SetWindowPos", "ptr", window.Hwnd, "ptr", 0,
         "int", x, "int", y, "int", 0, "int", 0, "uint", 0x15, "int")
         throw OSError(A_LastError, "Position Super Hotkey window")
+    SuiteSizeGrip.Move(window)
     window.Show()
+}
+
+class SuiteSizeGrip {
+    static handles := Map()
+
+    static Attach(window) {
+        ; A native scroll-bar sizing grip gives the corner a familiar diagonal
+        ; indicator and lets Windows handle dragging the parent window.
+        dimension := DllCall("GetSystemMetrics", "int", 2, "int")
+        height := DllCall("GetSystemMetrics", "int", 3, "int")
+        grip := DllCall("CreateWindowExW", "uint", 0, "str", "SCROLLBAR",
+            "ptr", 0, "uint", 0x50000010, ; WS_CHILD | WS_VISIBLE | SBS_SIZEGRIP
+            "int", 0, "int", 0, "int", dimension, "int", height,
+            "ptr", window.Hwnd, "ptr", 0,
+            "ptr", DllCall("GetModuleHandleW", "ptr", 0, "ptr"),
+            "ptr", 0, "ptr")
+        if !grip
+            throw OSError(A_LastError, "Create Super Hotkey sizing grip")
+        this.handles[window.Hwnd] := grip
+    }
+
+    static Move(window, minMax := 0) {
+        if !this.handles.Has(window.Hwnd)
+            return
+        grip := this.handles[window.Hwnd]
+        if !DllCall("IsWindow", "ptr", grip, "int") {
+            this.handles.Delete(window.Hwnd)
+            return
+        }
+        if minMax = 1 {
+            DllCall("ShowWindow", "ptr", grip, "int", 0, "int")
+            return
+        }
+        rect := Buffer(16, 0)
+        if !DllCall("GetClientRect", "ptr", window.Hwnd, "ptr", rect, "int")
+            return
+        width := DllCall("GetSystemMetrics", "int", 2, "int")
+        height := DllCall("GetSystemMetrics", "int", 3, "int")
+        DllCall("SetWindowPos", "ptr", grip, "ptr", 0,
+            "int", Max(0, NumGet(rect, 8, "int") - width),
+            "int", Max(0, NumGet(rect, 12, "int") - height),
+            "int", width, "int", height,
+            "uint", 0x54, "int") ; NOZORDER | NOACTIVATE | SHOWWINDOW
+    }
+
+    static Detach(window) {
+        if this.handles.Has(window.Hwnd)
+            this.handles.Delete(window.Hwnd)
+        ; Parent GUI destruction also destroys its child resizing grip.
+    }
 }
 
 class SuiteIcons {

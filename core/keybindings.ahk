@@ -1008,6 +1008,7 @@ class Keybindings {
     _ResizeSettings(window, minMax, width, height) {
         if !IsObject(this.settings) || this.settings != window || minMax = -1
             return
+        SuiteSizeGrip.Move(window, minMax)
         if this.settingsResizing
             return
         width := Max(820, width)
@@ -1418,6 +1419,7 @@ class Keybindings {
         }
         this.wheelRemainder := 0
         if IsObject(this.settings) {
+            SuiteSizeGrip.Detach(this.settings)
             this.settings.Destroy()
         }
         for iconHandle in this.settingsIcons
