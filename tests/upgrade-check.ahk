@@ -140,11 +140,28 @@ class SuiteUpgradeChecks {
             this.Assert(manager.warningButtons.Has(core.primary.Hwnd)
                 && !manager.warningButtons.Has(core.secondary.Hwnd),
                 "warning background applies only to unavailable assignment buttons")
+            this.Assert(manager.settingsDrawButtons[core.primary.Hwnd] = "binding"
+                && manager.settingsDrawButtons[core.secondary.Hwnd] = "binding"
+                && manager.settingsDrawButtons[core.reset.Hwnd] = "reset"
+                && manager.settingsDrawButtons[manager.settingsResetAll.Hwnd] = "reset",
+                "binding and reset controls share the square-corner drawing system")
             beforePaint := manager.warningPaintCount
             DllCall("RedrawWindow", "ptr", core.primary.Hwnd, "ptr", 0,
                 "ptr", 0, "uint", 0x185, "int")
             this.Assert(manager.warningPaintCount > beforePaint,
                 "inactive assignment buttons receive custom amber painting")
+            beforeNormal := manager.normalPaintCount
+            DllCall("RedrawWindow", "ptr", core.secondary.Hwnd, "ptr", 0,
+                "ptr", 0, "uint", 0x185, "int")
+            this.Assert(manager.normalPaintCount > beforeNormal,
+                "normal white assignment boxes use square-corner custom painting")
+            beforeReset := manager.resetPaintCount
+            DllCall("RedrawWindow", "ptr", core.reset.Hwnd, "ptr", 0,
+                "ptr", 0, "uint", 0x185, "int")
+            DllCall("RedrawWindow", "ptr", manager.settingsResetAll.Hwnd,
+                "ptr", 0, "ptr", 0, "uint", 0x185, "int")
+            this.Assert(manager.resetPaintCount > beforeReset,
+                "row and footer reset controls use matching square-corner painting")
             manager.settings["search"].Value := "show Paper Pad help"
             manager._RenderSettings()
             paper := manager.visibleRows[2].primary

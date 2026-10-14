@@ -53,9 +53,12 @@ class Keybindings {
         this.wheelHookActive := false
         this.verticalScrollCallback := ObjBindMethod(this, "_VerticalScrollSettings")
         this.verticalScrollHookActive := false
-        this.warningButtonDrawCallback := ObjBindMethod(this, "_DrawWarningButton")
+        this.settingsButtonDrawCallback := ObjBindMethod(this, "_DrawSettingsButton")
+        this.settingsDrawButtons := Map()
         this.warningButtons := Map()
         this.warningPaintCount := 0
+        this.normalPaintCount := 0
+        this.resetPaintCount := 0
 
         this.captureMouse := Map()
         this.observers := []
@@ -965,11 +968,13 @@ class Keybindings {
 
         this.settingsRowPool := []
         this.visibleRows := []
+        this.settingsDrawButtons := Map()
         this.warningButtons := Map()
-        OnMessage(0x004E, this.warningButtonDrawCallback) ; WM_NOTIFY / NM_CUSTOMDRAW
+        OnMessage(0x004E, this.settingsButtonDrawCallback) ; WM_NOTIFY / NM_CUSTOMDRAW
         this.settingsScroll := window.AddCustom("ClassScrollBar x778 y48 w24 h140 +0x1")
         this.settingsDivider := window.AddText("x22 y300 w752 h2 +0x10", "")
         this.settingsResetAll := window.AddButton("x244 y320 w180 h31", "Reset all shortcuts")
+        this.settingsDrawButtons[this.settingsResetAll.Hwnd] := "reset"
         this.settingsResetAll.OnEvent("Click", ObjBindMethod(this, "_ResetAll"))
         this.settingsDone := window.AddButton("x438 y320 w130 h31", "done")
         this.settingsDone.OnEvent("Click", ObjBindMethod(this, "_RequestCloseSettings"))
@@ -997,6 +1002,9 @@ class Keybindings {
         primary := window.AddButton("Hidden x358 y48 w167 h29", "unbound")
         secondary := window.AddButton("Hidden x535 y48 w153 h29", "unbound")
         reset := window.AddButton("Hidden x698 y48 w76 h29", "reset")
+        this.settingsDrawButtons[primary.Hwnd] := "binding"
+        this.settingsDrawButtons[secondary.Hwnd] := "binding"
+        this.settingsDrawButtons[reset.Hwnd] := "reset"
         primary.OnEvent("Click", ObjBindMethod(this, "_BeginRecording", index, 1))
         secondary.OnEvent("Click", ObjBindMethod(this, "_BeginRecording", index, 2))
         reset.OnEvent("Click", ObjBindMethod(this, "_ResetAction", index))
@@ -1291,9 +1299,9 @@ class Keybindings {
         }
     }
 
-    _DrawWarningButton(wParam, lParam, messageId, receiverHwnd) {
+    _DrawSettingsButton(wParam, lParam, messageId, receiverHwnd) {
         if !IsObject(this.settings) || receiverHwnd != this.settings.Hwnd
-            || !this.warningButtons.Has(NumGet(lParam, 0, "ptr"))
+            || !this.settingsDrawButtons.Has(NumGet(lParam, 0, "ptr"))
             || NumGet(lParam, 16, "int") != -12 ; NM_CUSTOMDRAW
             || NumGet(lParam, 24, "uint") != 1 ; CDDS_PREPAINT
             return
@@ -1305,11 +1313,27 @@ class Keybindings {
         DllCall("RtlMoveMemory", "ptr", bounds, "ptr", lParam + 40, "uptr", 16)
         pressed := !!(state & 0x1) ; CDIS_SELECTED
         hovered := !!(state & 0x40) ; CDIS_HOT
-        ; Warm amber communicates an unavailable shortcut; all other buttons
-        ; keep their ordinary native Windows appearance.
-        fillColor := pressed ? 0xA7D8FF : hovered ? 0xBCE5FF : 0xD9F0FF
+        enabled := !!DllCall("IsWindowEnabled", "ptr", hwnd, "int")
+        kind := this.warningButtons.Has(hwnd) ? "warning" : this.settingsDrawButtons[hwnd]
+
+        ; All shortcut and reset controls use the same crisp, square frame.
+        ; Only unavailable layer assignments receive the amber palette.
+        if kind = "warning" {
+            fillColor := pressed ? 0xA7D8FF : hovered ? 0xBCE5FF : 0xD9F0FF
+            frameColor := 0x2D8EB9
+            textColor := 0x234566
+        } else if kind = "reset" {
+            fillColor := pressed ? 0xDBDBDB : hovered ? 0xE9E9E9 : 0xF5F5F5
+            frameColor := 0xCDCDCD
+            textColor := enabled ? 0x666666 : 0xB0B0B0
+        } else {
+            fillColor := pressed ? 0xE5E5E5 : hovered ? 0xF5F5F5 : 0xFFFFFF
+            frameColor := 0xC9C9C9
+            textColor := enabled ? 0x202020 : 0x999999
+        }
+
         fillBrush := DllCall("CreateSolidBrush", "uint", fillColor, "ptr")
-        frameBrush := DllCall("CreateSolidBrush", "uint", 0x2D8EB9, "ptr")
+        frameBrush := DllCall("CreateSolidBrush", "uint", frameColor, "ptr")
         if !fillBrush || !frameBrush {
             if fillBrush
                 DllCall("DeleteObject", "ptr", fillBrush)
@@ -1331,9 +1355,9 @@ class Keybindings {
                 "uptr", 0, "ptr", 0, "ptr") ; WM_GETFONT
             originalFont := font ? DllCall("SelectObject", "ptr", hdc, "ptr", font, "ptr") : 0
             originalMode := DllCall("SetBkMode", "ptr", hdc, "int", 1, "int")
-            originalText := DllCall("SetTextColor", "ptr", hdc, "uint", 0x234566, "uint")
+            originalText := DllCall("SetTextColor", "ptr", hdc, "uint", textColor, "uint")
             try DllCall("DrawTextW", "ptr", hdc, "ptr", label, "int", -1,
-                "ptr", inner, "uint", 0x8825, "int") ; center/ellipsis/no accelerator
+                "ptr", inner, "uint", 0x8825, "int") ; centered, no accelerator
             finally {
                 DllCall("SetTextColor", "ptr", hdc, "uint", originalText)
                 DllCall("SetBkMode", "ptr", hdc, "int", originalMode)
@@ -1342,7 +1366,12 @@ class Keybindings {
             }
             if state & 0x10 ; CDIS_FOCUS
                 DllCall("DrawFocusRect", "ptr", hdc, "ptr", inner, "int")
-            this.warningPaintCount += 1
+            if kind = "warning"
+                this.warningPaintCount += 1
+            else if kind = "reset"
+                this.resetPaintCount += 1
+            else
+                this.normalPaintCount += 1
         }
         finally {
             DllCall("DeleteObject", "ptr", fillBrush)
@@ -1397,7 +1426,8 @@ class Keybindings {
 
     _CloseSettings(*) {
         this._EndRecording()
-        OnMessage(0x004E, this.warningButtonDrawCallback, 0)
+        OnMessage(0x004E, this.settingsButtonDrawCallback, 0)
+        this.settingsDrawButtons := Map()
         this.warningButtons := Map()
         if this.wheelHookActive {
             OnMessage(0x020A, this.wheelCallback, 0)
