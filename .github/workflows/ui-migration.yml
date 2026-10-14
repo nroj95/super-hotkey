@@ -27,7 +27,10 @@ jobs:
           Expand-Archive "$env:RUNNER_TEMP\wonder-source.zip" migration/upstream/win-key-overhaul -Force
       - name: Materialize the reviewed one-time migration
         shell: pwsh
-        run: python migration/upgrade-ui.py
+        run: |
+          python migration/upgrade-ui.py
+          if ($LASTEXITCODE -ne 0) { throw 'Migration failed.' }
+          python migration/finalize-ui.py
       - name: Get the pinned AutoHotkey test runtime
         shell: pwsh
         run: |
