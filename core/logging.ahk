@@ -1,14 +1,15 @@
-; One bounded log, with a single rotated backup. Never log notes or clipboard text.
+; One bounded application log. Errors and lifecycle events do not depend on verbose mode.
 class SuiteLog {
-    __New(directory, maximumBytes := 2097152) {
+    __New(directory, maximumBytes := 2097152, verbose := false) {
         DirCreate directory
         this.path := directory "\debug.log"
         this.maximumBytes := maximumBytes
+        this.verbose := verbose
         this.writing := false
     }
 
     Write(component, message, level := "INFO") {
-        if this.writing
+        if this.writing || (level = "DEBUG" && !this.verbose)
             return
         this.writing := true
         try {
@@ -22,6 +23,8 @@ class SuiteLog {
         finally this.writing := false
     }
 
+    Debug(component, message) => this.Write(component, message, "DEBUG")
+
     Error(component, failure) {
         detail := failure.Message
         for name in ["File", "Line", "What", "Extra", "Stack"]
@@ -29,6 +32,8 @@ class SuiteLog {
                 detail .= "`n  " name ": " failure.%name%
         this.Write(component, detail, "ERROR")
     }
+
+    Read() => FileExist(this.path) ? FileRead(this.path, "UTF-8") : ""
 
     Clear(*) {
         if FileExist(this.path)

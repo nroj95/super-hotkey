@@ -1,0 +1,44 @@
+name: UI migration workspace
+on:
+  push:
+    branches: [ui-five-module-work]
+permissions:
+  contents: read
+jobs:
+  prepare:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+      - name: Pin Wonder Windows source without importing Git history
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $destination = Join-Path $env:RUNNER_TEMP 'wonder-source'
+          git clone --no-checkout https://github.com/nroj95/win-key-overhaul.git $destination
+          if ($LASTEXITCODE -ne 0) { throw 'Source download failed.' }
+          git -C $destination checkout --detach 02a28d906868a883a33d3081c1bd4bd7ad0e0274
+          if ($LASTEXITCODE -ne 0) { throw 'Pinned source unavailable.' }
+          New-Item -ItemType Directory -Force migration/upstream/win-key-overhaul | Out-Null
+          git -C $destination archive --format=zip -o "$env:RUNNER_TEMP\wonder-source.zip" HEAD
+          if ($LASTEXITCODE -ne 0) { throw 'Could not export the source snapshot.' }
+          Expand-Archive "$env:RUNNER_TEMP\wonder-source.zip" migration/upstream/win-key-overhaul -Force
+      - name: Export the review workspace (no application launched)
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ui-migration-workspace
+          retention-days: 3
+          include-hidden-files: true
+          path: |
+            super-hotkey-world.ahk
+            core/
+            modules/
+            assets/
+            migration/
+            tests/
+            docs/
+            README.md
+            AGENTS.md
+            LICENSE
