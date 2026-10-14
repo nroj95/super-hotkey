@@ -126,6 +126,10 @@ class SuiteApplication {
         WindowCascadeModule.Register(this.manager)
         ScratchpadModule.Register(this.manager)
         this.wonder := WonderWindowsModule(this.manager, this.dryRun)
+        this.manager.AddAction("keyboard-layers.help", "show Secret Keys help",
+            ObjBindMethod(this, "HelpShortcutEvent", "keyboard-layers"), [],
+            {category: "Secret Keys", help: true,
+                available: (*) => this.ModuleActive("keyboard-layers")})
     }
 
     ModuleActive(id) => this.activeModules.Has(id) && this.activeModules[id]
@@ -144,6 +148,17 @@ class SuiteApplication {
     OpenBindingsEvent(event) {
         if event.phase = "down"
             SetTimer(ObjBindMethod(this, "ShowKeybindings"), -1)
+    }
+
+    HelpShortcutEvent(moduleId, event) {
+        if event.phase != "down" || this.dryRun || this.stopping
+            return
+        SetTimer(ObjBindMethod(this, "ShowModuleHelp", moduleId), -1)
+    }
+
+    ShowModuleHelp(moduleId, *) {
+        if !this.stopping && IsObject(this.ui)
+            this.ui.ShowHelp(moduleId)
     }
 
     CancelInputs() {

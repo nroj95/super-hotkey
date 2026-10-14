@@ -39,7 +39,8 @@ class WonderWindowsModule {
             ["Win + Shift + Tab"])
         this.manager.AddAction("win-key-overhaul.help", "show Wonder Windows help",
             ObjBindMethod(this, "HelpEvent"), ["Win + Ctrl + H"],
-            {category: "Wonder Windows", available: ObjBindMethod(this, "Available")})
+            {category: "Wonder Windows", help: true,
+                available: ObjBindMethod(this, "Available")})
     }
 
     Available(*) => SuiteState.App.ModuleActive("win-key-overhaul")

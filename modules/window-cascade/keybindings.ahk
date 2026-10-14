@@ -74,6 +74,7 @@ CascadeAddAction(manager, id, label, commandId, binding, parameter := 0)
 {
     manager.AddAction("window-cascade." id, label, CascadeBindingEvent.Bind(commandId, parameter),
         [binding], {category: commandId < 0 ? "Global" : "Cascade Kingdom",
+            help: id = "help",
             available: (*) => commandId < 0 || SuiteState.App.ModuleActive("window-cascade")})
 }
 

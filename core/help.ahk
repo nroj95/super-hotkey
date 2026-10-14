@@ -52,8 +52,6 @@ class ModuleHelp {
 
     static Text(id, manager) {
         text := this.Introduction(id)
-        if id = "keyboard-layers"
-            return text
         text .= "`r`n`r`nCURRENT SAVED SHORTCUTS`r`n"
         configuration := manager.GetConfiguration()
         for actionId, action in manager.actions {

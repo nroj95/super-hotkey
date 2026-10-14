@@ -243,7 +243,7 @@ class SuiteUpgradeChecks {
                 }
             }
             expectedOrder := ["Global", "Paper Pad", "Cascade Kingdom",
-                "Wonder Windows", "Power-Up Utilities"]
+                "Wonder Windows", "Power-Up Utilities", "Secret Keys"]
             this.Assert(mainHeadings.Length = expectedOrder.Length,
                 "Keybindings includes exactly the five assignable sections")
             for index, expectedName in expectedOrder
@@ -257,9 +257,40 @@ class SuiteUpgradeChecks {
                     paperSection := index
                     break
                 }
-            this.Assert(paperSection > 0 && rows[paperSection + 1].id = "scratchpad.toggle"
-                && rows[paperSection + 2].label = "Paper Pad / Inside the editor",
-                "Paper Pad keeps its toggle and editor subcategory together near the top")
+            this.Assert(paperSection > 0 && rows[paperSection + 1].id = "scratchpad.help"
+                && rows[paperSection + 2].id = "scratchpad.toggle"
+                && rows[paperSection + 3].label = "Paper Pad / Inside the editor",
+                "Paper Pad puts Help first, followed by its toggle and editor subcategory")
+            expectedHelp := Map("Paper Pad", "scratchpad.help",
+                "Cascade Kingdom", "window-cascade.help",
+                "Wonder Windows", "win-key-overhaul.help",
+                "Power-Up Utilities", "power-hotkey.interface.open",
+                "Secret Keys", "keyboard-layers.help")
+            for index, row in rows {
+                if row.id != "" || !expectedHelp.Has(row.label)
+                    continue
+                this.Assert(index < rows.Length && rows[index + 1].id = expectedHelp[row.label],
+                    row.label " displays its Help shortcut first")
+            }
+            saved := manager.GetConfiguration()
+            this.Assert(saved["scratchpad.help"].bindings[1] = ""
+                && saved["scratchpad.help"].bindings[2] = ""
+                && saved["keyboard-layers.help"].bindings[1] = ""
+                && saved["keyboard-layers.help"].bindings[2] = "",
+                "new Paper Pad and Secret Keys Help actions default to unassigned")
+            this.Assert(saved["window-cascade.help"].bindings[1]
+                = Keybindings.Parse("Caps + H").signature
+                && saved["win-key-overhaul.help"].bindings[1]
+                    = Keybindings.Parse("Win + Ctrl + H").signature
+                && saved["power-hotkey.interface.open"].bindings[1]
+                    = Keybindings.Parse("Pause + H").signature,
+                "existing module Help shortcuts retain their original defaults")
+            this.Assert(!this.RouteExists(manager, "scratchpad.help")
+                && !this.RouteExists(manager, "keyboard-layers.help"),
+                "unassigned new Help actions install no shortcuts")
+            this.Assert(InStr(ModuleHelp.Text("keyboard-layers", manager),
+                "show Secret Keys help") > 0,
+                "Secret Keys help lists its newly configurable Help shortcut")
             filtered := Keybindings.DisplayRows(manager.DiscoverParticipants(), "Inside the editor")
             this.Assert(filtered.Length > 2 && filtered[1].label = "Paper Pad"
                 && filtered[2].label = "Paper Pad / Inside the editor",

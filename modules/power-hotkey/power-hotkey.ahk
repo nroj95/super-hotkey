@@ -34,7 +34,7 @@ class PowerHotkeys {
         this.catalog[actionId] := {id: actionId, moduleId: moduleId, kind: kind,
             value: value, needsFocus: needsFocus}
         this.manager.AddAction(actionId, label, ObjBindMethod(this, "Dispatch"),
-            [defaultBinding], {category: category,
+            [defaultBinding], {category: category, help: moduleId = "interface",
                 available: (*) => SuiteState.App.ModuleActive("power-hotkey")})
     }
 

@@ -81,6 +81,7 @@ class Keybindings {
         this.actions[actionId] := {scope: scope,
             id: actionId, label: label, callback: callback, category: category,
             repeat: !!Keybindings.Option(options, "repeat", false),
+            help: !!Keybindings.Option(options, "help", false),
             defaultEnabled: !!Keybindings.Option(options, "enabled", true),
             trackEdits: false,
             available: Keybindings.Option(options, "available", true),
@@ -178,9 +179,13 @@ class Keybindings {
                     else
                         modules[moduleName].InsertAt(1, action.category)
                 }
-                grouped[action.category].Push({id: action.id, label: action.label,
+                entry := {id: action.id, label: action.label,
                     ownerId: participant.id, setting: action,
-                    editable: (participant.id = participants[1].id || participant.controlReady)})
+                    editable: (participant.id = participants[1].id || participant.controlReady)}
+                if HasProp(action, "help") && action.help
+                    grouped[action.category].InsertAt(1, entry)
+                else
+                    grouped[action.category].Push(entry)
             }
             ; Put the compact Paper Pad section just below Global.
             ; Keep the remaining module order and all subcategories intact.
@@ -194,7 +199,7 @@ class Keybindings {
                     }
                 }
                 for moduleId in SuiteSettings.ModuleOrder {
-                    if moduleId = "keyboard-layers" || moduleId = "scratchpad"
+                    if moduleId = "scratchpad"
                         continue
                     moduleName := SuiteSettings.ModuleNames[moduleId]
                     if modules.Has(moduleName) && !placed.Has(moduleName) {
@@ -231,7 +236,8 @@ class Keybindings {
             if !setting.enabled || !this.IsAvailable(action)
                 continue
             result.Push({id: actionId, label: action.label,
-                category: action.category, enabled: true, bindings: setting.bindings.Clone()})
+                category: action.category, enabled: true, help: action.help,
+                bindings: setting.bindings.Clone()})
         }
         return result
     }
