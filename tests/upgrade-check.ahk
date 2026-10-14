@@ -137,11 +137,21 @@ class SuiteUpgradeChecks {
                 && core.secondary.Text = "Ctrl + Alt + K"
                 && core.primary.Enabled,
                 "disabled Secret Keys marks only the Caps binding and leaves it editable")
+            this.Assert(manager.warningButtons.Has(core.primary.Hwnd)
+                && !manager.warningButtons.Has(core.secondary.Hwnd),
+                "warning background applies only to unavailable assignment buttons")
+            beforePaint := manager.warningPaintCount
+            DllCall("RedrawWindow", "ptr", core.primary.Hwnd, "ptr", 0,
+                "ptr", 0, "uint", 0x185, "int")
+            this.Assert(manager.warningPaintCount > beforePaint,
+                "inactive assignment buttons receive custom amber painting")
             manager.settings["search"].Value := "show Paper Pad help"
             manager._RenderSettings()
             paper := manager.visibleRows[2].primary
             this.Assert(InStr(paper.Text, "⚠ Pause + F12") = 1 && paper.Enabled,
                 "disabled Secret Keys marks the saved Pause Help binding as reassignable")
+            this.Assert(manager.warningButtons.Has(paper.Hwnd),
+                "disabled Pause bindings also receive the amber warning background")
             before := manager.GetConfiguration()["scratchpad.help"].bindings[1]
             this.Assert(before = Keybindings.Parse("Pause + F12").signature,
                 "warning presentation never modifies the saved shortcut")

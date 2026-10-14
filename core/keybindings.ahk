@@ -53,6 +53,9 @@ class Keybindings {
         this.wheelHookActive := false
         this.verticalScrollCallback := ObjBindMethod(this, "_VerticalScrollSettings")
         this.verticalScrollHookActive := false
+        this.warningButtonDrawCallback := ObjBindMethod(this, "_DrawWarningButton")
+        this.warningButtons := Map()
+        this.warningPaintCount := 0
 
         this.captureMouse := Map()
         this.observers := []
@@ -962,6 +965,8 @@ class Keybindings {
 
         this.settingsRowPool := []
         this.visibleRows := []
+        this.warningButtons := Map()
+        OnMessage(0x004E, this.warningButtonDrawCallback) ; WM_NOTIFY / NM_CUSTOMDRAW
         this.settingsScroll := window.AddCustom("ClassScrollBar x778 y48 w24 h140 +0x1")
         this.settingsDivider := window.AddText("x22 y300 w752 h2 +0x10", "")
         this.settingsResetAll := window.AddButton("x244 y320 w180 h31", "Reset all shortcuts")
@@ -1225,6 +1230,7 @@ class Keybindings {
         if !IsObject(this.settings)
             return
         this.settings.Title := this._SettingsTitle()
+        this.warningButtons := Map()
         search := this.settings["search"].Value
         this.participants[1].actions := this._LocalCatalogSnapshot()
         this.rows := Keybindings.DisplayRows(this.participants, search)
@@ -1273,6 +1279,8 @@ class Keybindings {
                     continue
                 }
                 inactiveLayer := parsed.layer != "normal" && this.BindingUnavailable(parsed) != ""
+                if inactiveLayer
+                    this.warningButtons[control.Hwnd] := true
                 control.Text := (inactiveLayer ? "⚠ " : "") parsed.label
             }
             if isLocal {
@@ -1281,6 +1289,66 @@ class Keybindings {
                     || setting.bindings[2] != defaults[2]
             }
         }
+    }
+
+    _DrawWarningButton(wParam, lParam, messageId, receiverHwnd) {
+        if !IsObject(this.settings) || receiverHwnd != this.settings.Hwnd
+            || !this.warningButtons.Has(NumGet(lParam, 0, "ptr"))
+            || NumGet(lParam, 16, "int") != -12 ; NM_CUSTOMDRAW
+            || NumGet(lParam, 24, "uint") != 1 ; CDDS_PREPAINT
+            return
+
+        hwnd := NumGet(lParam, 0, "ptr")
+        hdc := NumGet(lParam, 32, "ptr")
+        state := NumGet(lParam, 64, "uint")
+        bounds := Buffer(16, 0)
+        DllCall("RtlMoveMemory", "ptr", bounds, "ptr", lParam + 40, "uptr", 16)
+        pressed := !!(state & 0x1) ; CDIS_SELECTED
+        hovered := !!(state & 0x40) ; CDIS_HOT
+        ; Warm amber communicates an unavailable shortcut; all other buttons
+        ; keep their ordinary native Windows appearance.
+        fillColor := pressed ? 0xA7D8FF : hovered ? 0xBCE5FF : 0xD9F0FF
+        fillBrush := DllCall("CreateSolidBrush", "uint", fillColor, "ptr")
+        frameBrush := DllCall("CreateSolidBrush", "uint", 0x2D8EB9, "ptr")
+        if !fillBrush || !frameBrush {
+            if fillBrush
+                DllCall("DeleteObject", "ptr", fillBrush)
+            if frameBrush
+                DllCall("DeleteObject", "ptr", frameBrush)
+            return
+        }
+        try {
+            DllCall("FillRect", "ptr", hdc, "ptr", bounds, "ptr", fillBrush, "int")
+            DllCall("FrameRect", "ptr", hdc, "ptr", bounds, "ptr", frameBrush, "int")
+            inner := Buffer(16, 0)
+            DllCall("RtlMoveMemory", "ptr", inner, "ptr", bounds, "uptr", 16)
+            DllCall("InflateRect", "ptr", inner, "int", -5, "int", -3, "int")
+            length := DllCall("GetWindowTextLengthW", "ptr", hwnd, "int")
+            label := Buffer((length + 1) * 2, 0)
+            DllCall("GetWindowTextW", "ptr", hwnd, "ptr", label,
+                "int", length + 1, "int")
+            font := DllCall("SendMessageW", "ptr", hwnd, "uint", 0x31,
+                "uptr", 0, "ptr", 0, "ptr") ; WM_GETFONT
+            originalFont := font ? DllCall("SelectObject", "ptr", hdc, "ptr", font, "ptr") : 0
+            originalMode := DllCall("SetBkMode", "ptr", hdc, "int", 1, "int")
+            originalText := DllCall("SetTextColor", "ptr", hdc, "uint", 0x234566, "uint")
+            try DllCall("DrawTextW", "ptr", hdc, "ptr", label, "int", -1,
+                "ptr", inner, "uint", 0x8825, "int") ; center/ellipsis/no accelerator
+            finally {
+                DllCall("SetTextColor", "ptr", hdc, "uint", originalText)
+                DllCall("SetBkMode", "ptr", hdc, "int", originalMode)
+                if originalFont
+                    DllCall("SelectObject", "ptr", hdc, "ptr", originalFont)
+            }
+            if state & 0x10 ; CDIS_FOCUS
+                DllCall("DrawFocusRect", "ptr", hdc, "ptr", inner, "int")
+            this.warningPaintCount += 1
+        }
+        finally {
+            DllCall("DeleteObject", "ptr", fillBrush)
+            DllCall("DeleteObject", "ptr", frameBrush)
+        }
+        return 4 ; CDRF_SKIPDEFAULT
     }
 
     _ResetAction(index, *) {
@@ -1329,6 +1397,8 @@ class Keybindings {
 
     _CloseSettings(*) {
         this._EndRecording()
+        OnMessage(0x004E, this.warningButtonDrawCallback, 0)
+        this.warningButtons := Map()
         if this.wheelHookActive {
             OnMessage(0x020A, this.wheelCallback, 0)
             this.wheelHookActive := false
