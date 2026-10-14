@@ -35,9 +35,9 @@ class SuiteInterface {
         A_TrayMenu.Add("Keybindings...", ObjBindMethod(this.app, "ShowKeybindings"))
         A_TrayMenu.Add()
         for id in SuiteSettings.ModuleOrder
-            A_TrayMenu.Add(SuiteSettings.ModuleNames[id] "...", ObjBindMethod(this, "ShowHelp", id))
+            A_TrayMenu.Add(SuiteSettings.ModuleNames[id], ObjBindMethod(this, "ShowHelp", id))
         A_TrayMenu.Add()
-        A_TrayMenu.Add("Debug log...", ObjBindMethod(this, "OpenLog"))
+        A_TrayMenu.Add("Debug log", ObjBindMethod(this, "OpenLog"))
         A_TrayMenu.Add("Verbose logging", ObjBindMethod(this, "ToggleVerboseTray"))
         A_TrayMenu.Add("Open settings folder", ObjBindMethod(this, "OpenSettingsFolder"))
         A_TrayMenu.Add()
