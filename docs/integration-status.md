@@ -1,26 +1,29 @@
 # integration status
 
-## implemented in this preview
+## five-module preview
 
-one launcher, one AutoHotkey manager/process/tray, four default-enabled modules, restart-based module choices, local Caps/Pause routing, editable inactive assignments, reconciled factory shortcuts, central rotating logging, and separate confirmed reset operations. Power Hotkey dispatch and Window Cascade algorithms are adapted from the pinned implementations. Scratchpad retains its Notepad3 save/ownership code with shared contextual shortcuts and save-aware shutdown.
+- Cascade Kingdom: automatic window management.
+- Wonder Windows: manual Windows shortcuts, layouts, stretching, swapping and navigation.
+- Power-Up Utilities: extra keyboard, text and system actions.
+- Paper Pad: the preserved Notepad3 notes controller.
+- Secret Keys: independently configurable CapsLock and Pause layers.
 
-no old repository, startup entry or original settings file is deleted. the suite intentionally starts a new shortcut configuration rather than silently interpreting the old independent owners' files.
+one launcher, process, tray and application icon. the flat tray opens each module's How to use page; lower-right buttons link to settings and the single shared Keybindings editor. disabled modules retain help and saved assignments. errors are always logged; verbose diagnostics have one global switch.
 
-## automated checks
+Wonder Windows uses the pinned Win Key Overhaul implementation with namespaced state. only explicit complementary input scopes may share a shortcut. Paper Pad retains its editor navigation while active. manual window geometry leaves the cascade until explicitly adopted; focus-only navigation does not claim geometry. Windows Snap and FancyZones configuration require explicit user actions and confirmation.
 
-`python tests/check.py` runs migration helper tests, verifies materialized files against the pinned transformations, parses every included AutoHotkey module, and runs isolated native assertions. these cover the factory catalog, disabled assignments, conflict rejection without overwriting, explicit contexts, ordinary CapsLock/Pause assignments with layers disabled, parser safety rules, log rotation, reset scope and a busy Scratchpad restart veto.
+## validation boundaries
 
-tests use temporary data and dry-run callbacks. they do **not** prove physical keyboard-hook behavior, real window placement, Notepad3 saves, suspend/resume, or multi-monitor correctness. no real sleep, audio or text-insertion action is invoked.
+`python tests/check.py` checks the committed source, runs portable structural tests, parses every included AutoHotkey module and executes isolated native/GUI assertions. no migration generator runs during normal checks. native tests use temporary settings, dry-run callbacks and owned test windows, not real note documents or the user's workspace.
 
-## manual acceptance before daily use
+automated checks cannot establish physical keyboard-hook behavior, real Notepad3 save parity, multi-monitor placement, or suspend/resume reliability. no real sleep, audio or text-insertion action is invoked. this remains a preview until manual acceptance is complete.
 
-- confirm one AutoHotkey process/tray; all four module combinations should start or produce an actionable error. test a fresh configuration and the copied Scratchpad/Window Cascade preferences.
-- test Caps/Pause held chords, one-shot timeout/cancellation, modifier changes and release order on the actual Norwegian keyboard. check synthesized F13–F24/numpad releases, pause/unlock/resume, and no stuck input after opening settings.
-- disable layers, restart, and verify native CapsLock/Pause. replace an inactive layer assignment with an ordinary shortcut, including an explicitly assigned CapsLock/Pause key. disable a feature module and reuse its shortcut; re-enabling must reject a conflict without overwriting assignments.
-- compare Window Cascade placement, monitor switching, focus tabs, drag/drop, minimize/restore and exit recovery with the standalone version. confirm the suite's own windows are not cascaded. retain the existing ScreenGrid/FancyZones compatibility precautions.
-- test Scratchpad toggle, editor-only commands, emoji-picker Escape, checked saves, page switching, disk-conflict refusal, reload/undo retention and an exit with a pending Notepad3 dialog. test a disposable notes folder first.
-- confirm both reset dialogs default to cancellation. verify disabled assignments reset as intended, while note files, notes/editor paths, editor profile, page state and backups remain intact.
+## manual acceptance
 
-## release boundary
+1. verify the flat tray, five How to use pages, lower-right navigation, one shared Keybindings window and matching application icons. check all pages with modules disabled too.
+2. test all four Caps/Pause combinations after restart. enabled prefixes provide held and one-shot shortcuts; disabled prefixes behave natively or follow explicit ordinary assignments. Ctrl + Alt + K must remain available with factory shortcuts.
+3. compare Wonder Windows layouts, stretch, swap, fullscreen and spatial focus on real monitors. test interaction with Cascade Kingdom, manual ownership and explicit adoption. test one drag-snapping tool at a time.
+4. use disposable Paper Pad notes first: new/switch/save/hide, disk conflicts, emoji-picker Escape, reload and pending editor dialogs. verify page shortcuts take precedence over Wonder Windows only in the pad context.
+5. test module conflicts, both confirmed reset operations, save-aware exit/restart, global verbose logging, startup and suspend/resume. verify original notes, paths, profiles and standalone settings remain intact.
 
-this branch is a migration preview, not a declaration of behavior parity. phase 5 remains open until manual acceptance is complete. phase 6 (stable release and retirement of the original repositories) has not started.
+`main` and the standalone repositories remain migration checkpoints. do not delete or retire them before acceptance. no stable release has been published.

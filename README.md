@@ -1,42 +1,38 @@
 # Super Hotkey World
 
-a modular Windows productivity suite built from the existing AutoHotkey utilities.
+an AutoHotkey v2 64-bit Windows productivity suite: one process, tray icon, Keybindings editor and debug log.
 
-**status: integration preview, not a stable release.** the shared runtime is implemented; physical keyboard, window-management and Notepad3 acceptance testing remains necessary before replacing the originals. see `docs/integration-status.md`.
+**status: five-module integration preview.** test on your Windows PC before replacing the standalone tools.
 
-## run
+| module | purpose |
+| --- | --- |
+| Cascade Kingdom | automatic window placement and cascades |
+| Wonder Windows | Windows shortcuts, layouts, stretch, swap and navigation |
+| Power-Up Utilities | extra keyboard, text and system actions |
+| Paper Pad | quick notes in a dedicated Notepad3 drawer |
+| Secret Keys | independent CapsLock and Pause shortcut layers |
 
-requires Windows and **64-bit AutoHotkey v2**. Scratchpad additionally uses the existing dedicated Notepad3 editor; its bridge was originally written for Notepad3 7.26.602.1. one AutoHotkey process does not mean eliminating the Notepad3 process.
+## start
 
-close the original Window Cascade, Power Hotkey, Scratchpad and keyboard-layer scripts before launching `super-hotkey-world.ahk`. the suite does not stop them or remove their startup entries automatically.
+run `super-hotkey-world.ahk` with AutoHotkey v2 64-bit. close the standalone replacements first, including Win Key Overhaul. every module is enabled by default; existing suite module choices and shortcut assignments are retained.
 
 ```powershell
 python .\tests\check.py
-& 'C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe' .\super-hotkey-world.ahk --dry-run
+& "$env:LOCALAPPDATA\Programs\AutoHotkey\v2\AutoHotkey64.exe" .\super-hotkey-world.ahk --dry-run
 ```
 
-`--dry-run` opens the shared editor with isolated temporary settings, no active shortcuts, no window management and no Notepad3 launch. omit it for normal operation. `--check` only parses the entire suite and exits. pass `--autohotkey PATH` to the test runner when AutoHotkey is installed elsewhere.
+adjust the executable path for your installation. `--dry-run` uses separate temporary preferences, opens the shared editor and keeps real feature effects inactive. omit it only after inspecting the preview. `--check` parses and exits; `--settings` opens Keybindings on a normal launch.
 
-## controls
+## navigation
 
-all four modules are enabled initially. **Modules → Apply and restart** changes their availability. Keybindings is always available from the tray; its defaults are **Caps + K** and **Ctrl + Alt + K**. terminal clearing now defaults to **Caps + Ctrl + K**, avoiding the old collision.
+the tray is flat: Modules, Keybindings, five module help pages, Debug log and Exit. each module opens How to use first, with relevant navigation at the lower right. all Keybindings links reuse the same global window.
 
-click either shortcut slot to record. right-click a slot to enter a key name, including bare Escape, CapsLock or Pause. disabled modules keep their editable assignments without reserving inputs. disabled layers leave their assignments inactive; normal replacements still work. an enabled layer owns its prefix keys, so ordinary CapsLock/Pause assignments remain inactive until layers are disabled.
+factory shortcuts open Keybindings with **Caps + K** or **Ctrl + Alt + K**. module settings and individual Secret Keys changes apply after restart. inactive shortcuts remain visible and editable. Windows Snap and optional FancyZones changes require confirmation; no compatibility settings are silently changed at startup.
 
-Scratchpad's global toggle defaults to **Win + F12**. its save, navigation, new-page, delete and hide commands are contextual: they only intercept input inside its owned editor. Caps/Pause retains held chords and short-tap one-shot behavior.
+## preferences and safety
 
-## settings and data
+suite data lives in `%LOCALAPPDATA%\nroj\SuperHotkeyWorld`. human-facing module names do not change stable action IDs or existing personal paths. Paper Pad retains its existing notes folder and dedicated Notepad3 profile. errors are always logged; optional verbose diagnostics use one global switch.
 
-suite settings and the rotating `debug.log` live in `%LOCALAPPDATA%\nroj\SuperHotkeyWorld`. the first normal start copies existing Window Cascade and Scratchpad preferences/state/editor-profile files when the suite copies do not exist. original files are not modified. Scratchpad continues using its configured notes folder.
+Reset all shortcuts and Restore factory defaults are separate confirmed operations. note files, their folder, the editor path, editor profile and page state are not reset. App settings, including the single opt-in startup entry, is accessible from Modules.
 
-**old standalone shortcut assignments are not imported automatically.** the suite starts with the reconciled factory catalog; the original keybinding files remain intact.
-
-**Reset all shortcuts** restores assignments, including disabled modules, without changing module choices. **Restore factory defaults** also re-enables modules and resets a whitelist of preferences, with a settings backup. neither deletes notes, changes their folder/editor path, or deletes the Notepad3 profile. both require confirmation. a Scratchpad save failure can veto exit or restart.
-
-## development
-
-`core/` owns lifecycle, settings, logging and the shared manager. `modules/` contains in-process feature implementations. `migration/upstream/` retains the pinned references and their licenses; Shell Folders is not part of this repository.
-
-`migration/integrate.py` is a one-time source migration, not a runtime dependency or plugin loader. it verifies major source hashes and materializes the adapted files; `--check` verifies the committed result. the development-branch Windows workflow checks the migration and native runtime before committing generated outputs. do not run the original entry points as part of the suite.
-
-retain the original installations and repositories until the manual acceptance checks pass. source licenses and icon attribution are retained under `LICENSE`, `assets/` and the reference snapshots.
+see [integration status](docs/integration-status.md) for manual acceptance checks and [implementation](docs/implementation.md) for architecture. pinned original snapshots, licenses and attribution remain under `migration/upstream`; historical migration scripts are not runtime dependencies and must not be rerun over ongoing development.

@@ -1,39 +1,25 @@
-# implementation sequence
+# implementation
 
-## 1. establish the shared owner
+## ownership
 
-adapt the existing Keybindings parser, conflict validation, recorder, persistence, and editor for one local action catalog. remove peer discovery, per-owner coordination, remote editing, and service heartbeats from the suite's runtime path. namespace action IDs and separate action availability from saved user enablement.
+`super-hotkey-world.ahk` loads explicit includes. `SuiteApplication` owns startup, shutdown, module choices and the one Keybindings manager. `SuiteInterface` owns the flat tray, help, settings and global log viewer. `SuiteGui` applies the shared application icon and marks suite windows before showing them.
 
-build core settings, a small rotating logger, the tray, and the launcher. initialize enabled modules at startup; keep the editor accessible from the tray even after a configuration error. do not activate a partial conflicting keymap.
+module IDs and preference directories stay stable across the user-facing renames. Wonder Windows has its own `win-key-overhaul.*` action IDs and namespaced `WW_` functions/state. no plugin discovery, background layer service, inter-process owner registry or separate module startup entries are used.
 
-## 2. migrate keyboard layers
+## input
 
-preserve held chords, short-tap one-shot behavior, physical releases, cancellation, and synthesized-key cleanup. connect the state machine to the manager in process, rather than retaining the service/client transport.
+Keybindings owns assignments, persistence, conflict checks and registration. native input observers fan out identical passive observations to participating modules. only an explicitly registered scope and its exact complement may share a signature; arbitrary context predicates do not bypass conflicts. the `paper-pad` scope keeps editor commands separate from Wonder Windows.
 
-a disabled layer module installs no CapsLock/Pause/CtrlBreak interception. layer assignments remain visible and editable; replacing one with an ordinary shortcut works without enabling layers. do not clear a saved assignment because its layer is unavailable.
+Secret Keys installs only enabled prefixes. disabling a prefix preserves assignments and permits explicit native-key reassignment. module/layer changes use restart-based lifecycle. queued work is invalidated on configuration, suspension and shutdown. callbacks use short dispatch paths and defer window operations.
 
-## 3. migrate features incrementally
+## geometry and data
 
-adapt Power Hotkey to accept the shared manager and remove its independent startup, migration prompt, tray, and manager shutdown. resolve factory-default collisions explicitly before restoring initial assignments. preserve deferred dispatch, foreground identity checks, and output cleanup.
+Wonder Windows claims per-window manual ownership before geometry changes. Cascade Kingdom ignores these windows until explicit adoption; stale HWND/process ownership is rejected. focus-only navigation does not detach windows. original layout and save algorithms remain adapted source, not a wholesale rewrite.
 
-adapt Window Cascade's initialization and cleanup while retaining its placement engine. namespace the short action IDs. coordinate process-wide window defaults, hooks, timers, diagnostics, and restoration of script-hidden windows.
+Paper Pad saves before exit/restart and may veto when a command or editor dialog is unresolved. changing its paths first closes the owned editor through checked saves, never moves notes, and leaves ordinary editor windows alone. settings updates use same-directory replacement and backups. reset scope is whitelisted; note data and editor state are excluded.
 
-adapt Scratchpad's controller and dedicated Notepad3 editor without replacing its checked save path. preserve editor-scoped shortcuts. centralize only the ownership and configuration after contextual binding rules are designed. document the external editor dependency; one AutoHotkey process does not imply that Notepad3 disappears.
+## development
 
-## 4. settings and release checks
+run `python tests/check.py` on Windows with AutoHotkey v2 64-bit. portable tests are available with `python -m unittest discover -s tests -p 'test_*.py'`. CI tests committed runtime files rather than regenerating them. historical source transforms and pinned upstream snapshots remain for provenance, not normal editing or runtime loading.
 
-| check | expected result |
-| --- | --- |
-| fresh settings | all four modules enabled, collision-free defaults |
-| disable one module and restart | no module actions, hooks, or timers remain active; assignments retained |
-| disable layers | native CapsLock/Pause; ordinary shortcuts and Keybindings still usable |
-| rebind an inactive layer shortcut | ordinary replacement works without layers |
-| re-enable a module | existing assignments restored only after conflict validation |
-| reset all shortcuts | default assignments restored after confirmation; notes preserved |
-| restore factory defaults | modules/settings reset after confirmation; notes and other personal data preserved |
-| pending/held inputs on restart, sleep, or exit | pending actions canceled and synthesized keys released |
-| Scratchpad save conflict | no silent overwrite; unsaved work remains recoverable |
-| runtime failures | timestamp, module, exception context and stack in the shared log |
-| manual regression | compare every migrated action with the pinned original on Windows |
-
-no automated test result substitutes for native multi-monitor, keyboard-hook, input-context, or Notepad3 testing. do not retire the old repositories until the suite passes these checks in ordinary use.
+physical keyboard, multi-monitor and Notepad3 acceptance remains necessary; automated dry-run success is not a claim of complete behavior parity.

@@ -1,22 +1,17 @@
 name: Suite checks
-
 on:
   push:
     branches: [integrate-suite]
+  pull_request:
   workflow_dispatch:
-
 permissions:
-  contents: write
-
+  contents: read
 jobs:
   windows:
     runs-on: windows-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      - name: Materialize the pinned source migration
-        shell: pwsh
-        run: python migration/integrate.py
       - name: Get the pinned AutoHotkey test runtime
         shell: pwsh
         run: |
@@ -29,37 +24,6 @@ jobs:
           if ((Get-FileHash $archive -Algorithm SHA256).Hash -ne $expected) { throw 'AutoHotkey checksum mismatch.' }
           Expand-Archive $archive $directory
           "AHK=$directory\AutoHotkey64.exe" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
-      - name: Check every module and the isolated runtime
+      - name: Test the committed runtime without regenerating source
         shell: pwsh
         run: python tests/check.py --autohotkey "$env:AHK"
-      - name: Retain the materialized source for integration review
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: integration-source
-          retention-days: 3
-          path: |
-            super-hotkey-world.ahk
-            core/
-            modules/
-            assets/
-            migration/
-            tests/
-            docs/
-            README.md
-            AGENTS.md
-            LICENSE
-      - name: Commit tested migration outputs on the development branch
-        if: success() && github.ref == 'refs/heads/integrate-suite'
-        shell: pwsh
-        run: |
-          git add -- core modules assets LICENSE
-          git diff --cached --quiet
-          if ($LASTEXITCODE -eq 0) { exit 0 }
-          if ($LASTEXITCODE -ne 1) { throw 'Could not inspect migration output.' }
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'Materialize and verify the single-process suite runtime'
-          if ($LASTEXITCODE -ne 0) { throw 'Could not commit migration output.' }
-          git push origin HEAD:integrate-suite
-          if ($LASTEXITCODE -ne 0) { throw 'Branch changed or push permission was denied; no force push attempted.' }

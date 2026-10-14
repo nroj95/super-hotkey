@@ -1,18 +1,18 @@
-name: UI migration workspace
+name: Five-module migration checks
 on:
   push:
     branches: [ui-five-module-work]
 permissions:
-  contents: read
+  contents: write
 jobs:
-  prepare:
+  windows:
     runs-on: windows-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           fetch-depth: 0
-      - name: Pin Wonder Windows source without importing Git history
+      - name: Export the pinned Wonder Windows source snapshot
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -25,10 +25,29 @@ jobs:
           git -C $destination archive --format=zip -o "$env:RUNNER_TEMP\wonder-source.zip" HEAD
           if ($LASTEXITCODE -ne 0) { throw 'Could not export the source snapshot.' }
           Expand-Archive "$env:RUNNER_TEMP\wonder-source.zip" migration/upstream/win-key-overhaul -Force
-      - name: Export the review workspace (no application launched)
+      - name: Materialize the reviewed one-time migration
+        shell: pwsh
+        run: python migration/upgrade-ui.py
+      - name: Get the pinned AutoHotkey test runtime
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ProgressPreference = 'SilentlyContinue'
+          $archive = Join-Path $env:RUNNER_TEMP 'AutoHotkey_2.0.19.zip'
+          $directory = Join-Path $env:RUNNER_TEMP 'AutoHotkey-test'
+          Invoke-WebRequest 'https://github.com/AutoHotkey/AutoHotkey/releases/download/v2.0.19/AutoHotkey_2.0.19.zip' -OutFile $archive
+          $expected = '4E0D0E65655066A646A210951320FEAEF0729A3597177131ADAEC4066BEF5869'
+          if ((Get-FileHash $archive -Algorithm SHA256).Hash -ne $expected) { throw 'AutoHotkey checksum mismatch.' }
+          Expand-Archive $archive $directory
+          "AHK=$directory\AutoHotkey64.exe" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+      - name: Run portable, native and GUI checks without real feature effects
+        shell: pwsh
+        run: python tests/check.py --autohotkey "$env:AHK"
+      - name: Retain the exact migration workspace for review
+        if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: ui-migration-workspace
+          name: five-module-source
           retention-days: 3
           include-hidden-files: true
           path: |
@@ -42,3 +61,17 @@ jobs:
             README.md
             AGENTS.md
             LICENSE
+      - name: Commit only tested migration outputs on the isolated work branch
+        if: success() && github.ref == 'refs/heads/ui-five-module-work'
+        shell: pwsh
+        run: |
+          git add -- super-hotkey-world.ahk core modules assets tests migration/source-manifest.json migration/upstream/win-key-overhaul
+          git diff --cached --quiet
+          if ($LASTEXITCODE -eq 0) { exit 0 }
+          if ($LASTEXITCODE -ne 1) { throw 'Could not inspect migration output.' }
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Materialize the tested five-module runtime and unified interfaces'
+          if ($LASTEXITCODE -ne 0) { throw 'Could not commit migration output.' }
+          git push origin HEAD:ui-five-module-work
+          if ($LASTEXITCODE -ne 0) { throw 'Work branch changed; no force push attempted.' }
