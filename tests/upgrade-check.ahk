@@ -211,7 +211,7 @@ class SuiteUpgradeChecks {
                 "Keybindings supports native edge resizing and maximizing")
             initialRows := app.manager.visibleRows.Length
             editor.Show("w1120 h850")
-            Sleep 120 ; Process the queued native Size event.
+            app.manager._ResizeSettings(editor, 0, 1120, 850)
             expandedRows := app.manager.visibleRows.Length
             this.Assert(expandedRows > initialRows, "resizing taller reveals more shortcut rows")
             app.manager.settingsScroll.GetPos(&scrollX)
@@ -219,7 +219,7 @@ class SuiteUpgradeChecks {
             app.manager.settingsDone.GetPos(, &doneY)
             this.Assert(doneY > 750, "done button stays pinned to the bottom")
             editor.Show("w820 h420")
-            Sleep 120 ; Process the queued native Size event.
+            app.manager._ResizeSettings(editor, 0, 820, 420)
             this.Assert(app.manager.visibleRows.Length < expandedRows,
                 "resizing smaller reduces the visible row count without losing the catalog")
             app.manager._CloseSettings()
