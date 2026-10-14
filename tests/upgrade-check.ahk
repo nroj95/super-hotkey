@@ -221,7 +221,9 @@ class SuiteUpgradeChecks {
             app.manager.settingsScroll.GetPos(&scrollX)
             this.Assert(scrollX > 950, "scrollbar stays anchored to the right edge")
             app.manager.settingsDone.GetPos(, &doneY)
-            this.Assert(doneY > 750, "done button stays pinned to the bottom")
+            editor.GetClientPos(, , , &clientHeight)
+            this.Assert(Abs(doneY - (clientHeight - 49)) <= 2,
+                "done button stays pinned to the bottom")
             editor.Show("w820 h420")
             app.manager._ResizeSettings(editor, 0, 820, 420)
             this.Assert(app.manager.visibleRows.Length < expandedRows,
