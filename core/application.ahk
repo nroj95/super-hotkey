@@ -17,7 +17,7 @@ class SuiteApplication {
         this.dryRun := dryRun
         if directory = ""
             directory := dryRun ? A_Temp "\SuperHotkey-" FormatTime(, "yyyyMMdd-HHmmss") "-" DllCall("GetCurrentProcessId", "uint")
-                : EnvGet("LOCALAPPDATA") "\nroj\SuperHotkeyWorld"
+                : EnvGet("LOCALAPPDATA") "\nroj\SuperHotkey"
         this.Settings := SuiteSettings(directory)
         this.activeModules := this.Settings.modules.Clone()
         this.activeLayers := this.Settings.layers.Clone()
