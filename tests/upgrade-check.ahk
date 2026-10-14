@@ -4,6 +4,32 @@ class SuiteUpgradeChecks {
     static observerCalls := 0
 
     static Assert(condition, label) => SuiteChecks.Assert(condition, label)
+    static AssertCentered(window, label) {
+        rect := Buffer(16, 0)
+        point := Buffer(8, 0)
+        this.Assert(!!DllCall("GetWindowRect", "ptr", window.Hwnd, "ptr", rect, "int")
+            && !!DllCall("GetCursorPos", "ptr", point, "int"),
+            "window geometry is available: " label)
+        cursorX := NumGet(point, 0, "int")
+        cursorY := NumGet(point, 4, "int")
+        monitor := 1
+        loop MonitorGetCount() {
+            MonitorGet(A_Index, &left, &top, &right, &bottom)
+            if cursorX >= left && cursorX < right && cursorY >= top && cursorY < bottom {
+                monitor := A_Index
+                break
+            }
+        }
+        MonitorGetWorkArea(monitor, &left, &top, &right, &bottom)
+        x := NumGet(rect, 0, "int")
+        y := NumGet(rect, 4, "int")
+        w := NumGet(rect, 8, "int") - x
+        h := NumGet(rect, 12, "int") - y
+        expectedX := left + Floor((right - left - w) / 2)
+        expectedY := top + Floor((bottom - top - h) / 2)
+        this.Assert(Abs(x - expectedX) <= 2 && Abs(y - expectedY) <= 2,
+            "window opens centered on the current monitor: " label)
+    }
 
     static Route(manager, actionId, slot := 1) {
         for route in manager.routes
@@ -528,6 +554,7 @@ class SuiteUpgradeChecks {
             this.Assert(app.manager.settings.Hwnd = firstEditor, "every Keybindings entry reuses the global editor")
             editor := app.manager.settings
             editor.GetClientPos(, , &firstWidth, &firstHeight)
+            this.AssertCentered(editor, "Keybindings")
             this.Assert(firstWidth = 820 && firstHeight = 520,
                 "Keybindings opens at the readable minimum size")
             this.Assert(app.manager.settingsDrawButtons[app.manager.settingsRefresh.Hwnd] = "done",
@@ -625,6 +652,7 @@ class SuiteUpgradeChecks {
             app.manager.settings.GetClientPos(, , &reopenedW, &reopenedH)
             this.Assert(reopenedW = 820 && reopenedH = 520,
                 "Keybindings ignores size history and reopens at the minimum")
+            this.AssertCentered(app.manager.settings, "reopened Keybindings")
             app.manager._CloseSettings()
             this.Assert(IniRead(app.manager.root "\window.ini", "Window", "Width") = "1300"
                 && IniRead(app.manager.root "\window.ini", "Window", "Height") = "900",
@@ -645,6 +673,7 @@ class SuiteUpgradeChecks {
                 window.GetClientPos(, , &helpWidth, &helpHeight)
                 this.Assert(helpWidth = 900 && helpHeight = 520,
                     "Help opens at its fixed minimum size: " id)
+                this.AssertCentered(window, SuiteSettings.ModuleNames[id] " Help")
                 guideControl := window["helpText"]
                 guideControl.GetPos(, &textY, , &textHeight)
                 this.Assert(guideControl.Type = "Text"
@@ -731,6 +760,7 @@ class SuiteUpgradeChecks {
                     defaultH := app.ui.pageLayouts["settings:" id].height
                     this.Assert(settingsW = defaultW && settingsH = defaultH,
                         "module Settings open at their minimum size: " id)
+                    this.AssertCentered(settings, SuiteSettings.ModuleNames[id] " Settings")
                     settings.Show("w" (defaultW + 120) " h" (defaultH + 140))
                     settings.GetClientPos(, , &settingsW, &settingsH)
                     app.ui.ResizePage("settings:" id, settings, 0, settingsW, settingsH)
@@ -779,6 +809,7 @@ class SuiteUpgradeChecks {
             app.ui.windows["help:scratchpad"].GetClientPos(, , &lastHelpW, &lastHelpH)
             this.Assert(lastHelpW = 900 && lastHelpH = 520,
                 "Help reopens at its minimum regardless of previous resizing")
+            this.AssertCentered(app.ui.windows["help:scratchpad"], "reopened Paper Pad Help")
             app.ui.CloseWindow("help:scratchpad")
             this.Assert(IniRead(app.Settings.directory "\help-window.ini",
                 "Window", "Width") = "1600",
@@ -801,6 +832,7 @@ class SuiteUpgradeChecks {
                     "all shared utility windows support resize and maximize: " page)
                 this.Assert(pageW = layout.width && pageH = layout.height,
                     "utility page opens at its minimum dimensions: " page)
+                this.AssertCentered(window, page)
                 this.Assert(layout.footer.buttons.Length >= 2
                     && app.ui.footerButtons.Has(layout.footer.buttons[1].button.Hwnd),
                     "utility footer has matching square buttons: " page)
