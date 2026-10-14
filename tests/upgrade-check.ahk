@@ -569,11 +569,13 @@ class SuiteUpgradeChecks {
             this.Assert(A_IconTip = "Super Hotkey v1.0.0 - dry run",
                 "tray hover text includes its assigned version and dry-run suffix")
             count := DllCall("GetMenuItemCount", "ptr", A_TrayMenu.Handle, "int")
-            this.Assert(count = 16, "tray has the unified module, log, reload and reset commands")
+            this.Assert(count = 18,
+                "tray has unified module, log, startup, reload and reset commands")
             loop count
                 this.Assert(!DllCall("GetSubMenu", "ptr", A_TrayMenu.Handle, "int", A_Index - 1, "ptr"),
                     "tray entry has no submenu: " A_Index)
-            for item in [[10, "Verbose logging"], [12, "Reload"], [13, "Reset to defaults..."]] {
+            for item in [[10, "Verbose logging"], [11, "Open settings folder"],
+                [13, "Run at startup"], [14, "Reload"], [15, "Reset to defaults..."]] {
                 name := Buffer(256, 0)
                 DllCall("GetMenuStringW", "ptr", A_TrayMenu.Handle,
                     "uint", item[1], "ptr", name, "int", 128, "uint", 0x400, "int")
@@ -584,6 +586,12 @@ class SuiteUpgradeChecks {
                 "uint", 10, "uint", 0x400, "uint")
             this.Assert(!(verboseStatus.Call() & 8),
                 "verbose logging starts unchecked in the tray")
+            startupState := DllCall("GetMenuState", "ptr", A_TrayMenu.Handle,
+                "uint", 13, "uint", 0x400, "uint")
+            this.Assert(startupState & 3,
+                "Run at startup is disabled during safe dry-run testing")
+            this.Assert(!HasMethod(app.ui, "ShowAppSettings"),
+                "the redundant App settings window is removed")
             app.ui.ToggleVerboseTray()
             this.Assert(SuiteState.Log.verbose && app.Settings.verbose
                 && (verboseStatus.Call() & 8),
@@ -619,6 +627,7 @@ class SuiteUpgradeChecks {
                 app.manager.settingsResetAll, app.manager.settingsDone]
             weights := []
             sizes := []
+            faces := []
             for control in controls {
                 fontHandle := SendMessage(0x0031, 0, 0, , control.Hwnd) ; WM_GETFONT
                 fontData := Buffer(92, 0) ; LOGFONTW
@@ -627,6 +636,7 @@ class SuiteUpgradeChecks {
                     "Keybindings control exposes its font")
                 weights.Push(NumGet(fontData, 16, "int"))
                 sizes.Push(NumGet(fontData, 0, "int"))
+                faces.Push(StrGet(fontData.Ptr + 28, 32, "UTF-16"))
             }
             sameFont := true
             for index, weight in weights
@@ -634,6 +644,12 @@ class SuiteUpgradeChecks {
                     sameFont := false
             this.Assert(sameFont,
                 "all Keybindings text uses the same stronger font weight and size")
+            consistentFamily := true
+            for fontFace in faces
+                if fontFace != "Cascadia Mono" && fontFace != "Consolas"
+                    consistentFamily := false
+            this.Assert(consistentFamily,
+                "Keybindings uses the Help-page font family")
             initialRows := app.manager.visibleRows.Length
             editor.Show("w1120 h1100")
             editor.GetClientPos(, , &expandedWidth, &expandedHeight)
@@ -946,10 +962,9 @@ class SuiteUpgradeChecks {
                 && app.ui.helpLayouts["scratchpad"].statusColor = "B02020",
                 "disabled Help pages show a centered red status")
             app.ui.CloseWindow("help:scratchpad")
-            for page in ["log", "application-settings", "modules"] {
+            for page in ["log", "modules"] {
                 switch page {
                     case "log": app.ui.OpenLog()
-                    case "application-settings": app.ui.ShowAppSettings()
                     case "modules": app.ui.ShowModules()
                 }
                 window := app.ui.windows[page]
@@ -970,17 +985,29 @@ class SuiteUpgradeChecks {
                 if page = "log"
                     this.Assert(window["verbose"].Value = 0,
                         "one global logging checkbox is available")
-                if page = "application-settings"
-                    this.Assert(IsObject(window),
-                        "startup and factory reset remain in app settings")
                 if page = "modules" {
                     this.Assert(app.ui.moduleControls.Count = 5,
                         "Modules presents all five renamed features")
+                    appSettingsFound := false
+                    for control in window
+                        if control.Type = "Button" && control.Text = "App settings..."
+                            appSettingsFound := true
+                    this.Assert(!appSettingsFound,
+                        "Modules has no redundant App settings button")
                     descriptionCount := 0
                     for id in SuiteSettings.ModuleOrder {
                         app.ui.moduleControls[id].GetPos(, &checkY, , &checkHeight)
                         this.Assert(checkHeight < 40,
                             "Module checkbox keeps its natural height: " id)
+                        checkboxFont := SendMessage(0x0031, 0, 0, ,
+                            app.ui.moduleControls[id].Hwnd)
+                        checkboxData := Buffer(92, 0)
+                        this.Assert(checkboxFont
+                            && DllCall("GetObjectW", "ptr", checkboxFont, "int",
+                                checkboxData.Size, "ptr", checkboxData, "int") = checkboxData.Size
+                            && (StrGet(checkboxData.Ptr + 28, 32, "UTF-16") = "Cascadia Mono"
+                                || StrGet(checkboxData.Ptr + 28, 32, "UTF-16") = "Consolas"),
+                            "Module controls use the Help-page font: " id)
                         for control in window {
                             if control.Type != "Text"
                                 || control.Text != SuiteSettings.ModuleDescriptions[id]

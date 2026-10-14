@@ -38,6 +38,11 @@ class SuiteStructureTests(unittest.TestCase):
         tray = (ROOT / 'core/tray.ahk').read_text(encoding='utf-8')
         self.assertIn('SuiteApplication.Name " v" SuiteApplication.Version', tray)
         self.assertIn('Super Hotkey.lnk', tray)
+        self.assertIn('A_TrayMenu.Add("Run at startup"', tray)
+        self.assertIn('A_TrayMenu.Add("Open settings folder"', tray)
+        self.assertNotIn('ShowAppSettings(', tray)
+        self.assertIn('Cascadia Mono', tray)
+        self.assertIn('Cascadia Mono', (ROOT / 'core/keybindings.ahk').read_text(encoding='utf-8'))
 
     def test_global_function_names_do_not_collide(self):
         definitions = {}

@@ -37,13 +37,16 @@ class SuiteInterface {
         A_TrayMenu.Add()
         A_TrayMenu.Add("Debug log...", ObjBindMethod(this, "OpenLog"))
         A_TrayMenu.Add("Verbose logging", ObjBindMethod(this, "ToggleVerboseTray"))
+        A_TrayMenu.Add("Open settings folder", ObjBindMethod(this, "OpenSettingsFolder"))
         A_TrayMenu.Add()
+        A_TrayMenu.Add("Run at startup", ObjBindMethod(this, "ToggleStartupTray"))
         A_TrayMenu.Add("Reload", (*) => Reload())
         A_TrayMenu.Add("Reset to defaults...", ObjBindMethod(this, "ResetDefaults"))
         A_TrayMenu.Add()
         A_TrayMenu.Add("Exit", (*) => ExitApp())
         A_TrayMenu.Default := "Keybindings..."
         this.UpdateVerboseTray()
+        this.UpdateStartupTray()
     }
 
     Existing(key) {
@@ -55,7 +58,7 @@ class SuiteInterface {
 
     NewWindow(key, title, configuration := false, options := "+Resize +0x02000000") {
         window := SuiteGui(options, title)
-        window.SetFont("s10", "Segoe UI")
+        window.SetFont("s10", "Cascadia Mono")
         window.OnEvent("Close", ObjBindMethod(this, "CloseWindow", key))
         window.OnEvent("Escape", ObjBindMethod(this, "CloseWindow", key))
         this.windows[key] := window
@@ -496,8 +499,7 @@ class SuiteInterface {
             y += 58
         }
         window.AddText("x20 y340 w560", "Disabled modules keep their assignments. Their help remains available in the tray.")
-        this.Footer(window, [["App settings...", ObjBindMethod(this, "ShowAppSettings"), 130],
-            ["Apply and restart", ObjBindMethod(this, "SaveModules"), 160],
+        this.Footer(window, [["Apply and restart", ObjBindMethod(this, "SaveModules"), 160],
             ["Cancel", ObjBindMethod(this, "CloseModules"), 100]], 410, 600)
         this.ShowPage("modules", 600, 460, 580, 440)
     }
@@ -844,23 +846,8 @@ class SuiteInterface {
         Run('notepad.exe "' SuiteState.Log.path '"')
     }
 
-    ShowAppSettings(*) {
-        key := "application-settings"
-        if this.Existing(key)
-            return
-        window := this.NewWindow(key, SuiteApplication.Name " - App settings", true)
-        window.AddText("x20 y20 w760", SuiteApplication.Name " v" SuiteApplication.Version)
-        startup := window.AddCheckbox("x20 y65 w760 vstartup", "Run Super Hotkey at sign-in")
-        startup.Value := !!FileExist(this.startupPath)
-        startup.Enabled := !this.app.dryRun
-        startup.OnEvent("Click", ObjBindMethod(this, "ToggleStartup"))
-        window.AddText("x20 y115 w760", "One startup entry for the suite. Existing standalone startup entries are never changed automatically.")
-        window.AddText("x20 y170 w760", "Settings: " this.app.Settings.directory)
-        this.Footer(window, [["Open folder", (*) => Run('explorer.exe "' this.app.Settings.directory '"'), 120],
-            ["Reset to defaults...", ObjBindMethod(this, "ResetDefaults"), 170],
-            ["Reload", (*) => Reload(), 100],
-            ["Close", ObjBindMethod(this, "CloseWindow", key), 100]], 260)
-        this.ShowPage(key, 800, 310, 740, 285)
+    OpenSettingsFolder(*) {
+        Run('explorer.exe "' this.app.Settings.directory '"')
     }
 
     MigrateLegacyStartup() {
@@ -883,20 +870,34 @@ class SuiteInterface {
             SuiteState.Log.Error("Core / startup shortcut rename", failure)
     }
 
-    ToggleStartup(control, *) {
+    UpdateStartupTray() {
+        if this.app.dryRun {
+            A_TrayMenu.Disable("Run at startup")
+            A_TrayMenu.Uncheck("Run at startup")
+            return
+        }
+        A_TrayMenu.Enable("Run at startup")
+        if FileExist(this.startupPath)
+            A_TrayMenu.Check("Run at startup")
+        else
+            A_TrayMenu.Uncheck("Run at startup")
+    }
+
+    ToggleStartupTray(*) {
         if this.app.dryRun
             return
         try {
-            if control.Value {
-                if A_IsCompiled
-                    FileCreateShortcut(A_ScriptFullPath, this.startupPath, A_ScriptDir)
-                else
-                    FileCreateShortcut(A_AhkPath, this.startupPath, A_ScriptDir, '"' A_ScriptFullPath '"')
-            } else if FileExist(this.startupPath)
+            if FileExist(this.startupPath)
                 FileDelete(this.startupPath)
+            else if A_IsCompiled
+                FileCreateShortcut(A_ScriptFullPath, this.startupPath, A_ScriptDir)
+            else
+                FileCreateShortcut(A_AhkPath, this.startupPath, A_ScriptDir,
+                    '"' A_ScriptDir "\super-hotkey.ahk" '"')
+            this.UpdateStartupTray()
         }
         catch Error as failure {
-            control.Value := !!FileExist(this.startupPath)
+            this.UpdateStartupTray()
             this.Report(failure, "Core / startup preference")
         }
     }
