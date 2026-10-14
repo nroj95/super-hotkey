@@ -10,7 +10,8 @@ class SuiteInterface {
         this.modulesWindow := 0
         this.moduleControls := Map()
         this.helpLayouts := Map()
-        this.helpSizePath := app.Settings.directory "\help-window.ini"
+        this.pageLayouts := Map()
+        this.pageFooters := Map()
         this.footerButtons := Map()
         this.footerDrawCallback := ObjBindMethod(this, "DrawFooterButton")
         this.footerDrawInstalled := false
@@ -44,7 +45,7 @@ class SuiteInterface {
         return true
     }
 
-    NewWindow(key, title, configuration := false, options := "-Resize") {
+    NewWindow(key, title, configuration := false, options := "+Resize +0x02000000") {
         window := SuiteGui(options, title)
         window.SetFont("s10", "Segoe UI")
         window.OnEvent("Close", ObjBindMethod(this, "CloseWindow", key))
@@ -77,7 +78,60 @@ class SuiteInterface {
             controls.Push({button: control, width: buttonWidth})
             x += buttonWidth + 10
         }
-        return {divider: divider, buttons: controls, total: total}
+        footer := {divider: divider, buttons: controls, total: total}
+        this.pageFooters[window.Hwnd] := footer
+        return footer
+    }
+
+    ShowPage(key, width, height) {
+        window := this.windows[key]
+        footer := this.pageFooters[window.Hwnd]
+        window.Opt("+Resize +MinSize" width "x" height " +0x02000000")
+        controls := []
+        footerHandles := Map(footer.divider.Hwnd, true)
+        for item in footer.buttons
+            footerHandles[item.button.Hwnd] := true
+        for control in window {
+            if footerHandles.Has(control.Hwnd)
+                continue
+            control.GetPos(&x, &y, &w, &h)
+            controls.Push({control: control, x: x, y: y, w: w, h: h,
+                stretchWidth: x + w >= width - 50 && w >= 300,
+                stretchHeight: key = "log" && control.Type = "Edit" && h >= 200})
+        }
+        this.pageLayouts[key] := {footer: footer, controls: controls,
+            width: width, height: height, renderedWidth: 0, renderedHeight: 0}
+        window.OnEvent("Size", ObjBindMethod(this, "ResizePage", key))
+        SuiteShowCentered(window, width, height, ObjBindMethod(this, "ResizePage", key))
+    }
+
+    ResizePage(key, window, minMax, width, height) {
+        if minMax = -1 || !this.pageLayouts.Has(key)
+            return
+        layout := this.pageLayouts[key]
+        width := Max(layout.width, width)
+        height := Max(layout.height, height)
+        if width = layout.renderedWidth && height = layout.renderedHeight
+            return
+        dx := width - layout.width
+        dy := height - layout.height
+        positions := []
+        for item in layout.controls {
+            positions.Push({control: item.control, x: item.x, y: item.y,
+                w: item.w + (item.stretchWidth ? dx : 0),
+                h: item.h + (item.stretchHeight ? dy : 0)})
+        }
+        positions.Push({control: layout.footer.divider, x: 20,
+            y: height - 64, w: width - 40, h: 2})
+        x := width - 10 - layout.footer.total
+        for item in layout.footer.buttons {
+            positions.Push({control: item.button, x: x,
+                y: height - 49, w: item.width, h: 30})
+            x += item.width + 10
+        }
+        this.MoveHelpControls(window, positions)
+        layout.renderedWidth := width
+        layout.renderedHeight := height
     }
 
     DrawFooterButton(wParam, lParam, messageId, receiverHwnd) {
@@ -145,19 +199,12 @@ class SuiteInterface {
             for control in this.windows[key]
                 if control.Type = "Button" && this.footerButtons.Has(control.Hwnd)
                     this.footerButtons.Delete(control.Hwnd)
-            if InStr(key, "help:") = 1 {
-                id := SubStr(key, 6)
-                if this.helpLayouts.Has(id) {
-                    layout := this.helpLayouts[id]
-                    try {
-                        IniWrite(layout.width, this.helpSizePath, "Window", "Width")
-                        IniWrite(layout.height, this.helpSizePath, "Window", "Height")
-                    }
-                    catch Error as failure
-                        SuiteState.Log.Error("Help / window size", failure)
-                    this.helpLayouts.Delete(id)
-                }
-            }
+            if this.pageLayouts.Has(key)
+                this.pageLayouts.Delete(key)
+            if InStr(key, "help:") = 1 && this.helpLayouts.Has(SubStr(key, 6))
+                this.helpLayouts.Delete(SubStr(key, 6))
+            if this.pageFooters.Has(this.windows[key].Hwnd)
+                this.pageFooters.Delete(this.windows[key].Hwnd)
             this.windows[key].Destroy()
             this.windows.Delete(key)
         }
@@ -196,7 +243,7 @@ class SuiteInterface {
             return
         name := SuiteSettings.ModuleNames[id]
         window := this.NewWindow(key, name " - How to use", false,
-            "+Resize +MinSize720x450 +0x02000000")
+            "+Resize +MinSize900x520 +0x02000000")
         state := this.app.ModuleActive(id) ? "enabled" : "disabled; assignments and settings are retained"
         if this.app.dryRun
             state := "dry run; feature effects are inactive"
@@ -213,26 +260,21 @@ class SuiteInterface {
         buttons.Push(["Keybindings...", ObjBindMethod(this, "OpenKeybindingsFromHelp", id), 135])
         buttons.Push(["Close", ObjBindMethod(this, "CloseWindow", key), 100])
         footer := this.Footer(window, buttons, 455, 900)
-        savedWidth := IniRead(this.helpSizePath, "Window", "Width", "900")
-        savedHeight := IniRead(this.helpSizePath, "Window", "Height", "520")
-        width := IsNumber(savedWidth) ? Max(720, Min(2400, Round(savedWidth))) : 900
-        height := IsNumber(savedHeight) ? Max(450, Min(1500, Round(savedHeight))) : 520
-        width := Min(width, Max(720, A_ScreenWidth - 80))
-        height := Min(height, Max(450, A_ScreenHeight - 80))
+        width := 900
+        height := 520
+        window.Opt("+MinSize900x520")
         this.helpLayouts[id] := {header: header, content: content, footer: footer,
             width: width, height: height, renderedWidth: 0, renderedHeight: 0}
         window.OnEvent("Size", ObjBindMethod(this, "ResizeHelp", id))
-        window.Show("w" width " h" height)
-        window.GetClientPos(, , &clientWidth, &clientHeight)
-        this.ResizeHelp(id, window, 0, clientWidth, clientHeight)
+        SuiteShowCentered(window, width, height, ObjBindMethod(this, "ResizeHelp", id))
     }
 
     ResizeHelp(id, window, minMax, width, height) {
         if minMax = -1 || !this.helpLayouts.Has(id)
             return
         layout := this.helpLayouts[id]
-        width := Max(720, width)
-        height := Max(450, height)
+        width := Max(900, width)
+        height := Max(520, height)
         if width = layout.renderedWidth && height = layout.renderedHeight
             return
         if minMax = 0 {
@@ -328,7 +370,7 @@ class SuiteInterface {
         this.Footer(window, [["App settings...", ObjBindMethod(this, "ShowAppSettings"), 130],
             ["Apply and restart", ObjBindMethod(this, "SaveModules"), 160],
             ["Cancel", ObjBindMethod(this, "CloseModules"), 100]], 410, 600)
-        window.Show("w600 h460")
+        this.ShowPage("modules", 600, 460)
     }
 
     SaveModules(*) {
@@ -369,7 +411,7 @@ class SuiteInterface {
             . "`nSaved layer shortcuts stay visible and editable in Keybindings.")
         this.Footer(window, [["Apply and restart", ObjBindMethod(this, "SaveLayers"), 160],
             ["Back", ObjBindMethod(this, "BackToHelp", "keyboard-layers"), 100]], 260, 600)
-        window.Show("w600 h310")
+        this.ShowPage(key, 600, 310)
     }
 
     SaveLayers(*) {
@@ -411,7 +453,7 @@ class SuiteInterface {
         this.Footer(window, [["Compatibility...", ObjBindMethod(this, "CascadeCompatibility"), 140],
             ["Apply and restart", ObjBindMethod(this, "SaveCascade"), 160],
             ["Back", ObjBindMethod(this, "BackToHelp", "window-cascade"), 100]], 290, 600)
-        window.Show("w600 h340")
+        this.ShowPage(key, 600, 340)
     }
 
     CascadeCompatibility(*) {
@@ -488,7 +530,7 @@ class SuiteInterface {
         this.Footer(window, [["Open notes folder", ObjBindMethod(this, "OpenNotesFolder"), 165],
             ["Apply and restart", ObjBindMethod(this, "SavePaper"), 160],
             ["Back", ObjBindMethod(this, "BackToHelp", "scratchpad"), 100]], 435)
-        window.Show("w800 h485")
+        this.ShowPage(key, 800, 485)
     }
 
     NumberField(window, name, minimum, maximum) {
@@ -575,7 +617,7 @@ class SuiteInterface {
             ["ScreenGrid...", ObjBindMethod(this, "WonderAction", "screengrid"), 125],
             ["FancyZones...", ObjBindMethod(this, "WonderAction", "fancyzones"), 135],
             ["Back", ObjBindMethod(this, "BackToHelp", "win-key-overhaul"), 90]], 290)
-        window.Show("w800 h340")
+        this.ShowPage(key, 800, 340)
     }
 
     WonderAction(action, *) {
@@ -614,7 +656,7 @@ class SuiteInterface {
             ["Copy", ObjBindMethod(this, "CopyLog"), 100], ["Clear...", ObjBindMethod(this, "ClearLog"), 100],
             ["Open file", ObjBindMethod(this, "OpenLogFile"), 115],
             ["Close", ObjBindMethod(this, "CloseWindow", "log"), 100]], 455)
-        window.Show("w800 h505")
+        this.ShowPage("log", 800, 505)
     }
 
     SetVerbose(control, *) {
@@ -671,7 +713,7 @@ class SuiteInterface {
             ["Factory defaults...", ObjBindMethod(this, "FactoryDefaults"), 170],
             ["Reload", (*) => Reload(), 100],
             ["Close", ObjBindMethod(this, "CloseWindow", key), 100]], 260)
-        window.Show("w800 h310")
+        this.ShowPage(key, 800, 310)
     }
 
     MigrateLegacyStartup() {

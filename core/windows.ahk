@@ -7,6 +7,39 @@ SuiteGui(options := "", title := "") {
     return window
 }
 
+SuiteShowCentered(window, width, height, layoutCallback := 0) {
+    ; Size while hidden so the user only sees the correctly centered layout.
+    window.Show("Hide w" width " h" height)
+    window.GetClientPos(, , &clientWidth, &clientHeight)
+    if HasMethod(layoutCallback, "Call")
+        layoutCallback.Call(window, 0, clientWidth, clientHeight)
+
+    rect := Buffer(16, 0)
+    point := Buffer(8, 0)
+    if !DllCall("GetWindowRect", "ptr", window.Hwnd, "ptr", rect, "int")
+        || !DllCall("GetCursorPos", "ptr", point, "int")
+        throw OSError(A_LastError, "Center Super Hotkey window")
+    outerWidth := NumGet(rect, 8, "int") - NumGet(rect, 0, "int")
+    outerHeight := NumGet(rect, 12, "int") - NumGet(rect, 4, "int")
+    cursorX := NumGet(point, 0, "int")
+    cursorY := NumGet(point, 4, "int")
+    selected := 1
+    loop MonitorGetCount() {
+        MonitorGet(A_Index, &left, &top, &right, &bottom)
+        if cursorX >= left && cursorX < right && cursorY >= top && cursorY < bottom {
+            selected := A_Index
+            break
+        }
+    }
+    MonitorGetWorkArea(selected, &left, &top, &right, &bottom)
+    x := left + Floor((right - left - outerWidth) / 2)
+    y := top + Floor((bottom - top - outerHeight) / 2)
+    if !DllCall("SetWindowPos", "ptr", window.Hwnd, "ptr", 0,
+        "int", x, "int", y, "int", 0, "int", 0, "uint", 0x15, "int")
+        throw OSError(A_LastError, "Position Super Hotkey window")
+    window.Show()
+}
+
 class SuiteIcons {
     static handles := []
     static path := A_ScriptDir "\assets\super-hotkey.ico"

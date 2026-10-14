@@ -945,15 +945,10 @@ class Keybindings {
         }
 
         this.participants := this.DiscoverParticipants()
-        this.settingsSizePath := this.root "\window.ini"
-        savedWidth := IniRead(this.settingsSizePath, "Window", "Width", "1000")
-        savedHeight := IniRead(this.settingsSizePath, "Window", "Height", "720")
-        this.settingsWindowWidth := IsNumber(savedWidth) ? Max(820, Min(3840, Round(savedWidth))) : 1000
-        this.settingsWindowHeight := IsNumber(savedHeight) ? Max(320, Min(2160, Round(savedHeight))) : 720
-        this.settingsWindowWidth := Min(this.settingsWindowWidth, Max(820, A_ScreenWidth - 100))
-        this.settingsWindowHeight := Min(this.settingsWindowHeight, Max(320, A_ScreenHeight - 100))
+        this.settingsWindowWidth := 820
+        this.settingsWindowHeight := 520
 
-        window := SuiteGui("+Resize +MinSize820x320 +0x02000000", this._SettingsTitle())
+        window := SuiteGui("+Resize +MinSize820x520 +0x02000000", this._SettingsTitle())
         this.settings := window
         this._SetSettingsIcons(window)
         this._RefreshGate()
@@ -969,6 +964,7 @@ class Keybindings {
         this.settingsRowPool := []
         this.visibleRows := []
         this.settingsDrawButtons := Map()
+        this.settingsDrawButtons[this.settingsRefresh.Hwnd] := "done"
         this.warningButtons := Map()
         OnMessage(0x004E, this.settingsButtonDrawCallback) ; WM_NOTIFY / NM_CUSTOMDRAW
         this.settingsScroll := window.AddCustom("ClassScrollBar x778 y48 w24 h140 +0x1")
@@ -987,8 +983,8 @@ class Keybindings {
         this.settingsResizing := false
         this.settingsRenderedWidth := 0
         this.settingsRenderedHeight := 0
-        this._ResizeSettings(window, 0, this.settingsWindowWidth, this.settingsWindowHeight)
-        window.Show("w" this.settingsWindowWidth " h" this.settingsWindowHeight)
+        SuiteShowCentered(window, this.settingsWindowWidth, this.settingsWindowHeight,
+            ObjBindMethod(this, "_ResizeSettings"))
         OnMessage(0x020A, this.wheelCallback)
         this.wheelHookActive := true
         OnMessage(0x0115, this.verticalScrollCallback)
@@ -1440,12 +1436,6 @@ class Keybindings {
         }
         this.wheelRemainder := 0
         if IsObject(this.settings) {
-            try {
-                IniWrite(this.settingsWindowWidth, this.settingsSizePath, "Window", "Width")
-                IniWrite(this.settingsWindowHeight, this.settingsSizePath, "Window", "Height")
-            }
-            catch Error as failure
-                SuiteState.Log.Error("Keybindings / window size", failure)
             this.settings.Destroy()
         }
         for iconHandle in this.settingsIcons

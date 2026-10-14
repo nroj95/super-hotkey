@@ -527,6 +527,11 @@ class SuiteUpgradeChecks {
             app.ShowKeybindings()
             this.Assert(app.manager.settings.Hwnd = firstEditor, "every Keybindings entry reuses the global editor")
             editor := app.manager.settings
+            editor.GetClientPos(, , &firstWidth, &firstHeight)
+            this.Assert(firstWidth = 820 && firstHeight = 520,
+                "Keybindings opens at the readable minimum size")
+            this.Assert(app.manager.settingsDrawButtons[app.manager.settingsRefresh.Hwnd] = "done",
+                "Keybindings Refresh uses matching square corners")
             this.Assert(app.manager.rows[1].label = "Global"
                 && app.manager.visibleRows[1].categoryTitle.Text = "★ Global ★",
                 "Global heading has decorative stars without changing its category identity")
@@ -614,14 +619,18 @@ class SuiteUpgradeChecks {
             this.Assert(app.manager.visibleRows.Length < expandedRows,
                 "resizing smaller reduces the visible row count without losing the catalog")
             app.manager._CloseSettings()
-            this.Assert(IniRead(app.manager.root "\window.ini", "Window", "Width") = compactWidth
-                && IniRead(app.manager.root "\window.ini", "Window", "Height") = compactHeight,
-                "the chosen editor size is saved between openings")
+            IniWrite("1300", app.manager.root "\window.ini", "Window", "Width")
+            IniWrite("900", app.manager.root "\window.ini", "Window", "Height")
             app.manager.ShowSettings()
-            this.Assert(app.manager.settingsWindowWidth = compactWidth
-                && app.manager.settingsWindowHeight = compactHeight,
-                "the editor restores its previous size")
+            app.manager.settings.GetClientPos(, , &reopenedW, &reopenedH)
+            this.Assert(reopenedW = 820 && reopenedH = 520,
+                "Keybindings ignores size history and reopens at the minimum")
             app.manager._CloseSettings()
+            this.Assert(IniRead(app.manager.root "\window.ini", "Window", "Width") = "1300"
+                && IniRead(app.manager.root "\window.ini", "Window", "Height") = "900",
+                "Keybindings does not update old saved window sizes")
+            IniWrite("1600", app.Settings.directory "\help-window.ini", "Window", "Width")
+            IniWrite("950", app.Settings.directory "\help-window.ini", "Window", "Height")
             for id in SuiteSettings.ModuleOrder {
                 app.ui.ShowHelp(id)
                 key := "help:" id
@@ -634,6 +643,8 @@ class SuiteUpgradeChecks {
                 this.Assert(InStr(guide, "GETTING STARTED") > 0,
                     "help starts with practical instructions: " id)
                 window.GetClientPos(, , &helpWidth, &helpHeight)
+                this.Assert(helpWidth = 900 && helpHeight = 520,
+                    "Help opens at its fixed minimum size: " id)
                 guideControl := window["helpText"]
                 guideControl.GetPos(, &textY, , &textHeight)
                 this.Assert(guideControl.Type = "Text"
@@ -712,6 +723,24 @@ class SuiteUpgradeChecks {
                         && app.ui.configurationWindows.Has("settings:" id),
                         "Settings replaces Help rather than stacking over it: " id)
                     settings := app.ui.windows["settings:" id]
+                    settings.GetClientPos(, , &settingsW, &settingsH)
+                    this.Assert(app.ui.pageLayouts.Has("settings:" id)
+                        && !!(WinGetStyle("ahk_id " settings.Hwnd) & 0x00040000),
+                        "module Settings are resizable: " id)
+                    defaultW := app.ui.pageLayouts["settings:" id].width
+                    defaultH := app.ui.pageLayouts["settings:" id].height
+                    this.Assert(settingsW = defaultW && settingsH = defaultH,
+                        "module Settings open at their minimum size: " id)
+                    settings.Show("w" (defaultW + 120) " h" (defaultH + 140))
+                    settings.GetClientPos(, , &settingsW, &settingsH)
+                    app.ui.ResizePage("settings:" id, settings, 0, settingsW, settingsH)
+                    pageFooter := app.ui.pageLayouts["settings:" id].footer
+                    pageFooter.divider.GetPos(, &settingsDividerY)
+                    pageFooter.buttons[-1].button.GetPos(&lastButtonX, &lastButtonY, &lastButtonW)
+                    this.Assert(settingsDividerY = settingsH - 64
+                        && lastButtonY = settingsH - 49
+                        && lastButtonX + lastButtonW <= settingsW,
+                        "module Settings footer follows resizing: " id)
                     backFound := false
                     for control in settings
                         if control.Type = "Button" && control.Text = "Back"
@@ -747,22 +776,51 @@ class SuiteUpgradeChecks {
                     "Keybindings closes Help without a Back button: " id)
             }
             app.ui.ShowHelp("scratchpad")
+            app.ui.windows["help:scratchpad"].GetClientPos(, , &lastHelpW, &lastHelpH)
+            this.Assert(lastHelpW = 900 && lastHelpH = 520,
+                "Help reopens at its minimum regardless of previous resizing")
             app.ui.CloseWindow("help:scratchpad")
-            this.Assert(IniRead(app.ui.helpSizePath, "Window", "Width") > 900,
-                "user-chosen Help window width is remembered")
+            this.Assert(IniRead(app.Settings.directory "\help-window.ini",
+                "Window", "Width") = "1600",
+                "Help ignores existing saved window size history")
             app.activeModules["scratchpad"] := false
             app.ui.ShowHelp("scratchpad")
             this.Assert(IsObject(app.ui.windows["help:scratchpad"]), "disabled modules still expose their How to use page")
             app.ui.CloseWindow("help:scratchpad")
-            app.ui.OpenLog()
-            this.Assert(app.ui.windows["log"]["verbose"].Value = 0, "one global logging checkbox is available")
-            app.ui.CloseWindow("log")
-            app.ui.ShowAppSettings()
-            this.Assert(IsObject(app.ui.windows["application-settings"]), "startup and factory reset live in application settings")
-            app.ui.CloseWindow("application-settings")
-            app.ui.ShowModules()
-            this.Assert(app.ui.moduleControls.Count = 5, "Modules presents all five renamed features")
-            app.ui.CloseModules()
+            for page in ["log", "application-settings", "modules"] {
+                switch page {
+                    case "log": app.ui.OpenLog()
+                    case "application-settings": app.ui.ShowAppSettings()
+                    case "modules": app.ui.ShowModules()
+                }
+                window := app.ui.windows[page]
+                layout := app.ui.pageLayouts[page]
+                window.GetClientPos(, , &pageW, &pageH)
+                style := WinGetStyle("ahk_id " window.Hwnd)
+                this.Assert(!!(style & 0x00040000) && !!(style & 0x00010000),
+                    "all shared utility windows support resize and maximize: " page)
+                this.Assert(pageW = layout.width && pageH = layout.height,
+                    "utility page opens at its minimum dimensions: " page)
+                this.Assert(layout.footer.buttons.Length >= 2
+                    && app.ui.footerButtons.Has(layout.footer.buttons[1].button.Hwnd),
+                    "utility footer has matching square buttons: " page)
+                if page = "log"
+                    this.Assert(window["verbose"].Value = 0,
+                        "one global logging checkbox is available")
+                if page = "application-settings"
+                    this.Assert(IsObject(window),
+                        "startup and factory reset remain in app settings")
+                if page = "modules"
+                    this.Assert(app.ui.moduleControls.Count = 5,
+                        "Modules presents all five renamed features")
+                window.Show("w" (layout.width + 100) " h" (layout.height + 130))
+                window.GetClientPos(, , &pageW, &pageH)
+                app.ui.ResizePage(page, window, 0, pageW, pageH)
+                layout.footer.divider.GetPos(, &footerDividerY)
+                this.Assert(footerDividerY = pageH - 64,
+                    "shared utility footer follows resizing: " page)
+                app.ui.CloseWindow(page)
+            }
             this.Assert(app.manager.paused && app.wonder.pending.Count = 0,
                 "interface navigation keeps dry-run inputs and Wonder Windows effects inactive")
         }
