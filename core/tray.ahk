@@ -119,13 +119,16 @@ class SuiteInterface {
             return
         name := SuiteSettings.ModuleNames[id]
         window := this.NewWindow(key, name " - How to use", false,
-            "+Resize +MinSize720x400")
+            "+Resize +MinSize720x540")
         state := this.app.ModuleActive(id) ? "enabled" : "disabled; assignments and settings are retained"
         if this.app.dryRun
             state := "dry run; feature effects are inactive"
+        ; Plain GUI text instead of a nested edit box: one background, no inner scrollbar.
+        window.SetFont("s10 w600", "Consolas")
         header := window.AddText("x20 y18 w860 h25", name " - " state)
-        content := window.AddEdit("x20 y55 w860 h455 ReadOnly +VScroll -Tabstop vhelpText",
+        content := window.AddText("x20 y55 w860 h455 vhelpText",
             ModuleHelp.Text(id, this.app.manager))
+        window.SetFont("s10", "Segoe UI")
         buttons := []
         if id = "scratchpad"
             buttons.Push(["Open Pad", ObjBindMethod(this, "OpenPad"), 110])
@@ -137,9 +140,9 @@ class SuiteInterface {
         savedWidth := IniRead(this.helpSizePath, "Window", "Width", "900")
         savedHeight := IniRead(this.helpSizePath, "Window", "Height", "600")
         width := IsNumber(savedWidth) ? Max(720, Min(2400, Round(savedWidth))) : 900
-        height := IsNumber(savedHeight) ? Max(400, Min(1500, Round(savedHeight))) : 600
+        height := IsNumber(savedHeight) ? Max(540, Min(1500, Round(savedHeight))) : 600
         width := Min(width, Max(720, A_ScreenWidth - 80))
-        height := Min(height, Max(400, A_ScreenHeight - 80))
+        height := Min(height, Max(540, A_ScreenHeight - 80))
         this.helpLayouts[id] := {header: header, content: content, footer: footer,
             width: width, height: height}
         window.OnEvent("Size", ObjBindMethod(this, "ResizeHelp", id))
@@ -153,7 +156,7 @@ class SuiteInterface {
             return
         layout := this.helpLayouts[id]
         width := Max(720, width)
-        height := Max(400, height)
+        height := Max(540, height)
         if minMax = 0 {
             layout.width := width
             layout.height := height

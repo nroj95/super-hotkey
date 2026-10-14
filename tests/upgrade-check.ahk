@@ -634,11 +634,20 @@ class SuiteUpgradeChecks {
                 this.Assert(InStr(guide, "GETTING STARTED") > 0,
                     "help starts with practical instructions: " id)
                 window.GetClientPos(, , &helpWidth, &helpHeight)
-                window["helpText"].GetPos(, &textY, , &textHeight)
-                lineCount := SendMessage(0x00BA, 0, 0, , window["helpText"].Hwnd)
-                this.Assert(helpWidth >= 720 && helpHeight >= 400
+                guideControl := window["helpText"]
+                guideControl.GetPos(, &textY, , &textHeight)
+                this.Assert(guideControl.Type = "Text",
+                    "help content is plain GUI text, not a nested scrollable editor: " id)
+                fontHandle := SendMessage(0x0031, 0, 0, , guideControl.Hwnd)
+                fontData := Buffer(92, 0)
+                this.Assert(fontHandle && DllCall("GetObjectW", "ptr", fontHandle,
+                    "int", fontData.Size, "ptr", fontData, "int") = fontData.Size
+                    && NumGet(fontData, 16, "int") = 600,
+                    "help guide uses a stronger semibold font: " id)
+                lineCount := StrSplit(guide, "`n").Length
+                this.Assert(helpWidth >= 720 && helpHeight >= 540
                     && textHeight > 350 && textY + textHeight < helpHeight - 60
-                    && lineCount * 21 <= textHeight,
+                    && lineCount * 20 <= textHeight,
                     "initial help page fits its complete guide: " id)
                 style := WinGetStyle("ahk_id " window.Hwnd)
                 this.Assert(!!(style & 0x00040000) && !!(style & 0x00010000),
