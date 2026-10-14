@@ -4,10 +4,10 @@ class SuiteSettings {
     static ModuleNames := Map("window-cascade", "Cascade Kingdom", "win-key-overhaul", "Wonder Windows",
         "power-hotkey", "Power-Up Utilities", "scratchpad", "Paper Pad", "keyboard-layers", "Secret Keys")
     static ModuleDescriptions := Map("window-cascade", "Automatic window placement and cascades.",
-        "win-key-overhaul", "Windows shortcuts, layouts, stretching and navigation.",
+        "win-key-overhaul", "Window hotkeys, layouts, stretching and navigation.",
         "power-hotkey", "Extra keyboard, text and system actions.",
         "scratchpad", "A persistent Notepad3 drawer for quick notes.",
-        "keyboard-layers", "Independent CapsLock and Pause shortcut layers.")
+        "keyboard-layers", "Independent CapsLock and Pause hotkey layers.")
 
     __New(directory) {
         this.directory := directory

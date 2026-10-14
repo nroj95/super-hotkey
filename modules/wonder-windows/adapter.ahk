@@ -66,9 +66,9 @@ class WonderWindowsModule {
                 this.manager._RenderSettings()
         }
         catch Error as failure {
-            SuiteState.Log.Error("Wonder Windows / optional shortcuts", failure)
+            SuiteState.Log.Error("Wonder Windows / optional hotkeys", failure)
             if !this.dryRun
-                TrayTip("FancyZones shortcuts could not activate. Resolve the shortcut conflict in Keybindings.",
+                TrayTip("FancyZones hotkeys could not activate. Resolve the hotkey conflict in Keybindings.",
                     SuiteApplication.Name, 2)
         }
     }

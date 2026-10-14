@@ -487,7 +487,7 @@ class SuiteUpgradeChecks {
             this.Assert(!this.RouteExists(manager, "keyboard-layers.help"),
                 "unassigned Secret Keys Help installs no shortcut")
             this.Assert(InStr(ModuleHelp.Text("keyboard-layers", manager),
-                "HOLD A KEY FOR MORE SHORTCUTS") = 1
+                "HOLD A KEY FOR MORE HOTKEYS") = 1
                 && !InStr(ModuleHelp.Text("keyboard-layers", manager), "CURRENT SAVED SHORTCUTS"),
                 "Secret Keys help provides a practical guide without a shortcut inventory")
             filtered := Keybindings.DisplayRows(manager.DiscoverParticipants(), "Inside the editor")
@@ -803,7 +803,7 @@ class SuiteUpgradeChecks {
                     "win-key-overhaul", "ARRANGE YOUR WINDOWS",
                     "power-hotkey", "MORE KEYS WITHOUT A NEW KEYBOARD",
                     "scratchpad", "YOUR OWN QUICK-NOTES DRAWER",
-                    "keyboard-layers", "HOLD A KEY FOR MORE SHORTCUTS")
+                    "keyboard-layers", "HOLD A KEY FOR MORE HOTKEYS")
                 this.Assert(InStr(guide, firstHeading[id]) = 1
                     && !InStr(guide, "GETTING STARTED"),
                     "each module opens with its own distinct subject heading: " id)

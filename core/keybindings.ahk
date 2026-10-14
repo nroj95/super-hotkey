@@ -351,7 +351,7 @@ class Keybindings {
             throw ValueError("A layer activation key cannot also be its suffix.")
         ; An accidental global click binding could make Windows unusable.
         if key.mouse && (key.code = "LButton" || key.code = "RButton")
-            throw ValueError("Left and right mouse buttons cannot be assigned as shortcuts.")
+            throw ValueError("Left and right mouse buttons cannot be assigned as hotkeys.")
         if layer != "normal" && key.mouse
             throw ValueError("Layer protocol 1 supports keyboard suffixes only. Use an ordinary mouse binding.")
         if (mask = 3 && key.vk = 0x2E) || ((mask & 8) && key.vk = 0x4C)
@@ -563,7 +563,7 @@ class Keybindings {
                 for previous in seen[signature]
                     if !Keybindings.DisjointScopes(previous.action.scope, route.action.scope)
                         throw Error(route.binding.label " conflicts with " previous.action.label
-                            . " and " route.action.label ". No shortcuts were changed.")
+                            . " and " route.action.label ". No hotkeys were changed.")
             } else
                 seen[signature] := []
             seen[signature].Push(route)
@@ -956,7 +956,7 @@ class Keybindings {
         window.SetFont("s10 w400", "Cascadia Mono")
         this.settingsSearch := window.AddEdit("x210 y13 w400 vsearch")
         DllCall("SendMessageW", "ptr", this.settingsSearch.Hwnd, "uint", 0x1501,
-            "uptr", 1, "str", "search... (right-click a shortcut to type it)", "ptr")
+            "uptr", 1, "str", "search... (right-click a binding to type a hotkey)", "ptr")
         this.settingsSearch.OnEvent("Change", ObjBindMethod(this, "_SearchChanged"))
         this.settingsRowPool := []
         this.visibleRows := []
@@ -1563,7 +1563,7 @@ class Keybindings {
         slot := record.slot
         this._EndRecording()
         if Keybindings.NeedsMouseConfirmation(Keybindings.Parse(value))
-            && MsgBox("This shortcut intercepts ordinary middle-click or mouse-wheel input. Assign it?",
+            && MsgBox("This hotkey intercepts ordinary middle-click or mouse-wheel input. Assign it?",
                 this.name, "YesNo Default2 Icon!") != "Yes"
             return
         configuration := this.GetConfiguration()
@@ -1640,9 +1640,9 @@ class Keybindings {
                     continue
                 configuration := this.GetConfiguration()
                 old := Keybindings.Parse(configuration[row.actionId].bindings[slot])
-                input := InputBox("Type a shortcut, for example CapsLock, Escape, or Ctrl + Alt + J."
-                    . "`nLeave empty to clear. Layer shortcuts remain editable when layers are disabled.",
-                    "Edit shortcut", "w550 h170", IsObject(old) ? old.label : "")
+                input := InputBox("Type a hotkey, for example CapsLock, Escape, or Ctrl + Alt + J."
+                    . "`nLeave empty to clear. Layer hotkeys remain editable when their layers are disabled.",
+                    "Edit hotkey", "w550 h170", IsObject(old) ? old.label : "")
                 if input.Result != "OK"
                     return
                 try parsed := Keybindings.Parse(input.Value)

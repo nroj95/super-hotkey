@@ -44,6 +44,19 @@ class SuiteStructureTests(unittest.TestCase):
         self.assertIn('Cascadia Mono', tray)
         self.assertIn('Cascadia Mono', (ROOT / 'core/keybindings.ahk').read_text(encoding='utf-8'))
 
+    def test_hotkey_editor_uses_consistent_terminology(self):
+        editor = (ROOT / 'core/keybindings.ahk').read_text(encoding='utf-8')
+        self.assertIn('"Edit hotkey"', editor)
+        self.assertIn('Type a hotkey, for example CapsLock', editor)
+        self.assertIn('Layer hotkeys remain editable', editor)
+        self.assertIn('right-click a binding to type a hotkey', editor)
+        for old in ('Edit shortcut', 'Type a shortcut', 'Layer shortcuts',
+                    'right-click a shortcut', 'No shortcuts were changed'):
+            self.assertNotIn(old, editor)
+        help_text = (ROOT / 'core/help.ahk').read_text(encoding='utf-8')
+        self.assertIn('HOLD A KEY FOR MORE HOTKEYS', help_text)
+        self.assertNotIn('HOLD A KEY FOR MORE SHORTCUTS', help_text)
+
     def test_global_function_names_do_not_collide(self):
         definitions = {}
         for path in RUNTIME:

@@ -9,7 +9,7 @@ class PH_Modules {
     static Catalog() {
         return [
             {id: "function-keys", label: "Extra function keys",
-                description: "F13-F24 outputs can be assigned to any supported shortcut."},
+                description: "F13-F24 outputs can be assigned to any supported hotkey."},
             {id: "number-pad", label: "Virtual number pad",
                 description: "Numpad 0-9 through the number row, with held-key release handling."},
             {id: "terminal", label: "Windows Terminal",
@@ -19,13 +19,13 @@ class PH_Modules {
             {id: "timestamp", label: "Timestamps",
                 description: "Insert the current local time as yyyyMMdd-HHmmss."},
             {id: "caps-lock", label: "Caps Lock toggle",
-                description: "Toggle actual capitalization using a configurable shortcut."},
+                description: "Toggle actual capitalization using a configurable hotkey."},
             {id: "speaker-wake", label: "Speaker wake",
                 description: "Play the original Windows sound; temporarily raise low volume to 16%."},
             {id: "sleep", label: "Computer sleep",
                 description: "Put Windows to sleep after the trigger keys are released. Wake events stay enabled."},
             {id: "interface", label: "Power-Up Utilities controls",
-                description: "Open this window from a configurable shortcut. The tray menu is always available."}
+                description: "Open this window from a configurable hotkey. The tray menu is always available."}
         ]
     }
 

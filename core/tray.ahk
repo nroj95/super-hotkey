@@ -559,7 +559,7 @@ class SuiteInterface {
         window.AddCheckbox("x20 y70 w540 vcaps", "Enable CapsLock Layer").Value := this.app.Settings.layers["caps"]
         window.AddCheckbox("x20 y115 w540 vpause", "Enable Pause Layer").Value := this.app.Settings.layers["pause"]
         window.AddText("x20 y165 w560", "A disabled layer releases its native key unless you explicitly reassign it."
-            . "`nSaved layer shortcuts stay visible and editable in Keybindings.")
+            . "`nSaved layer hotkeys stay visible and editable in Keybindings.")
         this.Footer(window, [["Apply and restart", ObjBindMethod(this, "SaveLayers"), 160],
             ["Back", ObjBindMethod(this, "BackToHelp", "keyboard-layers"), 100]], 260, 600)
         this.ShowPage(key, 600, 310, 560, 285)
@@ -600,7 +600,7 @@ class SuiteInterface {
         window.AddText("x20 y160 w200", "Inactive-slot tab color")
         inactive := window.AddDropDownList("x240 y155 w210 vinactiveColor", colors)
         inactive.Choose(focus_corner_inactive_slot_color_name)
-        window.AddText("x20 y215 w550", "Changes apply after restarting. Shortcuts remain in the shared Keybindings editor.")
+        window.AddText("x20 y215 w550", "Changes apply after restarting. Hotkeys remain in the shared Keybindings editor.")
         this.Footer(window, [["Compatibility...", ObjBindMethod(this, "CascadeCompatibility"), 140],
             ["Apply and restart", ObjBindMethod(this, "SaveCascade"), 160],
             ["Back", ObjBindMethod(this, "BackToHelp", "window-cascade"), 100]], 290, 600)
@@ -765,7 +765,7 @@ class SuiteInterface {
             130, "fancyZonesStatus")
         window.AddText("x20 y180 w760", "Windows and PowerToys preferences are not changed at startup."
             . "`nThe actions below either open settings or ask for confirmation before applying changes."
-            . "`nFancyZones owns its zone-window switching shortcuts; they are not registered twice here.")
+            . "`nFancyZones owns its zone-window switching hotkeys; they are not registered twice here.")
         this.Footer(window, [["Windows Snap...", ObjBindMethod(this, "WonderAction", "snap"), 145],
             ["Disable Snap...", ObjBindMethod(this, "WonderAction", "disable"), 140],
             ["ScreenGrid...", ObjBindMethod(this, "WonderAction", "screengrid"), 125],
@@ -941,7 +941,7 @@ class SuiteInterface {
     }
 
     ResetDefaults(*) {
-        if MsgBox("Re-enable all five modules and both layers, and restore default shortcuts and preferences?"
+        if MsgBox("Re-enable all five modules and both layers, and restore default hotkeys and preferences?"
             . "`n`nNotes, their folder, editor path, Notepad3 preferences and page state will be kept."
             . "`nA settings backup will be created. The suite will restart.",
             SuiteApplication.Name, "YesNo Default2 Icon?") != "Yes"

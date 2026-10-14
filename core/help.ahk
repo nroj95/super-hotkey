@@ -1,4 +1,4 @@
-; Practical module guides. Keybindings is the source of saved shortcut assignments.
+; Practical module guides. Keybindings is the source of saved hotkey assignments.
 class ModuleHelp {
     static Introduction(id) {
         switch id {
@@ -16,7 +16,7 @@ class ModuleHelp {
                     . "other windows in that slot."
                     . "`r`n`r`nAUTOMATIC VS. MANUAL PLACEMENT"
                     . "`r`nPause automatic placement in Settings when you want new windows left alone; "
-                    . "the existing cascade shortcuts keep working. Windows deliberately positioned "
+                    . "the existing cascade hotkeys keep working. Windows deliberately positioned "
                     . "by Wonder Windows stay manual until you explicitly adopt them again."
                     . "`r`n`r`nSettings also controls focus-tab visibility and colors."
             case "win-key-overhaul":
@@ -37,9 +37,9 @@ class ModuleHelp {
                     . "nothing changes those Windows settings without your confirmation."
             case "power-hotkey":
                 return "MORE KEYS WITHOUT A NEW KEYBOARD"
-                    . "`r`nSend F13-F24 or virtual Numpad 0-9 through shortcuts you choose in "
+                    . "`r`nSend F13-F24 or virtual Numpad 0-9 through hotkeys you choose in "
                     . "Keybindings. These outputs can be useful for apps with extra command slots. "
-                    . "Held virtual keys are released when you release their triggering shortcut. "
+                    . "Held virtual keys are released when you release their triggering hotkey. "
                     . "The receiving application decides how to interpret those extra keys."
                     . "`r`n`r`nTEXT AND TERMINAL ACTIONS"
                     . "`r`nInsert punctuation, special spaces or a yyyyMMdd-HHmmss timestamp. "
@@ -48,14 +48,14 @@ class ModuleHelp {
                     . "`r`n`r`nSYSTEM UTILITIES"
                     . "`r`nThere are also actions to wake speakers, sleep the computer and toggle "
                     . "Caps Lock. Check what a system action does before assigning a convenient "
-                    . "shortcut to it. All assignments live in Keybindings; "
+                    . "hotkey to it. All assignments live in Keybindings; "
                     . "Power-Up Utilities has no separate Settings page."
             case "scratchpad":
                 return "YOUR OWN QUICK-NOTES DRAWER"
                     . "`r`nPaper Pad opens a dedicated Notepad3 window without taking over your "
                     . "ordinary editor sessions. Use Open Pad below or the configurable toggle "
-                    . "shortcut. Create pages as you need them and navigate between them inside "
-                    . "the editor; those page shortcuts don't affect other applications."
+                    . "hotkey. Create pages as you need them and navigate between them inside "
+                    . "the editor; those page hotkeys don't affect other applications."
                     . "`r`n`r`nPAGES ARE REAL FILES"
                     . "`r`nNew pages receive timestamped filenames. They remain ordinary files "
                     . "in your notes folder, and Save As can rename a page within that folder. "
@@ -67,14 +67,14 @@ class ModuleHelp {
                     . "forcing an overwrite. Settings lets you choose your editor, notes folder, "
                     . "display and autosave interval; changing paths never moves existing notes."
             case "keyboard-layers":
-                return "HOLD A KEY FOR MORE SHORTCUTS"
+                return "HOLD A KEY FOR MORE HOTKEYS"
                     . "`r`nHold CapsLock or Pause, then press another key to run its assigned action. "
                     . "A short tap instead arms the next key for 1.4 seconds, so you don't need "
                     . "to hold both keys at once. Tap again to cancel; the two layers cannot stack."
                     . "`r`n`r`nWHAT HAPPENS TO UNUSED KEYS?"
                     . "`r`nAn unassigned key cancels the one-shot layer and passes through normally. "
                     . "Your saved assignments are managed centrally in Keybindings; "
-                    . "an inactive CapsLock or Pause shortcut is marked there for reassignment. "
+                    . "an inactive CapsLock or Pause hotkey is marked there for reassignment. "
                     . "Disabling a layer doesn't erase the bindings you had assigned to it."
                     . "`r`n`r`nCHOOSE WHICH LAYERS TO KEEP"
                     . "`r`nSettings independently enables CapsLock and Pause. Modules has the "
