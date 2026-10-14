@@ -675,7 +675,7 @@ class SuiteUpgradeChecks {
             editor.GetClientPos(, , &firstWidth, &firstHeight)
             this.AssertCentered(editor, "Keybindings")
             this.AssertResizeGrip(editor, "Keybindings")
-            expectedKeybindingsHeight := Min(720, Max(560, A_ScreenHeight - 125))
+            expectedKeybindingsHeight := Min(860, Max(560, A_ScreenHeight - 125))
             this.Assert(firstWidth = 820 && firstHeight = expectedKeybindingsHeight,
                 "Keybindings opens taller without overwhelming smaller screens")
             this.Assert(!HasProp(app.manager, "settingsRefresh"),

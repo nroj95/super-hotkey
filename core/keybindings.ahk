@@ -946,7 +946,7 @@ class Keybindings {
 
         this.participants := this.DiscoverParticipants()
         this.settingsWindowWidth := 820
-        this.settingsWindowHeight := Min(720, Max(560, A_ScreenHeight - 125))
+        this.settingsWindowHeight := Min(860, Max(560, A_ScreenHeight - 125))
 
         window := SuiteGui("+Resize +MinSize820x520 +0x02000000", this._SettingsTitle())
         this.settings := window
