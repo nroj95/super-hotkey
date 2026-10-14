@@ -1,6 +1,6 @@
 # icon attribution
 
-`keybindings.ico` uses artwork from FatCow Farm-Fresh Web Icons 3.9.2.
+`super-hotkey-world.ico` uses artwork from FatCow Farm-Fresh Web Icons 3.9.2.
 
 - source: `keyboard.png` (16×16 and 32×32)
 - modification: combined into a multi-resolution Windows ICO

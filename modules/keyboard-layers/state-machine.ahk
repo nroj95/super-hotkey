@@ -3,7 +3,7 @@
 CPL_PrefixDown(layerName, physicalKey, *) {
     global CPL
     Critical
-    if !CPL.enabled || CPL.stopping || CPL.blockedPrefixes.Has(physicalKey)
+    if !CPL.enabled || CPL.stopping || !CPL.enabledLayers[layerName] || CPL.blockedPrefixes.Has(physicalKey)
         return
     layer := CPL.layers[layerName]
     if layer.down
@@ -107,7 +107,8 @@ CPL_ObserveKey(input, vk, sc) {
     global CPL
     Critical
     ; Modifiers can be added after a tap. Prefixes have their own handlers.
-    if vk = 0x14 || vk = 0x13 || vk = 0x03
+    if (vk = 0x14 && CPL.enabledLayers["caps"])
+        || ((vk = 0x13 || vk = 0x03) && CPL.enabledLayers["pause"])
         || vk = 0x10 || vk = 0x11 || vk = 0x12
         || (vk >= 0xA0 && vk <= 0xA5) || vk = 0x5B || vk = 0x5C
         return
@@ -122,7 +123,7 @@ CPL_ObserveKey(input, vk, sc) {
     if CPL.pressed.Has(keyId) || CPL.blockedKeys.Has(keyId)
         return
     routeKey := CPL_RouteKey(CPL.armed, CPL_ModifierMask(), keyId)
-    if !CPL.routes.Has(routeKey) || !CPL_RouteEligible(CPL.routes[routeKey])
+    if !IsObject(CPL_SelectRoute(routeKey))
         CPL_Disarm()
 }
 
@@ -149,10 +150,7 @@ CPL_ModifierSymbols(mask) {
 
 CPL_RouteKey(layerName, modifiers, keyId) => layerName "|" modifiers "|" keyId
 
-CPL_RoutePredicate(routeKey, *) {
-    global CPL
-    return CPL.routes.Has(routeKey) && CPL_RouteEligible(CPL.routes[routeKey])
-}
+CPL_RoutePredicate(routeKey, *) => IsObject(CPL_SelectRoute(routeKey))
 
 CPL_GuardPredicate(keyId, *) {
     global CPL
@@ -197,7 +195,9 @@ CPL_KeyDown(routeKey, *) {
     Critical
     if !CPL.routes.Has(routeKey)
         return
-    route := CPL.routes[routeKey]
+    route := CPL_SelectRoute(routeKey)
+    if !IsObject(route)
+        return
     if CPL.pressed.Has(route.key) {
         CPL_KeyGuardDown(route.key)
         return
@@ -293,6 +293,7 @@ CPL_CheckReleases() {
             continue
         }
         if !press.finished && (!CPL.enabled || !press.route.enabled
+            || (HasMethod(press.route.context, "Call") && !press.route.context.Call())
             || (!press.oneShot && (CPL.selected != press.route.layer
                 || CPL_ModifierMask() != press.route.modifiers)))
             CPL_FinishPress(press, 4)

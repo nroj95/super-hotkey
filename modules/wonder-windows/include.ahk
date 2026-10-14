@@ -1,0 +1,13 @@
+; Explicit includes; no auto-execution or plugin discovery.
+#Include "%A_ScriptDir%\modules\wonder-windows\settings.ahk"
+#Include "%A_ScriptDir%\modules\wonder-windows\window-state.ahk"
+#Include "%A_ScriptDir%\modules\wonder-windows\layout-geometry.ahk"
+#Include "%A_ScriptDir%\modules\wonder-windows\layouts.ahk"
+#Include "%A_ScriptDir%\modules\wonder-windows\swapping.ahk"
+#Include "%A_ScriptDir%\modules\wonder-windows\focus.ahk"
+#Include "%A_ScriptDir%\modules\wonder-windows\window-switcher.ahk"
+#Include "%A_ScriptDir%\modules\wonder-windows\borderless.ahk"
+#Include "%A_ScriptDir%\modules\wonder-windows\fancyzones.ahk"
+#Include "%A_ScriptDir%\modules\wonder-windows\windows.ahk"
+#Include "%A_ScriptDir%\modules\wonder-windows\startup.ahk"
+#Include "%A_ScriptDir%\modules\wonder-windows\debug.ahk"

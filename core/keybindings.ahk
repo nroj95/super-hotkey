@@ -20,6 +20,8 @@ class Keybindings {
         this.path := this.root "\" ownerId ".ini"
         this.layerFactory := Keybindings.Option(options, "layerFactory", 0)
         this.statusCallback := Keybindings.Option(options, "statusCallback", 0)
+        this.scopes := Map()
+        this.observerGroups := Map()
         this.actions := Map()
         this.configuration := Map()
         this.document := Map()
@@ -71,7 +73,11 @@ class Keybindings {
             throw TypeError("An action callback must be callable.")
         category := Keybindings.Option(options, "category", "General")
         Keybindings.Text(category, 80)
-        this.actions[actionId] := {
+        scope := Keybindings.Option(options, "scope", "")
+        scopeName := SubStr(scope, 1, 1) = "!" ? SubStr(scope, 2) : scope
+        if scope != "" && !this.scopes.Has(scopeName)
+            throw ValueError("Unknown input scope: " scope)
+        this.actions[actionId] := {scope: scope,
             id: actionId, label: label, callback: callback, category: category,
             repeat: !!Keybindings.Option(options, "repeat", false),
             defaultEnabled: !!Keybindings.Option(options, "enabled", true),
@@ -124,6 +130,7 @@ class Keybindings {
             finally HotIf()
         }
         this.observers := []
+        this.observerGroups.Clear()
         if IsObject(this.client)
             this.client.Dispose()
         Keybindings.Current := 0
@@ -494,21 +501,21 @@ class Keybindings {
             throw Error("A keybinding update is already in progress.")
         candidate := this._CandidateRoutes(configuration)
         seen := Map()
-        ; Validate every effective binding before touching the existing runtime.
         for route in candidate.routes {
-            if route.binding.layer != "normal" && !IsObject(this.client) {
-                route.state := "unavailable: keyboard layers are disabled"
-                continue
-            }
-            if route.binding.activationKey && IsObject(this.client) {
-                route.state := "unavailable: this key is owned by keyboard layers"
+            unavailable := this.BindingUnavailable(route.binding)
+            if unavailable != "" {
+                route.state := unavailable
                 continue
             }
             signature := route.binding.signature
-            if seen.Has(signature)
-                throw Error(route.binding.label " conflicts with " seen[signature]
-                    . " and " route.action.label ". No shortcuts were changed.")
-            seen[signature] := route.action.label
+            if seen.Has(signature) {
+                for previous in seen[signature]
+                    if !Keybindings.DisjointScopes(previous.action.scope, route.action.scope)
+                        throw Error(route.binding.label " conflicts with " previous.action.label
+                            . " and " route.action.label ". No shortcuts were changed.")
+            } else
+                seen[signature] := []
+            seen[signature].Push(route)
         }
         oldRoutes := this.routes
         oldConfiguration := this.configuration
@@ -585,7 +592,9 @@ class Keybindings {
             route.specification := 0
             route.token := 0
             binding := route.binding
-            this.routeMap[binding.signature] := route
+            if !this.routeMap.Has(binding.signature)
+                this.routeMap[binding.signature] := []
+            this.routeMap[binding.signature].Push(route)
             try {
                 if binding.layer = "normal" {
                     this._EnsureVariant(binding)
@@ -595,7 +604,7 @@ class Keybindings {
                 } else if IsObject(this.client) {
                     route.specification := this.client.Bind(binding.layer, binding.modifiers,
                         binding.key, route.action.label, ObjBindMethod(this, "_LayerEvent", route),
-                        route.action.repeat, route.action.context)
+                        route.action.repeat, ObjBindMethod(this, "ContextActive", route.action))
                     route.state := "offline"
                 } else {
                     route.state := "unavailable: no layer adapter"
@@ -609,7 +618,7 @@ class Keybindings {
         }
         this._UpdateReleaseTimer()
         this._RefreshGate()
-        if IsObject(this.client) && !this.gated && this.running && this.client.bindings.Length
+        if IsObject(this.client) && !this.gated && this.running
             this.client.Start()
     }
 
@@ -641,13 +650,15 @@ class Keybindings {
     }
 
     _Eligible(signature, *) {
-        if !this.running || this.gated || this.applying || !this.routeMap.Has(signature)
+        if !this.running || this.gated || this.applying
             return false
-        route := this.routeMap[signature]
+        route := this._SelectedRoute(signature)
+        if !IsObject(route)
+            return false
         if IsObject(this.client) && this.client.OwnsInput(route.binding.key)
             return false
-        return route.enabled && !this.blocked.Has(route.binding.key)
-            && Keybindings.ModifierMask() = route.binding.modifiers && this.ContextActive(route.action)
+        return !this.blocked.Has(route.binding.key)
+            && Keybindings.ModifierMask() = route.binding.modifiers
     }
 
     _GuardEligible(key, *) => this.running && this.pressed.Has(key)
@@ -658,7 +669,9 @@ class Keybindings {
         try {
             if !this._Eligible(signature)
                 return
-            route := this.routeMap[signature]
+            route := this._SelectedRoute(signature)
+            if !IsObject(route)
+                return
             key := route.binding.key
             if this.pressed.Has(key) {
                 this._GuardDown(key)
@@ -844,7 +857,7 @@ class Keybindings {
                     && GetKeyState(route.binding.key, "P")
                     this.blocked[route.binding.key] := true
             this._UpdateReleaseTimer()
-            if IsObject(this.client) && this.client.bindings.Length
+            if IsObject(this.client)
                 this.client.Start()
         }
     }
@@ -875,7 +888,7 @@ class Keybindings {
         footerY := footerDividerY + 15
         windowHeight := footerY + 49
 
-        window := Gui("-Resize", "Keybindings")
+        window := SuiteGui("-Resize", "Keybindings")
         this.settings := window
         this._SetSettingsIcons(window)
         this._RefreshGate()
@@ -929,25 +942,7 @@ class Keybindings {
     }
 
     _SetSettingsIcons(window) {
-        SplitPath(A_LineFile, , &libraryDirectory)
-        iconPath := A_ScriptDir "\assets\keybindings.ico"
-        if !FileExist(iconPath)
-            return
-
-        for index, size in [16, 32] {
-            imageType := 0
-            iconHandle := LoadPicture(iconPath, "Icon1 w" size " h" size, &imageType)
-            if !iconHandle
-                continue
-            if imageType != 1 {
-                DllCall(imageType = 2 ? "DestroyCursor" : "DeleteObject", "ptr", iconHandle)
-                continue
-            }
-
-            this.settingsIcons.Push(iconHandle)
-            ; WM_SETICON: small caption icon, then large taskbar icon.
-            SendMessage(0x0080, index - 1, iconHandle, , window.Hwnd)
-        }
+        SuiteIcons.Apply(window)
     }
 
     _SearchChanged(*) {
@@ -1195,10 +1190,12 @@ class Keybindings {
     }
 
     _CaptureLayer() {
-        if GetKeyState("CapsLock", "P")
-            return "caps"
-        if GetKeyState("Pause", "P") || GetKeyState("CtrlBreak", "P")
-            return "pause"
+        if IsObject(this.client) {
+            if this.client.LayerEnabled("caps") && GetKeyState("CapsLock", "P")
+                return "caps"
+            if this.client.LayerEnabled("pause") && (GetKeyState("Pause", "P") || GetKeyState("CtrlBreak", "P"))
+                return "pause"
+        }
         return "normal"
     }
 
@@ -1209,26 +1206,28 @@ class Keybindings {
             this._EndRecording()
             return
         }
-        bare := this._CaptureLayer() = "normal" && Keybindings.ModifierMask() = 0
+        layer := this._CaptureLayer()
+        bare := layer = "normal" && Keybindings.ModifierMask() = 0
         if vk = 0x1B && bare {
             this._EndRecording()
             return
         }
-        ; Both Backspace (VK_BACK) and Delete (VK_DELETE) clear an assignment.
+        key := vk = 0x13 || vk = 3 ? Format("vk{:02X}", vk)
+            : sc ? Format("sc{:03X}", sc) : Format("vk{:02X}", vk)
         if (vk = 0x08 || vk = 0x2E) && bare {
             this.recording.pending := "CLEAR"
-            this.recording.pendingKey := sc ? Format("sc{:03X}", sc) : Format("vk{:02X}", vk)
+            this.recording.pendingKey := key
             this.recording.clearing := true
             this.recording.button.Text := "unbound ..."
             return
         }
         if vk = 0x10 || vk = 0x11 || vk = 0x12 || (vk >= 0xA0 && vk <= 0xA5)
-            || vk = 0x5B || vk = 0x5C || vk = 0x14 || vk = 0x13
+            || vk = 0x5B || vk = 0x5C
             return
-        if this.recording.pending != ""
+        if IsObject(this.client) && this.client.OwnsPrefix(key)
             return
-        key := sc ? Format("sc{:03X}", sc) : Format("vk{:02X}", vk)
-        this._StageRecordedBinding(this._CaptureLayer(), Keybindings.ModifierMask(), key, key)
+        if this.recording.pending = ""
+            this._StageRecordedBinding(layer, Keybindings.ModifierMask(), key, key)
     }
 
     _RecordMouse(mouseName, *) {
@@ -1316,6 +1315,13 @@ class Keybindings {
     }
 
     ContextActive(action) {
+        if action.scope != "" {
+            inverse := SubStr(action.scope, 1, 1) = "!"
+            name := inverse ? SubStr(action.scope, 2) : action.scope
+            active := !!this.scopes[name].Call()
+            if active = inverse
+                return false
+        }
         return !HasMethod(action.context, "Call") || !!action.context.Call()
     }
 
@@ -1325,11 +1331,19 @@ class Keybindings {
     }
 
     Observe(key, context, callback, releaseGuard := false) {
-        predicate := (*) => this.running && (releaseGuard || !this.gated) && context.Call()
-        HotIf predicate
-        try Hotkey(key, callback, "On I100 B0")
-        finally HotIf()
-        this.observers.Push({key: key, predicate: predicate})
+        if !HasMethod(context, "Call") || !HasMethod(callback, "Call")
+            throw TypeError("Input observers require callable predicates and callbacks.")
+        ; AHK chooses one matching variant, not every variant. Fan out identical
+        ; passive observations so one module cannot hide another module's click.
+        if !this.observerGroups.Has(key) {
+            group := {key: key, callbacks: [], predicate: ObjBindMethod(this, "_ObserverEligible", key)}
+            this.observerGroups[key] := group
+            HotIf group.predicate
+            try Hotkey(key, ObjBindMethod(this, "_DispatchObserver", key), "On I100 B0")
+            finally HotIf()
+            this.observers.Push(group)
+        }
+        this.observerGroups[key].callbacks.Push({context: context, callback: callback, releaseGuard: releaseGuard})
     }
 
     _EditBindingText(window, control, *) {
@@ -1360,6 +1374,57 @@ class Keybindings {
                 configuration[row.actionId].bindings[slot] := input.Value
                 this._SaveConfiguration(configuration)
                 return
+            }
+        }
+    }
+
+    RegisterScope(name, predicate) {
+        if this.running || !HasMethod(predicate, "Call") || this.scopes.Has(name)
+            throw Error("Define each input scope once before starting Keybindings.")
+        Keybindings.Id(name)
+        this.scopes[name] := predicate
+    }
+
+    static DisjointScopes(first, second) {
+        ; Only a registered predicate and its exact complement may share a key.
+        ; Arbitrary context callbacks are not proof that two actions cannot overlap.
+        return first != "" && second != "" && (first = "!" second || second = "!" first)
+    }
+
+    BindingUnavailable(binding) {
+        if binding.layer != "normal"
+            return !IsObject(this.client) || !this.client.LayerEnabled(binding.layer)
+                ? "unavailable: " binding.layer " layer is disabled" : ""
+        return binding.activationKey && IsObject(this.client) && this.client.OwnsPrefix(binding.key)
+            ? "unavailable: this key is owned by Secret Keys" : ""
+    }
+
+    _SelectedRoute(signature) {
+        if !this.routeMap.Has(signature)
+            return 0
+        for route in this.routeMap[signature]
+            if route.enabled && this.ContextActive(route.action)
+                return route
+        return 0
+    }
+
+    _ObserverEligible(key, *) {
+        if !this.running || !this.observerGroups.Has(key)
+            return false
+        for item in this.observerGroups[key].callbacks
+            if (item.releaseGuard || !this.gated) && item.context.Call()
+                return true
+        return false
+    }
+
+    _DispatchObserver(key, *) {
+        if !this.running || !this.observerGroups.Has(key)
+            return
+        for item in this.observerGroups[key].callbacks {
+            if (item.releaseGuard || !this.gated) && item.context.Call() {
+                try item.callback.Call()
+                catch Error as failure
+                    SuiteState.Log.Error("Core / input observer", failure)
             }
         }
     }

@@ -27,7 +27,7 @@ MonitorGetPixels(args*) => CallWithDpiContext(-3, MonitorGet, args*)
 MonitorGetWorkAreaPixels(args*) => CallWithDpiContext(-3, MonitorGetWorkArea, args*)
 MouseGetPosPixels(args*) => CallWithDpiContext(-3, MouseGetPos, args*)
 PhysicalDllCall(args*) => CallWithDpiContext(-3, DllCall, args*)
-CreatePhysicalGui(options, title) => CallWithDpiContext(-3, Gui, options, title)
+CreatePhysicalGui(options, title) => CallWithDpiContext(-3, SuiteGui, options, title)
 ShowPhysicalGui(gui_object, options) => CallWithDpiContext(-3, ObjBindMethod(gui_object, "Show"), options)
 ScaleForDpi(value, dpi) => Round(value * dpi / 96)
 
@@ -58,7 +58,7 @@ ReadCascadeDisplays()
             ; GetDpiForWindow on a system-aware/unaware target reports its system
             ; DPI/96, not this monitor's scale. Our hidden PM-aware probe avoids that.
             probe_gui := CreatePhysicalGui("-Caption -DPIScale +ToolWindow +E0x08000000",
-                "Window Cascade DPI Probe")
+                "Cascade Kingdom DPI Probe")
             cascade_dpi_probes[device] := {gui: probe_gui, x: "", y: ""}
         }
         probe := cascade_dpi_probes[device]

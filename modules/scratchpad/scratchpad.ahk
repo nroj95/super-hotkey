@@ -65,29 +65,6 @@ class ScratchpadController
         this.state_path := this.data_directory "\state.ini"
         this.editor_profile := this.data_directory "\Notepad3.ini"
         this.error_log := SuiteState.Log.path
-        this.startup_shortcut := A_Startup "\Scratchpad.lnk"
-        this.toggle_hotkey_name := ""
-        this.toggle_hotkey_ahk := ""
-        this.toggle_hotkey_key := ""
-        this.toggle_hotkey_callback := 0
-        this.toggle_hotkey_presets := [
-            "Win+F12",
-            "F12",
-            "Ctrl+F12",
-            "Ctrl+Shift+F12",
-            "Ctrl+Alt+F12",
-            "Win+F10",
-            "Ctrl+Alt+Space"
-        ]
-        this.toggle_hotkey_menu := 0
-        this.custom_hotkey_gui := 0
-        this.monitor_menu := 0
-        this.monitor_menu_items := Map()
-        this.monitor_menu_items.CaseSense := "Off"
-        this.window_width_menu := 0
-        this.window_height_menu := 0
-        this.window_width_presets := [35, 45, 55, 65, 75]
-        this.window_height_presets := [25, 35, 45, 55, 65]
         this.mutex_handle := 0
 
         this.mutex_handle := DllCall("CreateMutexW", "ptr", 0, "int", false,
@@ -98,7 +75,7 @@ class ScratchpadController
         if mutex_error = 183 {
             DllCall("CloseHandle", "ptr", this.mutex_handle)
             this.mutex_handle := 0
-            throw Error("Scratchpad is already running. Exit the other copy first.")
+            throw Error("Paper Pad is already running. Exit the other copy first.")
         }
 
         DirCreate this.data_directory
@@ -126,9 +103,8 @@ class ScratchpadController
 
 
         ; Hidden owner/sender window for WM_COPYDATA page switches.
-        this.controller_window := Gui("+ToolWindow", this.controller_title)
+        this.controller_window := SuiteGui("+ToolWindow", this.controller_title)
 
-        this.BuildTrayMenu()
 
 
         ; Reacquire the retained editor's page lock immediately after Reload,
@@ -136,7 +112,7 @@ class ScratchpadController
         try this.AttachExistingWindow()
         catch as failure {
             this.autosave_paused := true
-            SuiteState.ScratchpadStatus := "Scratchpad - autosave paused"
+            SuiteState.ScratchpadStatus := "Paper Pad - autosave paused"
             this.ReportError(failure, true)
         }
         SetTimer this.autosave_callback, this.autosave_ms
@@ -332,7 +308,7 @@ class ScratchpadController
                 catch as failure {
                     this.command_queue := []
                     this.autosave_paused := true
-                    SuiteState.ScratchpadStatus := "Scratchpad - autosave paused"
+                    SuiteState.ScratchpadStatus := "Paper Pad - autosave paused"
                     this.RevealAfterError(request.source_window)
                     this.ReportError(failure)
                 }
@@ -449,7 +425,7 @@ class ScratchpadController
     {
         ; Opt out before making it visible or performing slow editor queries.
         if !DllCall("SetPropW", "ptr", hwnd, "str", this.cascade_ignore_marker, "ptr", 1, "int")
-            throw OSError(A_LastError, "SetPropW", "Could not opt out of Window Cascade.")
+            throw OSError(A_LastError, "SetPropW", "Could not opt out of Cascade Kingdom.")
         if !DllCall("SetPropW", "ptr", hwnd, "str", this.window_marker, "ptr", 1, "int")
             throw OSError(A_LastError, "SetPropW", "Could not mark the scratch editor.")
     }
@@ -568,7 +544,7 @@ class ScratchpadController
         ; A newly launched editor starts a new save session. A failure in a
         ; previously closed editor must not leave this one silently paused.
         this.autosave_paused := false
-        SuiteState.ScratchpadStatus := "Scratchpad"
+        SuiteState.ScratchpadStatus := "Paper Pad"
         return new_page
     }
 
@@ -586,7 +562,7 @@ class ScratchpadController
             SplitPath configured, &file_name
             if !FileExist(configured) || StrLower(file_name) != "notepad3.exe"
                 throw Error("Notepad3Executable must point to Notepad3.exe:`n" configured
-                    . "`n`nCorrect it in Scratchpad settings, then reload.")
+                    . "`n`nCorrect it in Paper Pad settings, then reload.")
             return configured
         }
 
@@ -595,11 +571,11 @@ class ScratchpadController
 
         choice := MsgBox(
             "Notepad3 was not found.`n`n"
-                . "Scratchpad requires Notepad3.`n`n"
+                . "Paper Pad requires Notepad3.`n`n"
                 . "Yes = install Notepad3`n"
                 . "No = locate Notepad3.exe manually`n"
                 . "Cancel = stop",
-            "Scratchpad setup",
+            "Paper Pad setup",
             "YesNoCancel Iconi 4096"
         )
 
@@ -607,30 +583,30 @@ class ScratchpadController
             return this.SelectNotepad3Executable()
 
         if choice != "Yes"
-            throw Error("Notepad3 is required to use Scratchpad.")
+            throw Error("Notepad3 is required to use Paper Pad.")
 
         existing_notepad3_windows := this.SnapshotNotepad3Windows()
 
         MsgBox(
-            "Scratchpad will open the Notepad3 installer.`n`n"
-                . "Choose any installation options you want. Scratchpad will continue "
+            "Paper Pad will open the Notepad3 installer.`n`n"
+                . "Choose any installation options you want. Paper Pad will continue "
                 . "automatically when setup finishes.",
-            "Scratchpad setup",
+            "Paper Pad setup",
             "Iconi 4096"
         )
 
         if !this.InstallNotepad3WithWinget() {
             choice := MsgBox(
-                "Scratchpad could not install Notepad3 automatically.`n`n"
+                "Paper Pad could not install Notepad3 automatically.`n`n"
                     . "Would you like to locate an existing Notepad3.exe manually?",
-                "Scratchpad setup",
+                "Paper Pad setup",
                 "YesNo Iconx 4096"
             )
 
             if choice = "Yes"
                 return this.SelectNotepad3Executable()
 
-            throw Error("Notepad3 is required to use Scratchpad.")
+            throw Error("Notepad3 is required to use Paper Pad.")
         }
 
         ; The installer can optionally launch an ordinary Notepad3 window.
@@ -648,9 +624,9 @@ class ScratchpadController
         }
 
         MsgBox(
-            "Notepad3 appears to be installed, but Scratchpad could not locate it "
+            "Notepad3 appears to be installed, but Paper Pad could not locate it "
                 . "automatically.`n`nLocate Notepad3.exe to continue.",
-            "Scratchpad setup",
+            "Paper Pad setup",
             "Iconi 4096"
         )
         return this.SelectNotepad3Executable()
@@ -745,7 +721,7 @@ class ScratchpadController
         )
 
         if selected = ""
-            throw Error("Notepad3 is required to use Scratchpad.")
+            throw Error("Notepad3 is required to use Paper Pad.")
 
         SplitPath selected, &file_name
         if StrLower(file_name) != "notepad3.exe"
@@ -894,21 +870,11 @@ class ScratchpadController
         }
     }
 
-    WelcomeText()
-    {
-        if this.toggle_hotkey_name = "Disabled"
-            toggle_text := "The global toggle shortcut is currently disabled."
-        else
-            toggle_text := this.DisplayHotkeyName(this.toggle_hotkey_name)
-                . " — show or hide Scratchpad"
-
-        return "# Welcome to Scratchpad`n`n"
-            . toggle_text "`n"
-            . "Escape — hide Scratchpad`n`n"
-            . "Right-click the Scratchpad tray icon and choose **How to use** "
-            . "for shortcuts and more.`n`n"
-            . "You can also change the toggle shortcut from the tray menu.`n`n"
-            . "Start typing below.`n`n"
+    WelcomeText() {
+        return "# Welcome to Paper Pad`n`n"
+            . "Open Paper Pad from the Super Hotkey World tray for instructions.`n"
+            . "Use Keybindings to see and change the current shortcuts.`n`n"
+            . "Your pages are ordinary files. Start typing below.`n`n"
     }
 
     CheckCurrentPage()
@@ -1020,7 +986,7 @@ class ScratchpadController
             ; two seconds for a dirty flag that typing can keep setting.
         }
 
-        throw Error("The page kept changing while Scratchpad tried to save it. Stop editing briefly and retry.")
+        throw Error("The page kept changing while Paper Pad tried to save it. Stop editing briefly and retry.")
     }
 
     AcceptSave(path, stamp)
@@ -1035,7 +1001,7 @@ class ScratchpadController
         this.disk_stamp := stamp
         this.PersistCurrentState()
         this.autosave_paused := false
-        SuiteState.ScratchpadStatus := "Scratchpad"
+        SuiteState.ScratchpadStatus := "Paper Pad"
     }
 
     ConfigureNewPage()
@@ -1157,7 +1123,7 @@ class ScratchpadController
         try this.SaveCurrentPage(false)
         catch as failure {
             this.autosave_paused := true
-            SuiteState.ScratchpadStatus := "Scratchpad - autosave paused"
+            SuiteState.ScratchpadStatus := "Paper Pad - autosave paused"
             this.ReportError(failure, true)
         }
         finally {
@@ -1585,9 +1551,9 @@ class ScratchpadController
     {
         detail := FormatTime(, "yyyy-MM-dd HH:mm:ss") " | " failure.Message
             . "`n" failure.What " | line " failure.Line "`n" failure.Stack "`n`n"
-        SuiteState.Log.Error("Scratchpad", failure)
+        SuiteState.Log.Error("Paper Pad", failure)
         if notification
-            TrayTip failure.Message, "Scratchpad - autosave paused", 2
+            TrayTip failure.Message, "Paper Pad - autosave paused", 2
         else {
             ; ProcessCommands keeps the controller busy while reporting failures,
             ; so the timer cannot yield Z-order for our own modal message box.
@@ -1595,7 +1561,7 @@ class ScratchpadController
             restore_topmost := this.IsVisible()
             if restore_topmost
                 try this.SetDrawerTopmost(false)
-            try MsgBox failure.Message "`n`nDetails: " this.error_log, "Scratchpad", "Iconx 4096"
+            try MsgBox failure.Message "`n`nDetails: " this.error_log, "Paper Pad", "Iconx 4096"
             finally {
                 if restore_topmost && this.IsVisible()
                     try this.SetDrawerTopmost(true)
@@ -1607,160 +1573,17 @@ class ScratchpadController
     ; tray, GUI help, explicit exit and reload recovery
     ; =========================================================================
 
-    BuildTrayMenu() {
-        moduleMenu := SuiteState.ScratchpadMenu
-        moduleMenu.Delete()
-        moduleMenu.Add("Toggle Scratchpad", ObjBindMethod(this, "QueueCommand", "toggle"))
-        moduleMenu.Add("Keybindings", (*) => SuiteState.App.ShowKeybindings())
-        moduleMenu.Add()
-        this.monitor_menu := Menu()
-        this.BuildMonitorMenu()
-        moduleMenu.Add("Display", this.monitor_menu)
-        this.window_width_menu := Menu()
-        for percent in this.window_width_presets
-            this.window_width_menu.Add(percent "%", ObjBindMethod(this, "SetWindowSizePercent", "width", percent))
-        this.window_height_menu := Menu()
-        for percent in this.window_height_presets
-            this.window_height_menu.Add(percent "%", ObjBindMethod(this, "SetWindowSizePercent", "height", percent))
-        moduleMenu.Add("Window width", this.window_width_menu)
-        moduleMenu.Add("Window height", this.window_height_menu)
-        moduleMenu.Add()
-        moduleMenu.Add("Open scratch folder", (*) => Run('explorer.exe "' this.scratch_directory '"'))
-        moduleMenu.Add("Open settings", (*) => Run('notepad.exe "' this.settings_path '"'))
-        moduleMenu.Add("How to use", ObjBindMethod(this, "ShowHelp"))
-        this.UpdateTrayChecks()
-    }
 
-    BuildMonitorMenu()
-    {
-        try this.monitor_menu.Delete()
-        this.monitor_menu_items := Map()
-        this.monitor_menu_items.CaseSense := "Off"
 
-        main_label := "Main display"
-        this.monitor_menu.Add(
-            main_label,
-            ObjBindMethod(this, "SetMonitorTarget", "Primary")
-        )
-        this.monitor_menu_items["Primary"] := main_label
 
-        monitor_count := MonitorGetCount()
-        if monitor_count {
-            this.monitor_menu.Add()
-            primary_index := MonitorGetPrimary()
 
-            loop monitor_count {
-                monitor_index := A_Index
-                try {
-                    monitor_name := MonitorGetName(monitor_index)
-                    ; MonitorGetCount can include displays which are not currently
-                    ; part of the desktop. Only offer displays with a usable work area.
-                    MonitorGetWorkArea(monitor_index)
-                }
-                catch
-                    continue
 
-                label := this.MonitorMenuLabel(monitor_name, monitor_index)
-                if monitor_index = primary_index
-                    label .= " (main)"
 
-                this.monitor_menu.Add(
-                    label,
-                    ObjBindMethod(this, "SetMonitorTarget", monitor_name)
-                )
-                this.monitor_menu_items[monitor_name] := label
-            }
-        }
 
-        ; Keep a disconnected pinned display visible in the menu. Scratchpad
-        ; falls back to the main display until that Windows display returns.
-        if this.monitor_target != "Primary"
-            && !this.monitor_menu_items.Has(this.monitor_target)
-        {
-            this.monitor_menu.Add()
-            unavailable_label := this.MonitorMenuLabel(this.monitor_target)
-                . " (unavailable)"
-            this.monitor_menu.Add(unavailable_label, (*) => 0)
-            this.monitor_menu.Disable(unavailable_label)
-            this.monitor_menu_items[this.monitor_target] := unavailable_label
-        }
 
-        this.UpdateMonitorMenu()
-    }
 
-    MonitorMenuLabel(monitor_name, fallback_index := 0)
-    {
-        if RegExMatch(monitor_name, "i)DISPLAY(\d+)$", &match)
-            return "Display " match[1]
 
-        if fallback_index
-            return "Display " fallback_index
 
-        return monitor_name
-    }
-
-    SetMonitorTarget(target, *)
-    {
-        try IniWrite target, this.settings_path, "Window", "Monitor"
-        catch as failure {
-            MsgBox(
-                failure.Message,
-                "Scratchpad display",
-                "Iconx 4096"
-            )
-            return
-        }
-
-        this.monitor_target := target
-        this.UpdateMonitorMenu()
-        this.QueueCommand("resize")
-    }
-
-    UpdateMonitorMenu()
-    {
-        if !this.monitor_menu
-            return
-
-        for target, item in this.monitor_menu_items
-            try this.monitor_menu.Uncheck(item)
-
-        if this.monitor_menu_items.Has(this.monitor_target) {
-            try this.monitor_menu.Check(this.monitor_menu_items[this.monitor_target])
-        }
-        else if this.monitor_menu_items.Has("Primary") {
-            try this.monitor_menu.Check(this.monitor_menu_items["Primary"])
-        }
-    }
-
-    SetWindowSizePercent(dimension, percent, *)
-    {
-        if dimension != "width" && dimension != "height"
-            return
-
-        setting_name := dimension = "width"
-            ? "WidthPercent"
-            : "HeightPercent"
-
-        try {
-            IniWrite percent, this.settings_path, "Window", setting_name
-        }
-        catch as failure {
-            MsgBox(
-                failure.Message,
-                "Scratchpad window size",
-                "Iconx 4096"
-            )
-            return
-        }
-
-        if dimension = "width"
-            this.width_percent := percent
-        else
-            this.height_percent := percent
-
-        this.UpdateWindowSizeMenu()
-        this.QueueCommand("resize")
-    }
 
     ApplyWindowSize()
     {
@@ -1803,7 +1626,7 @@ class ScratchpadController
             MsgBox(
                 "The size was saved, but the current window could not be resized.`n`n"
                     . failure.Message,
-                "Scratchpad window size",
+                "Paper Pad window size",
                 "Iconx 4096"
             )
         }
@@ -1818,27 +1641,6 @@ class ScratchpadController
         }
     }
 
-    UpdateWindowSizeMenu()
-    {
-        if !this.window_width_menu || !this.window_height_menu
-            return
-
-        for percent in this.window_width_presets {
-            item := percent "%"
-            this.window_width_menu.Uncheck(item)
-
-            if percent = this.width_percent
-                this.window_width_menu.Check(item)
-        }
-
-        for percent in this.window_height_presets {
-            item := percent "%"
-            this.window_height_menu.Uncheck(item)
-
-            if percent = this.height_percent
-                this.window_height_menu.Check(item)
-        }
-    }
 
 
 
@@ -1850,22 +1652,10 @@ class ScratchpadController
 
 
 
-    UpdateTrayChecks() {
-        this.UpdateMonitorMenu()
-        this.UpdateWindowSizeMenu()
-    }
 
-    ShowHelp(*) {
-        MsgBox("Open Keybindings for the current global toggle and editor-only shortcuts."
-            . "`nRight-click a shortcut to enter a key name, including Escape."
-            . "`n`nPages are ordinary files. New pages use timestamped names."
-            . "`nSave As can rename a page inside the scratch folder."
-            . "`nUndo survives hiding and suite reloads, but not switching pages."
-            . "`n`nSaves are checked before hiding, switching, reloading or exiting."
-            . "`nA disk conflict stops automatic overwriting."
-            . "`n`nScratch folder: " this.scratch_directory,
-            "Scratchpad", "Iconi")
-    }
+
+
+    ShowHelp(*) => SuiteState.App.ui.ShowHelp("scratchpad")
 
     ExitScratchpad()
     {
@@ -1919,7 +1709,7 @@ class ScratchpadController
 
     PrepareSuiteExit(reason) {
         if this.busy || this.command_queue.Length
-            throw Error("Scratchpad is finishing a command. Retry the suite exit or restart afterwards.")
+            throw Error("Paper Pad is finishing a command. Retry the suite exit or restart afterwards.")
         if this.HasWindow() || this.AttachExistingWindow() {
             this.SaveCurrentPage()
             if reason != "Reload" && reason != "Single" && reason != "Shutdown" && reason != "Logoff" {

@@ -6,12 +6,9 @@ class PowerHotkeys {
     __New(manager, dryRun := false) {
         this.manager := manager
         this.dryRun := dryRun
-        this.name := "Power Hotkey"
+        this.name := "Power-Up Utilities"
         this.stopping := false
         this.systemSuspended := false
-        this.modulesWindow := 0
-        this.statusWindow := 0
-        this.log := []
         this.pending := Map()
         this.generation := 0
         this.activeJob := 0
@@ -32,7 +29,7 @@ class PowerHotkeys {
         this.catalog[actionId] := {id: actionId, moduleId: moduleId, kind: kind,
             value: value, needsFocus: needsFocus}
         this.manager.AddAction(actionId, label, ObjBindMethod(this, "Dispatch"),
-            [defaultBinding], {category: "Power Hotkey / " PH_Modules.Label(this.modules, moduleId),
+            [defaultBinding], {category: "Power-Up Utilities / " PH_Modules.Label(this.modules, moduleId),
                 available: (*) => SuiteState.App.ModuleActive("power-hotkey")})
     }
 
@@ -45,7 +42,6 @@ class PowerHotkeys {
             return
         this.stopping := true
         this.CancelWork()
-        PH_Modules.CloseStatus(this)
     }
 
     SyncEnabledActions() {
@@ -162,12 +158,12 @@ class PowerHotkeys {
                 case "terminal-clear": this.terminal.Clear(job)
                 case "speaker-wake": this.utilities.WakeSpeakers(job)
                 case "sleep": this.utilities.SleepComputer(job)
-                case "interface": this.OpenKeybindings()
+                case "interface": SuiteState.App.ui.ShowHelp("power-hotkey")
                 default: throw Error("Unknown action kind: " job.action.kind)
             }
         }
         catch Error as commandError {
-            SuiteState.Log.Error("Power Hotkey", commandError)
+            SuiteState.Log.Error("Power-Up Utilities", commandError)
             this.Report(job.action.id ": " commandError.Message)
             TrayTip(commandError.Message, this.name, 2)
         }
@@ -208,9 +204,6 @@ class PowerHotkeys {
 
 
 
-    OpenKeybindings(*) {
-        SuiteState.App.ShowKeybindings()
-    }
 
 
 
@@ -220,12 +213,8 @@ class PowerHotkeys {
 
 
 
-    Report(text) {
-        this.log.Push(FormatTime(, "HH:mm:ss") "  " text)
-        if this.log.Length > 100
-            this.log.RemoveAt(1)
-        SuiteState.Log.Write("Power Hotkey", text)
-    }
+
+    Report(text) => SuiteState.Log.Write("Power-Up Utilities", text)
 
 
 }

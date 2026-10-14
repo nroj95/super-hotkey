@@ -6,6 +6,8 @@
 #Include "%A_ScriptDir%\core\keybindings.ahk"
 #Include "%A_ScriptDir%\core\logging.ahk"
 #Include "%A_ScriptDir%\core\settings.ahk"
+#Include "%A_ScriptDir%\core\windows.ahk"
+#Include "%A_ScriptDir%\core\help.ahk"
 #Include "%A_ScriptDir%\core\application.ahk"
 #Include "%A_ScriptDir%\core\tray.ahk"
 #Include "%A_ScriptDir%\modules\keyboard-layers\keyboard-layers.ahk"
@@ -19,6 +21,8 @@
 #Include "%A_ScriptDir%\modules\window-cascade\adapter.ahk"
 #Include "%A_ScriptDir%\modules\scratchpad\scratchpad.ahk"
 #Include "%A_ScriptDir%\modules\scratchpad\adapter.ahk"
+#Include "%A_ScriptDir%\modules\wonder-windows\include.ahk"
+#Include "%A_ScriptDir%\modules\wonder-windows\adapter.ahk"
 
 if A_LineFile = A_ScriptFullPath
     SHW_Main()

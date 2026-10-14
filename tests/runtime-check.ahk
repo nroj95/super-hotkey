@@ -33,6 +33,7 @@ class SuiteChecks {
         this.CheckLogging()
         this.CheckExitVeto()
         this.CheckDryRunLifecycle()
+        SuiteUpgradeChecks.Run()
     }
 
     static CheckSettings() {
@@ -40,7 +41,7 @@ class SuiteChecks {
         enabled := 0
         for id, value in settings.modules
             enabled += value
-        this.Assert(enabled = 4, "all four modules default to enabled")
+        this.Assert(enabled = 5, "all five modules default to enabled")
         choices := settings.modules.Clone()
         choices["keyboard-layers"] := false
         settings.Save(choices)

@@ -57,6 +57,8 @@ class SuiteWindowOwnership {
     }
 
     static Claim(hwnd) {
+        if IsObject(SuiteState.App) && SuiteState.App.stopping
+            return
         processId := this.ProcessId(hwnd)
         if !processId
             return

@@ -118,11 +118,12 @@ focus_tab_release_poll_ms := 50
 
 settings_directory := SuiteState.App.Settings.directory "\window-cascade"
 settings_path := settings_directory "\settings.ini"
+focus_corner_visible := IniRead(settings_path, "FocusTabs", "Visible", "1") = "1"
 
 ; Keep actionable lifecycle/error logging enabled. Raw show/destroy/poll events
 ; and detailed window-title/appearance snapshots are opt-in for the current run.
-debug_enabled := true
-debug_verbose_enabled := false
+
+
 debug_log_path := SuiteState.Log.path
 debug_log_backup_path := debug_log_path ".old"
 ; Keep routine logging bounded without querying file size for every event.
@@ -209,7 +210,7 @@ cascade_compaction_timer_pending := false
 cascade_restore_batches := Map()
 cascade_restore_request_depth := 0
 cascade_close_batches := Map()
-cascade_auto_placement_paused := false
+cascade_auto_placement_paused := IniRead(settings_path, "Controls", "AutoPlacementPaused", "0") = "1"
 cascade_auto_placement_toggle_in_progress := false
 cascade_minimize_toggle_in_progress := false
 cascade_minimized_windows := []

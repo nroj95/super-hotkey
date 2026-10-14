@@ -6,13 +6,11 @@ class WindowCascadeModule {
     }
 
     static Start(manager) {
-        BuildTrayMenu()
         InitializeDebugLogging()
         InitializeCascadeDisplays()
         SeedStartupWindows()
         StartWindowHooks()
         StartCascadeActivity()
-        SetTimer(CheckCompatibilitySettings, -500)
         manager.Observe("*LButton", CanStartFocusTabClick, (*) => BeginFocusTabClick())
         manager.Observe("*LButton Up", HasFocusTabClick, (*) => FinishFocusTabClick(), true)
         manager.Observe("~*LButton", IsCascadeEnabled, (*) => CaptureCascadeMousePress())

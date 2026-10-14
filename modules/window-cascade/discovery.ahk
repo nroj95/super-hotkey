@@ -117,7 +117,7 @@ QueueWindowPlacement(hwnd, source_hwnd)
 ConsumeExplorerSpaceIntentForNewWindow(hwnd, source_hwnd, target_pid)
 {
     global explorer_space_reshow_hint, handled_reshow_hint_max_age_ms
-    global debug_enabled, debug_verbose_enabled
+
 
     if !IsObject(explorer_space_reshow_hint) || !hwnd || !source_hwnd
         return false
@@ -143,7 +143,7 @@ ConsumeExplorerSpaceIntentForNewWindow(hwnd, source_hwnd, target_pid)
     }
 
     explorer_space_reshow_hint := 0
-    if debug_enabled && debug_verbose_enabled {
+    if SuiteState.Log.verbose && SuiteState.Log.verbose {
         DebugLog(
             "Explorer Space re-show intent consumed by new window."
             . " | target=" DebugDescribeWindow(hwnd)
@@ -483,7 +483,7 @@ WatchForMissedWindows()
         return
 
     global known_windows
-    global debug_enabled, debug_verbose_enabled
+
     global pending_windows, handled_windows
     global current_foreground_hwnd, previous_foreground_hwnd
 
@@ -496,7 +496,7 @@ WatchForMissedWindows()
         ; reconsidered every polling cycle.
         known_windows[hwnd] := true
 
-        if debug_enabled && debug_verbose_enabled {
+        if SuiteState.Log.verbose && SuiteState.Log.verbose {
             DebugLog(
                 "Poll discovered HWND."
                 . " | " DebugDescribeWindow(hwnd)
@@ -507,7 +507,7 @@ WatchForMissedWindows()
             continue
 
         if !IsPlausibleTopLevelWindow(hwnd) {
-            if debug_enabled && debug_verbose_enabled {
+            if SuiteState.Log.verbose && SuiteState.Log.verbose {
                 DebugLog(
                     "Poll rejected by top-level prefilter."
                     . " | " DebugDescribeWindow(hwnd)
@@ -659,8 +659,8 @@ StartWindowHooks()
 
         MsgBox(
             "Could not install all Windows event hooks.`n`n"
-            . "Window Cascade may not track windows correctly.",
-            "Window Cascade",
+            . "Cascade Kingdom may not track windows correctly.",
+            "Cascade Kingdom",
             "Iconx"
         )
     }
@@ -726,7 +726,7 @@ HandleWinEvent(
     global pending_windows, handled_windows
     global startup_windows
     global desktop_monitor_hint, desktop_monitor_hint_tick
-    global debug_enabled, debug_verbose_enabled
+
 
     try {
         EVENT_SYSTEM_FOREGROUND := 0x0003
@@ -788,8 +788,8 @@ HandleWinEvent(
             ; Filter logging, not cleanup. The first event clears tracking, so
             ; repeated/unrelated destroys are quiet unless verbose logging is on.
             if (
-                debug_enabled
-                && (debug_verbose_enabled || was_managed
+                SuiteState.Log.verbose
+                && (SuiteState.Log.verbose || was_managed
                     || pending_windows.Has(hwnd) || handled_windows.Has(hwnd))
             ) {
                 DebugLog(
@@ -842,7 +842,7 @@ HandleWinEvent(
         if GetManagedCascadeMonitor(hwnd)
             QueueFocusCornerUpdate()
 
-        if debug_enabled && debug_verbose_enabled {
+        if SuiteState.Log.verbose && SuiteState.Log.verbose {
             DebugLog(
                 "Show event."
                 . " | pending=" pending_windows.Has(hwnd)
@@ -859,7 +859,7 @@ HandleWinEvent(
         ; EVENT_OBJECT_SHOW also fires when some existing minimized windows are
         ; restored. Only windows absent from the startup snapshot are new.
         if startup_windows.Has(hwnd) {
-            if debug_enabled && debug_verbose_enabled {
+            if SuiteState.Log.verbose && SuiteState.Log.verbose {
                 DebugLog(
                     "Show event skipped: window existed at script startup."
                     . " | " DebugDescribeWindow(hwnd)

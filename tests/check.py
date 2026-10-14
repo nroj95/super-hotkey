@@ -93,7 +93,6 @@ def main() -> None:
         raise RuntimeError('Native checks require Windows; use unittest for migration helper checks elsewhere.')
     executable = find_autohotkey(args.autohotkey)
     run([sys.executable, '-m', 'unittest', 'discover', '-s', 'tests', '-p', 'test_*.py'])
-    run([sys.executable, 'migration/integrate.py', '--check'])
     parsed = run([str(executable), '/ErrorStdOut=UTF-8', str(ROOT / 'super-hotkey-world.ahk'), '--check'])
     if 'PASS: Super Hotkey World and every module parsed.' not in parsed:
         raise RuntimeError('The launcher did not report a successful parse.')
@@ -102,6 +101,7 @@ def main() -> None:
                                      mode='w', encoding='utf-8', delete=False) as stream:
         harness = Path(stream.name)
         stream.write('#Include "super-hotkey-world.ahk"\n')
+        stream.write('#Include "%A_ScriptDir%\\tests\\upgrade-check.ahk"\n')
         stream.write('#Include "%A_ScriptDir%\\tests\\runtime-check.ahk"\n#Warn All, StdOut\n')
     try:
         result = run([str(executable), '/ErrorStdOut=UTF-8', str(harness)])

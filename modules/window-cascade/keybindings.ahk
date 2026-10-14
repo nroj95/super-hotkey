@@ -55,7 +55,7 @@ InitializeCascadeKeybindings(manager)
         cascade_command_close_active, "Caps + Delete")
     CascadeAddAction(manager, "close-monitor", "close this monitor's cascade",
         cascade_command_close_scope, "Caps + F4")
-    CascadeAddAction(manager, "help", "show Window Cascade help",
+    CascadeAddAction(manager, "help", "show Cascade Kingdom help",
         cascade_command_show_help, "Caps + H")
 
 
@@ -73,8 +73,8 @@ InitializeCascadeKeybindings(manager)
 CascadeAddAction(manager, id, label, commandId, binding, parameter := 0)
 {
     manager.AddAction("window-cascade." id, label, CascadeBindingEvent.Bind(commandId, parameter),
-        [binding], {category: "Window Cascade",
-            available: (*) => SuiteState.App.ModuleActive("window-cascade")})
+        [binding], {category: commandId < 0 ? "Super Hotkey World" : "Cascade Kingdom",
+            available: (*) => commandId < 0 || SuiteState.App.ModuleActive("window-cascade")})
 }
 
 CascadeBindingEvent(commandId, parameter, event)
@@ -84,7 +84,7 @@ CascadeBindingEvent(commandId, parameter, event)
     if event.phase != "down"
         return
     if SuiteState.App.dryRun {
-        SuiteState.Log.Write("Window Cascade", "dry run: " event.actionId)
+        SuiteState.Log.Write("Cascade Kingdom", "dry run: " event.actionId)
         return
     }
 
@@ -108,15 +108,9 @@ CascadeBindingEvent(commandId, parameter, event)
     QueueCascadeCommand(commandId, parameter, event.foregroundHwnd)
 }
 
-CascadeResetLogFromBinding(*)
-{
-    ShowCascadeStatusTip(ResetDebugLog() ? "debug log cleared" : "debug log clear failed")
-}
+CascadeResetLogFromBinding(*) => SuiteState.App.ui.ClearLog()
 
-CascadeCopyLogFromBinding(*)
-{
-    ShowCascadeStatusTip(CopyDebugLogToClipboard() ? "debug log copied" : "debug log copy failed")
-}
+CascadeCopyLogFromBinding(*) => SuiteState.App.ui.CopyLog()
 
 CascadeKeybindingStatus(message)
 {
@@ -132,5 +126,5 @@ ShowCascadeKeybindings(*)
         cascade_keybindings.ShowSettings()
     else
         MsgBox("Keybindings did not initialize. Window management is still available.",
-            "Window Cascade", "Icon!")
+            "Cascade Kingdom", "Icon!")
 }

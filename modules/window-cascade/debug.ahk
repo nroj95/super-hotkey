@@ -9,20 +9,7 @@ InitializeDebugLogging() {
     DebugLogSession("enabled")
 }
 
-ToggleVerboseDebugLogging(*)
-{
-    global debug_verbose_enabled
 
-    if debug_verbose_enabled {
-        DebugLog("Verbose debug logging disabled.")
-        debug_verbose_enabled := false
-    } else {
-        debug_verbose_enabled := true
-        DebugLog("Verbose debug logging enabled.")
-    }
-
-    UpdateTrayMenu()
-}
 
 
 
@@ -39,7 +26,7 @@ CopyDebugLogToClipboard()
             code_fence := Chr(96) Chr(96) Chr(96)
             A_Clipboard := code_fence "text`n" log_text "`n" code_fence
         } else {
-            A_Clipboard := "Window Cascade debug log is empty."
+            A_Clipboard := "Cascade Kingdom debug log is empty."
         }
         return true
     }
@@ -74,9 +61,7 @@ DebugLogSession(reason)
 
 
 
-DebugLog(message) {
-    SuiteState.Log.Write("Window Cascade", message)
-}
+DebugLog(message) => SuiteState.Log.Debug("Cascade Kingdom", message)
 
 
 ; =============================================================================
@@ -84,15 +69,15 @@ DebugLog(message) {
 ; =============================================================================
 
 DebugError(context, failure) {
-    SuiteState.Log.Error("Window Cascade / " context, failure)
+    SuiteState.Log.Error("Cascade Kingdom / " context, failure)
 }
 
 
 
 DebugDescribeWindow(hwnd)
 {
-    global debug_enabled, debug_verbose_enabled
-    if !debug_enabled || !debug_verbose_enabled
+
+    if !SuiteState.Log.verbose || !SuiteState.Log.verbose
         return "hwnd=" hwnd
 
     if !hwnd
@@ -172,10 +157,10 @@ DebugDescribeWindow(hwnd)
 
 DebugFocusCornerAppearance(active_hwnd, active_slot_targets)
 {
-    global debug_enabled, debug_verbose_enabled, focus_corner_overlays, focus_corner_visible
+    global focus_corner_overlays, focus_corner_visible
     static previous_snapshot := ""
 
-    if !debug_enabled || !debug_verbose_enabled
+    if !SuiteState.Log.verbose || !SuiteState.Log.verbose
         return
 
     snapshot := (
@@ -235,9 +220,9 @@ DebugFocusCornerAppearance(active_hwnd, active_slot_targets)
 
 DebugDescribeForegroundState()
 {
-    global debug_enabled
 
-    if !debug_enabled
+
+    if !SuiteState.Log.verbose
         return ""
 
     ; Foreground, thread activation and keyboard focus are different handles.

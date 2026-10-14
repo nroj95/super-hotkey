@@ -24,7 +24,7 @@ class PH_Modules {
                 description: "Play the original Windows sound; temporarily raise low volume to 16%."},
             {id: "sleep", label: "Computer sleep",
                 description: "Put Windows to sleep after the trigger keys are released. Wake events stay enabled."},
-            {id: "interface", label: "Power Hotkey controls",
+            {id: "interface", label: "Power-Up Utilities controls",
                 description: "Open this window from a configurable shortcut. The tray menu is always available."}
         ]
     }
@@ -65,48 +65,13 @@ class PH_Modules {
         app.AddAction("speaker-wake", "system.wake-speakers", "wake speakers",
             "speaker-wake", "", "Pause + W")
         app.AddAction("sleep", "system.sleep", "sleep computer", "sleep", "", "Pause + Escape")
-        app.AddAction("interface", "interface.open", "open Power Hotkey",
+        app.AddAction("interface", "interface.open", "show Power-Up Utilities help",
             "interface", "", "Pause + H")
     }
 
-    static ShowStatus(app, *) {
-        if IsObject(app.statusWindow) {
-            this.RefreshStatus(app)
-            app.statusWindow.Show()
-            return
-        }
-        window := Gui("-Resize", app.name " - status")
-        app.statusWindow := window
-        window.SetFont("s10", "Segoe UI")
-        window.AddEdit("x14 y14 w720 h380 ReadOnly -Wrap vstatus")
-        window.AddButton("x236 y406 w110 h28", "refresh").OnEvent("Click", ObjBindMethod(this, "RefreshStatus", app))
-        window.AddButton("x360 y406 w110 h28", "close").OnEvent("Click", ObjBindMethod(this, "CloseStatus", app))
-        window.OnEvent("Close", ObjBindMethod(this, "CloseStatus", app))
-        window.OnEvent("Escape", ObjBindMethod(this, "CloseStatus", app))
-        this.RefreshStatus(app)
-        window.Show("w748 h448")
-    }
 
-    static RefreshStatus(app, *) {
-        if !IsObject(app.statusWindow)
-            return
-        lines := ["Power Hotkey " PowerHotkeys.Version,
-            "mode: " (app.dryRun ? "dry run - no real effects" : "normal"),
-            "settings: " app.manager.path, "", "bindings"]
-        statuses := app.manager.GetStatus()
-        if !statuses.Length
-            lines.Push("none - assign a shortcut first")
-        for status in statuses
-            lines.Push(status.label " / " status.binding ": " status.state)
-        lines.Push("", "recent messages")
-        for line in app.log
-            lines.Push(line)
-        app.statusWindow["status"].Value := Keybindings.Join(lines, "`r`n")
-    }
 
-    static CloseStatus(app, *) {
-        if IsObject(app.statusWindow)
-            app.statusWindow.Destroy()
-        app.statusWindow := 0
-    }
+
+
+
 }

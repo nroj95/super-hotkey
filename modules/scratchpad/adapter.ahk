@@ -1,8 +1,8 @@
 ; Global toggle and editor-only commands share the suite's configurable bindings.
 class ScratchpadModule {
     static Register(manager) {
-        manager.AddAction("scratchpad.toggle", "toggle Scratchpad", ObjBindMethod(this, "Event", "toggle"),
-            ["Win + F12"], {category: "Scratchpad", available: ObjBindMethod(this, "Available")})
+        manager.AddAction("scratchpad.toggle", "toggle Paper Pad", ObjBindMethod(this, "Event", "toggle"),
+            ["Win + F12"], {category: "Paper Pad", available: ObjBindMethod(this, "Available")})
         actions := [
             ["hide", "hide / dismiss completion", ["Escape"]],
             ["new", "new page", ["Ctrl + N"]],
@@ -13,8 +13,8 @@ class ScratchpadModule {
         ]
         for item in actions
             manager.AddAction("scratchpad." item[1], item[2], ObjBindMethod(this, "Event", item[1]), item[3],
-                {category: "Scratchpad / Inside the editor", available: ObjBindMethod(this, "Available"),
-                    context: ScratchpadEditorFocused})
+                {category: "Paper Pad / Inside the editor", available: ObjBindMethod(this, "Available"),
+                    scope: "paper-pad", context: ScratchpadEditorFocused})
     }
 
     static Available(*) => SuiteState.App.ModuleActive("scratchpad")
@@ -33,7 +33,7 @@ class ScratchpadModule {
         if event.phase != "down"
             return
         if SuiteState.App.dryRun {
-            SuiteState.Log.Write("Scratchpad", "dry run: " command)
+            SuiteState.Log.Write("Paper Pad", "dry run: " command)
             return
         }
         SetTimer(ObjBindMethod(this, "Execute", command, event.foregroundHwnd), -1)

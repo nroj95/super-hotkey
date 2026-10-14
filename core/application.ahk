@@ -5,15 +5,13 @@
 class SuiteState {
     static App := 0
     static Log := 0
-    static CascadeMenu := 0
-    static ScratchpadMenu := 0
     static CascadeStatus := ""
     static ScratchpadStatus := ""
 }
 
 class SuiteApplication {
     static Name := "Super Hotkey World"
-    static Version := "0.1.0-preview.1"
+    static Version := "0.2.0-preview.1"
 
     __New(dryRun := false, directory := "") {
         this.dryRun := dryRun
@@ -22,6 +20,9 @@ class SuiteApplication {
                 : EnvGet("LOCALAPPDATA") "\nroj\SuperHotkeyWorld"
         this.Settings := SuiteSettings(directory)
         this.activeModules := this.Settings.modules.Clone()
+        this.activeLayers := this.Settings.layers.Clone()
+        this.wonder := 0
+        this.wonderStarted := false
         this.manager := 0
         this.power := 0
         this.ui := 0
@@ -39,9 +40,8 @@ class SuiteApplication {
         this.sessionCallback := ObjBindMethod(this, "SessionEvent")
         this.resumeCallback := ObjBindMethod(this, "ResumeInputs")
         SuiteState.App := this
-        SuiteState.Log := SuiteLog(directory)
-        SuiteState.CascadeMenu := Menu()
-        SuiteState.ScratchpadMenu := Menu()
+        SuiteState.Log := SuiteLog(directory, 2097152, this.Settings.verbose)
+        SuiteIcons.Initialize()
     }
 
     Start(openSettings := false) {
@@ -82,6 +82,10 @@ class SuiteApplication {
                 this.cascadeStarted := true
                 WindowCascadeModule.Start(this.manager)
             }
+            if this.ModuleActive("win-key-overhaul") {
+                this.wonderStarted := true
+                this.wonder.Start()
+            }
             if this.ModuleActive("scratchpad") {
                 ScratchpadModule.Start(this.manager)
                 this.scratchpadStarted := true
@@ -108,17 +112,20 @@ class SuiteApplication {
 
     InitializeCatalog() {
         InitializeCascadeState()
+        WW_InitializeState()
         this.cascadeInitialized := true
         options := {directory: this.Settings.directory "\keybindings",
             statusCallback: ObjBindMethod(this, "BindingStatus")}
-        if this.ModuleActive("keyboard-layers")
-            options.layerFactory := (name, status) => LocalKeyboardLayers(name, status)
+        if this.ModuleActive("keyboard-layers") && (this.activeLayers["caps"] || this.activeLayers["pause"])
+            options.layerFactory := (name, status) => LocalKeyboardLayers(name, status, this.activeLayers)
         this.manager := Keybindings("super-hotkey-world", SuiteApplication.Name, options)
+        this.manager.RegisterScope("paper-pad", PaperPadWindowActive)
         this.manager.AddAction("core.keybindings", "open Keybindings", ObjBindMethod(this, "OpenBindingsEvent"),
             ["Caps + K", "Ctrl + Alt + K"], {category: "Super Hotkey World"})
         this.power := PowerHotkeys(this.manager, this.dryRun)
         WindowCascadeModule.Register(this.manager)
         ScratchpadModule.Register(this.manager)
+        this.wonder := WonderWindowsModule(this.manager, this.dryRun)
     }
 
     ModuleActive(id) => this.activeModules.Has(id) && this.activeModules[id]
@@ -140,6 +147,8 @@ class SuiteApplication {
     }
 
     CancelInputs() {
+        if IsObject(this.wonder)
+            this.wonder.CancelWork()
         if IsObject(this.power)
             this.power.CancelWork()
         if this.cascadeStarted {
@@ -155,7 +164,9 @@ class SuiteApplication {
     }
 
     RefreshInputGate() {
-        modulesOpen := IsObject(this.ui) && IsObject(this.ui.modulesWindow)
+        modulesOpen := IsObject(this.ui) && this.ui.HasSettingsOpen()
+        if !IsObject(this.manager) || this.manager.disposed
+            return
         this.manager.SetPaused(this.dryRun || this.stopping || this.systemSuspended || modulesOpen)
     }
 
@@ -200,7 +211,7 @@ class SuiteApplication {
         if this.scratchpadStarted && IsSet(scratchpad) {
             try scratchpad.PrepareSuiteExit(reason)
             catch Error as failure {
-                SuiteState.Log.Error("Scratchpad / exit refused", failure)
+                SuiteState.Log.Error("Paper Pad / exit refused", failure)
                 this.RefreshInputGate()
                 MsgBox(failure.Message "`n`nThe suite is still running. No notes were discarded.",
                     SuiteApplication.Name, "Icon!")
@@ -212,11 +223,16 @@ class SuiteApplication {
         if IsObject(this.manager)
             this.Cleanup("Keybindings", ObjBindMethod(this.manager, "Stop"))
         if IsObject(this.power)
-            this.Cleanup("Power Hotkey", ObjBindMethod(this.power, "Stop"))
+            this.Cleanup("Power-Up Utilities", ObjBindMethod(this.power, "Stop"))
+        if IsObject(this.ui)
+            this.Cleanup("Core / interfaces", ObjBindMethod(this.ui, "CloseAll"))
+        if this.wonderStarted
+            this.Cleanup("Wonder Windows", (*) => this.wonder.Stop(reason, code))
         if this.cascadeStarted
-            this.Cleanup("Window Cascade", (*) => WindowCascadeModule.Stop())
+            this.Cleanup("Cascade Kingdom", (*) => WindowCascadeModule.Stop())
         if this.scratchpadStarted && IsSet(scratchpad)
-            this.Cleanup("Scratchpad", (*) => scratchpad.OnScriptExit(reason, code))
+            this.Cleanup("Paper Pad", (*) => scratchpad.OnScriptExit(reason, code))
+        SuiteWindowOwnership.Clear()
         OnMessage(0x0218, this.powerCallback, 0)
         OnMessage(0x02B1, this.sessionCallback, 0)
         if this.sessionNotifications
@@ -268,7 +284,7 @@ class SuiteApplication {
                 try title := WinGetTitle(hwnd)
                 catch
                     continue
-                if RegExMatch(title, "i)\\(?:window-cascade|power-hotkey|scratchpad|caps-pause-layers|capslock-layer|pause-command-mode)(?:\([^\\]*\))?\.ahk - AutoHotkey")
+                if RegExMatch(title, "i)\\(?:window-cascade|win-key-overhaul|windows-key-overhaul|window-hotkeys|power-hotkey|scratchpad|caps-pause-layers|capslock-layer|pause-command-mode)(?:\([^\\]*\))?\.ahk - AutoHotkey")
                     throw Error("Close the original AutoHotkey utilities before starting the suite."
                         . "`nNo process was stopped automatically.`n`nDetected: " title)
             }

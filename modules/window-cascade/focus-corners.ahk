@@ -434,7 +434,7 @@ CreateFocusCornerOverlay(hwnd, marker_color, marker_alpha)
         "-Caption -DPIScale"
         . " +ToolWindow"
         . " +E0x08000000",
-        "Window Cascade Focus Marker"
+        "Cascade Kingdom Focus Marker"
     )
 
     marker_gui.BackColor := marker_color

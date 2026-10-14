@@ -13,7 +13,8 @@ IsIgnoredByWindowCascade(hwnd)
     if !DllCall("IsWindow", "ptr", hwnd, "int")
         return false
 
-    return !!DllCall("GetPropW", "ptr", hwnd, "str", "nroj.WindowCascade.Ignore", "ptr")
+    return SuiteWindowOwnership.IsManual(hwnd)
+        || !!DllCall("GetPropW", "ptr", hwnd, "str", "nroj.WindowCascade.Ignore", "ptr")
 }
 
 IsPlausibleTopLevelWindow(hwnd)

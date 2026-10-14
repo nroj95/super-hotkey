@@ -103,7 +103,7 @@ class SuiteInterface {
         if this.app.dryRun
             state := "dry run; feature effects are inactive"
         window.AddText("x20 y18 w760", name " - " state)
-        window.AddEdit("x20 y50 w760 h390 ReadOnly +VScroll", ModuleHelp.Text(id, this.app.manager))
+        window.AddEdit("x20 y50 w760 h390 ReadOnly +VScroll vhelpText", ModuleHelp.Text(id, this.app.manager))
         buttons := []
         if id = "scratchpad"
             buttons.Push(["Open Pad", ObjBindMethod(this, "OpenPad"), 110])
@@ -119,7 +119,7 @@ class SuiteInterface {
         for id in SuiteSettings.ModuleOrder {
             key := "help:" id
             if this.windows.Has(key)
-                this.windows[key]["Edit1"].Value := ModuleHelp.Text(id, this.app.manager)
+                this.windows[key]["helpText"].Value := ModuleHelp.Text(id, this.app.manager)
         }
     }
 

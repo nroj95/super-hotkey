@@ -17,7 +17,7 @@ IsExplorerSpaceReshowIntentContext()
 CaptureExplorerSpaceReshowIntent()
 {
     global explorer_space_reshow_hint
-    global debug_enabled, debug_verbose_enabled
+
 
     ; Modifier/Caps chords belong to Explorer, another app, or CapsLock Layer.
     ; Only the native plain-Space action may become a re-show intent.
@@ -46,7 +46,7 @@ CaptureExplorerSpaceReshowIntent()
         monitor_device: GetCascadeMonitorDevice(monitor)
     }
 
-    if debug_enabled && debug_verbose_enabled {
+    if SuiteState.Log.verbose && SuiteState.Log.verbose {
         DebugLog(
             "Explorer Space re-show intent captured."
             . " | monitor=" monitor

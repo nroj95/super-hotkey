@@ -45,8 +45,14 @@ AdoptActiveWindow()
     if !target_monitor
         return
 
-    if !PlaceCascadeWindowOnMonitor(hwnd, target_monitor)
+    was_manual := SuiteWindowOwnership.Release(hwnd)
+    if undo_snapshot
+        undo_snapshot["was_manual"] := was_manual
+    if !PlaceCascadeWindowOnMonitor(hwnd, target_monitor) {
+        if was_manual
+            SuiteWindowOwnership.Claim(hwnd)
         return
+    }
 
     if undo_snapshot
         pending_adoption_undo := undo_snapshot
@@ -147,6 +153,8 @@ UndoPendingAdoption()
     if managed_monitor
         QueueCascadeCompaction(managed_monitor)
 
+    if snapshot.Has("was_manual") && snapshot["was_manual"]
+        SuiteWindowOwnership.Claim(hwnd)
     QueueFocusCornerUpdate()
     return true
 }
