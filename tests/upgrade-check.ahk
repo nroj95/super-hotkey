@@ -590,7 +590,7 @@ class SuiteUpgradeChecks {
             this.Assert(sameFont,
                 "all Keybindings text uses the same stronger font weight and size")
             initialRows := app.manager.visibleRows.Length
-            editor.Show("w1120 h850")
+            editor.Show("w1120 h1100")
             editor.GetClientPos(, , &expandedWidth, &expandedHeight)
             app.manager._ResizeSettings(editor, 0, expandedWidth, expandedHeight)
             expandedRows := app.manager.visibleRows.Length
