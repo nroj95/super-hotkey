@@ -956,7 +956,7 @@ class Keybindings {
         window.SetFont("s10 w400", "Cascadia Mono")
         this.settingsSearch := window.AddEdit("x210 y13 w400 vsearch")
         DllCall("SendMessageW", "ptr", this.settingsSearch.Hwnd, "uint", 0x1501,
-            "uptr", 1, "str", "search... (right-click a binding to type a hotkey)", "ptr")
+            "uptr", 1, "str", "search… (LMB: record · RMB: type)", "ptr")
         this.settingsSearch.OnEvent("Change", ObjBindMethod(this, "_SearchChanged"))
         this.settingsRowPool := []
         this.visibleRows := []
