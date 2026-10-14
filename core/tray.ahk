@@ -9,6 +9,8 @@ class SuiteInterface {
         this.configurationWindows := Map()
         this.modulesWindow := 0
         this.moduleControls := Map()
+        this.helpLayouts := Map()
+        this.helpSizePath := app.Settings.directory "\help-window.ini"
         this.startupPath := A_Startup "\Super Hotkey.lnk"
         this.legacyStartupPath := A_Startup "\Super Hotkey World.lnk"
     }
@@ -38,8 +40,8 @@ class SuiteInterface {
         return true
     }
 
-    NewWindow(key, title, configuration := false) {
-        window := SuiteGui("-Resize", title)
+    NewWindow(key, title, configuration := false, options := "-Resize") {
+        window := SuiteGui(options, title)
         window.SetFont("s10", "Segoe UI")
         window.OnEvent("Close", ObjBindMethod(this, "CloseWindow", key))
         window.OnEvent("Escape", ObjBindMethod(this, "CloseWindow", key))
@@ -57,16 +59,33 @@ class SuiteInterface {
         for item in buttons
             total += (item.Length >= 3 ? item[3] : 130) + 10
         x := width - 10 - total
-        window.AddText("x20 y" (y - 15) " w" (width - 40) " h2 +0x10", "")
+        divider := window.AddText("x20 y" (y - 15) " w" (width - 40) " h2 +0x10", "")
+        controls := []
         for item in buttons {
             buttonWidth := item.Length >= 3 ? item[3] : 130
-            window.AddButton("x" x " y" y " w" buttonWidth " h30", item[1]).OnEvent("Click", item[2])
+            control := window.AddButton("x" x " y" y " w" buttonWidth " h30", item[1])
+            control.OnEvent("Click", item[2])
+            controls.Push({button: control, width: buttonWidth})
             x += buttonWidth + 10
         }
+        return {divider: divider, buttons: controls, total: total}
     }
 
     CloseWindow(key, *) {
         if this.windows.Has(key) {
+            if InStr(key, "help:") = 1 {
+                id := SubStr(key, 6)
+                if this.helpLayouts.Has(id) {
+                    layout := this.helpLayouts[id]
+                    try {
+                        IniWrite(layout.width, this.helpSizePath, "Window", "Width")
+                        IniWrite(layout.height, this.helpSizePath, "Window", "Height")
+                    }
+                    catch Error as failure
+                        SuiteState.Log.Error("Help / window size", failure)
+                    this.helpLayouts.Delete(id)
+                }
+            }
             this.windows[key].Destroy()
             this.windows.Delete(key)
         }
@@ -96,26 +115,72 @@ class SuiteInterface {
 
     ShowHelp(id, *) {
         key := "help:" id
-        if this.Existing(key) {
-            this.RefreshHelp()
+        if this.Existing(key)
             return
-        }
         name := SuiteSettings.ModuleNames[id]
-        window := this.NewWindow(key, name " - How to use")
+        window := this.NewWindow(key, name " - How to use", false,
+            "+Resize +MinSize720x400")
         state := this.app.ModuleActive(id) ? "enabled" : "disabled; assignments and settings are retained"
         if this.app.dryRun
             state := "dry run; feature effects are inactive"
-        window.AddText("x20 y18 w760", name " - " state)
-        window.AddEdit("x20 y50 w760 h390 ReadOnly +VScroll vhelpText", ModuleHelp.Text(id, this.app.manager))
+        header := window.AddText("x20 y18 w860 h25", name " - " state)
+        content := window.AddEdit("x20 y55 w860 h455 ReadOnly +VScroll -Tabstop vhelpText",
+            ModuleHelp.Text(id, this.app.manager))
         buttons := []
         if id = "scratchpad"
             buttons.Push(["Open Pad", ObjBindMethod(this, "OpenPad"), 110])
         if id != "power-hotkey"
-            buttons.Push(["Settings...", ObjBindMethod(this, "ShowModuleSettings", id), 120])
-        buttons.Push(["Keybindings...", ObjBindMethod(this.app, "ShowKeybindings"), 135])
+            buttons.Push(["Settings...", ObjBindMethod(this, "OpenSettingsFromHelp", id), 120])
+        buttons.Push(["Keybindings...", ObjBindMethod(this, "OpenKeybindingsFromHelp", id), 135])
         buttons.Push(["Close", ObjBindMethod(this, "CloseWindow", key), 100])
-        this.Footer(window, buttons, 475)
-        window.Show("w800 h525")
+        footer := this.Footer(window, buttons, 535, 900)
+        savedWidth := IniRead(this.helpSizePath, "Window", "Width", "900")
+        savedHeight := IniRead(this.helpSizePath, "Window", "Height", "600")
+        width := IsNumber(savedWidth) ? Max(720, Min(2400, Round(savedWidth))) : 900
+        height := IsNumber(savedHeight) ? Max(400, Min(1500, Round(savedHeight))) : 600
+        width := Min(width, Max(720, A_ScreenWidth - 80))
+        height := Min(height, Max(400, A_ScreenHeight - 80))
+        this.helpLayouts[id] := {header: header, content: content, footer: footer,
+            width: width, height: height}
+        window.OnEvent("Size", ObjBindMethod(this, "ResizeHelp", id))
+        window.Show("w" width " h" height)
+        window.GetClientPos(, , &clientWidth, &clientHeight)
+        this.ResizeHelp(id, window, 0, clientWidth, clientHeight)
+    }
+
+    ResizeHelp(id, window, minMax, width, height) {
+        if minMax = -1 || !this.helpLayouts.Has(id)
+            return
+        layout := this.helpLayouts[id]
+        width := Max(720, width)
+        height := Max(400, height)
+        if minMax = 0 {
+            layout.width := width
+            layout.height := height
+        }
+        layout.header.Move(20, 18, width - 40, 25)
+        layout.content.Move(20, 55, width - 40, height - 145)
+        layout.footer.divider.Move(20, height - 65, width - 40, 2)
+        x := width - 10 - layout.footer.total
+        for item in layout.footer.buttons {
+            item.button.Move(x, height - 49, item.width, 30)
+            x += item.width + 10
+        }
+    }
+
+    OpenSettingsFromHelp(id, *) {
+        this.CloseWindow("help:" id)
+        this.ShowModuleSettings(id)
+    }
+
+    BackToHelp(id, *) {
+        this.CloseWindow("settings:" id)
+        this.ShowHelp(id)
+    }
+
+    OpenKeybindingsFromHelp(id, *) {
+        this.CloseWindow("help:" id)
+        this.app.ShowKeybindings()
     }
 
     RefreshHelp(*) {
@@ -185,7 +250,7 @@ class SuiteInterface {
         window.AddText("x20 y165 w560", "A disabled layer releases its native key unless you explicitly reassign it."
             . "`nSaved layer shortcuts stay visible and editable in Keybindings.")
         this.Footer(window, [["Apply and restart", ObjBindMethod(this, "SaveLayers"), 160],
-            ["Cancel", ObjBindMethod(this, "CloseWindow", key), 100]], 260, 600)
+            ["Back", ObjBindMethod(this, "BackToHelp", "keyboard-layers"), 100]], 260, 600)
         window.Show("w600 h310")
     }
 
@@ -227,7 +292,7 @@ class SuiteInterface {
         window.AddText("x20 y215 w550", "Changes apply after restarting. Shortcuts remain in the shared Keybindings editor.")
         this.Footer(window, [["Compatibility...", ObjBindMethod(this, "CascadeCompatibility"), 140],
             ["Apply and restart", ObjBindMethod(this, "SaveCascade"), 160],
-            ["Cancel", ObjBindMethod(this, "CloseWindow", key), 100]], 290, 600)
+            ["Back", ObjBindMethod(this, "BackToHelp", "window-cascade"), 100]], 290, 600)
         window.Show("w600 h340")
     }
 
@@ -304,7 +369,7 @@ class SuiteInterface {
         }
         this.Footer(window, [["Open notes folder", ObjBindMethod(this, "OpenNotesFolder"), 165],
             ["Apply and restart", ObjBindMethod(this, "SavePaper"), 160],
-            ["Cancel", ObjBindMethod(this, "CloseWindow", key), 100]], 435)
+            ["Back", ObjBindMethod(this, "BackToHelp", "scratchpad"), 100]], 435)
         window.Show("w800 h485")
     }
 
@@ -391,7 +456,7 @@ class SuiteInterface {
             ["Disable Snap...", ObjBindMethod(this, "WonderAction", "disable"), 140],
             ["ScreenGrid...", ObjBindMethod(this, "WonderAction", "screengrid"), 125],
             ["FancyZones...", ObjBindMethod(this, "WonderAction", "fancyzones"), 135],
-            ["Close", ObjBindMethod(this, "CloseWindow", key), 90]], 290)
+            ["Back", ObjBindMethod(this, "BackToHelp", "win-key-overhaul"), 90]], 290)
         window.Show("w800 h340")
     }
 

@@ -625,29 +625,67 @@ class SuiteUpgradeChecks {
                 app.ui.ShowHelp(id)
                 key := "help:" id
                 window := app.ui.windows[key]
-                this.Assert(window.Title = SuiteSettings.ModuleNames[id] " - How to use", "module opens help first: " id)
-                this.Assert(StrLen(window["helpText"].Value) > 100, "help content is populated: " id)
+                this.Assert(window.Title = SuiteSettings.ModuleNames[id] " - How to use",
+                    "module opens its How to use guide: " id)
+                guide := window["helpText"].Value
+                this.Assert(StrLen(guide) > 300 && !InStr(guide, "CURRENT SAVED SHORTCUTS"),
+                    "help explains usage without listing every keybinding: " id)
+                this.Assert(InStr(guide, "GETTING STARTED") > 0,
+                    "help starts with practical instructions: " id)
+                window.GetClientPos(, , &helpWidth, &helpHeight)
                 window["helpText"].GetPos(, &textY, , &textHeight)
-                buttons := 0
+                lineCount := SendMessage(0x00BA, 0, 0, , window["helpText"].Hwnd)
+                this.Assert(helpWidth >= 720 && helpHeight >= 400
+                    && textHeight > 350 && textY + textHeight < helpHeight - 60
+                    && lineCount * 21 <= textHeight,
+                    "initial help page fits its complete guide: " id)
+                style := WinGetStyle("ahk_id " window.Hwnd)
+                this.Assert(!!(style & 0x00040000) && !!(style & 0x00010000),
+                    "help window is resizable and maximizable: " id)
+                firstHeight := textHeight
+                window.Show("w1080 h750")
+                window.GetClientPos(, , &helpWidth, &helpHeight)
+                app.ui.ResizeHelp(id, window, 0, helpWidth, helpHeight)
+                window["helpText"].GetPos(, , , &textHeight)
+                this.Assert(textHeight > firstHeight, "help body grows vertically: " id)
                 for control in window {
                     if control.Type != "Button"
                         continue
-                    buttons += 1
                     control.GetPos(&buttonX, &buttonY, &buttonWidth)
-                    this.Assert(buttonY > textY + textHeight && buttonX >= 0 && buttonX + buttonWidth <= 800,
-                        "help button stays on the lower-right footer: " id "/" control.Text)
+                    this.Assert(buttonY > textY + textHeight
+                        && buttonX >= 0 && buttonX + buttonWidth <= helpWidth,
+                        "help navigation stays in the footer: " id "/" control.Text)
                 }
-                this.Assert(buttons >= 2, "module help has useful navigation: " id)
                 if SuiteIcons.handles.Length
-                    this.Assert(SendMessage(0x007F, 0, 0, , window.Hwnd) = SuiteIcons.handles[1],
-                        "module help uses the single application icon: " id)
-                app.ui.CloseWindow(key)
+                    this.Assert(SendMessage(0x007F, 0, 0, , window.Hwnd)
+                        = SuiteIcons.handles[1], "module help uses one application icon: " id)
+
                 if id != "power-hotkey" {
-                    app.ui.ShowModuleSettings(id)
-                    this.Assert(app.ui.configurationWindows.Has("settings:" id), "module settings opens without a submenu: " id)
-                    app.ui.CloseWindow("settings:" id)
+                    app.ui.OpenSettingsFromHelp(id)
+                    this.Assert(!app.ui.windows.Has(key)
+                        && app.ui.configurationWindows.Has("settings:" id),
+                        "Settings replaces Help rather than stacking over it: " id)
+                    settings := app.ui.windows["settings:" id]
+                    backFound := false
+                    for control in settings
+                        if control.Type = "Button" && control.Text = "Back"
+                            backFound := true
+                    this.Assert(backFound, "module settings provides Back navigation: " id)
+                    app.ui.BackToHelp(id)
+                    this.Assert(!app.ui.configurationWindows.Has("settings:" id)
+                        && app.ui.windows.Has(key),
+                        "Back closes Settings and restores Help: " id)
                 }
+
+                app.ui.OpenKeybindingsFromHelp(id)
+                this.Assert(!app.ui.windows.Has(key)
+                    && IsObject(app.manager.settings),
+                    "Keybindings closes Help without a Back button: " id)
             }
+            app.ui.ShowHelp("scratchpad")
+            app.ui.CloseWindow("help:scratchpad")
+            this.Assert(IniRead(app.ui.helpSizePath, "Window", "Width") > 900,
+                "user-chosen Help window width is remembered")
             app.activeModules["scratchpad"] := false
             app.ui.ShowHelp("scratchpad")
             this.Assert(IsObject(app.ui.windows["help:scratchpad"]), "disabled modules still expose their How to use page")

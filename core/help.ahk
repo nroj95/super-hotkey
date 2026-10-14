@@ -1,77 +1,79 @@
-; Module help uses the live shared catalog rather than maintaining a second shortcut list.
+; Practical help guides. Shortcut assignments live in Keybindings.
 class ModuleHelp {
     static Introduction(id) {
         switch id {
             case "window-cascade":
-                return "New application windows are arranged into monitor-relative cascade slots."
-                    . "`r`nUse focus tabs or shortcuts to rotate layers, swap windows and change focus."
-                    . "`r`nPausing automatic placement leaves existing cascade controls available."
-                    . "`r`n`r`nDrag near a slot to adopt a window. A window deliberately laid out by Wonder Windows"
-                    . "`r`nstays manual until you use the adopt/re-slot action below. Focus-only navigation"
-                    . "`r`ndoes not remove a window from its cascade."
-                    . "`r`n`r`nSettings contains automatic placement, focus-tab visibility and colors."
+                return "GETTING STARTED"
+                    . "`r`nNew application windows are arranged into cascading slots on your monitors."
+                    . "`r`nOpen a few windows to see how slots and stacked windows work."
+                    . "`r`nFocus tabs and Keybindings let you select, rotate or swap visible windows."
+                    . "`r`n`r`nWINDOW PLACEMENT"
+                    . "`r`nMove windows between monitors or gather cascades onto one display."
+                    . "`r`nPause automatic placement in Settings when new windows should stay put."
+                    . "`r`nExisting cascade controls continue working while placement is paused."
+                    . "`r`n`r`nWORKING WITH WONDER WINDOWS"
+                    . "`r`nA manually positioned window stays out of automatic cascading until"
+                    . "`r`nyou explicitly adopt or re-slot it. Focusing a window does not adopt it."
+                    . "`r`n`r`nSettings controls focus tabs, colors and automatic placement."
+                    . "`r`nUse Keybindings to discover or customize your shortcuts."
             case "win-key-overhaul":
-                return "Replace selected Windows shortcuts with predictable manual window controls."
-                    . "`r`nSide layouts cycle through quarter-width, half-width and near-center positions."
-                    . "`r`nStretch toward neighboring windows; swap clockwise or move focus spatially."
-                    . "`r`nMaximize again to enter borderless fullscreen; maximize once more to leave it."
-                    . "`r`n`r`nManual layouts take precedence over Cascade Kingdom until explicitly re-adopted."
-                    . "`r`nPaper Pad keeps its own page-navigation shortcuts while its editor is active."
-                    . "`r`n`r`nSettings explains Windows Snap, ScreenGrid and optional FancyZones compatibility."
-                    . "`r`nNo Windows or PowerToys setting is changed without your confirmation."
+                return "GETTING STARTED"
+                    . "`r`nWonder Windows arranges and navigates application windows manually."
+                    . "`r`nTry the left and right layout actions to cycle through several positions."
+                    . "`r`nStretch windows toward neighbors, swap positions or change focus."
+                    . "`r`nMaximize cycles between a maximized window and borderless fullscreen."
+                    . "`r`n`r`nWORKING WITH CASCADE KINGDOM"
+                    . "`r`nManual placement takes precedence over automatic cascading until you"
+                    . "`r`nchoose to re-adopt the window in Cascade Kingdom."
+                    . "`r`nPaper Pad has its own page navigation when its editor is focused."
+                    . "`r`n`r`nCOMPATIBILITY"
+                    . "`r`nWindows Snap, ScreenGrid and FancyZones may overlap with these controls."
+                    . "`r`nSettings explains the compatibility options and asks before making changes."
+                    . "`r`nUse Keybindings to inspect or customize the available actions."
             case "power-hotkey":
-                return "Extra keyboard and system actions, with all assignments in Keybindings."
-                    . "`r`nF13-F24 provide extra function-key outputs; the virtual number pad supplies Numpad 0-9."
+                return "GETTING STARTED"
+                    . "`r`nPower-Up Utilities adds keyboard outputs, text tools and system actions."
+                    . "`r`nAssign F13-F24 or virtual number-pad outputs in Keybindings."
                     . "`r`nText actions insert symbols or a yyyyMMdd-HHmmss timestamp."
-                    . "`r`nTerminal actions only act in Windows Terminal. Speaker wake and sleep are system actions."
-                    . "`r`n`r`nHeld virtual keys are released when their trigger is released or input is cancelled."
-                    . "`r`nText and system commands wait for the trigger keys to be released."
-                    . "`r`nThere is no separate shortcut editor or module-specific debug switch."
+                    . "`r`n`r`nWHERE COMMANDS WORK"
+                    . "`r`nWindows Terminal commands work only in Windows Terminal."
+                    . "`r`nSleep and speaker-wake actions affect the computer."
+                    . "`r`nHeld virtual keys are released when you release their trigger."
+                    . "`r`nText and system actions wait until trigger keys are released."
+                    . "`r`n`r`nCUSTOMIZING"
+                    . "`r`nUse Keybindings to assign or clear shortcuts."
+                    . "`r`nThere is no separate Power-Up Utilities editor or settings page."
             case "scratchpad":
-                return "Paper Pad controls one dedicated Notepad3 window; your normal editor windows stay separate."
-                    . "`r`nToggle the drawer for quick notes. New pages have timestamped filenames."
-                    . "`r`nEditor-only shortcuts below act only inside the pad, not in other applications."
-                    . "`r`n`r`nPages are ordinary files. Save As may rename a page inside the notes folder."
-                    . "`r`nUndo survives hiding and suite reloads, but not switching pages."
-                    . "`r`nSaves are checked before hiding, switching or exiting; disk conflicts stop overwriting."
-                    . "`r`nIf Notepad3 has a pending dialog, resolve it before retrying a save or restart."
-                    . "`r`n`r`nSettings controls the notes folder, editor path, display, size and autosave interval."
+                return "GETTING STARTED"
+                    . "`r`nPaper Pad uses a dedicated Notepad3 window for quick notes."
+                    . "`r`nChoose Open Pad below, or assign a shortcut to toggle the window."
+                    . "`r`nCreate new pages, switch between them and save ordinary files."
+                    . "`r`nEditor-only shortcuts affect Paper Pad, not your other applications."
+                    . "`r`n`r`nSAVING AND CLOSING"
+                    . "`r`nPaper Pad checks unsaved changes before hiding, switching pages or exiting."
+                    . "`r`nSave As can rename a page within the notes folder."
+                    . "`r`nUndo survives hiding but not switching pages."
+                    . "`r`nResolve pending Notepad3 dialogs before retrying a save or restart."
+                    . "`r`n`r`nCUSTOMIZING"
+                    . "`r`nSettings controls the notes folder, editor path, display and autosave."
+                    . "`r`nChanging paths never moves or deletes your existing notes."
             case "keyboard-layers":
-                return "CapsLock and Pause can each open an additional shortcut layer."
-                    . "`r`n`r`nHold a layer key and press another key for a chord."
-                    . "`r`nA short unused tap arms the next key for 1.4 seconds. Tap again to cancel."
-                    . "`r`nAn unassigned key cancels the one-shot layer and passes through. Layers do not stack."
-                    . "`r`n`r`nSettings can disable CapsLock or Pause independently. Modules is the master switch."
-                    . "`r`nDisabled layers keep their saved assignments visible and editable in Keybindings."
-                    . "`r`nTheir native keys return unless you explicitly assign those keys to another action."
-                    . "`r`n`r`nFactory shortcuts open Keybindings with Caps + K or Ctrl + Alt + K."
-                    . "`r`nThe ordinary shortcut remains usable when both layers are disabled."
+                return "GETTING STARTED"
+                    . "`r`nSecret Keys turns CapsLock and Pause into optional shortcut layers."
+                    . "`r`nHold either key and press another key to trigger its assigned action."
+                    . "`r`nOr briefly tap the key to arm the next key for 1.4 seconds."
+                    . "`r`nTap again to cancel. The two layers do not stack."
+                    . "`r`nAn unassigned key cancels the one-shot shortcut and passes through."
+                    . "`r`n`r`nENABLING AND DISABLING"
+                    . "`r`nSettings lets you turn CapsLock and Pause layers off independently."
+                    . "`r`nModules contains the master switch for Secret Keys."
+                    . "`r`nA disabled layer restores its physical key unless you reassign it."
+                    . "`r`nSaved shortcuts remain editable in Keybindings."
+                    . "`r`n`r`nThe default Ctrl + Alt + K still opens Keybindings when both"
+                    . "`r`nlayers are disabled, unless you have reassigned that shortcut."
         }
         return ""
     }
 
-    static Text(id, manager) {
-        text := this.Introduction(id)
-        text .= "`r`n`r`nCURRENT SAVED SHORTCUTS`r`n"
-        configuration := manager.GetConfiguration()
-        for actionId, action in manager.actions {
-            if InStr(actionId, id ".") != 1 || action.category = "Global"
-                continue
-            labels := []
-            for encoded in configuration[actionId].bindings {
-                binding := Keybindings.Parse(encoded)
-                if !IsObject(binding)
-                    continue
-                label := binding.label
-                if manager.BindingUnavailable(binding) != ""
-                    label .= " (inactive)"
-                labels.Push(label)
-            }
-            assignment := labels.Length ? Keybindings.Join(labels, " / ") : "unassigned"
-            if !configuration[actionId].enabled || !manager.IsAvailable(action)
-                assignment .= " (module/action disabled)"
-            text .= "`r`n" action.label "`r`n    " assignment "`r`n"
-        }
-        return text
-    }
+    static Text(id, manager) => this.Introduction(id)
 }
