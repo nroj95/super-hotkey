@@ -166,7 +166,21 @@ class Keybindings {
                     continue
                 if !grouped.Has(action.category) {
                     grouped[action.category] := []
-                    categoryOrder.Push(action.category)
+                    ; Put a module's general shortcuts before its specialized groups.
+                    if !InStr(action.category, " / ") {
+                        position := 0
+                        for index, previous in categoryOrder {
+                            if InStr(previous, action.category " / ") = 1 {
+                                position := index
+                                break
+                            }
+                        }
+                        if position
+                            categoryOrder.InsertAt(position, action.category)
+                        else
+                            categoryOrder.Push(action.category)
+                    } else
+                        categoryOrder.Push(action.category)
                 }
                 grouped[action.category].Push({id: action.id, label: action.label,
                     ownerId: participant.id, setting: action,

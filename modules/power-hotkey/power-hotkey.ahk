@@ -23,13 +23,18 @@ class PowerHotkeys {
     }
 
     AddAction(moduleId, actionId, label, kind, value, defaultBinding, needsFocus := false) {
+        static subcategories := Map("function-keys", "Extra function keys",
+            "number-pad", "Virtual number pad", "text", "Text and symbols",
+            "timestamp", "Text and symbols")
+        category := subcategories.Has(moduleId)
+            ? "Power-Up Utilities / " subcategories[moduleId] : "Power-Up Utilities"
         actionId := "power-hotkey." actionId
         if kind = "terminal-clear"
             defaultBinding := "Caps + Ctrl + K"
         this.catalog[actionId] := {id: actionId, moduleId: moduleId, kind: kind,
             value: value, needsFocus: needsFocus}
         this.manager.AddAction(actionId, label, ObjBindMethod(this, "Dispatch"),
-            [defaultBinding], {category: "Power-Up Utilities",
+            [defaultBinding], {category: category,
                 available: (*) => SuiteState.App.ModuleActive("power-hotkey")})
     }
 

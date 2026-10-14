@@ -202,11 +202,34 @@ class SuiteUpgradeChecks {
         try {
             manager.SetPaused(true)
             manager.Start()
-            for actionId, action in manager.actions
-                if InStr(actionId, "power-hotkey.") = 1
-                    this.Assert(action.category = "Power-Up Utilities",
-                        "Power-Up Utilities uses one category: " actionId)
+            groups := Map("Power-Up Utilities", 0,
+                "Power-Up Utilities / Extra function keys", 0,
+                "Power-Up Utilities / Virtual number pad", 0,
+                "Power-Up Utilities / Text and symbols", 0)
+            for actionId, action in manager.actions {
+                if InStr(actionId, "power-hotkey.") != 1
+                    continue
+                this.Assert(groups.Has(action.category),
+                    "Power-Up Utilities keeps only useful subcategories: " actionId)
+                groups[action.category] += 1
+            }
+            this.Assert(groups["Power-Up Utilities / Extra function keys"] = 12
+                && groups["Power-Up Utilities / Virtual number pad"] = 10
+                && groups["Power-Up Utilities / Text and symbols"] = 5,
+                "large coherent Power-Up Utilities feature sets have their own headings")
+            this.Assert(groups["Power-Up Utilities"] > 0,
+                "individual utilities remain directly under Power-Up Utilities")
             rows := Keybindings.DisplayRows(manager.DiscoverParticipants())
+            generalHeading := 0
+            functionHeading := 0
+            for index, row in rows {
+                if row.id = "" && row.label = "Power-Up Utilities"
+                    generalHeading := index
+                if row.id = "" && row.label = "Power-Up Utilities / Extra function keys"
+                    functionHeading := index
+            }
+            this.Assert(generalHeading > 0 && functionHeading > generalHeading,
+                "general Power-Up Utilities shortcuts precede specialized subcategories")
             seenFancy := false
             for row in rows
                 if InStr(row.id, "win-key-overhaul.zone-") = 1
@@ -253,14 +276,17 @@ class SuiteUpgradeChecks {
             rows := Keybindings.DisplayRows(manager.DiscoverParticipants())
             fancyLeft := false
             fancyUp := false
+            fancyHeading := false
             for row in rows {
+                if row.id = "" && row.label = "Wonder Windows / FancyZones"
+                    fancyHeading := true
                 if row.id = "win-key-overhaul.zone-left"
                     fancyLeft := true
                 if row.id = "win-key-overhaul.zone-up"
                     fancyUp := true
             }
-            this.Assert(fancyLeft && !fancyUp,
-                "only currently usable FancyZones directions are shown")
+            this.Assert(fancyLeft && !fancyUp && fancyHeading,
+                "only currently usable FancyZones directions appear in their extension subgroup")
             WW_fancyzones_process_id := 0
             WW_fancyzones_integration_state := false
             app.wonder.RefreshOptionalActions()
