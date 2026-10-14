@@ -595,7 +595,9 @@ class SuiteUpgradeChecks {
             app.manager._ResizeSettings(editor, 0, expandedWidth, expandedHeight)
             expandedRows := app.manager.visibleRows.Length
             this.Assert(expandedRows > initialRows,
-                "live resizing immediately reveals more shortcut rows")
+                "live resizing reveals more rows (old " initialRows
+                ", new " expandedRows ", height " expandedHeight
+                ", layout " app.manager.settingsRenderedHeight ")")
             markerRow := app.manager.visibleRows[1]
             markerRow.title.Text := "layout-only marker"
             editor.Show("w1080 h850")
