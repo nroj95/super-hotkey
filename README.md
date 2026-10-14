@@ -25,7 +25,7 @@ adjust the executable path for your installation. `--dry-run` uses separate temp
 
 ## navigation
 
-the tray is flat: Modules, Keybindings, five module help pages, Debug log and Exit. each module opens How to use first, with relevant navigation at the lower right. all Keybindings links reuse the same global window.
+the tray is flat: Modules, Keybindings, five Getting started guides, Debug log, Verbose logging, Open settings folder, Run at startup, Reload, Reset to defaults and Exit. each module opens its own practical guide first, with relevant navigation at the lower right. all Keybindings links reuse the same global window.
 
 factory shortcuts open Keybindings with **Caps + K** or **Ctrl + Alt + K**. module settings and individual Secret Keys changes apply after restart. inactive shortcuts remain visible and editable. Windows Snap and optional FancyZones changes require confirmation; no compatibility settings are silently changed at startup.
 
@@ -33,6 +33,6 @@ factory shortcuts open Keybindings with **Caps + K** or **Ctrl + Alt + K**. modu
 
 suite data remains in `%LOCALAPPDATA%\nroj\SuperHotkeyWorld` so existing settings, shortcut assignments, Paper Pad notes and paths keep working. internal settings ownership and mutex IDs are intentionally stable. the old `super-hotkey-world.ahk` launcher is retained temporarily as a compatibility alias. Paper Pad retains its existing notes folder and dedicated Notepad3 profile. errors are always logged; optional verbose diagnostics use one global switch.
 
-Reset all shortcuts and Restore factory defaults are separate confirmed operations. note files, their folder, the editor path, editor profile and page state are not reset. App settings, including the single opt-in startup entry, is accessible from Modules.
+Reset all shortcuts and Reset to defaults are separate confirmed operations. note files, their folder, the editor path, editor profile and page state are preserved. startup, reload, reset and settings-folder access live directly in the tray; there is no separate App settings window. application GUIs use Cascadia Mono; Windows provides native title-bar and tray-menu fonts.
 
 see [integration status](docs/integration-status.md) for manual acceptance checks and [implementation](docs/implementation.md) for architecture. pinned original snapshots, licenses and attribution remain under `migration/upstream`; historical migration scripts are not runtime dependencies and must not be rerun over ongoing development.
