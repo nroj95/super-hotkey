@@ -977,6 +977,7 @@ class Keybindings {
         this.settingsDrawButtons[this.settingsResetAll.Hwnd] := "reset"
         this.settingsResetAll.OnEvent("Click", ObjBindMethod(this, "_ResetAll"))
         this.settingsDone := window.AddButton("x438 y320 w130 h31", "done")
+        this.settingsDrawButtons[this.settingsDone.Hwnd] := "done"
         this.settingsDone.OnEvent("Click", ObjBindMethod(this, "_RequestCloseSettings"))
         window.OnEvent("Size", ObjBindMethod(this, "_ResizeSettings"))
         window.OnEvent("ContextMenu", ObjBindMethod(this, "_EditBindingText"))
@@ -1316,7 +1317,7 @@ class Keybindings {
         enabled := !!DllCall("IsWindowEnabled", "ptr", hwnd, "int")
         kind := this.warningButtons.Has(hwnd) ? "warning" : this.settingsDrawButtons[hwnd]
 
-        ; All shortcut and reset controls use the same crisp, square frame.
+        ; Shortcut, reset and Done controls use the same crisp, square frame.
         ; Only unavailable layer assignments receive the amber palette.
         if kind = "warning" {
             fillColor := pressed ? 0xA7D8FF : hovered ? 0xBCE5FF : 0xD9F0FF

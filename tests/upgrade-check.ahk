@@ -143,8 +143,9 @@ class SuiteUpgradeChecks {
             this.Assert(manager.settingsDrawButtons[core.primary.Hwnd] = "binding"
                 && manager.settingsDrawButtons[core.secondary.Hwnd] = "binding"
                 && manager.settingsDrawButtons[core.reset.Hwnd] = "reset"
-                && manager.settingsDrawButtons[manager.settingsResetAll.Hwnd] = "reset",
-                "binding and reset controls share the square-corner drawing system")
+                && manager.settingsDrawButtons[manager.settingsResetAll.Hwnd] = "reset"
+                && manager.settingsDrawButtons[manager.settingsDone.Hwnd] = "done",
+                "binding, reset and Done controls share the square-corner drawing system")
             beforePaint := manager.warningPaintCount
             DllCall("RedrawWindow", "ptr", core.primary.Hwnd, "ptr", 0,
                 "ptr", 0, "uint", 0x185, "int")
@@ -155,6 +156,11 @@ class SuiteUpgradeChecks {
                 "ptr", 0, "uint", 0x185, "int")
             this.Assert(manager.normalPaintCount > beforeNormal,
                 "normal white assignment boxes use square-corner custom painting")
+            beforeDone := manager.normalPaintCount
+            DllCall("RedrawWindow", "ptr", manager.settingsDone.Hwnd,
+                "ptr", 0, "ptr", 0, "uint", 0x185, "int")
+            this.Assert(manager.normalPaintCount > beforeDone,
+                "Done receives the same square-corner white painting")
             beforeReset := manager.resetPaintCount
             DllCall("RedrawWindow", "ptr", core.reset.Hwnd, "ptr", 0,
                 "ptr", 0, "uint", 0x185, "int")
