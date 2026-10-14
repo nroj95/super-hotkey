@@ -1641,7 +1641,7 @@ class Keybindings {
                 configuration := this.GetConfiguration()
                 old := Keybindings.Parse(configuration[row.actionId].bindings[slot])
                 input := InputBox("Type a hotkey, for example CapsLock, Escape, or Ctrl + Alt + J."
-                    . "`nLeave empty to clear. Layer hotkeys remain editable when their layers are disabled.",
+                    . "`n`nLeave empty to clear.",
                     "Edit hotkey", "w550 h170", IsObject(old) ? old.label : "")
                 if input.Result != "OK"
                     return
