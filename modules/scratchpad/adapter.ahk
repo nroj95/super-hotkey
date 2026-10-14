@@ -2,7 +2,7 @@
 class ScratchpadModule {
     static Register(manager) {
         manager.AddAction("scratchpad.help", "show Paper Pad help",
-            ObjBindMethod(SuiteState.App, "HelpShortcutEvent", "scratchpad"), [],
+            ObjBindMethod(SuiteState.App, "HelpShortcutEvent", "scratchpad"), ["Pause + F12"],
             {category: "Paper Pad", help: true, available: ObjBindMethod(this, "Available")})
         manager.AddAction("scratchpad.toggle", "toggle Paper Pad", ObjBindMethod(this, "Event", "toggle"),
             ["Win + F12"], {category: "Paper Pad", available: ObjBindMethod(this, "Available")})

@@ -273,11 +273,13 @@ class SuiteUpgradeChecks {
                     row.label " displays its Help shortcut first")
             }
             saved := manager.GetConfiguration()
-            this.Assert(saved["scratchpad.help"].bindings[1] = ""
-                && saved["scratchpad.help"].bindings[2] = ""
-                && saved["keyboard-layers.help"].bindings[1] = ""
+            this.Assert(saved["scratchpad.help"].bindings[1]
+                = Keybindings.Parse("Pause + F12").signature
+                && saved["scratchpad.help"].bindings[2] = "",
+                "Paper Pad Help defaults to Pause + F12")
+            this.Assert(saved["keyboard-layers.help"].bindings[1] = ""
                 && saved["keyboard-layers.help"].bindings[2] = "",
-                "new Paper Pad and Secret Keys Help actions default to unassigned")
+                "Secret Keys Help remains unassigned by default")
             this.Assert(saved["window-cascade.help"].bindings[1]
                 = Keybindings.Parse("Caps + H").signature
                 && saved["win-key-overhaul.help"].bindings[1]
@@ -285,9 +287,10 @@ class SuiteUpgradeChecks {
                 && saved["power-hotkey.interface.open"].bindings[1]
                     = Keybindings.Parse("Pause + H").signature,
                 "existing module Help shortcuts retain their original defaults")
-            this.Assert(!this.RouteExists(manager, "scratchpad.help")
-                && !this.RouteExists(manager, "keyboard-layers.help"),
-                "unassigned new Help actions install no shortcuts")
+            this.Assert(this.RouteExists(manager, "scratchpad.help"),
+                "Paper Pad Help registers its default Pause + F12 shortcut")
+            this.Assert(!this.RouteExists(manager, "keyboard-layers.help"),
+                "unassigned Secret Keys Help installs no shortcut")
             this.Assert(InStr(ModuleHelp.Text("keyboard-layers", manager),
                 "show Secret Keys help") > 0,
                 "Secret Keys help lists its newly configurable Help shortcut")
