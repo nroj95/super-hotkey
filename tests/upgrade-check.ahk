@@ -691,13 +691,21 @@ class SuiteUpgradeChecks {
                 app.ui.ShowHelp(id)
                 key := "help:" id
                 window := app.ui.windows[key]
-                this.Assert(window.Title = SuiteSettings.ModuleNames[id] " - How to use",
-                    "module opens its How to use guide: " id)
+                this.Assert(window.Title = SuiteSettings.ModuleNames[id] " - Getting started",
+                    "module Help uses Getting started only in the title bar: " id)
                 guide := window["helpText"].Value
                 this.Assert(StrLen(guide) > 300 && !InStr(guide, "CURRENT SAVED SHORTCUTS"),
                     "help explains usage without listing every keybinding: " id)
-                this.Assert(InStr(guide, "GETTING STARTED") > 0,
-                    "help starts with practical instructions: " id)
+                firstHeading := Map("window-cascade", "AUTOMATIC CASCADES",
+                    "win-key-overhaul", "ARRANGE YOUR WINDOWS",
+                    "power-hotkey", "MORE KEYS WITHOUT A NEW KEYBOARD",
+                    "scratchpad", "YOUR OWN QUICK-NOTES DRAWER",
+                    "keyboard-layers", "HOLD A KEY FOR MORE SHORTCUTS")
+                this.Assert(InStr(guide, firstHeading[id]) = 1
+                    && !InStr(guide, "GETTING STARTED"),
+                    "each module opens with its own distinct subject heading: " id)
+                this.Assert(StrLen(guide) >= 600,
+                    "each Help guide provides substantial practical usage details: " id)
                 this.Assert(InStr(guide, "until you") > 0 || id != "window-cascade",
                     "Help sentences aren't split by fixed hard line breaks")
                 window.GetClientPos(, , &helpWidth, &helpHeight)
@@ -727,6 +735,8 @@ class SuiteUpgradeChecks {
                     && textHeight > 310 && textY + textHeight < helpHeight - 60
                     && lineCount * 20 <= textHeight,
                     "initial help page fits its complete guide: " id)
+                this.Assert(app.ui.HelpTextHeight(id, helpWidth) <= textHeight,
+                    "all Help guide paragraphs fit above the footer at startup: " id)
                 this.Assert(app.ui.helpWindowIds.Has(window.Hwnd),
                     "Help window has its own wrap-aware sizing guard: " id)
                 fullWidthHeight := app.ui.HelpTextHeight(id, 820)

@@ -259,7 +259,7 @@ class SuiteInterface {
         if this.Existing(key)
             return
         name := SuiteSettings.ModuleNames[id]
-        window := this.NewWindow(key, name " - How to use", false,
+        window := this.NewWindow(key, name " - Getting started", false,
             "+Resize +MinSize560x400 +0x02000000")
         state := this.app.ModuleActive(id) ? "enabled" : "disabled"
         if this.app.dryRun && this.app.ModuleActive(id)
