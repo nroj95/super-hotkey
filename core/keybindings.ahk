@@ -53,6 +53,8 @@ class Keybindings {
         this.wheelHookActive := false
         this.verticalScrollCallback := ObjBindMethod(this, "_VerticalScrollSettings")
         this.verticalScrollHookActive := false
+        this.enterSizeMoveCallback := ObjBindMethod(this, "_SettingsEnterSizeMove")
+        this.exitSizeMoveCallback := ObjBindMethod(this, "_SettingsExitSizeMove")
         this.captureMouse := Map()
         this.observers := []
         this.firstRun := false
@@ -913,12 +915,29 @@ class Keybindings {
         window.OnEvent("Escape", ObjBindMethod(this, "_RequestCloseSettings"))
         this.scrollPosition := 0
         this.settingsResizing := false
+        this.settingsDragActive := false
         this._ResizeSettings(window, 0, this.settingsWindowWidth, this.settingsWindowHeight)
         window.Show("w" this.settingsWindowWidth " h" this.settingsWindowHeight)
         OnMessage(0x020A, this.wheelCallback)
         this.wheelHookActive := true
         OnMessage(0x0115, this.verticalScrollCallback)
         this.verticalScrollHookActive := true
+        OnMessage(0x0231, this.enterSizeMoveCallback) ; WM_ENTERSIZEMOVE
+        OnMessage(0x0232, this.exitSizeMoveCallback)  ; WM_EXITSIZEMOVE
+    }
+
+    _SettingsEnterSizeMove(wParam, lParam, message, hwnd) {
+        if IsObject(this.settings) && hwnd = this.settings.Hwnd
+            this.settingsDragActive := true
+    }
+
+    _SettingsExitSizeMove(wParam, lParam, message, hwnd) {
+        if !IsObject(this.settings) || hwnd != this.settings.Hwnd
+            return
+        this.settingsDragActive := false
+        this.settings.GetClientPos(, , &width, &height)
+        if width != this.settingsRenderedWidth || height != this.settingsRenderedHeight
+            this._ResizeSettings(this.settings, 0, width, height)
     }
 
     _AddSettingsRow() {
@@ -938,6 +957,8 @@ class Keybindings {
 
     _ResizeSettings(window, minMax, width, height) {
         if !IsObject(this.settings) || this.settings != window || minMax = -1
+            return
+        if this.settingsDragActive && minMax = 0
             return
         if this.settingsResizing
             return
@@ -987,6 +1008,8 @@ class Keybindings {
             this.settingsResetAll.Move(footerX, height - 49, 180, 31)
             this.settingsDone.Move(footerX + 194, height - 49, 130, 31)
             this._RenderSettings()
+            this.settingsRenderedWidth := width
+            this.settingsRenderedHeight := height
         }
         finally this.settingsResizing := false
     }
@@ -1178,6 +1201,9 @@ class Keybindings {
 
     _CloseSettings(*) {
         this._EndRecording()
+        OnMessage(0x0231, this.enterSizeMoveCallback, 0)
+        OnMessage(0x0232, this.exitSizeMoveCallback, 0)
+        this.settingsDragActive := false
         if this.wheelHookActive {
             OnMessage(0x020A, this.wheelCallback, 0)
             this.wheelHookActive := false
