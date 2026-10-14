@@ -242,8 +242,8 @@ class SuiteUpgradeChecks {
                     mainHeadings.Push(row.label)
                 }
             }
-            expectedOrder := ["Global", "Cascade Kingdom",
-                "Wonder Windows", "Power-Up Utilities", "Paper Pad"]
+            expectedOrder := ["Global", "Paper Pad", "Cascade Kingdom",
+                "Wonder Windows", "Power-Up Utilities"]
             this.Assert(mainHeadings.Length = expectedOrder.Length,
                 "Keybindings includes exactly the five assignable sections")
             for index, expectedName in expectedOrder
@@ -251,6 +251,15 @@ class SuiteUpgradeChecks {
                     "Keybindings section order: " expectedName)
             this.Assert(subcategoriesFollowParent,
                 "all Keybindings subcategories stay immediately after their main section")
+            paperSection := 0
+            for index, row in rows
+                if row.id = "" && row.label = "Paper Pad" {
+                    paperSection := index
+                    break
+                }
+            this.Assert(paperSection > 0 && rows[paperSection + 1].id = "scratchpad.toggle"
+                && rows[paperSection + 2].label = "Paper Pad / Inside the editor",
+                "Paper Pad keeps its toggle and editor subcategory together near the top")
             filtered := Keybindings.DisplayRows(manager.DiscoverParticipants(), "Inside the editor")
             this.Assert(filtered.Length > 2 && filtered[1].label = "Paper Pad"
                 && filtered[2].label = "Paper Pad / Inside the editor",

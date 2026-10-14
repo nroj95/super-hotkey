@@ -182,17 +182,19 @@ class Keybindings {
                     ownerId: participant.id, setting: action,
                     editable: (participant.id = participants[1].id || participant.controlReady)})
             }
-            ; Follow the suite's module order, not action registration order.
-            ; Unknown groups retain their original order after known modules.
+            ; Put the compact Paper Pad section just below Global.
+            ; Keep the remaining module order and all subcategories intact.
             orderedModules := []
             placed := Map()
             if participant.id = participants[1].id {
-                if modules.Has("Global") {
-                    orderedModules.Push("Global")
-                    placed["Global"] := true
+                for category in ["Global", "Paper Pad"] {
+                    if modules.Has(category) {
+                        orderedModules.Push(category)
+                        placed[category] := true
+                    }
                 }
                 for moduleId in SuiteSettings.ModuleOrder {
-                    if moduleId = "keyboard-layers"
+                    if moduleId = "keyboard-layers" || moduleId = "scratchpad"
                         continue
                     moduleName := SuiteSettings.ModuleNames[moduleId]
                     if modules.Has(moduleName) && !placed.Has(moduleName) {
