@@ -604,6 +604,8 @@ class SuiteUpgradeChecks {
             app.ShowKeybindings()
             this.Assert(app.manager.settings.Hwnd = firstEditor, "every Keybindings entry reuses the global editor")
             editor := app.manager.settings
+            this.Assert(app.manager.settingsResetAll.Text = "Restore defaults",
+                "Keybindings restore button has the concise label")
             editor.GetClientPos(, , &firstWidth, &firstHeight)
             this.AssertCentered(editor, "Keybindings")
             this.AssertResizeGrip(editor, "Keybindings")

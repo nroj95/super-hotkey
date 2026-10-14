@@ -965,7 +965,7 @@ class Keybindings {
         OnMessage(0x004E, this.settingsButtonDrawCallback) ; WM_NOTIFY / NM_CUSTOMDRAW
         this.settingsScroll := window.AddCustom("ClassScrollBar x778 y48 w24 h140 +0x1")
         this.settingsDivider := window.AddText("x22 y300 w752 h2 +0x10", "")
-        this.settingsResetAll := window.AddButton("x244 y320 w180 h31", "Reset all shortcuts")
+        this.settingsResetAll := window.AddButton("x244 y320 w180 h31", "Restore defaults")
         this.settingsDrawButtons[this.settingsResetAll.Hwnd] := "reset"
         this.settingsResetAll.OnEvent("Click", ObjBindMethod(this, "_ResetAll"))
         this.settingsDone := window.AddButton("x438 y320 w130 h31", "done")
@@ -1372,8 +1372,8 @@ class Keybindings {
     }
 
     _ResetAll(*) {
-        if MsgBox("Restore the original assignments for every action, including disabled modules?"
-            . "`n`nModule settings and Scratchpad notes will not change.",
+        if MsgBox("Restore default hotkey assignments for all actions, including disabled modules?"
+            . "`n`nModule settings and Paper Pad notes will not change.",
             this.name, "YesNo Default2 Icon?") != "Yes"
             return
         configuration := this.GetConfiguration()
