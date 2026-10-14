@@ -182,7 +182,30 @@ class Keybindings {
                     ownerId: participant.id, setting: action,
                     editable: (participant.id = participants[1].id || participant.controlReady)})
             }
+            ; Follow the suite's module order, not action registration order.
+            ; Unknown groups retain their original order after known modules.
+            orderedModules := []
+            placed := Map()
+            if participant.id = participants[1].id {
+                if modules.Has("Super Hotkey World") {
+                    orderedModules.Push("Super Hotkey World")
+                    placed["Super Hotkey World"] := true
+                }
+                for moduleId in SuiteSettings.ModuleOrder {
+                    if moduleId = "keyboard-layers"
+                        continue
+                    moduleName := SuiteSettings.ModuleNames[moduleId]
+                    if modules.Has(moduleName) && !placed.Has(moduleName) {
+                        orderedModules.Push(moduleName)
+                        placed[moduleName] := true
+                    }
+                }
+            }
             for moduleName in moduleOrder {
+                if !placed.Has(moduleName)
+                    orderedModules.Push(moduleName)
+            }
+            for moduleName in orderedModules {
                 ; An extension-only module still gets its main heading.
                 if !grouped.Has(moduleName)
                     rows.Push({id: "", kind: "owner", label: moduleName, ownerId: participant.id})

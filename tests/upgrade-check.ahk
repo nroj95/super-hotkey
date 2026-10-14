@@ -220,6 +220,34 @@ class SuiteUpgradeChecks {
             this.Assert(groups["Power-Up Utilities"] > 0,
                 "individual utilities remain directly under Power-Up Utilities")
             rows := Keybindings.DisplayRows(manager.DiscoverParticipants())
+            mainHeadings := []
+            activeParent := ""
+            subcategoriesFollowParent := true
+            for row in rows {
+                if row.id != ""
+                    continue
+                separator := InStr(row.label, " / ")
+                if separator {
+                    if SubStr(row.label, 1, separator - 1) != activeParent
+                        subcategoriesFollowParent := false
+                } else {
+                    activeParent := row.label
+                    mainHeadings.Push(row.label)
+                }
+            }
+            expectedOrder := ["Super Hotkey World", "Cascade Kingdom",
+                "Wonder Windows", "Power-Up Utilities", "Paper Pad"]
+            this.Assert(mainHeadings.Length = expectedOrder.Length,
+                "Keybindings includes exactly the five assignable sections")
+            for index, expectedName in expectedOrder
+                this.Assert(mainHeadings[index] = expectedName,
+                    "Keybindings section order: " expectedName)
+            this.Assert(subcategoriesFollowParent,
+                "all Keybindings subcategories stay immediately after their main section")
+            filtered := Keybindings.DisplayRows(manager.DiscoverParticipants(), "Inside the editor")
+            this.Assert(filtered.Length > 2 && filtered[1].label = "Paper Pad"
+                && filtered[2].label = "Paper Pad / Inside the editor",
+                "filtered editor-only actions retain the Paper Pad parent section")
             generalHeading := 0
             functionHeading := 0
             for index, row in rows {
