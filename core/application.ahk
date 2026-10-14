@@ -17,7 +17,7 @@ class SuiteApplication {
         this.dryRun := dryRun
         if directory = ""
             directory := dryRun ? A_Temp "\SuperHotkey-" FormatTime(, "yyyyMMdd-HHmmss") "-" DllCall("GetCurrentProcessId", "uint")
-                : EnvGet("LOCALAPPDATA") "\nroj\SuperHotkeyWorld"
+                : EnvGet("LOCALAPPDATA") "\nroj\SuperHotkey"
         this.Settings := SuiteSettings(directory)
         this.activeModules := this.Settings.modules.Clone()
         this.activeLayers := this.Settings.layers.Clone()
@@ -66,8 +66,6 @@ class SuiteApplication {
         SuiteState.Log.Write("Core", "starting " SuiteApplication.Version " / AutoHotkey " A_AhkVersion)
         if !FileExist(this.Settings.path)
             this.Settings.Save(this.Settings.modules)
-        if !this.dryRun
-            this.ImportLegacyModuleSettings()
         this.InitializeCatalog()
         this.manager.SetPaused(true)
         try this.manager.Start()
@@ -103,7 +101,7 @@ class SuiteApplication {
             SuiteState.Log.Write(SuiteSettings.ModuleNames[id], enabled ? (this.dryRun ? "dry run; effects disabled" : "enabled") : "disabled")
         SuiteState.Log.Write("Core", "startup complete")
         if this.bindingFailure != "" {
-            MsgBox(this.bindingFailure "`n`nAll shortcuts remain inactive until the conflict is resolved."
+            MsgBox(this.bindingFailure "`n`nAll hotkeys remain inactive until the conflict is resolved."
                 . "`nUse Keybindings to restore defaults, or disable a conflicting module and restart.",
                 SuiteApplication.Name, "Icon!")
             this.manager.ShowSettings()
@@ -275,20 +273,6 @@ class SuiteApplication {
         SuiteState.Log.Error(component " / " mode, failure)
         ; Retain AutoHotkey's normal error dialog/termination instead of hiding faults.
         return 0
-    }
-
-    ImportLegacyModuleSettings() {
-        for id, legacy in Map("window-cascade", "Window Cascade", "scratchpad", "Scratchpad") {
-            destination := this.Settings.directory "\" id
-            DirCreate destination
-            names := id = "scratchpad" ? ["settings.ini", "state.ini", "Notepad3.ini"] : ["settings.ini"]
-            for name in names {
-                source := EnvGet("LOCALAPPDATA") "\" legacy "\" name
-                target := destination "\" name
-                if !FileExist(target) && FileExist(source)
-                    FileCopy(source, target, false)
-            }
-        }
     }
 
     CheckOriginalScripts() {

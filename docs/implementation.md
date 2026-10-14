@@ -2,24 +2,24 @@
 
 ## ownership
 
-`super-hotkey.ahk` loads explicit includes. `SuiteApplication` owns startup, shutdown, module choices and the one Keybindings manager. `SuiteInterface` owns the flat tray, help, settings and global log viewer. `SuiteGui` applies the shared application icon and marks suite windows before showing them.
+`super-hotkey.ahk` loads the explicit AHK include tree. `SuiteApplication` owns the lifecycle, module switches and the single Keybindings manager. `SuiteInterface` owns the flat tray, Getting started guides, Settings and log window. `SuiteGui` supplies the icon and excludes suite windows from feature layout operations.
 
-module IDs and preference directories stay stable across the user-facing renames. Wonder Windows has its own `win-key-overhaul.*` action IDs and namespaced `WW_` functions/state. no plugin discovery, background layer service, inter-process owner registry or separate module startup entries are used.
+module IDs retain their legacy internal names for stable hotkey registration and layout ownership, but the default data root is `%LOCALAPPDATA%\nroj\SuperHotkey`. startup does not import the old suite or standalone settings.
 
-## input
+## input and modules
 
-Keybindings owns assignments, persistence, conflict checks and registration. native input observers fan out identical passive observations to participating modules. only an explicitly registered scope and its exact complement may share a signature; arbitrary context predicates do not bypass conflicts. the `paper-pad` scope keeps editor commands separate from Wonder Windows.
+Keybindings owns binding persistence, conflict validation, native registration and the recording UI. passive observers fan out to eligible modules. only registered complementary input scopes may share a signature; the Paper Pad editor scope is complementary to normal Wonder Windows navigation.
 
-Secret Keys installs only enabled prefixes. disabling a prefix preserves assignments and permits explicit native-key reassignment. module/layer changes use restart-based lifecycle. queued work is invalidated on configuration, suspension and shutdown. callbacks use short dispatch paths and defer window operations.
+Secret Keys installs independent CapsLock/Pause prefixes when active. suspending hotkeys releases their interception, while retaining saved assignments; resuming reactivates the hooks only once all gate conditions are clear. queued actions are cancelled on suspension, reconfiguration or shutdown, without suspending background modules.
 
-## geometry and data
+Wonder Windows claims manually moved windows. Cascade Kingdom respects that claim until explicit adoption. stale window ownership is rejected; changing focus alone does not adopt a window. optional FancyZones integration uses `modules/wonder-windows/fancyzones-settings.ps1` on demand, with user confirmation.
 
-Wonder Windows claims per-window manual ownership before geometry changes. Cascade Kingdom ignores these windows until explicit adoption; stale HWND/process ownership is rejected. focus-only navigation does not detach windows. original layout and save algorithms remain adapted source, not a wholesale rewrite.
+Paper Pad controls a dedicated Notepad3 instance, saves before hide, page switch and exit/restart, and may refuse unsafe operations. editor and note files are not altered by a suite reset; settings writes use atomic replacements and backups.
 
-Paper Pad saves before exit/restart and may veto when a command or editor dialog is unresolved. changing its paths first closes the owned editor through checked saves, never moves notes, and leaves ordinary editor windows alone. settings updates use same-directory replacement and backups. reset scope is whitelisted; note data and editor state are excluded.
+## testing and history
 
-## development
+run `python tests/check.py` on Windows with AutoHotkey v2 64-bit. portable checks are available with `python -m unittest discover -s tests -p 'test_*.py'`. CI checks committed runtime sources; no source transformation runs as part of tests.
 
-run `python tests/check.py` on Windows with AutoHotkey v2 64-bit. portable tests are available with `python -m unittest discover -s tests -p 'test_*.py'`. CI tests committed runtime files rather than regenerating them. historical source transforms and pinned upstream snapshots remain for provenance, not normal editing or runtime loading.
+previous migration generators, original project snapshots, and the deprecated `super-hotkey-world.ahk` shim were removed from the current tree. Git history preserves those committed files. source repositories, pinned commits and licensing are documented in [source provenance](source-provenance.md).
 
-physical keyboard, multi-monitor and Notepad3 acceptance remains necessary; automated dry-run success is not a claim of complete behavior parity.
+physical keyboard hooks, multi-monitor layouts, Windows startup links and real Notepad3 saves still need manual acceptance.

@@ -1,29 +1,23 @@
 # integration status
 
-## five-module preview
+## Super Hotkey v1.0.0 draft
 
-- Cascade Kingdom: automatic window management.
-- Wonder Windows: manual Windows shortcuts, layouts, stretching, swapping and navigation.
-- Power-Up Utilities: extra keyboard, text and system actions.
-- Paper Pad: the preserved Notepad3 notes controller.
-- Secret Keys: independently configurable CapsLock and Pause layers.
+five modules: Cascade Kingdom, Wonder Windows, Power-Up Utilities, Paper Pad and Secret Keys. one launcher, one AutoHotkey process, one tray, one Keybindings editor and shared diagnostics. the five Getting started pages contain module-specific guidance; their footer buttons open Settings and Keybindings as appropriate.
 
-one launcher, process, tray and application icon. the flat tray opens each module's How to use page; lower-right buttons link to settings and the single shared Keybindings editor. disabled modules retain help and saved assignments. errors are always logged; verbose diagnostics have one global switch.
+module and layer toggles preserve bindings. inactive hotkeys do not fire. the tray provides a persistent verbose-logging preference, a temporary Suspend hotkeys toggle, a startup shortcut toggle, Restart Super Hotkey and separately confirmed reset actions. default data is stored under `%LOCALAPPDATA%\nroj\SuperHotkey`. older suite/standalone settings are not auto-imported.
 
-Wonder Windows uses the pinned Win Key Overhaul implementation with namespaced state. only explicit complementary input scopes may share a shortcut. Paper Pad retains its editor navigation while active. manual window geometry leaves the cascade until explicitly adopted; focus-only navigation does not claim geometry. Windows Snap and FancyZones configuration require explicit user actions and confirmation.
+## verification boundaries
 
-## validation boundaries
+`python tests/check.py` runs portable structural tests, parses all included AHK modules and executes isolated native/GUI checks. native tests use temporary preferences, inert callbacks and test-owned windows. no personal notes, external applications or real power actions are modified.
 
-`python tests/check.py` checks the committed source, runs portable structural tests, parses every included AutoHotkey module and executes isolated native/GUI assertions. no migration generator runs during normal checks. native tests use temporary settings, dry-run callbacks and owned test windows, not real note documents or the user's workspace.
+automated checks cannot guarantee physical keyboard behavior, actual Notepad3 save parity, multi-monitor placement, Windows startup-link operation, or power suspend/resume behavior.
 
-automated checks cannot establish physical keyboard-hook behavior, real Notepad3 save parity, multi-monitor placement, or suspend/resume reliability. no real sleep, audio or text-insertion action is invoked. this remains a preview until manual acceptance is complete.
+## remaining manual acceptance
 
-## manual acceptance
+1. verify the flat tray and Getting started pages, centered/resizeable windows, Keybindings controls and shared icon. test module-disabled states.
+2. test each CapsLock/Pause combination and their held/one-shot modes; disabled layers must return normal keys. test the tray Suspend hotkeys and resume functions.
+3. test Wonder Windows layouts, stretch, focus and swap against Cascade Kingdom on actual displays, including explicit adoption and drag placement.
+4. use disposable Paper Pad pages: new, save, switch, hide, exit/restart, conflicting on-disk changes and unresolved Notepad3 dialogs. ensure editor-only hotkeys are contextual.
+5. test both confirmed reset operations, verbose logging, startup checkbox, saving settings in the new data root and resuming from Windows sleep/unlock.
 
-1. verify the flat tray, five How to use pages, lower-right navigation, one shared Keybindings window and matching application icons. check all pages with modules disabled too.
-2. test all four Caps/Pause combinations after restart. enabled prefixes provide held and one-shot shortcuts; disabled prefixes behave natively or follow explicit ordinary assignments. Ctrl + Alt + K must remain available with factory shortcuts.
-3. compare Wonder Windows layouts, stretch, swap, fullscreen and spatial focus on real monitors. test interaction with Cascade Kingdom, manual ownership and explicit adoption. test one drag-snapping tool at a time.
-4. use disposable Paper Pad notes first: new/switch/save/hide, disk conflicts, emoji-picker Escape, reload and pending editor dialogs. verify page shortcuts take precedence over Wonder Windows only in the pad context.
-5. test module conflicts, both confirmed reset operations, save-aware exit/restart, global verbose logging, startup and suspend/resume. verify original notes, paths, profiles and standalone settings remain intact.
-
-`main` and the standalone repositories remain migration checkpoints. do not delete or retire them before acceptance. no stable release has been published.
+keep `main` as the migration checkpoint until desktop acceptance and a release are explicitly approved. never delete standalone repositories or personal files as part of repository cleanup.

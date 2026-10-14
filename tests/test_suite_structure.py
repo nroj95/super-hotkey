@@ -1,6 +1,4 @@
 """Portable checks for the shipped source layout, not regeneration of runtime code."""
-import hashlib
-import json
 from pathlib import Path
 import re
 import unittest
@@ -26,15 +24,17 @@ class SuiteStructureTests(unittest.TestCase):
         walk(ROOT / 'super-hotkey.ahk')
         self.assertEqual(visited, {path.resolve() for path in RUNTIME})
 
-    def test_app_identity_and_legacy_entrypoint(self):
+    def test_app_identity_and_launcher(self):
         application = (ROOT / 'core/application.ahk').read_text(encoding='utf-8')
         self.assertIn('static Name := "Super Hotkey"', application)
         self.assertIn('static Version := "1.0.0"', application)
         self.assertIn('Keybindings("super-hotkey-world"', application)
-        self.assertIn('SuperHotkeyWorld', application)
-        shim = (ROOT / 'super-hotkey-world.ahk').read_text(encoding='utf-8')
-        self.assertIn('super-hotkey.ahk', shim)
-        self.assertIn('SHW_Main()', shim)
+        self.assertIn(r'\nroj\SuperHotkey"', application)
+        self.assertNotIn('ImportLegacyModuleSettings', application)
+        self.assertFalse((ROOT / 'super-hotkey-world.ahk').exists())
+        launcher = (ROOT / 'super-hotkey.ahk').read_text(encoding='utf-8')
+        self.assertIn('SuperHotkeyMain()', launcher)
+        self.assertNotIn('SHW_Main()', launcher)
         tray = (ROOT / 'core/tray.ahk').read_text(encoding='utf-8')
         self.assertIn('SuiteApplication.Name " v" SuiteApplication.Version', tray)
         self.assertIn('Super Hotkey.lnk', tray)
@@ -105,14 +105,14 @@ class SuiteStructureTests(unittest.TestCase):
         for identifier in ['window-cascade', 'win-key-overhaul', 'power-hotkey', 'scratchpad', 'keyboard-layers']:
             self.assertIn(f'"{identifier}"', text)
 
-    def test_wonder_source_is_pinned(self):
-        manifest = json.loads((ROOT / 'migration/source-manifest.json').read_text())
-        sources = {entry['name']: entry['commit'] for entry in manifest['sources']}
-        self.assertEqual(sources['win-key-overhaul'], '02a28d906868a883a33d3081c1bd4bd7ad0e0274')
-        path = ROOT / 'migration/upstream/win-key-overhaul/win-key-overhaul/layout-geometry.ahk'
-        data = path.read_bytes()
-        digest = hashlib.sha1(b'blob ' + str(len(data)).encode() + b'\0' + data).hexdigest()
-        self.assertEqual(digest, 'aaf242ab4bd7cd0a397a2e9d592a939a37c0410b')
+    def test_obsolete_migration_tree_was_removed(self):
+        self.assertFalse((ROOT / 'migration').exists())
+        self.assertFalse((ROOT / 'docs/initial-audit.md').exists())
+        self.assertFalse((ROOT / 'docs/ui-migration.md').exists())
+        provenance = (ROOT / 'docs/source-provenance.md').read_text(encoding='utf-8')
+        for module in ('keybindings', 'window-cascade', 'win-key-overhaul',
+                       'power-hotkey', 'scratchpad', 'caps-pause-layers'):
+            self.assertIn(f'nroj95/{module}', provenance)
 
     def test_wonder_has_no_automatic_setup_writes(self):
         text = (ROOT / 'modules/wonder-windows/adapter.ahk').read_text()
@@ -122,11 +122,6 @@ class SuiteStructureTests(unittest.TestCase):
         startup = text[:text.index('WW_ReassertFancyZonesKeyboardHook(*)')]
         self.assertNotIn('WW_CheckFancyZonesIntegration()', startup)
         self.assertNotIn('KeyWait(direction)', text)
-
-    def test_old_source_generators_are_not_part_of_normal_checks(self):
-        text = (ROOT / 'tests/check.py').read_text()
-        self.assertNotIn("'migration/integrate.py'", text)
-        self.assertNotIn("'migration/upgrade-ui.py'", text)
 
     def test_legacy_paper_paths_and_window_markers_remain(self):
         text = (ROOT / 'modules/scratchpad/scratchpad.ahk').read_text()

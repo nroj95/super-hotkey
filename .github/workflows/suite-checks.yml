@@ -1,7 +1,7 @@
 name: Suite checks
 on:
   push:
-    branches: [integrate-suite, ui-five-module-work]
+    branches: [integrate-suite]
   pull_request:
   workflow_dispatch:
 permissions:
@@ -36,11 +36,9 @@ jobs:
           include-hidden-files: true
           path: |
             super-hotkey.ahk
-            super-hotkey-world.ahk
             core/
             modules/
             assets/
-            migration/
             tests/
             docs/
             README.md

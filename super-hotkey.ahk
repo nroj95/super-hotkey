@@ -25,9 +25,9 @@
 #Include "%A_ScriptDir%\modules\wonder-windows\adapter.ahk"
 
 if A_LineFile = A_ScriptFullPath
-    SHW_Main()
+    SuperHotkeyMain()
 
-SHW_Main() {
+SuperHotkeyMain() {
     dryRun := false
     openSettings := false
     try {

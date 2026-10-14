@@ -1,4 +1,4 @@
-"""Run the migration and isolated AutoHotkey checks; never run real feature actions."""
+"""Run portable and isolated AutoHotkey checks; never run real feature actions."""
 from __future__ import annotations
 
 import argparse
@@ -90,18 +90,14 @@ def main() -> None:
     parser.add_argument('--autohotkey', help='Path to AutoHotkey64.exe.')
     args = parser.parse_args()
     if sys.platform != 'win32':
-        raise RuntimeError('Native checks require Windows; use unittest for migration helper checks elsewhere.')
+        raise RuntimeError('Native checks require Windows; portable structural checks can run elsewhere.')
     executable = find_autohotkey(args.autohotkey)
     run([sys.executable, '-m', 'unittest', 'discover', '-s', 'tests', '-p', 'test_*.py'])
     parsed = run([str(executable), '/ErrorStdOut=UTF-8', str(ROOT / 'super-hotkey.ahk'), '--check'])
     if 'PASS: Super Hotkey and every module parsed.' not in parsed:
         raise RuntimeError('The launcher did not report a successful parse.')
-    legacy = run([str(executable), '/ErrorStdOut=UTF-8',
-                  str(ROOT / 'super-hotkey-world.ahk'), '--check'])
-    if 'PASS: Super Hotkey and every module parsed.' not in legacy:
-        raise RuntimeError('The legacy entry point did not start the renamed launcher.')
     # A_ScriptDir stays at the repository root, matching the real launcher includes.
-    with tempfile.NamedTemporaryFile(prefix='.shw-check-', suffix='.ahk', dir=ROOT,
+    with tempfile.NamedTemporaryFile(prefix='.super-hotkey-check-', suffix='.ahk', dir=ROOT,
                                      mode='w', encoding='utf-8', delete=False) as stream:
         harness = Path(stream.name)
         stream.write('#Include "super-hotkey.ahk"\n')

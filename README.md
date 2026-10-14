@@ -1,38 +1,40 @@
 # Super Hotkey
 
-an AutoHotkey v2 64-bit Windows productivity suite: one process, tray icon, Keybindings editor and debug log.
+an AutoHotkey v2 64-bit Windows productivity suite with one process, tray icon, Keybindings editor and global debug log.
 
-**version 1.0.0 (no GitHub release yet).** the draft integration still needs real-desktop acceptance before publication.
+**version 1.0.0 — draft integration.** not yet released or merged to `main`.
 
 | module | purpose |
 | --- | --- |
 | Cascade Kingdom | automatic window placement and cascades |
-| Wonder Windows | Windows shortcuts, layouts, stretch, swap and navigation |
-| Power-Up Utilities | extra keyboard, text and system actions |
+| Wonder Windows | manual window hotkeys, layouts, stretch, swap and navigation |
+| Power-Up Utilities | keyboard outputs, text tools and system actions |
 | Paper Pad | quick notes in a dedicated Notepad3 drawer |
-| Secret Keys | independent CapsLock and Pause shortcut layers |
+| Secret Keys | independent CapsLock and Pause hotkey layers |
 
-## start
+## run and verify
 
-run `super-hotkey.ahk` with AutoHotkey v2 64-bit. close the standalone replacements first, including Win Key Overhaul. every module is enabled by default; existing suite module choices and shortcut assignments are retained.
+launch `super-hotkey.ahk` using AutoHotkey v2 64-bit. close any standalone versions of the modules before launching.
 
 ```powershell
 python .\tests\check.py
 & "$env:LOCALAPPDATA\Programs\AutoHotkey\v2\AutoHotkey64.exe" .\super-hotkey.ahk --dry-run
 ```
 
-adjust the executable path for your installation. `--dry-run` uses separate temporary preferences, opens the shared editor and keeps real feature effects inactive. omit it only after inspecting the preview. `--check` parses and exits; `--settings` opens Keybindings on a normal launch.
+adjust the AutoHotkey executable location if necessary. `--dry-run` uses temporary settings, opens the editor and prevents real feature effects. `--check` parses and exits; `--settings` opens Keybindings when launching normally.
 
 ## navigation
 
-the tray is flat: Modules, Keybindings, five Getting started guides, Debug log, Verbose logging, Open settings folder, Run at startup, Suspend hotkeys, Restart Super Hotkey, Reset to defaults and Exit. each module opens its own practical guide first, with relevant navigation at the lower right. all Keybindings links reuse the same global window.
+the tray contains Modules, Keybindings, five module Getting started pages, Debug log, Verbose logging, Open settings folder, Run at startup, Suspend hotkeys, Restart Super Hotkey, Reset to defaults and Exit. module Settings and Keybindings are accessible from each module's guide.
 
-factory shortcuts open Keybindings with **Caps + K** or **Ctrl + Alt + K**. module settings and individual Secret Keys changes apply after restart. inactive shortcuts remain visible and editable. Windows Snap and optional FancyZones changes require confirmation; no compatibility settings are silently changed at startup.
+default Keybindings hotkeys are **Caps + K** and **Ctrl + Alt + K**. inactive layer hotkeys remain visible and editable. module and Secret Keys layer changes take effect after restarting. Windows Snap and optional FancyZones changes are never applied at startup without permission.
 
-## preferences and safety
+## data and safety
 
-suite data remains in `%LOCALAPPDATA%\nroj\SuperHotkeyWorld` so existing settings, shortcut assignments, Paper Pad notes and paths keep working. internal settings ownership and mutex IDs are intentionally stable. the old `super-hotkey-world.ahk` launcher is retained temporarily as a compatibility alias. Paper Pad retains its existing notes folder and dedicated Notepad3 profile. errors are always logged; optional verbose diagnostics use one global switch.
+fresh installations save suite preferences under `%LOCALAPPDATA%\nroj\SuperHotkey`. this checkout does **not** automatically import the previous SuperHotkeyWorld folder or settings from standalone tools. old folders and external personal files are never deleted by the suite.
 
-Reset all shortcuts and Reset to defaults are separate confirmed operations. note files, their folder, the editor path, editor profile and page state are preserved. startup, restart, hotkey suspension, reset and settings-folder access live directly in the tray; there is no separate App settings window. Suspend hotkeys temporarily gates configured hotkeys and CapsLock/Pause layers without pausing Paper Pad autosave or other background features; use the tray again to resume. application GUIs use Cascadia Mono; Windows provides native title-bar and tray-menu fonts.
+Paper Pad uses a dedicated Notepad3 profile, and its note files may be kept elsewhere. restoring default hotkeys in Keybindings is separate from the confirmed **Reset to defaults...** tray action. neither reset deletes personal notes or resets their folder, editor preferences or page state. errors are logged even when verbose logging is off.
 
-see [integration status](docs/integration-status.md) for manual acceptance checks and [implementation](docs/implementation.md) for architecture. pinned original snapshots, licenses and attribution remain under `migration/upstream`; historical migration scripts are not runtime dependencies and must not be rerun over ongoing development.
+**Suspend hotkeys** temporarily disables assigned hotkeys and Secret Keys layers without freezing other module work. the checked tray item can resume them. the native Windows tray and title-bar fonts remain system-controlled; app GUIs use Cascadia Mono.
+
+see [integration status](docs/integration-status.md), [implementation](docs/implementation.md) and [source provenance](docs/source-provenance.md). historical migration snapshots and scripts can be recovered from Git history, rather than occupying the current checkout.
