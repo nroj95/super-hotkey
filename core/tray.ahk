@@ -509,7 +509,7 @@ class SuiteInterface {
             return
         window := this.NewWindow("modules", SuiteApplication.Name " - Modules", true)
         this.modulesWindow := window
-        window.AddText("x20 y18 w560", "Module changes take effect after restarting. Keybindings is always available.")
+        window.AddText("x20 y18 w560", "Module changes take effect after restarting.")
         this.moduleControls := Map()
         y := 60
         for id in SuiteSettings.ModuleOrder {
