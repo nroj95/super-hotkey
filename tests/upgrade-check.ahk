@@ -205,6 +205,28 @@ class SuiteUpgradeChecks {
             firstEditor := app.manager.settings.Hwnd
             app.ShowKeybindings()
             this.Assert(app.manager.settings.Hwnd = firstEditor, "every Keybindings entry reuses the global editor")
+            editor := app.manager.settings
+            editorStyle := WinGetStyle("ahk_id " editor.Hwnd)
+            this.Assert(!!(editorStyle & 0x00040000) && !!(editorStyle & 0x00010000),
+                "Keybindings supports native edge resizing and maximizing")
+            initialRows := app.manager.visibleRows.Length
+            editor.Show("w1120 h850")
+            expandedRows := app.manager.visibleRows.Length
+            this.Assert(expandedRows > initialRows, "resizing taller reveals more shortcut rows")
+            app.manager.settingsScroll.GetPos(&scrollX)
+            this.Assert(scrollX > 950, "scrollbar stays anchored to the right edge")
+            app.manager.settingsDone.GetPos(, &doneY)
+            this.Assert(doneY > 750, "done button stays pinned to the bottom")
+            editor.Show("w820 h420")
+            this.Assert(app.manager.visibleRows.Length < expandedRows,
+                "resizing smaller reduces the visible row count without losing the catalog")
+            app.manager._CloseSettings()
+            this.Assert(IniRead(app.manager.root "\window.ini", "Window", "Width") = "820"
+                && IniRead(app.manager.root "\window.ini", "Window", "Height") = "420",
+                "the chosen editor size is saved between openings")
+            app.manager.ShowSettings()
+            this.Assert(app.manager.settingsWindowWidth = 820 && app.manager.settingsWindowHeight = 420,
+                "the editor restores its previous size")
             app.manager._CloseSettings()
             for id in SuiteSettings.ModuleOrder {
                 app.ui.ShowHelp(id)

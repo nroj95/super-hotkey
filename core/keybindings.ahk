@@ -878,67 +878,117 @@ class Keybindings {
             return
         }
 
-        ; The combined list is grouped by script, while keeping the original
-        ; fixed footer, search box, native scrollbar and compact dimensions.
         this.participants := this.DiscoverParticipants()
-        rowCount := Min(11, Max(4, Keybindings.DisplayRows(this.participants).Length))
-        rowStartY := 48
-        ; The scrollable rows end before the pinned bottom action bar.
-        footerDividerY := rowStartY + rowCount * 35 + 8
-        footerY := footerDividerY + 15
-        windowHeight := footerY + 49
+        this.settingsSizePath := this.root "\window.ini"
+        savedWidth := IniRead(this.settingsSizePath, "Window", "Width", "1000")
+        savedHeight := IniRead(this.settingsSizePath, "Window", "Height", "720")
+        this.settingsWindowWidth := IsNumber(savedWidth) ? Max(820, Min(3840, Round(savedWidth))) : 1000
+        this.settingsWindowHeight := IsNumber(savedHeight) ? Max(320, Min(2160, Round(savedHeight))) : 720
+        this.settingsWindowWidth := Min(this.settingsWindowWidth, Max(820, A_ScreenWidth - 100))
+        this.settingsWindowHeight := Min(this.settingsWindowHeight, Max(320, A_ScreenHeight - 100))
 
-        window := SuiteGui("-Resize", "Keybindings")
+        window := SuiteGui("+Resize +MinSize820x320", "Keybindings")
         this.settings := window
         this._SetSettingsIcons(window)
         this._RefreshGate()
         window.SetFont("s10", "Segoe UI")
-        ; Center the search box independently of the scrollable rows.
-        searchBox := window.AddEdit("x210 y13 w400 vsearch")
-        ; EM_SETCUEBANNER supplies a search hint without an extra label.
-        DllCall("SendMessageW", "ptr", searchBox.Hwnd, "uint", 0x1501,
+        this.settingsSearch := window.AddEdit("x210 y13 w400 vsearch")
+        DllCall("SendMessageW", "ptr", this.settingsSearch.Hwnd, "uint", 0x1501,
             "uptr", 1, "str", "search... (right-click a shortcut to type it)", "ptr")
-        searchBox.OnEvent("Change", ObjBindMethod(this, "_SearchChanged"))
-        window.AddButton("x698 y12 w88 h28", "refresh").OnEvent("Click",
-            ObjBindMethod(this, "_RefreshParticipants"))
+        this.settingsSearch.OnEvent("Change", ObjBindMethod(this, "_SearchChanged"))
+        this.settingsRefresh := window.AddButton("x698 y12 w88 h28", "refresh")
+        this.settingsRefresh.OnEvent("Click", ObjBindMethod(this, "_RefreshParticipants"))
 
+        this.settingsRowPool := []
         this.visibleRows := []
-        loop rowCount {
-            index := A_Index
-            y := rowStartY + (index - 1) * 35
-            title := window.AddText("x22 y" (y + 6) " w290", "")
-            categoryTitle := window.AddText("x22 y" (y + 6) " w752 Center", "")
-            primary := window.AddButton("x323 y" y " w185 h29", "unbound")
-            secondary := window.AddButton("x518 y" y " w170 h29", "unbound")
-            reset := window.AddButton("x698 y" y " w76 h29", "reset")
-            primary.OnEvent("Click", ObjBindMethod(this, "_BeginRecording", index, 1))
-            secondary.OnEvent("Click", ObjBindMethod(this, "_BeginRecording", index, 2))
-            reset.OnEvent("Click", ObjBindMethod(this, "_ResetAction", index))
-            this.visibleRows.Push({title: title, categoryTitle: categoryTitle,
-                primary: primary, secondary: secondary, reset: reset, actionId: ""})
-        }
-        ; A real Windows scrollbar has one thumb, proportionally sized by page.
-        ; A Slider is a trackbar and renders an unwanted separate channel/handle.
-        this.settingsScroll := window.AddCustom("ClassScrollBar x778 y" rowStartY
-            " w24 h" (rowCount * 35) " +0x1") ; SBS_VERT
-        ; Only the binding rows scroll. This separator and centered actions stay put.
-        window.AddText("x22 y" footerDividerY " w752 h2 +0x10", "")
-        window.AddButton("x244 y" footerY " w180 h31", "Reset all shortcuts").OnEvent("Click",
-            ObjBindMethod(this, "_ResetAll"))
-        window.AddButton("x438 y" footerY " w130 h31", "done").OnEvent("Click",
-            ObjBindMethod(this, "_RequestCloseSettings"))
+        this.settingsScroll := window.AddCustom("ClassScrollBar x778 y48 w24 h140 +0x1")
+        this.settingsDivider := window.AddText("x22 y300 w752 h2 +0x10", "")
+        this.settingsResetAll := window.AddButton("x244 y320 w180 h31", "Reset all shortcuts")
+        this.settingsResetAll.OnEvent("Click", ObjBindMethod(this, "_ResetAll"))
+        this.settingsDone := window.AddButton("x438 y320 w130 h31", "done")
+        this.settingsDone.OnEvent("Click", ObjBindMethod(this, "_RequestCloseSettings"))
+        window.OnEvent("Size", ObjBindMethod(this, "_ResizeSettings"))
         window.OnEvent("ContextMenu", ObjBindMethod(this, "_EditBindingText"))
         window.OnEvent("Close", ObjBindMethod(this, "_RequestCloseSettings"))
         window.OnEvent("Escape", ObjBindMethod(this, "_RequestCloseSettings"))
         this.scrollPosition := 0
-        this._RenderSettings()
-        window.Show("w820 h" windowHeight)
-        ; The scrollbar sends WM_VSCROLL to its parent; wheels use WM_MOUSEWHEEL.
-        ; Register both handlers only while the settings window exists.
+        this.settingsResizing := false
+        this._ResizeSettings(window, 0, this.settingsWindowWidth, this.settingsWindowHeight)
+        window.Show("w" this.settingsWindowWidth " h" this.settingsWindowHeight)
         OnMessage(0x020A, this.wheelCallback)
         this.wheelHookActive := true
         OnMessage(0x0115, this.verticalScrollCallback)
         this.verticalScrollHookActive := true
+    }
+
+    _AddSettingsRow() {
+        index := this.settingsRowPool.Length + 1
+        window := this.settings
+        title := window.AddText("Hidden x22 y48 w290 h25", "")
+        categoryTitle := window.AddText("Hidden x22 y48 w752 h25 Center", "")
+        primary := window.AddButton("Hidden x323 y48 w185 h29", "unbound")
+        secondary := window.AddButton("Hidden x518 y48 w170 h29", "unbound")
+        reset := window.AddButton("Hidden x698 y48 w76 h29", "reset")
+        primary.OnEvent("Click", ObjBindMethod(this, "_BeginRecording", index, 1))
+        secondary.OnEvent("Click", ObjBindMethod(this, "_BeginRecording", index, 2))
+        reset.OnEvent("Click", ObjBindMethod(this, "_ResetAction", index))
+        this.settingsRowPool.Push({title: title, categoryTitle: categoryTitle,
+            primary: primary, secondary: secondary, reset: reset, actionId: ""})
+    }
+
+    _ResizeSettings(window, minMax, width, height) {
+        if !IsObject(this.settings) || this.settings != window || minMax = -1
+            return
+        if this.settingsResizing
+            return
+        this.settingsResizing := true
+        try {
+            width := Max(820, width)
+            height := Max(320, height)
+            if minMax = 0 {
+                this.settingsWindowWidth := width
+                this.settingsWindowHeight := height
+            }
+
+            extraWidth := width - 820
+            primaryX := 323 + Floor(extraWidth * 0.48)
+            primaryWidth := 185 + Floor(extraWidth * 0.28)
+            secondaryX := primaryX + primaryWidth + 10
+            secondaryWidth := 170 + extraWidth - (primaryX - 323) - (primaryWidth - 185)
+            resetX := secondaryX + secondaryWidth + 10
+            searchWidth := 400 + Min(200, Floor(extraWidth * 0.5))
+            this.settingsSearch.Move(Floor((width - searchWidth) / 2), 13, searchWidth, 23)
+            this.settingsRefresh.Move(width - 122, 12, 88, 28)
+
+            rowCount := Min(128, Max(4, Floor((height - 120) / 35)))
+            while this.settingsRowPool.Length < rowCount
+                this._AddSettingsRow()
+            this.visibleRows := []
+            for index, row in this.settingsRowPool {
+                if index > rowCount {
+                    row.title.Visible := false
+                    row.categoryTitle.Visible := false
+                    row.primary.Visible := false
+                    row.secondary.Visible := false
+                    row.reset.Visible := false
+                    continue
+                }
+                this.visibleRows.Push(row)
+                y := 48 + (index - 1) * 35
+                row.title.Move(22, y + 6, primaryX - 33, 25)
+                row.categoryTitle.Move(22, y + 6, width - 68, 25)
+                row.primary.Move(primaryX, y, primaryWidth, 29)
+                row.secondary.Move(secondaryX, y, secondaryWidth, 29)
+                row.reset.Move(resetX, y, 76, 29)
+            }
+            this.settingsScroll.Move(width - 42, 48, 24, rowCount * 35)
+            this.settingsDivider.Move(22, height - 64, width - 68, 2)
+            footerX := Floor(width / 2) - 166
+            this.settingsResetAll.Move(footerX, height - 49, 180, 31)
+            this.settingsDone.Move(footerX + 194, height - 49, 130, 31)
+            this._RenderSettings()
+        }
+        finally this.settingsResizing := false
     }
 
     _SetSettingsIcons(window) {
@@ -1137,8 +1187,15 @@ class Keybindings {
             this.verticalScrollHookActive := false
         }
         this.wheelRemainder := 0
-        if IsObject(this.settings)
+        if IsObject(this.settings) {
+            try {
+                IniWrite(this.settingsWindowWidth, this.settingsSizePath, "Window", "Width")
+                IniWrite(this.settingsWindowHeight, this.settingsSizePath, "Window", "Height")
+            }
+            catch Error as failure
+                SuiteState.Log.Error("Keybindings / window size", failure)
             this.settings.Destroy()
+        }
         for iconHandle in this.settingsIcons
             DllCall("DestroyIcon", "ptr", iconHandle)
         this.settingsIcons := []
