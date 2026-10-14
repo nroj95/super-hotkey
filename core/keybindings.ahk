@@ -946,7 +946,7 @@ class Keybindings {
 
         this.participants := this.DiscoverParticipants()
         this.settingsWindowWidth := 820
-        this.settingsWindowHeight := 520
+        this.settingsWindowHeight := 720
 
         window := SuiteGui("+Resize +MinSize820x520 +0x02000000", this._SettingsTitle())
         this.settings := window
@@ -958,13 +958,9 @@ class Keybindings {
         DllCall("SendMessageW", "ptr", this.settingsSearch.Hwnd, "uint", 0x1501,
             "uptr", 1, "str", "search... (right-click a shortcut to type it)", "ptr")
         this.settingsSearch.OnEvent("Change", ObjBindMethod(this, "_SearchChanged"))
-        this.settingsRefresh := window.AddButton("x698 y12 w88 h28", "refresh")
-        this.settingsRefresh.OnEvent("Click", ObjBindMethod(this, "_RefreshParticipants"))
-
         this.settingsRowPool := []
         this.visibleRows := []
         this.settingsDrawButtons := Map()
-        this.settingsDrawButtons[this.settingsRefresh.Hwnd] := "done"
         this.warningButtons := Map()
         OnMessage(0x004E, this.settingsButtonDrawCallback) ; WM_NOTIFY / NM_CUSTOMDRAW
         this.settingsScroll := window.AddCustom("ClassScrollBar x778 y48 w24 h140 +0x1")
@@ -1055,8 +1051,6 @@ class Keybindings {
                 searchWidth := 400 + Min(200, Floor(extraWidth * 0.5))
                 positions.Push({control: this.settingsSearch,
                     x: Floor((width - searchWidth) / 2), y: 13, w: searchWidth, h: 23})
-                positions.Push({control: this.settingsRefresh,
-                    x: width - 122, y: 12, w: 88, h: 28})
             }
 
             if widthChanged || rowsChanged {
@@ -1154,18 +1148,6 @@ class Keybindings {
         this.scrollPosition := 0
         this.wheelRemainder := 0
         this._RenderSettings()
-    }
-
-    _RefreshParticipants(*) {
-        if !IsObject(this.settings) || IsObject(this.recording)
-            return
-        try {
-            updated := this.DiscoverParticipants()
-            this.participants := updated
-            this._RenderSettings()
-        }
-        catch Error as participantRefreshError
-            MsgBox(participantRefreshError.Message, this.name " - could not refresh", "Icon!")
     }
 
     _WheelSettings(wParam, lParam, messageId, receiverHwnd) {

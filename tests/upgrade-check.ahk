@@ -555,10 +555,10 @@ class SuiteUpgradeChecks {
             editor := app.manager.settings
             editor.GetClientPos(, , &firstWidth, &firstHeight)
             this.AssertCentered(editor, "Keybindings")
-            this.Assert(firstWidth = 820 && firstHeight = 520,
-                "Keybindings opens at the readable minimum size")
-            this.Assert(app.manager.settingsDrawButtons[app.manager.settingsRefresh.Hwnd] = "done",
-                "Keybindings Refresh uses matching square corners")
+            this.Assert(firstWidth = 820 && firstHeight = 720,
+                "Keybindings opens taller at a sensible default size")
+            this.Assert(!HasProp(app.manager, "settingsRefresh"),
+                "Keybindings no longer has a Refresh button")
             this.Assert(app.manager.rows[1].label = "Global"
                 && app.manager.visibleRows[1].categoryTitle.Text = "★ Global ★",
                 "Global heading has decorative stars without changing its category identity")
@@ -570,7 +570,7 @@ class SuiteUpgradeChecks {
                 app.manager.visibleRows[1].primary,
                 app.manager.visibleRows[1].secondary,
                 app.manager.visibleRows[1].reset,
-                app.manager.settingsSearch, app.manager.settingsRefresh,
+                app.manager.settingsSearch,
                 app.manager.settingsResetAll, app.manager.settingsDone]
             weights := []
             sizes := []
@@ -650,8 +650,8 @@ class SuiteUpgradeChecks {
             IniWrite("900", app.manager.root "\window.ini", "Window", "Height")
             app.manager.ShowSettings()
             app.manager.settings.GetClientPos(, , &reopenedW, &reopenedH)
-            this.Assert(reopenedW = 820 && reopenedH = 520,
-                "Keybindings ignores size history and reopens at the minimum")
+            this.Assert(reopenedW = 820 && reopenedH = 720,
+                "Keybindings ignores size history and reopens at its taller default")
             this.AssertCentered(app.manager.settings, "reopened Keybindings")
             app.manager._CloseSettings()
             this.Assert(IniRead(app.manager.root "\window.ini", "Window", "Width") = "1300"
@@ -671,8 +671,8 @@ class SuiteUpgradeChecks {
                 this.Assert(InStr(guide, "GETTING STARTED") > 0,
                     "help starts with practical instructions: " id)
                 window.GetClientPos(, , &helpWidth, &helpHeight)
-                this.Assert(helpWidth = 900 && helpHeight = 520,
-                    "Help opens at its fixed minimum size: " id)
+                this.Assert(helpWidth = 820 && helpHeight = 480,
+                    "Help opens at a smaller default size: " id)
                 this.AssertCentered(window, SuiteSettings.ModuleNames[id] " Help")
                 guideControl := window["helpText"]
                 guideControl.GetPos(, &textY, , &textHeight)
@@ -692,8 +692,8 @@ class SuiteUpgradeChecks {
                 this.Assert(fontFace = "Cascadia Mono" || fontFace = "Consolas",
                     "help font is the old Cascadia Mono or the Windows fallback: " id)
                 lineCount := StrSplit(guide, "`n").Length
-                this.Assert(helpWidth >= 720 && helpHeight >= 450
-                    && textHeight > 350 && textY + textHeight < helpHeight - 60
+                this.Assert(helpWidth >= 720 && helpHeight >= 400
+                    && textHeight > 310 && textY + textHeight < helpHeight - 60
                     && lineCount * 20 <= textHeight,
                     "initial help page fits its complete guide: " id)
                 style := WinGetStyle("ahk_id " window.Hwnd)
@@ -723,6 +723,14 @@ class SuiteUpgradeChecks {
                             "buttons remain correctly placed after repeated resizing: " id)
                     }
                 }
+                window.Show("w1080 h750")
+                window.GetClientPos(, , &helpWidth, &helpHeight)
+                app.ui.ResizeHelp(id, window, 0, helpWidth, helpHeight)
+                window.Show("w720 h400")
+                window.GetClientPos(, , &helpWidth, &helpHeight)
+                app.ui.ResizeHelp(id, window, 0, helpWidth, helpHeight)
+                this.Assert(helpWidth = 720 && helpHeight = 400,
+                    "Help can shrink below its starting size: " id)
                 window.Show("w1080 h750")
                 window.GetClientPos(, , &helpWidth, &helpHeight)
                 app.ui.ResizeHelp(id, window, 0, helpWidth, helpHeight)
@@ -759,7 +767,10 @@ class SuiteUpgradeChecks {
                     defaultW := app.ui.pageLayouts["settings:" id].width
                     defaultH := app.ui.pageLayouts["settings:" id].height
                     this.Assert(settingsW = defaultW && settingsH = defaultH,
-                        "module Settings open at their minimum size: " id)
+                        "module Settings open at a sensible size: " id)
+                    this.Assert(app.ui.pageLayouts["settings:" id].minWidth < defaultW
+                        && app.ui.pageLayouts["settings:" id].minHeight < defaultH,
+                        "Settings can shrink below the opening size: " id)
                     this.AssertCentered(settings, SuiteSettings.ModuleNames[id] " Settings")
                     settings.Show("w" (defaultW + 120) " h" (defaultH + 140))
                     settings.GetClientPos(, , &settingsW, &settingsH)
@@ -771,6 +782,13 @@ class SuiteUpgradeChecks {
                         && lastButtonY = settingsH - 49
                         && lastButtonX + lastButtonW <= settingsW,
                         "module Settings footer follows resizing: " id)
+                    settings.Show("w" app.ui.pageLayouts["settings:" id].minWidth
+                        " h" app.ui.pageLayouts["settings:" id].minHeight)
+                    settings.GetClientPos(, , &settingsW, &settingsH)
+                    app.ui.ResizePage("settings:" id, settings, 0, settingsW, settingsH)
+                    this.Assert(settingsW = app.ui.pageLayouts["settings:" id].minWidth
+                        && settingsH = app.ui.pageLayouts["settings:" id].minHeight,
+                        "Settings support smaller manual resizing: " id)
                     backFound := false
                     for control in settings
                         if control.Type = "Button" && control.Text = "Back"
@@ -807,8 +825,8 @@ class SuiteUpgradeChecks {
             }
             app.ui.ShowHelp("scratchpad")
             app.ui.windows["help:scratchpad"].GetClientPos(, , &lastHelpW, &lastHelpH)
-            this.Assert(lastHelpW = 900 && lastHelpH = 520,
-                "Help reopens at its minimum regardless of previous resizing")
+            this.Assert(lastHelpW = 820 && lastHelpH = 480,
+                "Help reopens at the smaller default regardless of prior resizing")
             this.AssertCentered(app.ui.windows["help:scratchpad"], "reopened Paper Pad Help")
             app.ui.CloseWindow("help:scratchpad")
             this.Assert(IniRead(app.Settings.directory "\help-window.ini",
@@ -816,7 +834,10 @@ class SuiteUpgradeChecks {
                 "Help ignores existing saved window size history")
             app.activeModules["scratchpad"] := false
             app.ui.ShowHelp("scratchpad")
-            this.Assert(IsObject(app.ui.windows["help:scratchpad"]), "disabled modules still expose their How to use page")
+            this.Assert(IsObject(app.ui.windows["help:scratchpad"]),
+                "disabled modules still expose their How to use page")
+            this.Assert(app.ui.helpLayouts["scratchpad"].header.Text = "Paper Pad - disabled",
+                "disabled Help pages use a concise status")
             app.ui.CloseWindow("help:scratchpad")
             for page in ["log", "application-settings", "modules"] {
                 switch page {
@@ -831,7 +852,9 @@ class SuiteUpgradeChecks {
                 this.Assert(!!(style & 0x00040000) && !!(style & 0x00010000),
                     "all shared utility windows support resize and maximize: " page)
                 this.Assert(pageW = layout.width && pageH = layout.height,
-                    "utility page opens at its minimum dimensions: " page)
+                    "utility page opens at its intended size: " page)
+                this.Assert(layout.minWidth < layout.width && layout.minHeight < layout.height,
+                    "utility page allows smaller manual sizes: " page)
                 this.AssertCentered(window, page)
                 this.Assert(layout.footer.buttons.Length >= 2
                     && app.ui.footerButtons.Has(layout.footer.buttons[1].button.Hwnd),
@@ -851,6 +874,11 @@ class SuiteUpgradeChecks {
                 layout.footer.divider.GetPos(, &footerDividerY)
                 this.Assert(footerDividerY = pageH - 64,
                     "shared utility footer follows resizing: " page)
+                window.Show("w" layout.minWidth " h" layout.minHeight)
+                window.GetClientPos(, , &pageW, &pageH)
+                app.ui.ResizePage(page, window, 0, pageW, pageH)
+                this.Assert(pageW = layout.minWidth && pageH = layout.minHeight,
+                    "utility page shrinks to its smaller minimum: " page)
                 app.ui.CloseWindow(page)
             }
             this.Assert(app.manager.paused && app.wonder.pending.Count = 0,
