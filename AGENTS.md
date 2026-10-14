@@ -1,18 +1,18 @@
 # implementation constraints
 
-- target AutoHotkey v2, 64-bit Windows. preserve working behavior before adding features.
-- this checkpoint is a source baseline, not a working suite. do not claim otherwise.
-- start with `docs/initial-audit.md` and inspect complete implementations before changing their lifecycle.
-- use one launcher, one process, one tray, one shared Keybindings manager, and simple modules.
-- keep module action IDs globally unique. check the whole effective binding set before registration.
-- disabled feature modules release inputs but retain editable assignments and personal data.
-- disabling layers leaves native CapsLock/Pause behavior unless explicitly rebound; normal bindings still work.
-- an unavailable layer binding is not the same thing as a disabled action.
-- support contextual editor shortcuts explicitly; never turn Scratchpad navigation into accidental global hotkeys.
-- module toggles may require a restart. do not implement dynamic plugin loading or profiles.
-- route errors into a single rotating log. preserve actionable errors rather than swallowing them.
-- reset shortcuts separately from factory settings. confirm both; neither may delete notes or other personal data.
-- do not rewrite the existing source repositories, migrate Git history, or add submodules.
-- retain source licenses and icon attribution. keep `migration/upstream` as reference until each migration is reviewed.
-- never launch real power/sleep/text actions from automated checks. use isolated settings directories and dry-run actions.
-- preserve LF, descriptive names, and the existing comment style; keep added documentation concise.
+- target AutoHotkey v2 64-bit Windows. preserve existing feature behavior and avoid unnecessary scope expansion.
+- this is a runnable draft, not yet a stable release. complete `docs/integration-status.md` acceptance checks before publishing.
+- use one launcher, process, tray, application icon, Keybindings manager and shared debug log. avoid plugin frameworks and module-specific trays.
+- each module tray entry opens its Getting started guide. module Settings and shared Keybindings navigation belong in those pages.
+- use **hotkeys** for user-facing configurable triggers, **Keybindings** for the editor and **actions** for their effects.
+- only registered complementary input scopes may share hotkeys. Paper Pad editor navigation is not global.
+- disabled modules and layers release inputs; the assignments remain editable. CapsLock/Pause behave normally unless independently reassigned.
+- defer feature work out of native input callbacks; cancel queued work on reconfiguration, suspension and exit. preserve held-output cleanup.
+- errors and lifecycle logging remain active without verbose logging; there are no per-module debug switches.
+- keep Restore defaults in Keybindings separate from Reset to defaults in the tray. require confirmation and do not delete notes, note paths, editor preferences or page state.
+- Windows Snap and FancyZones configuration require explicit consent. never change other applications' settings automatically.
+- the default suite settings path is `%LOCALAPPDATA%\nroj\SuperHotkey`. old configuration directories are not imported; never delete user data automatically. internal mutex and ownership identifiers may retain legacy names to preserve compatibility.
+- edit committed source in `core/` and `modules/` directly. historical generators and snapshots remain available through Git history, not in the working source tree.
+- preserve root MIT license and icon attribution. original source commits and repositories are recorded in `docs/source-provenance.md`.
+- tests use disposable preferences and dry-run inputs; never perform real system sleep, speaker actions or personal note operations in automated checks.
+- retain LF line endings. run portable tests and `python tests/check.py` on Windows.

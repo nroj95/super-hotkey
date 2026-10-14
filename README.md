@@ -1,26 +1,40 @@
-# Super Hotkey World
+# Super Hotkey
 
-a modular Windows productivity suite being consolidated from existing AutoHotkey v2 projects.
+an AutoHotkey v2 64-bit Windows productivity suite with one process, tray icon, Keybindings editor and global debug log.
 
-**status: source migration checkpoint; not a runnable suite.** the initial commit contains pinned source snapshots, licenses, and an entry-point/dependency audit. it does not start any script or change the existing installations.
+**version 1.0.0 — draft integration.** not yet released or merged to `main`.
 
-## target
+| module | purpose |
+| --- | --- |
+| Cascade Kingdom | automatic window placement and cascades |
+| Wonder Windows | manual window hotkeys, layouts, stretch, swap and navigation |
+| Power-Up Utilities | keyboard outputs, text tools and system actions |
+| Paper Pad | quick notes in a dedicated Notepad3 drawer |
+| Secret Keys | independent CapsLock and Pause hotkey layers |
 
-one AutoHotkey process, one tray icon, one Keybindings manager, centralized logging, and four optional modules: Window Cascade, Power Hotkey, Scratchpad, and Caps + Pause Layers. all four will be enabled by default; Keybindings remains available independently of the layer module.
+## run and verify
 
-reuse the existing implementations. do not add a plugin framework, automatic shortcut reassignment, or profiles. Shell Folders stays separate.
+launch `super-hotkey.ahk` using AutoHotkey v2 64-bit. close any standalone versions of the modules before launching.
 
-## current layout
+```powershell
+python .\tests\check.py
+& "$env:LOCALAPPDATA\Programs\AutoHotkey\v2\AutoHotkey64.exe" .\super-hotkey.ahk --dry-run
+```
 
-- `migration/upstream/`: complete tracked snapshots from the five source repositories, without their Git histories. these are reference implementations, not modules wired into a common launcher.
-- `migration/source-manifest.json`: exact source commits and imported file counts.
-- `docs/initial-audit.md`: verified entry-point findings, scope limits, and blockers.
-- `docs/implementation.md`: the integration order and acceptance checks.
+adjust the AutoHotkey executable location if necessary. `--dry-run` uses temporary settings, opens the editor and prevents real feature effects. `--check` parses and exits; `--settings` opens Keybindings when launching normally.
 
-read the audit before creating a combined launcher. including the original entry points directly is not safe: several start services immediately, set process-wide defaults, or install their own hotkeys.
+## navigation
 
-## data and retirement
+the tray contains Modules, Keybindings, five module Getting started pages, Debug log, Verbose logging, Open settings folder, Run at startup, Suspend hotkeys, Restart Super Hotkey, Reset to defaults and Exit. module Settings and Keybindings are accessible from each module's guide.
 
-keep the original repositories and utilities intact until behavior parity has been checked on Windows. imported source does not include unpublished local changes or personal settings. Scratchpad notes, editor profiles, and backups must never be deleted by a shortcut or factory reset.
+default Keybindings hotkeys are **Caps + K** and **Ctrl + Alt + K**. inactive layer hotkeys remain visible and editable. module and Secret Keys layer changes take effect after restarting. Windows Snap and optional FancyZones changes are never applied at startup without permission.
 
-retain upstream licenses and icon attribution when moving source and assets into their final locations. remove the staging copies only after their replacements have been reviewed; they are not a permanent second implementation.
+## data and safety
+
+fresh installations save suite preferences under `%LOCALAPPDATA%\nroj\SuperHotkey`. this checkout does **not** automatically import the previous SuperHotkeyWorld folder or settings from standalone tools. old folders and external personal files are never deleted by the suite.
+
+Paper Pad uses a dedicated Notepad3 profile, and its note files may be kept elsewhere. restoring default hotkeys in Keybindings is separate from the confirmed **Reset to defaults...** tray action. neither reset deletes personal notes or resets their folder, editor preferences or page state. errors are logged even when verbose logging is off.
+
+**Suspend hotkeys** temporarily disables assigned hotkeys and Secret Keys layers without freezing other module work. the checked tray item can resume them. the native Windows tray and title-bar fonts remain system-controlled; app GUIs use Cascadia Mono.
+
+see [integration status](docs/integration-status.md), [implementation](docs/implementation.md) and [source provenance](docs/source-provenance.md). historical migration snapshots and scripts can be recovered from Git history, rather than occupying the current checkout.

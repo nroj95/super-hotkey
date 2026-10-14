@@ -1,0 +1,46 @@
+name: Suite checks
+on:
+  push:
+    branches: [integrate-suite]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Get the pinned AutoHotkey test runtime
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ProgressPreference = 'SilentlyContinue'
+          $archive = Join-Path $env:RUNNER_TEMP 'AutoHotkey_2.0.19.zip'
+          $directory = Join-Path $env:RUNNER_TEMP 'AutoHotkey-test'
+          Invoke-WebRequest 'https://github.com/AutoHotkey/AutoHotkey/releases/download/v2.0.19/AutoHotkey_2.0.19.zip' -OutFile $archive
+          $expected = '4E0D0E65655066A646A210951320FEAEF0729A3597177131ADAEC4066BEF5869'
+          if ((Get-FileHash $archive -Algorithm SHA256).Hash -ne $expected) { throw 'AutoHotkey checksum mismatch.' }
+          Expand-Archive $archive $directory
+          "AHK=$directory\AutoHotkey64.exe" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+      - name: Test the committed runtime without regenerating source
+        shell: pwsh
+        run: python tests/check.py --autohotkey "$env:AHK"
+      - name: Retain the checked source for review
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: suite-source
+          retention-days: 3
+          include-hidden-files: true
+          path: |
+            super-hotkey.ahk
+            core/
+            modules/
+            assets/
+            tests/
+            docs/
+            README.md
+            AGENTS.md
+            LICENSE
