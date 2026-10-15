@@ -21,6 +21,7 @@ class Keybindings {
         this.layerFactory := Keybindings.Option(options, "layerFactory", 0)
         this.statusCallback := Keybindings.Option(options, "statusCallback", 0)
         this.scopes := Map()
+        this.disjointPairs := Map()
         this.observerGroups := Map()
         this.actions := Map()
         this.configuration := Map()
@@ -160,10 +161,16 @@ class Keybindings {
             modules := Map()
             moduleOrder := []
             allCategories := Map()
+            categoryScopes := Map()
             for action in participant.actions {
                 if !action.enabled
                     continue
                 allCategories[action.category] := true
+                scope := HasProp(action, "scope") ? action.scope : ""
+                if !categoryScopes.Has(action.category)
+                    categoryScopes[action.category] := scope
+                else if categoryScopes[action.category] != scope
+                    categoryScopes[action.category] := ""
                 searchable := participant.name " " action.id " " action.category " " action.label
                 for encoded in action.bindings {
                     parsed := Keybindings.Parse(encoded)
@@ -227,7 +234,7 @@ class Keybindings {
                     if participant.id != participants[1].id && !participant.controlReady
                         heading .= " (view only)"
                     rows.Push({id: "", kind: "owner", label: heading,
-                        ownerId: participant.id})
+                        scope: categoryScopes[category], ownerId: participant.id})
                     for entry in grouped[category]
                         rows.Push(entry)
                 }
@@ -242,7 +249,7 @@ class Keybindings {
             if !setting.enabled || !this.IsAvailable(action)
                 continue
             result.Push({id: actionId, label: action.label,
-                category: action.category, enabled: true, help: action.help,
+                category: action.category, scope: action.scope, enabled: true, help: action.help,
                 bindings: setting.bindings.Clone()})
         }
         return result
@@ -556,7 +563,7 @@ class Keybindings {
             signature := route.binding.signature
             if seen.Has(signature) {
                 for previous in seen[signature]
-                    if !Keybindings.DisjointScopes(previous.action.scope, route.action.scope)
+                    if !Keybindings.DisjointScopes(previous.action.scope, route.action.scope, this.disjointPairs)
                         throw Error(route.binding.label " conflicts with " previous.action.label
                             . " and " route.action.label ". No hotkeys were changed.")
             } else
@@ -984,11 +991,21 @@ class Keybindings {
         this.verticalScrollHookActive := true
     }
 
+    ; Center the heading and marker as one group without overlapping controls.
+    static ScopeHeadingLayout(width, heading) {
+        titleWidth := StrLen(heading) * 8 + 16 ; Cascadia Mono, 10 pt
+        gap := 8
+        markerWidth := 84
+        x := Floor((width - 24 - titleWidth - gap - markerWidth) / 2)
+        return {x: x, titleWidth: titleWidth, markerX: x + titleWidth + gap}
+    }
+
     _AddSettingsRow() {
         index := this.settingsRowPool.Length + 1
         window := this.settings
         title := window.AddText("Hidden x22 y48 w290 h25", "")
         categoryTitle := window.AddText("Hidden x22 y48 w752 h25 Center", "")
+        scopeIndicator := window.AddText("Hidden x580 y48 w84 h25 c777777", "[scoped]")
         primary := window.AddButton("Hidden x358 y48 w167 h29", "unbound")
         secondary := window.AddButton("Hidden x535 y48 w153 h29", "unbound")
         reset := window.AddButton("Hidden x698 y48 w76 h29", "reset")
@@ -999,7 +1016,8 @@ class Keybindings {
         secondary.OnEvent("Click", ObjBindMethod(this, "_BeginRecording", index, 2))
         reset.OnEvent("Click", ObjBindMethod(this, "_ResetAction", index))
         this.settingsRowPool.Push({title: title, categoryTitle: categoryTitle,
-            primary: primary, secondary: secondary, reset: reset, actionId: ""})
+            scopeIndicator: scopeIndicator, primary: primary, secondary: secondary,
+            reset: reset, actionId: ""})
     }
 
     _ResizeSettings(window, minMax, width, height) {
@@ -1036,6 +1054,7 @@ class Keybindings {
                     if index > rowCount {
                         row.title.Visible := false
                         row.categoryTitle.Visible := false
+                        row.scopeIndicator.Visible := false
                         row.primary.Visible := false
                         row.secondary.Visible := false
                         row.reset.Visible := false
@@ -1066,8 +1085,14 @@ class Keybindings {
                     y := 48 + (index - 1) * 35
                     positions.Push({control: row.title,
                         x: 22, y: y + 6, w: primaryX - 33, h: 25})
+                    scoped := row.scopeIndicator.Visible
+                    headingLayout := scoped ? Keybindings.ScopeHeadingLayout(width, row.categoryTitle.Text) : 0
                     positions.Push({control: row.categoryTitle,
-                        x: 22, y: y + 6, w: width - 68, h: 25})
+                        x: scoped ? headingLayout.x : 22, y: y + 6,
+                        w: scoped ? headingLayout.titleWidth : width - 68, h: 25})
+                    positions.Push({control: row.scopeIndicator,
+                        x: scoped ? headingLayout.markerX : width - 110,
+                        y: y + 6, w: 84, h: 25})
                     positions.Push({control: row.primary,
                         x: primaryX, y: y, w: primaryWidth, h: 29})
                     positions.Push({control: row.secondary,
@@ -1233,6 +1258,7 @@ class Keybindings {
         NumPut("int", this.scrollPosition, scrollInfo, 20)
         DllCall("SetScrollInfo", "ptr", this.settingsScroll.Hwnd, "int", 2,
             "ptr", scrollInfo, "int", true, "int")
+        this.settings.GetClientPos(, , &clientWidth)
         for index, row in this.visibleRows {
             position := this.scrollPosition + index
             visible := position <= this.rows.Length
@@ -1244,13 +1270,22 @@ class Keybindings {
             row.ownerId := isAction ? entry.ownerId : ""
             row.title.Visible := isAction
             row.categoryTitle.Visible := visible && !isAction
+            row.scopeIndicator.Visible := visible && !isAction && HasProp(entry, "scope")
+                && entry.scope != ""
             row.primary.Visible := isAction
             row.secondary.Visible := isAction
             row.reset.Visible := isLocal
             if !visible
                 continue
             if !isAction {
-                row.categoryTitle.Text := entry.label = "Global" ? "★ Global ★" : entry.label
+                heading := entry.label = "Global" ? "★ Global ★" : entry.label
+                row.categoryTitle.Text := heading
+                if row.scopeIndicator.Visible {
+                    layout := Keybindings.ScopeHeadingLayout(clientWidth, heading)
+                    row.categoryTitle.Move(layout.x, , layout.titleWidth)
+                    row.scopeIndicator.Move(layout.markerX)
+                } else
+                    row.categoryTitle.Move(22, , clientWidth - 68)
                 continue
             }
             row.title.Text := entry.label
@@ -1672,10 +1707,17 @@ class Keybindings {
         this.scopes[name] := predicate
     }
 
-    static DisjointScopes(first, second) {
-        ; Only a registered predicate and its exact complement may share a key.
-        ; Arbitrary context callbacks are not proof that two actions cannot overlap.
-        return first != "" && second != "" && (first = "!" second || second = "!" first)
+    RegisterDisjointScopes(first, second) {
+        if this.running || first = second || !this.scopes.Has(first) || !this.scopes.Has(second)
+            throw ValueError("Declare distinct registered scopes before starting Keybindings.")
+        this.disjointPairs[first "|" second] := true
+        this.disjointPairs[second "|" first] := true
+    }
+
+    static DisjointScopes(first, second, pairs := 0) {
+        ; A context callback alone is not proof that two actions cannot overlap.
+        return first != "" && second != "" && ((first = "!" second || second = "!" first)
+            || (IsObject(pairs) && pairs.Has(first "|" second)))
     }
 
     BindingUnavailable(binding) {

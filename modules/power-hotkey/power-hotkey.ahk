@@ -23,7 +23,8 @@ class PowerHotkeys {
     }
 
     AddAction(moduleId, actionId, label, kind, value, defaultBinding, needsFocus := false) {
-        static subcategories := Map("function-keys", "Extra function keys",
+        static subcategories := Map("terminal", "Windows Terminal",
+            "function-keys", "Extra function keys",
             "number-pad", "Virtual number pad", "text", "Text and symbols",
             "timestamp", "Text and symbols")
         category := subcategories.Has(moduleId)
@@ -35,6 +36,7 @@ class PowerHotkeys {
             value: value, needsFocus: needsFocus}
         this.manager.AddAction(actionId, label, ObjBindMethod(this, "Dispatch"),
             [defaultBinding], {category: category, help: moduleId = "interface",
+                scope: moduleId = "terminal" ? "windows-terminal" : "",
                 available: (*) => SuiteState.App.ModuleActive("power-hotkey")})
     }
 

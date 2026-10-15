@@ -122,6 +122,9 @@ class SuiteApplication {
             options.layerFactory := (name, status) => LocalKeyboardLayers(name, status, this.activeLayers)
         this.manager := Keybindings("super-hotkey-world", SuiteApplication.Name, options)
         this.manager.RegisterScope("paper-pad", PaperPadWindowActive)
+        this.manager.RegisterScope("windows-terminal", (*) => WinActive("ahk_exe WindowsTerminal.exe"))
+        ; One foreground window cannot be both Notepad3 Paper Pad and Windows Terminal.
+        this.manager.RegisterDisjointScopes("paper-pad", "windows-terminal")
         this.manager.AddAction("core.keybindings", "open Keybindings", ObjBindMethod(this, "OpenBindingsEvent"),
             ["Caps + K", "Ctrl + Alt + K"], {category: "Global"})
         this.power := PowerHotkeys(this.manager, this.dryRun)

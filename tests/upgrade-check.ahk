@@ -1,6 +1,7 @@
 ; Isolated regression checks. No physical keystrokes, personal windows or editor saves.
 class SuiteUpgradeChecks {
     static scopeActive := false
+    static terminalScopeActive := false
     static observerCalls := 0
 
     static Assert(condition, label) => SuiteChecks.Assert(condition, label)
@@ -355,10 +356,17 @@ class SuiteUpgradeChecks {
             manager := Keybindings("scope-check-" suffix, "Scope check", options)
             try {
                 manager.RegisterScope("editor", (*) => this.scopeActive)
+                manager.RegisterScope("terminal", (*) => this.terminalScopeActive)
+                manager.RegisterDisjointScopes("editor", "terminal")
                 binding := layered ? "Caps + F8" : "Ctrl + Alt + F8"
                 manager.AddAction("inside", "inside editor", (*) => 0, [binding], {scope: "editor"})
                 manager.AddAction("outside", "outside editor", (*) => 0, [binding], {scope: "!editor"})
                 manager.AddAction("global", "global action", (*) => 0, [])
+                alternate := layered ? "Caps + F9" : "Ctrl + Alt + F9"
+                manager.AddAction("editor-alt", "editor action", (*) => 0, [alternate],
+                    {scope: "editor"})
+                manager.AddAction("terminal-alt", "terminal action", (*) => 0, [alternate],
+                    {scope: "terminal"})
                 SuiteChecks.Rejects((*) => manager.AddAction("unknown", "unknown scope", (*) => 0, [],
                     {scope: "missing"}), "unknown scope names cannot bypass conflicts: " suffix)
                 manager.SetPaused(true)
@@ -366,6 +374,17 @@ class SuiteUpgradeChecks {
                 signature := Keybindings.Parse(binding).signature
                 this.Assert(manager.routeMap[signature].Length = 2,
                     "explicit complementary scopes may share one physical binding: " suffix)
+                alternateSignature := Keybindings.Parse(alternate).signature
+                this.Assert(manager.routeMap[alternateSignature].Length = 2,
+                    "explicitly disjoint editor and Terminal scopes may share a key: " suffix)
+                this.scopeActive := false
+                this.terminalScopeActive := true
+                this.Assert(manager._SelectedRoute(alternateSignature).action.id = "terminal-alt",
+                    "Terminal-only route selected in Terminal: " suffix)
+                this.terminalScopeActive := false
+                this.scopeActive := true
+                this.Assert(manager._SelectedRoute(alternateSignature).action.id = "editor-alt",
+                    "editor-only route selected in the editor: " suffix)
                 this.scopeActive := false
                 this.Assert(manager._SelectedRoute(signature).action.id = "outside", "outside scope routing: " suffix)
                 this.scopeActive := true
@@ -375,6 +394,9 @@ class SuiteUpgradeChecks {
                 before := FileRead(manager.path)
                 SuiteChecks.Rejects((*) => manager.Apply(configuration), "a global collision is still rejected: " suffix)
                 this.Assert(FileRead(manager.path) = before, "scope conflict does not overwrite saved bindings: " suffix)
+                configuration["global"].bindings[1] := alternate
+                SuiteChecks.Rejects((*) => manager.Apply(configuration),
+                    "global hotkeys still conflict with scoped Terminal shortcuts: " suffix)
                 if layered {
                     global CPL
                     CPL.enabled := true
@@ -398,6 +420,7 @@ class SuiteUpgradeChecks {
             finally {
                 manager.Stop()
                 this.scopeActive := false
+                this.terminalScopeActive := false
             }
         }
     }
@@ -458,6 +481,7 @@ class SuiteUpgradeChecks {
             manager.SetPaused(true)
             manager.Start()
             groups := Map("Power-Up Utilities", 0,
+                "Power-Up Utilities / Windows Terminal", 0,
                 "Power-Up Utilities / Extra function keys", 0,
                 "Power-Up Utilities / Virtual number pad", 0,
                 "Power-Up Utilities / Text and symbols", 0)
@@ -469,6 +493,8 @@ class SuiteUpgradeChecks {
                     "Power-Up Utilities keeps only useful subcategories: " actionId)
                 groups[action.category] += 1
             }
+            this.Assert(groups["Power-Up Utilities / Windows Terminal"] = 2,
+                "Windows Terminal macros have their own category")
             this.Assert(groups["Power-Up Utilities / Extra function keys"] = 12
                 && groups["Power-Up Utilities / Virtual number pad"] = 10
                 && groups["Power-Up Utilities / Text and symbols"] = 5,
@@ -483,6 +509,19 @@ class SuiteUpgradeChecks {
                 && manager.actions["window-cascade.copy-log"].id = "window-cascade.copy-log",
                 "Global rename leaves saved action IDs unchanged")
             rows := Keybindings.DisplayRows(manager.DiscoverParticipants())
+            scopedHeadings := Map()
+            for row in rows
+                if row.id = ""
+                    scopedHeadings[row.label] := HasProp(row, "scope") ? row.scope : ""
+            this.Assert(scopedHeadings["Paper Pad / Inside the editor"] = "paper-pad"
+                && scopedHeadings["Power-Up Utilities / Windows Terminal"] = "windows-terminal",
+                "only scoped categories carry scope metadata")
+            this.Assert(scopedHeadings["Global"] = "" && scopedHeadings["Power-Up Utilities"] = ""
+                && scopedHeadings["Wonder Windows"] = "",
+                "mixed and global categories remain unmarked")
+            this.Assert(manager.actions["power-hotkey.terminal.clear"].scope = "windows-terminal"
+                && manager.actions["power-hotkey.terminal.copy"].scope = "windows-terminal",
+                "Terminal shortcuts are gated by the actual foreground application")
             mainHeadings := []
             activeParent := ""
             subcategoriesFollowParent := true
@@ -841,6 +880,17 @@ class SuiteUpgradeChecks {
             app.manager._ResizeSettings(editor, 0, compactWidth, compactHeight)
             this.Assert(app.manager.visibleRows.Length < expandedRows,
                 "resizing smaller reduces the visible row count without losing the catalog")
+            app.manager.settingsSearch.Value := "Inside the editor"
+            app.manager._SearchChanged()
+            scopedRow := app.manager.visibleRows[2]
+            scopedRow.categoryTitle.GetPos(&headingX, , &headingWidth)
+            scopedRow.scopeIndicator.GetPos(&scopeX)
+            this.Assert(scopedRow.scopeIndicator.Visible && headingX + headingWidth < scopeX,
+                "scope indicator never overlaps its heading")
+            app.manager.settingsSearch.Value := ""
+            app.manager._SearchChanged()
+            this.Assert(!app.manager.visibleRows[1].scopeIndicator.Visible,
+                "unscoped heading hides its marker after reusing a row")
             app.manager._CloseSettings()
             IniWrite("1300", app.manager.root "\window.ini", "Window", "Width")
             IniWrite("900", app.manager.root "\window.ini", "Window", "Height")
