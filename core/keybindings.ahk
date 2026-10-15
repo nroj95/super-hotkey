@@ -1300,9 +1300,15 @@ class Keybindings {
             frameColor := 0x2D8EB9
             textColor := 0x234566
         } else if kind = "reset" {
-            fillColor := pressed ? 0xDBDBDB : hovered ? 0xE9E9E9 : 0xF5F5F5
-            frameColor := 0xCDCDCD
-            textColor := enabled ? 0x666666 : 0xB0B0B0
+            if enabled {
+                fillColor := pressed ? 0xDEDEDE : hovered ? 0xEEEEEE : 0xFFFFFF
+                frameColor := 0x909090
+                textColor := 0x303030
+            } else {
+                fillColor := 0xF5F5F5
+                frameColor := 0xCDCDCD
+                textColor := 0xB0B0B0
+            }
         } else {
             fillColor := pressed ? 0xE5E5E5 : hovered ? 0xF5F5F5 : 0xFFFFFF
             frameColor := 0xC9C9C9
