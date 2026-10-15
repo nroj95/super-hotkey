@@ -22,11 +22,9 @@ class SuiteInterface {
         this.logColorCallback := ObjBindMethod(this, "ColorLog")
         OnMessage(0x0138, this.logColorCallback) ; WM_CTLCOLORSTATIC for read-only Edit
         this.startupPath := A_Startup "\Super Hotkey.lnk"
-        this.legacyStartupPath := A_Startup "\Super Hotkey World.lnk"
     }
 
     BuildTray() {
-        this.MigrateLegacyStartup()
         A_IconTip := SuiteApplication.Name " v" SuiteApplication.Version
             . (this.app.dryRun ? " - dry run" : "")
         try TraySetIcon(SuiteIcons.path, , true)
@@ -888,26 +886,6 @@ class SuiteInterface {
 
     OpenSettingsFolder(*) {
         Run('explorer.exe "' this.app.Settings.directory '"')
-    }
-
-    MigrateLegacyStartup() {
-        if this.app.dryRun || !FileExist(this.legacyStartupPath) || FileExist(this.startupPath)
-            return
-        try {
-            FileGetShortcut(this.legacyStartupPath, &target, , &arguments)
-            shortcutTarget := StrLower(target " " arguments)
-            if !InStr(shortcutTarget, "super-hotkey-world.ahk")
-                && !InStr(shortcutTarget, "super-hotkey.ahk")
-                return
-            if A_IsCompiled
-                FileCreateShortcut(A_ScriptFullPath, this.startupPath, A_ScriptDir)
-            else
-                FileCreateShortcut(A_AhkPath, this.startupPath, A_ScriptDir,
-                    '"' A_ScriptDir "\super-hotkey.ahk" '"')
-            FileDelete(this.legacyStartupPath)
-        }
-        catch Error as failure
-            SuiteState.Log.Error("Core / startup shortcut rename", failure)
     }
 
     UpdateStartupTray() {
