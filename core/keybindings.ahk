@@ -940,11 +940,12 @@ class Keybindings {
         }
 
         this.participants := this.DiscoverParticipants()
-        this.settingsWindowWidth := 820
+        this.settingsWindowWidth := 1060
         this.settingsWindowHeight := Min(860, Max(560, A_ScreenHeight - 125))
 
         window := SuiteGui("+Resize +MinSize820x520 +0x02000000", this._SettingsTitle())
         this.settings := window
+        SuiteFullscreen.Enable(window)
         this._SetSettingsIcons(window)
         this._RefreshGate()
         ; Use the same regular weight as the rest of the suite.
@@ -1414,6 +1415,7 @@ class Keybindings {
         }
         this.wheelRemainder := 0
         if IsObject(this.settings) {
+            SuiteFullscreen.Forget(this.settings)
             SuiteSizeGrip.Detach(this.settings)
             this.settings.Destroy()
         }

@@ -676,8 +676,9 @@ class SuiteUpgradeChecks {
             this.AssertCentered(editor, "Keybindings")
             this.AssertResizeGrip(editor, "Keybindings")
             expectedKeybindingsHeight := Min(860, Max(560, A_ScreenHeight - 125))
-            this.Assert(firstWidth = 820 && firstHeight = expectedKeybindingsHeight,
-                "Keybindings opens taller without overwhelming smaller screens")
+            this.Assert(firstWidth = 1060 && firstHeight = expectedKeybindingsHeight,
+                "Keybindings opening size: " firstWidth "x" firstHeight
+                " (expected 1060x" expectedKeybindingsHeight ")")
             this.Assert(!HasProp(app.manager, "settingsRefresh"),
                 "Keybindings no longer has a Refresh button")
             this.Assert(app.manager.rows[1].label = "Global"
@@ -781,7 +782,7 @@ class SuiteUpgradeChecks {
             IniWrite("900", app.manager.root "\window.ini", "Window", "Height")
             app.manager.ShowSettings()
             app.manager.settings.GetClientPos(, , &reopenedW, &reopenedH)
-            this.Assert(reopenedW = 820 && reopenedH = expectedKeybindingsHeight,
+            this.Assert(reopenedW = 1060 && reopenedH = expectedKeybindingsHeight,
                 "Keybindings ignores size history and reopens at its adaptive default")
             this.AssertCentered(app.manager.settings, "reopened Keybindings")
             app.manager._CloseSettings()

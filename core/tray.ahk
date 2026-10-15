@@ -79,6 +79,7 @@ class SuiteInterface {
 
     NewWindow(key, title, configuration := false, options := "+Resize +0x02000000") {
         window := SuiteGui(options, title)
+        SuiteFullscreen.Enable(window)
         window.SetFont("s10", "Cascadia Mono")
         window.OnEvent("Close", ObjBindMethod(this, "CloseWindow", key))
         window.OnEvent("Escape", ObjBindMethod(this, "CloseWindow", key))
@@ -245,6 +246,7 @@ class SuiteInterface {
                 this.helpLayouts.Delete(SubStr(key, 6))
             if this.pageFooters.Has(this.windows[key].Hwnd)
                 this.pageFooters.Delete(this.windows[key].Hwnd)
+            SuiteFullscreen.Forget(this.windows[key])
             SuiteSizeGrip.Detach(this.windows[key])
             this.windows[key].Destroy()
             this.windows.Delete(key)

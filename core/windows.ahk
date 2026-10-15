@@ -42,6 +42,82 @@ SuiteShowCentered(window, width, height, layoutCallback := 0) {
     window.Show()
 }
 
+class SuiteFullscreen {
+    static placements := Map()
+    static marker := "nroj.SuperHotkey.FullscreenAllowed"
+
+    static Enable(window) {
+        if !DllCall("SetPropW", "ptr", window.Hwnd, "str", this.marker, "ptr", 1, "int")
+            throw OSError(A_LastError, "Enable Super Hotkey fullscreen")
+    }
+
+    static Active(*) {
+        ; F11 remains assignable while the Keybindings recorder is active.
+        if IsObject(SuiteState.App) && IsObject(SuiteState.App.manager)
+            && IsObject(SuiteState.App.manager.recording)
+            return false
+        hwnd := WinActive("A")
+        return hwnd && !!DllCall("GetPropW", "ptr", hwnd, "str", this.marker, "ptr")
+    }
+
+    static IsFullscreen(window) => this.placements.Has(window.Hwnd)
+
+    static Forget(window) {
+        if this.placements.Has(window.Hwnd)
+            this.placements.Delete(window.Hwnd)
+    }
+
+    static Toggle(*) {
+        if !this.Active()
+            return
+        hwnd := WinActive("A")
+        window := GuiFromHwnd(hwnd)
+        if !IsObject(window)
+            return
+        target := "ahk_id " hwnd
+
+        if this.placements.Has(hwnd) {
+            saved := this.placements[hwnd]
+            WinSetStyle(saved.style, target)
+            WinSetExStyle(saved.exStyle, target)
+            if !DllCall("SetWindowPlacement", "ptr", hwnd, "ptr", saved.placement, "int")
+                throw OSError(A_LastError, "Restore Super Hotkey window")
+            if !DllCall("SetWindowPos", "ptr", hwnd, "ptr", 0,
+                "int", 0, "int", 0, "int", 0, "int", 0, "uint", 0x37, "int")
+                throw OSError(A_LastError, "Restore Super Hotkey frame")
+            this.placements.Delete(hwnd)
+            SuiteSizeGrip.Move(window, WinGetMinMax(target))
+            return
+        }
+
+        placement := Buffer(44, 0) ; WINDOWPLACEMENT
+        NumPut("uint", placement.Size, placement)
+        if !DllCall("GetWindowPlacement", "ptr", hwnd, "ptr", placement, "int")
+            throw OSError(A_LastError, "Save Super Hotkey placement")
+        monitor := DllCall("MonitorFromWindow", "ptr", hwnd, "uint", 2, "ptr")
+        info := Buffer(40, 0) ; MONITORINFO, including full display bounds
+        NumPut("uint", info.Size, info)
+        if !monitor || !DllCall("GetMonitorInfoW", "ptr", monitor, "ptr", info, "int")
+            throw OSError(A_LastError, "Find Super Hotkey monitor")
+
+        window.Restore()
+        style := WinGetStyle(target)
+        exStyle := WinGetExStyle(target)
+        this.placements[hwnd] := {placement: placement, style: style, exStyle: exStyle}
+        WinSetStyle((style & ~0xC40000) | 0x80000000, target) ; popup, no caption/resize border
+        WinSetExStyle(exStyle & ~0x300, target) ; no client/window edge
+        left := NumGet(info, 4, "int")
+        top := NumGet(info, 8, "int")
+        if !DllCall("SetWindowPos", "ptr", hwnd, "ptr", 0,
+            "int", left, "int", top,
+            "int", NumGet(info, 12, "int") - left,
+            "int", NumGet(info, 16, "int") - top,
+            "uint", 0x34, "int") ; FRAMECHANGED | NOACTIVATE | NOZORDER
+            throw OSError(A_LastError, "Enter Super Hotkey fullscreen")
+        SuiteSizeGrip.Move(window)
+    }
+}
+
 class SuiteSizeGrip {
     static handles := Map()
 
@@ -69,7 +145,7 @@ class SuiteSizeGrip {
             this.handles.Delete(window.Hwnd)
             return
         }
-        if minMax = 1 {
+        if minMax = 1 || SuiteFullscreen.IsFullscreen(window) {
             DllCall("ShowWindow", "ptr", grip, "int", 0, "int")
             return
         }
@@ -204,3 +280,10 @@ PaperPadWindowActive(*) {
     hwnd := DllCall("GetForegroundWindow", "ptr")
     return hwnd && !!DllCall("GetPropW", "ptr", hwnd, "str", "nroj.Scratchpad.Notepad3Window", "ptr")
 }
+
+#HotIf SuiteFullscreen.Active()
+F11::{
+    SuiteFullscreen.Toggle()
+    KeyWait "F11" ; ignore key repeat while held
+}
+#HotIf
