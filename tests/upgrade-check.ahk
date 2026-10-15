@@ -879,6 +879,8 @@ class SuiteUpgradeChecks {
                     consistentFamily := false
             this.Assert(consistentFamily,
                 "Keybindings uses the Help-page font family")
+            this.Assert(!!(WinGetExStyle("ahk_id " editor.Hwnd) & 0x02000000),
+                "Keybindings composites child-control painting")
             initialRows := app.manager.visibleRows.Length
             editor.Show("w1120 h1100")
             editor.GetClientPos(, , &expandedWidth, &expandedHeight)

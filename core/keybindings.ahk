@@ -959,7 +959,8 @@ class Keybindings {
         this.settingsWindowWidth := 1060
         this.settingsWindowHeight := Min(860, Max(560, A_ScreenHeight - 125))
 
-        window := SuiteGui("+Resize +MinSize820x520 +0x02000000", this._SettingsTitle())
+        ; Buffer child-window painting while the editor updates many row controls.
+        window := SuiteGui("+Resize +MinSize820x520 +0x02000000 +E0x02000000", this._SettingsTitle())
         this.settings := window
         window.BackColor := "FAF7F2"
         SuiteFullscreen.Enable(window)
@@ -1007,6 +1008,31 @@ class Keybindings {
         markerWidth := 84
         x := Floor((width - 24 - titleWidth - gap - markerWidth) / 2)
         return {x: x, titleWidth: titleWidth, markerX: x + titleWidth + gap}
+    }
+
+    ; Avoid dispatching redundant WM_SETTEXT, ShowWindow and EnableWindow updates.
+    static _SetSettingsText(control, value) {
+        if control.Text != value
+            control.Text := value
+    }
+
+    static _SetSettingsVisible(control, visible) {
+        if control.Visible != visible
+            control.Visible := visible
+    }
+
+    static _SetSettingsEnabled(control, enabled) {
+        if control.Enabled != enabled
+            control.Enabled := enabled
+    }
+
+    static _MoveSettingsHeading(control, x, width := unset) {
+        control.GetPos(&currentX, , &currentWidth)
+        if IsSet(width) {
+            if currentX != x || currentWidth != width
+                control.Move(x, , width)
+        } else if currentX != x
+            control.Move(x)
     }
 
     _AddSettingsRow() {
@@ -1248,14 +1274,16 @@ class Keybindings {
     _RenderSettings(*) {
         if !IsObject(this.settings)
             return
-        this.settings.Title := this._SettingsTitle()
+        newTitle := this._SettingsTitle()
+        if this.settings.Title != newTitle
+            this.settings.Title := newTitle
         this.warningButtons := Map()
         search := this.settings["search"].Value
         this.participants[1].actions := this._LocalCatalogSnapshot()
         this.rows := Keybindings.DisplayRows(this.participants, search)
         maximum := Max(0, this.rows.Length - this.visibleRows.Length)
         this.scrollPosition := Min(Max(this.scrollPosition, 0), maximum)
-        this.settingsScroll.Visible := maximum > 0
+        Keybindings._SetSettingsVisible(this.settingsScroll, maximum > 0)
         ; SCROLLINFO controls both the actual offset and the proportional thumb.
         ; nMax is the final row index, and nPage is the visible row count.
         scrollInfo := Buffer(28, 0)
@@ -1277,45 +1305,45 @@ class Keybindings {
             editable := isAction && entry.editable
             row.actionId := editable ? entry.id : ""
             row.ownerId := isAction ? entry.ownerId : ""
-            row.title.Visible := isAction
-            row.categoryTitle.Visible := visible && !isAction
-            row.scopeIndicator.Visible := visible && !isAction && HasProp(entry, "scope")
-                && entry.scope != ""
-            row.primary.Visible := isAction
-            row.secondary.Visible := isAction
-            row.reset.Visible := isLocal
+            Keybindings._SetSettingsVisible(row.title, isAction)
+            Keybindings._SetSettingsVisible(row.categoryTitle, visible && !isAction)
+            scoped := visible && !isAction && HasProp(entry, "scope") && entry.scope != ""
+            Keybindings._SetSettingsVisible(row.scopeIndicator, scoped)
+            Keybindings._SetSettingsVisible(row.primary, isAction)
+            Keybindings._SetSettingsVisible(row.secondary, isAction)
+            Keybindings._SetSettingsVisible(row.reset, isLocal)
             if !visible
                 continue
             if !isAction {
                 heading := entry.label = "Global" ? "★ Global ★" : entry.label
-                row.categoryTitle.Text := heading
-                if row.scopeIndicator.Visible {
+                Keybindings._SetSettingsText(row.categoryTitle, heading)
+                if scoped {
                     layout := Keybindings.ScopeHeadingLayout(clientWidth, heading)
-                    row.categoryTitle.Move(layout.x, , layout.titleWidth)
-                    row.scopeIndicator.Move(layout.markerX)
+                    Keybindings._MoveSettingsHeading(row.categoryTitle, layout.x, layout.titleWidth)
+                    Keybindings._MoveSettingsHeading(row.scopeIndicator, layout.markerX)
                 } else
-                    row.categoryTitle.Move(22, , clientWidth - 68)
+                    Keybindings._MoveSettingsHeading(row.categoryTitle, 22, clientWidth - 68)
                 continue
             }
-            row.title.Text := entry.label
-            row.primary.Enabled := editable
-            row.secondary.Enabled := editable
+            Keybindings._SetSettingsText(row.title, entry.label)
+            Keybindings._SetSettingsEnabled(row.primary, editable)
+            Keybindings._SetSettingsEnabled(row.secondary, editable)
             setting := isLocal ? this.configuration[entry.id] : entry.setting
             for slot, control in [row.primary, row.secondary] {
                 parsed := Keybindings.Parse(setting.bindings[slot])
                 if !IsObject(parsed) {
-                    control.Text := "+ add"
+                    Keybindings._SetSettingsText(control, "+ add")
                     continue
                 }
                 inactiveLayer := parsed.layer != "normal" && this.BindingUnavailable(parsed) != ""
                 if inactiveLayer
                     this.warningButtons[control.Hwnd] := true
-                control.Text := (inactiveLayer ? "⚠ " : "") parsed.label
+                Keybindings._SetSettingsText(control, (inactiveLayer ? "⚠ " : "") parsed.label)
             }
             if isLocal {
                 defaults := this.actions[entry.id].defaults
-                row.reset.Enabled := setting.bindings[1] != defaults[1]
-                    || setting.bindings[2] != defaults[2]
+                Keybindings._SetSettingsEnabled(row.reset,
+                    setting.bindings[1] != defaults[1] || setting.bindings[2] != defaults[2])
             }
         }
     }
