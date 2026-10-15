@@ -27,7 +27,7 @@ adjust the AutoHotkey executable location if necessary. `--dry-run` uses tempora
 
 the tray contains Modules, Keybindings, five module Getting started pages, Debug log, Verbose logging, Open settings folder, Run at startup, Suspend, Restart Super Hotkey, Reset to defaults and Exit. module Settings and Keybindings are accessible from each module's guide.
 
-double-tap Shift (configurable to Ctrl, Alt or Disabled) toggles Caps Lock while the CapsLock layer is enabled. a separate optional toggle shortcut is in Secret Keys → Keybindings. context-specific categories have a subtle `[scoped]` heading marker. Windows Terminal macros work only in Windows Terminal, and Paper Pad editor shortcuts work only inside the editor. scopes can share shortcuts only when explicitly known not to overlap; a global shortcut still conflicts with a scoped one.
+double-tap Shift (configurable to Ctrl, Alt or Disabled) toggles Caps Lock while the CapsLock layer is enabled. a separate optional toggle shortcut is in Secret Keys → Keybindings. context-specific categories have a subtle `[scoped]` heading marker. Windows Terminal macros work only in Windows Terminal, and Paper Pad editor shortcuts work only inside the editor. non-overlapping scopes can share shortcuts. narrow scoped shortcuts also override global shortcuts while active; the global shortcut remains available elsewhere. broad inverse scopes still conflict with globals.
 
 default Keybindings hotkeys are **Caps + K** and **Ctrl + Alt + K**. inactive layer hotkeys remain visible and editable. module and Secret Keys layer changes take effect after restarting. Windows Snap and optional FancyZones changes are never applied at startup without permission.
 

@@ -395,8 +395,28 @@ class SuiteUpgradeChecks {
                 SuiteChecks.Rejects((*) => manager.Apply(configuration), "a global collision is still rejected: " suffix)
                 this.Assert(FileRead(manager.path) = before, "scope conflict does not overwrite saved bindings: " suffix)
                 configuration["global"].bindings[1] := alternate
-                SuiteChecks.Rejects((*) => manager.Apply(configuration),
-                    "global hotkeys still conflict with scoped Terminal shortcuts: " suffix)
+                manager.Apply(configuration)
+                this.Assert(manager.routeMap[alternateSignature].Length = 3,
+                    "global fallback shares an explicit scoped shortcut: " suffix)
+                this.scopeActive := false
+                this.terminalScopeActive := false
+                this.Assert(manager._SelectedRoute(alternateSignature).action.id = "global",
+                    "global fallback works outside scoped windows: " suffix)
+                this.scopeActive := true
+                this.Assert(manager._SelectedRoute(alternateSignature).action.id = "editor-alt",
+                    "editor scope overrides the global fallback: " suffix)
+                this.scopeActive := false
+                this.terminalScopeActive := true
+                this.Assert(manager._SelectedRoute(alternateSignature).action.id = "terminal-alt",
+                    "Terminal scope overrides the global fallback: " suffix)
+                this.terminalScopeActive := false
+                overlapping := manager.GetConfiguration()
+                overlapping["inside"].bindings[1] := alternate
+                before := FileRead(manager.path)
+                SuiteChecks.Rejects((*) => manager.Apply(overlapping),
+                    "two overlapping editor shortcuts still conflict: " suffix)
+                this.Assert(FileRead(manager.path) = before,
+                    "overlapping scoped conflict preserves saved assignments: " suffix)
                 if layered {
                     global CPL
                     CPL.enabled := true
@@ -409,6 +429,18 @@ class SuiteUpgradeChecks {
                     this.scopeActive := true
                     this.Assert(CPL_SelectRoute(routeKey) = this.Route(manager, "inside").specification,
                         "layer dispatcher chooses the inside scope")
+                    alternateRouteKey := CPL_RouteKey("caps", 0, Keybindings.Parse(alternate).key)
+                    this.scopeActive := false
+                    this.terminalScopeActive := false
+                    this.Assert(CPL_SelectRoute(alternateRouteKey) = this.Route(manager, "global").specification,
+                        "layer dispatcher chooses global fallback outside scoped windows")
+                    this.terminalScopeActive := true
+                    this.Assert(CPL_SelectRoute(alternateRouteKey) = this.Route(manager, "terminal-alt").specification,
+                        "layer dispatcher prioritizes Terminal over the global fallback")
+                    this.terminalScopeActive := false
+                    this.scopeActive := true
+                    this.Assert(CPL_SelectRoute(alternateRouteKey) = this.Route(manager, "editor-alt").specification,
+                        "layer dispatcher prioritizes editor over the global fallback")
                 }
                 this.observerCalls := 0
                 for unused in [1, 2]

@@ -563,7 +563,7 @@ class Keybindings {
             signature := route.binding.signature
             if seen.Has(signature) {
                 for previous in seen[signature]
-                    if !Keybindings.DisjointScopes(previous.action.scope, route.action.scope, this.disjointPairs)
+                    if !Keybindings.CanCoexistScopes(previous.action.scope, route.action.scope, this.disjointPairs)
                         throw Error(route.binding.label " conflicts with " previous.action.label
                             . " and " route.action.label ". No hotkeys were changed.")
             } else
@@ -637,7 +637,16 @@ class Keybindings {
         this.externalCapture := IsObject(this.recording)
         this._RefreshGate()
         this.routeMap := Map()
-        for route in this.routes {
+        ; Scope-specific routes take priority over global fallbacks in both
+        ; the normal dispatcher and the Secret Keys layer dispatcher.
+        orderedRoutes := []
+        for route in this.routes
+            if route.action.scope != ""
+                orderedRoutes.Push(route)
+        for route in this.routes
+            if route.action.scope = ""
+                orderedRoutes.Push(route)
+        for route in orderedRoutes {
             ; Conflict state is a rejected claim, not merely a disabled native key.
             if InStr(route.state, "unavailable:") = 1
                 continue
@@ -1718,6 +1727,18 @@ class Keybindings {
         ; A context callback alone is not proof that two actions cannot overlap.
         return first != "" && second != "" && ((first = "!" second || second = "!" first)
             || (IsObject(pairs) && pairs.Has(first "|" second)))
+    }
+
+    static CanCoexistScopes(first, second, pairs := 0) {
+        if Keybindings.DisjointScopes(first, second, pairs)
+            return true
+        ; Narrow positive scopes override a global shortcut while active.
+        ; A broad inverse scope (!paper-pad, etc.) cannot override global routes.
+        if first = ""
+            return second != "" && SubStr(second, 1, 1) != "!"
+        if second = ""
+            return SubStr(first, 1, 1) != "!"
+        return false
     }
 
     BindingUnavailable(binding) {
