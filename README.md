@@ -27,7 +27,7 @@ adjust the AutoHotkey executable location if necessary. `--dry-run` uses tempora
 
 the tray contains Modules, Keybindings, five module Getting started pages, Debug log, Verbose logging, Open settings folder, Run at startup, Suspend, Restart Super Hotkey, Reset to defaults and Exit. module Settings and Keybindings are accessible from each module's guide.
 
-default Keybindings hotkeys are **Caps + K** and **Ctrl + Alt + K**. inactive layer hotkeys remain visible and editable. module and Secret Keys layer changes take effect after restarting. Windows Snap and optional FancyZones changes are never applied at startup without permission.
+double-tap Shift (configurable to Ctrl, Alt or Disabled) toggles Caps Lock while the CapsLock layer is enabled. a separate optional toggle shortcut is in Secret Keys → Keybindings. default Keybindings hotkeys are **Caps + K** and **Ctrl + Alt + K**. inactive layer hotkeys remain visible and editable. module and Secret Keys layer changes take effect after restarting. Windows Snap and optional FancyZones changes are never applied at startup without permission.
 
 ## data and safety
 

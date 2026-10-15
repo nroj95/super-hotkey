@@ -25,6 +25,7 @@ class SuiteApplication {
         this.wonderStarted := false
         this.manager := 0
         this.power := 0
+        this.capsToggle := 0
         this.ui := 0
         this.stopping := false
         this.systemSuspended := false
@@ -97,6 +98,8 @@ class SuiteApplication {
         this.sessionNotifications := DllCall("Wtsapi32\WTSRegisterSessionNotification",
             "ptr", A_ScriptHwnd, "uint", 0, "int") != 0
         this.RefreshInputGate()
+        if !this.dryRun && IsObject(this.capsToggle)
+            this.capsToggle.Start()
         for id, enabled in this.activeModules
             SuiteState.Log.Write(SuiteSettings.ModuleNames[id], enabled ? (this.dryRun ? "dry run; effects disabled" : "enabled") : "disabled")
         SuiteState.Log.Write("Core", "startup complete")
@@ -129,9 +132,24 @@ class SuiteApplication {
             ObjBindMethod(this, "HelpShortcutEvent", "keyboard-layers"), [],
             {category: "Secret Keys", help: true,
                 available: (*) => this.ModuleActive("keyboard-layers")})
+        ; Retain the old ID so saved shortcuts survive the change of module owner.
+        this.manager.AddAction("power-hotkey.keyboard.toggle-caps", "toggle Caps Lock",
+            ObjBindMethod(this, "ToggleCapsLockEvent"), [],
+            {category: "Secret Keys", available: (*) => this.ModuleActive("keyboard-layers")})
+        if this.ModuleActive("keyboard-layers") && this.activeLayers["caps"]
+            && this.Settings.capsToggleModifier != "Disabled"
+            this.capsToggle := CapsLockModifierToggle(this.Settings.capsToggleModifier)
     }
 
     ModuleActive(id) => this.activeModules.Has(id) && this.activeModules[id]
+
+    ToggleCapsLock(*) => SetCapsLockState(GetKeyState("CapsLock", "T") ? "Off" : "On")
+
+    ToggleCapsLockEvent(event) {
+        if event.phase = "up" && !this.dryRun && !this.stopping && !this.suspended
+            && !this.manager.gated && this.ModuleActive("keyboard-layers")
+            this.ToggleCapsLock()
+    }
 
     BindingStatus(message) {
         SuiteState.Log.Write("Keybindings", message)
@@ -161,6 +179,8 @@ class SuiteApplication {
     }
 
     CancelInputs() {
+        if IsObject(this.capsToggle)
+            this.capsToggle.Reset()
         if IsObject(this.wonder)
             this.wonder.CancelWork()
         if IsObject(this.power)
@@ -255,6 +275,8 @@ class SuiteApplication {
         }
         this.stopping := true
         SetTimer(this.resumeCallback, 0)
+        if IsObject(this.capsToggle)
+            this.Cleanup("Secret Keys / Caps Lock", ObjBindMethod(this.capsToggle, "Stop"))
         if IsObject(this.manager)
             this.Cleanup("Keybindings", ObjBindMethod(this.manager, "Stop"))
         if IsObject(this.power)

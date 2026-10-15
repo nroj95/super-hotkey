@@ -20,6 +20,8 @@ class SuiteSettings {
             this.modules[id] := this.ReadFlag("modules", id, true)
         this.layers := Map("caps", this.ReadFlag("layers", "caps", true),
             "pause", this.ReadFlag("layers", "pause", true))
+        this.capsToggleModifier := KB_Manifest.Get(this.document, "layers", "capsToggleModifier", "Shift")
+        SuiteSettings.ValidateCapsToggleModifier(this.capsToggleModifier)
         this.verbose := this.ReadFlag("logging", "verbose", false)
     }
 
@@ -30,11 +32,19 @@ class SuiteSettings {
         return value = "1"
     }
 
-    Save(modules, layers := unset, verbose := unset) {
+    static ValidateCapsToggleModifier(modifier) {
+        if modifier != "Shift" && modifier != "Ctrl" && modifier != "Alt" && modifier != "Disabled"
+            throw ValueError("Invalid Caps Lock double-tap modifier: " modifier)
+    }
+
+    Save(modules, layers := unset, verbose := unset, capsToggleModifier := unset) {
         if !IsSet(layers)
             layers := this.layers
         if !IsSet(verbose)
             verbose := this.verbose
+        if !IsSet(capsToggleModifier)
+            capsToggleModifier := this.capsToggleModifier
+        SuiteSettings.ValidateCapsToggleModifier(capsToggleModifier)
         document := Map()
         for section, values in this.document
             document[section] := values.Clone()
@@ -51,6 +61,7 @@ class SuiteSettings {
                 throw ValueError("Missing or invalid layer choice: " id)
             document["layers"][id] := layers[id] ? "1" : "0"
         }
+        document["layers"]["capsToggleModifier"] := capsToggleModifier
         if verbose != 0 && verbose != 1
             throw ValueError("Invalid verbose logging preference.")
         document["logging"] := Map("verbose", verbose ? "1" : "0")
@@ -59,6 +70,7 @@ class SuiteSettings {
         this.document := document
         this.modules := modules.Clone()
         this.layers := layers.Clone()
+        this.capsToggleModifier := capsToggleModifier
         this.verbose := !!verbose
     }
 

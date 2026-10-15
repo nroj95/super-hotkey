@@ -12,6 +12,7 @@
 #Include "%A_ScriptDir%\core\tray.ahk"
 #Include "%A_ScriptDir%\modules\keyboard-layers\keyboard-layers.ahk"
 #Include "%A_ScriptDir%\modules\keyboard-layers\state-machine.ahk"
+#Include "%A_ScriptDir%\modules\keyboard-layers\caps-lock-toggle.ahk"
 #Include "%A_ScriptDir%\modules\power-hotkey\power-hotkey.ahk"
 #Include "%A_ScriptDir%\modules\power-hotkey\modules.ahk"
 #Include "%A_ScriptDir%\modules\power-hotkey\keyboard.ahk"

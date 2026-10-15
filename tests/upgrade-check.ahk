@@ -65,6 +65,7 @@ class SuiteUpgradeChecks {
     static Run() {
         this.Preferences()
         this.IndependentLayers()
+        this.CapsLockDoubleTap()
         this.ApplicationSuspension()
         this.DisabledModuleWarning()
         this.ScopesAndObservers()
@@ -77,10 +78,16 @@ class SuiteUpgradeChecks {
         settings := SuiteSettings(SuiteChecks.directory "\upgrade-preferences")
         this.Assert(settings.layers["caps"] && settings.layers["pause"] && !settings.verbose,
             "both Secret Keys layers default on; verbose debugging defaults off")
+        this.Assert(settings.capsToggleModifier = "Shift",
+            "Shift is the default Caps Lock double-tap modifier")
         settings.Save(settings.modules, Map("caps", false, "pause", true), true)
         loaded := SuiteSettings(settings.directory)
         this.Assert(!loaded.layers["caps"] && loaded.layers["pause"] && loaded.verbose,
             "independent layers and the one global debug preference survive restart")
+        settings.Save(settings.modules, settings.layers, settings.verbose, "Alt")
+        this.Assert(SuiteSettings(settings.directory).capsToggleModifier = "Alt",
+            "selected Caps Lock modifier survives restart")
+        settings.Save(settings.modules, settings.layers, settings.verbose, "Shift")
         document := KB_Manifest.Read(settings.path)
         document["layers"]["pause"] := "invalid"
         KB_Manifest.WriteAtomic(settings.path, document)
@@ -168,6 +175,46 @@ class SuiteUpgradeChecks {
             }
             finally manager.Stop()
         }
+    }
+
+    static CapsLockDoubleTap() {
+        for choice in ["Shift", "Ctrl", "Alt"] {
+            vk := Map("Shift", 0xA0, "Ctrl", 0xA2, "Alt", 0xA4)[choice]
+            sc := Map("Shift", 0x02A, "Ctrl", 0x01D, "Alt", 0x038)[choice]
+            detector := CapsLockModifierToggle(choice)
+            detector.HandleDown(vk, sc, 100, false)
+            this.Assert(!detector.HandleUp(vk, sc, 150, false),
+                "first " choice " tap does not toggle Caps Lock")
+            detector.HandleDown(vk, sc, 260, false)
+            this.Assert(detector.HandleUp(vk, sc, 300, false),
+                "second " choice " tap toggles Caps Lock")
+            detector.HandleDown(vk, sc, 500, false)
+            detector.HandleUp(vk, sc, 550, false)
+            detector.HandleDown(0x41, 0x01E, 560, false)
+            detector.HandleUp(0x41, 0x01E, 575, false)
+            detector.HandleDown(vk, sc, 640, false)
+            this.Assert(!detector.HandleUp(vk, sc, 680, false),
+                "typing between " choice " taps cancels the sequence")
+            detector.Reset()
+            detector.HandleDown(vk, sc, 800, true)
+            this.Assert(!detector.HandleUp(vk, sc, 840, false),
+                "modifier chords do not start a double-tap")
+            detector.HandleDown(vk, sc, 1000, false)
+            detector.HandleUp(vk, sc, 1060, false)
+            detector.HandleDown(vk, sc, 1500, false)
+            this.Assert(!detector.HandleUp(vk, sc, 1540, false),
+                "slow " choice " double-taps do not toggle")
+            detector.Reset()
+            detector.HandleDown(vk, sc, 1800, false)
+            detector.HandleDown(vk, sc, 1820, false)
+            detector.HandleUp(vk, sc, 1850, false)
+            detector.HandleDown(vk, sc, 1950, false)
+            this.Assert(detector.HandleUp(vk, sc, 1990, false),
+                "key repeat does not count as a separate tap")
+            detector.Stop()
+        }
+        SuiteChecks.Rejects((*) => CapsLockModifierToggle("CapsLock"),
+            "CapsLock cannot be its own double-tap modifier")
     }
 
     static ApplicationSuspension() {
@@ -416,6 +463,7 @@ class SuiteUpgradeChecks {
                 "Power-Up Utilities / Text and symbols", 0)
             for actionId, action in manager.actions {
                 if InStr(actionId, "power-hotkey.") != 1
+                    || actionId = "power-hotkey.keyboard.toggle-caps"
                     continue
                 this.Assert(groups.Has(action.category),
                     "Power-Up Utilities keeps only useful subcategories: " actionId)
@@ -488,6 +536,9 @@ class SuiteUpgradeChecks {
             this.Assert(saved["keyboard-layers.help"].bindings[1] = ""
                 && saved["keyboard-layers.help"].bindings[2] = "",
                 "Secret Keys Help remains unassigned by default")
+            this.Assert(manager.actions["power-hotkey.keyboard.toggle-caps"].category = "Secret Keys"
+                && saved["power-hotkey.keyboard.toggle-caps"].bindings[1] = "",
+                "Caps Lock toggle belongs to Secret Keys and defaults unassigned")
             this.Assert(saved["window-cascade.help"].bindings[1]
                 = Keybindings.Parse("Caps + H").signature
                 && saved["win-key-overhaul.help"].bindings[1]

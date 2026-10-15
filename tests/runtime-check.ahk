@@ -98,6 +98,12 @@ class SuiteChecks {
             app.activeModules["power-hotkey"] := false
             manager.Apply(configuration)
             this.Assert(!this.HasRoute(manager, "power-hotkey.keyboard.f13"), "disabled module releases its routes")
+            capsConfiguration := manager.GetConfiguration()
+            capsConfiguration["power-hotkey.keyboard.toggle-caps"].bindings[1] := "Ctrl + Alt + F10"
+            manager.Apply(capsConfiguration)
+            this.Assert(this.HasRoute(manager, "power-hotkey.keyboard.toggle-caps"),
+                "Caps Lock shortcut works with Power-Up Utilities disabled")
+            manager.Apply(configuration)
             rows := Keybindings.DisplayRows(manager.DiscoverParticipants())
             found := false
             for row in rows

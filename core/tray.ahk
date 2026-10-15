@@ -555,11 +555,17 @@ class SuiteInterface {
         window.AddText("x20 y20 w560", "Modules is the master switch. These choices control each layer independently.")
         window.AddCheckbox("x20 y70 w540 vcaps", "Enable CapsLock Layer").Value := this.app.Settings.layers["caps"]
         window.AddCheckbox("x20 y115 w540 vpause", "Enable Pause Layer").Value := this.app.Settings.layers["pause"]
-        window.AddText("x20 y165 w560", "A disabled layer releases its native key unless you explicitly reassign it."
-            . "`nSaved layer hotkeys stay visible and editable in Keybindings.")
+        window.AddText("x20 y160 w560", "Double-tap a modifier to toggle Caps Lock:")
+        modifiers := ["Shift", "Ctrl", "Alt", "Disabled"]
+        selector := window.AddDropDownList("x20 y190 w220 vcapsToggleModifier", modifiers)
+        for index, modifier in modifiers
+            if modifier = this.app.Settings.capsToggleModifier
+                selector.Choose(index)
+        window.AddText("x20 y235 w560", "Only works while the CapsLock layer is enabled."
+            . "`nAn optional shortcut is available in Keybindings.")
         this.Footer(window, [["Apply and restart", ObjBindMethod(this, "SaveLayers"), 160],
-            ["Back", ObjBindMethod(this, "BackToHelp", "keyboard-layers"), 100]], 260, 600)
-        this.ShowPage(key, 600, 310, 560, 285)
+            ["Back", ObjBindMethod(this, "BackToHelp", "keyboard-layers"), 100]], 300, 600)
+        this.ShowPage(key, 600, 350, 560, 325)
     }
 
     SaveLayers(*) {
@@ -567,7 +573,8 @@ class SuiteInterface {
         window := this.windows[key]
         try {
             this.app.Settings.Save(this.app.Settings.modules,
-                Map("caps", window["caps"].Value != 0, "pause", window["pause"].Value != 0))
+                Map("caps", window["caps"].Value != 0, "pause", window["pause"].Value != 0),
+                this.app.Settings.verbose, window["capsToggleModifier"].Text)
             this.CloseWindow(key)
             Reload()
         }
@@ -917,7 +924,7 @@ class SuiteInterface {
     }
 
     ResetDefaults(*) {
-        if MsgBox("Re-enable all five modules and both layers, and restore default hotkeys and preferences?"
+        if MsgBox("Re-enable all five modules and both layers, and restore default hotkeys, modifier toggle and preferences?"
             . "`n`nNotes, their folder, editor path, Notepad3 preferences and page state will be kept."
             . "`nA settings backup will be created. The suite will restart.",
             SuiteApplication.Name, "YesNo Default2 Icon?") != "Yes"
@@ -932,7 +939,7 @@ class SuiteInterface {
             choices := Map()
             for id in SuiteSettings.ModuleOrder
                 choices[id] := true
-            app.Settings.Save(choices, Map("caps", true, "pause", true), false)
+            app.Settings.Save(choices, Map("caps", true, "pause", true), false, "Shift")
             app.Settings.ResetModulePreferences()
             SuiteState.Log.Write("Core", "defaults restored; backup: " backup)
             Reload()

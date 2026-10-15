@@ -158,7 +158,6 @@ class PowerHotkeys {
             switch job.action.kind {
                 case "text": SendText(job.action.value)
                 case "timestamp": SendText(FormatTime(, "yyyyMMdd-HHmmss"))
-                case "caps-lock": SetCapsLockState(GetKeyState("CapsLock", "T") ? "Off" : "On")
                 case "terminal-copy": this.terminal.Copy(job)
                 case "terminal-clear": this.terminal.Clear(job)
                 case "speaker-wake": this.utilities.WakeSpeakers(job)

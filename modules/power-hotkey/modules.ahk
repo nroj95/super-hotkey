@@ -18,8 +18,6 @@ class PH_Modules {
                 description: "Insert ß, an en dash, a curly apostrophe, or the literal text &nbsp;."},
             {id: "timestamp", label: "Timestamps",
                 description: "Insert the current local time as yyyyMMdd-HHmmss."},
-            {id: "caps-lock", label: "Caps Lock toggle",
-                description: "Toggle actual capitalization using a configurable hotkey."},
             {id: "speaker-wake", label: "Speaker wake",
                 description: "Play the original Windows sound; temporarily raise low volume to 16%."},
             {id: "sleep", label: "Computer sleep",
@@ -59,9 +57,6 @@ class PH_Modules {
         app.AddAction("text", "text.nbsp", "insert literal &nbsp;", "text", "&nbsp;", "Pause + N", true)
         app.AddAction("timestamp", "text.timestamp", "insert timestamp",
             "timestamp", "", "Pause + T", true)
-        ; Sequences/modifier-only gestures are not part of the current library.
-        app.AddAction("caps-lock", "keyboard.toggle-caps", "toggle Caps Lock",
-            "caps-lock", "", "Caps + Shift + Space")
         app.AddAction("speaker-wake", "system.wake-speakers", "wake speakers",
             "speaker-wake", "", "Pause + W")
         app.AddAction("sleep", "system.sleep", "sleep computer", "sleep", "", "Pause + Escape")
