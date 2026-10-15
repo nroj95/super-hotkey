@@ -141,33 +141,16 @@ class ScratchpadController
             settings := "[Paths]`nScratchDirectory=" default_scratch_directory
                 . "`nNotepad3Executable=`n"
                 . "`n[Window]`nMonitor=Primary`nWidthPercent=45`nHeightPercent=35`nAnimationDurationMs=180`n"
-                . "`n[Saving]`nAutosaveIntervalMs=10000`n`n[Controls]`nToggleHotkey=Win+F12`n"
+                . "`n[Saving]`nAutosaveIntervalMs=10000`n"
                 . "`n[Setup]`nWelcomePending=1`n"
             FileAppend settings, this.settings_path, "UTF-16"
         }
-        if IniRead(this.settings_path, "Controls", "ToggleHotkey", "<missing>") = "<missing>" {
-            legacy_f12 := this.ReadNumber("Controls", "EnableF12", 0, 0, 1)
-            IniWrite legacy_f12 ? "F12" : "Win+F12", this.settings_path, "Controls", "ToggleHotkey"
-        }
-        if IniRead(this.settings_path, "Controls", "EnableF12", "<missing>") != "<missing>"
-            IniDelete this.settings_path, "Controls", "EnableF12"
-        ; Do not reuse the old Notepad++ path. Remove that legacy key and ensure
-        ; the dedicated Notepad3 setting exists instead.
-        if IniRead(this.settings_path, "Paths", "NotepadExecutable", "<missing>") != "<missing>"
-            IniDelete this.settings_path, "Paths", "NotepadExecutable"
         if IniRead(this.settings_path, "Paths", "Notepad3Executable", "<missing>") = "<missing>"
             IniWrite "", this.settings_path, "Paths", "Notepad3Executable"
         if IniRead(this.settings_path, "Window", "Monitor", "<missing>") = "<missing>"
             IniWrite "Primary", this.settings_path, "Window", "Monitor"
 
-        ; Remove retired Z-order settings from existing controller files.
-        if IniRead(this.settings_path, "Window", "AlwaysOnTop", "<missing>") != "<missing>"
-            IniDelete this.settings_path, "Window", "AlwaysOnTop"
-        if IniRead(this.settings_path, "Setup", "SettingsVersion", "<missing>") != "<missing>"
-            IniDelete this.settings_path, "Setup", "SettingsVersion"
-
-        ; Windows INI writes use CRLF. Normalize the controller settings after
-        ; migrations so Notepad3 never sees a mixture of LF and CRLF lines.
+        ; Windows INI writes use CRLF. Normalize the controller settings so Notepad3 never sees a mixture of LF and CRLF lines.
         original_settings := FileRead(this.settings_path, "UTF-16")
         settings := StrReplace(original_settings, "`r`n", "`n")
         settings := StrReplace(settings, "`r", "`n")

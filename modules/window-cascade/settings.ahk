@@ -154,11 +154,7 @@ focus_corner_active_slot_color :=
 focus_corner_inactive_slot_color :=
     focus_tab_color_presets[focus_corner_inactive_slot_color_name]
 
-rotate_key := IniRead(settings_path, "Controls", "RotateKey", "")
-
-; Read the legacy INI section only to preserve an existing rotate-key choice.
-if rotate_key = ""
-    rotate_key := IniRead(settings_path, "Standalone", "RotateKey", "Space")
+rotate_key := IniRead(settings_path, "Controls", "RotateKey", "Space")
 
 if rotate_key != "Space" && rotate_key != "Tab"
     rotate_key := "Space"
