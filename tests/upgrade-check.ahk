@@ -501,6 +501,8 @@ class SuiteUpgradeChecks {
                 "pre-existing overlap does not collapse a stretched window")
             window := SuiteGui("+ToolWindow", "Owned migration test window")
             try {
+                this.Assert(!SuiteSizeGrip.handles.Has(window.Hwnd),
+                    "non-resizable suite windows have no sizing grip")
                 this.Assert(SuiteWindowOwnership.IsSuiteSurface(window.Hwnd), "Wonder Windows excludes the suite's own windows")
                 this.Assert(IsIgnoredByWindowCascade(window.Hwnd), "suite GUI is marked before it can be cascaded")
                 SuiteWindowOwnership.Claim(window.Hwnd)
@@ -520,6 +522,11 @@ class SuiteUpgradeChecks {
                 this.Assert(!SuiteWindowOwnership.IsManual(window.Hwnd), "a lost per-window marker invalidates cached manual ownership")
             }
             finally window.Destroy()
+            focusTabProbe := CreatePhysicalGui("-Caption -DPIScale +ToolWindow +E0x08000000",
+                "Cascade Kingdom focus tab grip test")
+            try this.Assert(!SuiteSizeGrip.handles.Has(focusTabProbe.Hwnd),
+                "Cascade Kingdom focus tabs have no sizing grip")
+            finally focusTabProbe.Destroy()
             event := {phase: "down", actionId: "win-key-overhaul.maximize", slot: 1,
                 foregroundHwnd: 0, key: "sc148", layer: "normal", modifiers: 8, oneShot: false}
             app.wonder.Event(event)

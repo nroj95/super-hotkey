@@ -4,7 +4,10 @@ SuiteGui(options := "", title := "") {
     SuiteIcons.Apply(window)
     ; Mark before showing: the window-show hook must never adopt our own dialogs.
     DllCall("SetPropW", "ptr", window.Hwnd, "str", "nroj.WindowCascade.Ignore", "ptr", 1, "int")
-    SuiteSizeGrip.Attach(window)
+    ; Only actual resizable windows need the native sizing grip.
+    ; Cascade focus tabs, DPI probes and other overlays are not resizable.
+    if DllCall("GetWindowLongPtrW", "ptr", window.Hwnd, "int", -16, "ptr") & 0x00040000 ; WS_THICKFRAME
+        SuiteSizeGrip.Attach(window)
     return window
 }
 
