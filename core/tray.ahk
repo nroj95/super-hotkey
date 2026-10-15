@@ -72,6 +72,7 @@ class SuiteInterface {
 
     NewWindow(key, title, configuration := false, options := "+Resize +0x02000000") {
         window := SuiteGui(options, title)
+        window.BackColor := "FAF7F2"
         SuiteFullscreen.Enable(window)
         window.SetFont("s10", "Cascadia Mono")
         window.OnEvent("Close", ObjBindMethod(this, "CloseWindow", key))

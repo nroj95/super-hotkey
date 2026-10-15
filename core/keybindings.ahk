@@ -945,6 +945,7 @@ class Keybindings {
 
         window := SuiteGui("+Resize +MinSize820x520 +0x02000000", this._SettingsTitle())
         this.settings := window
+        window.BackColor := "FAF7F2"
         SuiteFullscreen.Enable(window)
         this._SetSettingsIcons(window)
         this._RefreshGate()
