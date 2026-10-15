@@ -29,6 +29,8 @@ CPL_PrefixDown(layerName, physicalKey, *) {
     CPL_StartObserver()
     CPL_UpdateReleaseTimer()
     CPL_Indicator()
+    ; A tap must not flash the held state before it becomes a genuine hold.
+    SetTimer(CPL_Indicator, -(CPL.tapMaxMs + CPL.releasePollMs))
 }
 
 CPL_PrefixUp(layerName, physicalKey, *) {
@@ -46,6 +48,8 @@ CPL_FinishPrefix(layerName, allowTap) {
     global CPL
     layer := CPL.layers[layerName]
     selected := CPL.selected = layerName
+    if selected
+        SetTimer(CPL_Indicator, 0)
     shouldArm := allowTap && selected && !layer.used && !layer.cancelTap
         && CPL_Now() - layer.started <= CPL.tapMaxMs
         && CPL_ModifierMask() = 0 && CPL.enabled
@@ -304,6 +308,7 @@ CPL_CheckReleases() {
 CPL_Reset(reason := "manual") {
     global CPL
     Critical
+    SetTimer(CPL_Indicator, 0)
     CPL_Disarm()
     CPL.selected := ""
     CPL.blockedPrefixes.Clear()
@@ -328,10 +333,18 @@ CPL_Reset(reason := "manual") {
     CPL_Indicator()
 }
 
+CPL_HeldIndicatorReady() {
+    global CPL
+    if CPL.selected = ""
+        return false
+    layer := CPL.layers[CPL.selected]
+    return layer.down && CPL_Now() - layer.started > CPL.tapMaxMs
+}
+
 CPL_Indicator() {
     global CPL
-    if !CPL.showIndicator || (CPL.selected = "" && CPL.armed = "")
-        || CPL_ForegroundHidesIndicator() {
+    ready := CPL.selected != "" ? CPL_HeldIndicatorReady() : CPL.armed != ""
+    if !CPL.showIndicator || !ready || CPL_ForegroundHidesIndicator() {
         ToolTip(, , , 2)
         return
     }

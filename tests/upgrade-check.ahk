@@ -67,6 +67,7 @@ class SuiteUpgradeChecks {
         this.Preferences()
         this.IndependentLayers()
         this.CapsLockDoubleTap()
+        this.LayerIndicatorDelay()
         this.ApplicationSuspension()
         this.DisabledModuleWarning()
         this.ScopesAndObservers()
@@ -176,6 +177,30 @@ class SuiteUpgradeChecks {
             }
             finally manager.Stop()
         }
+    }
+
+    static LayerIndicatorDelay() {
+        global CPL
+        CPL_Initialize()
+        this.Assert(!CPL_HeldIndicatorReady(), "idle layers have no held indicator")
+        CPL.selected := "caps"
+        caps := CPL.layers["caps"]
+        caps.down := true
+        caps.started := CPL_Now()
+        this.Assert(!CPL_HeldIndicatorReady(), "initial Caps press hides held indicator")
+        caps.started := CPL_Now() - CPL.tapMaxMs + 50
+        this.Assert(!CPL_HeldIndicatorReady(), "quick Caps tap hides held indicator")
+        caps.started := CPL_Now() - CPL.tapMaxMs - 50
+        this.Assert(CPL_HeldIndicatorReady(), "held Caps passes tap threshold")
+        caps.down := false
+        this.Assert(!CPL_HeldIndicatorReady(), "Caps release cancels held indicator")
+        CPL.selected := "pause"
+        pauseLayer := CPL.layers["pause"]
+        pauseLayer.down := true
+        pauseLayer.started := CPL_Now() - CPL.tapMaxMs - 50
+        this.Assert(CPL_HeldIndicatorReady(), "held Pause passes tap threshold")
+        CPL.selected := ""
+        this.Assert(!CPL_HeldIndicatorReady(), "clearing Pause removes held indicator")
     }
 
     static CapsLockDoubleTap() {
