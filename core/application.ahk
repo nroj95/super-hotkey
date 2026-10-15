@@ -28,7 +28,7 @@ class SuiteApplication {
         this.ui := 0
         this.stopping := false
         this.systemSuspended := false
-        this.hotkeysSuspended := false
+        this.suspended := false
         this.cascadeInitialized := false
         this.cascadeStarted := false
         this.scratchpadStarted := false
@@ -177,12 +177,32 @@ class SuiteApplication {
         this.manager.ShowSettings()
     }
 
+    SetSuspended(suspend) {
+        suspend := !!suspend
+        if this.stopping || this.suspended = suspend
+            return
+        if suspend {
+            this.suspended := true
+            this.RefreshInputGate()
+            this.CancelInputs()
+            if this.cascadeStarted
+                WindowCascadeModule.Suspend()
+        } else {
+            ; Snapshot windows opened during suspension before allowing placement.
+            if this.cascadeStarted
+                WindowCascadeModule.Resume()
+            this.suspended := false
+            this.RefreshInputGate()
+        }
+        SuiteState.Log.Write("Core", "application " (suspend ? "suspended" : "resumed"))
+    }
+
     RefreshInputGate() {
         modulesOpen := IsObject(this.ui) && this.ui.HasSettingsOpen()
         if !IsObject(this.manager) || this.manager.disposed
             return
         this.manager.SetPaused(this.dryRun || this.stopping
-            || this.systemSuspended || this.hotkeysSuspended || modulesOpen)
+            || this.systemSuspended || this.suspended || modulesOpen)
     }
 
     PowerEvent(event, *) {

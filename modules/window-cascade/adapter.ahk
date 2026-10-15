@@ -24,6 +24,34 @@ class WindowCascadeModule {
         SetTimer(CheckCompatibilitySettings, -500)
     }
 
+    static Suspend() {
+        global pending_windows, cascade_compaction_pending, cascade_compaction_timer_pending
+        global placement_stabilization_generations, cascade_mouse_press
+        global focus_corner_overlays, focus_corner_update_pending
+
+        ; Invalidate queued work so it cannot replay when the app resumes.
+        pending_windows.Clear()
+        cascade_compaction_pending.Clear()
+        cascade_compaction_timer_pending := false
+        SetTimer(FlushCascadeCompactions, 0)
+        SetTimer(RunQueuedFocusCornerUpdate, 0)
+        focus_corner_update_pending := false
+        CancelCascadeWindowDrop()
+        if HasCascadeWindowDrag()
+            StopCascadeWindowDrag()
+        cascade_mouse_press := 0
+        for hwnd in placement_stabilization_generations.Clone()
+            CancelPlacementStabilization(hwnd)
+        for hwnd in focus_corner_overlays
+            HideFocusCornerOverlay(hwnd)
+    }
+
+    static Resume() {
+        ; These windows stay unmanaged instead of cascading after the pause.
+        RememberWindowsOpenedWhileAutoPlacementPaused()
+        SetTimer(QueueFocusCornerUpdate, -1)
+    }
+
     static Stop() {
         global cascade_command_queue
         cascade_command_queue := []

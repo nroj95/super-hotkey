@@ -580,6 +580,9 @@ QueueCascadeCompaction(monitor_index, preferred_hwnd := 0)
 {
     global cascade_compaction_pending
 
+    ; A global pause must not leave deferred layout work to replay on resume.
+    if SuiteState.App.suspended
+        return
     if !monitor_index
         return
     if preferred_hwnd || !cascade_compaction_pending.Has(monitor_index)

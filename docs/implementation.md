@@ -10,7 +10,7 @@ module IDs retain their legacy internal names for stable hotkey registration and
 
 Keybindings owns binding persistence, conflict validation, native registration and the recording UI. passive observers fan out to eligible modules. only registered complementary input scopes may share a signature; the Paper Pad editor scope is complementary to normal Wonder Windows navigation.
 
-Secret Keys installs independent CapsLock/Pause prefixes when active. suspending hotkeys releases their interception, while retaining saved assignments; resuming reactivates the hooks only once all gate conditions are clear. queued actions are cancelled on suspension, reconfiguration or shutdown, without suspending background modules.
+Secret Keys installs independent CapsLock/Pause prefixes when active. the tray Suspend toggle releases hotkey and layer interception while retaining saved assignments, pauses Cascade Kingdom window handling, and invalidates pending placements. windows opened during suspension remain unmanaged after resuming; Paper Pad autosave and safety tasks continue.
 
 Wonder Windows claims manually moved windows. Cascade Kingdom respects that claim until explicit adoption. stale window ownership is rejected; changing focus alone does not adopt a window. optional FancyZones integration uses `modules/wonder-windows/fancyzones-settings.ps1` on demand, with user confirmation.
 

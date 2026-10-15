@@ -25,7 +25,7 @@ adjust the AutoHotkey executable location if necessary. `--dry-run` uses tempora
 
 ## navigation
 
-the tray contains Modules, Keybindings, five module Getting started pages, Debug log, Verbose logging, Open settings folder, Run at startup, Suspend hotkeys, Restart Super Hotkey, Reset to defaults and Exit. module Settings and Keybindings are accessible from each module's guide.
+the tray contains Modules, Keybindings, five module Getting started pages, Debug log, Verbose logging, Open settings folder, Run at startup, Suspend, Restart Super Hotkey, Reset to defaults and Exit. module Settings and Keybindings are accessible from each module's guide.
 
 default Keybindings hotkeys are **Caps + K** and **Ctrl + Alt + K**. inactive layer hotkeys remain visible and editable. module and Secret Keys layer changes take effect after restarting. Windows Snap and optional FancyZones changes are never applied at startup without permission.
 
@@ -35,6 +35,6 @@ fresh installations save suite preferences under `%LOCALAPPDATA%\nroj\SuperHotke
 
 Paper Pad uses a dedicated Notepad3 profile, and its note files may be kept elsewhere. restoring default hotkeys in Keybindings is separate from the confirmed **Reset to defaults...** tray action. neither reset deletes personal notes or resets their folder, editor preferences or page state. errors are logged even when verbose logging is off.
 
-**Suspend hotkeys** temporarily disables assigned hotkeys and Secret Keys layers without freezing other module work. the checked tray item can resume them. the native Windows tray and title-bar fonts remain system-controlled; app GUIs use Cascadia Mono.
+**Suspend** temporarily pauses hotkeys, keyboard layers and automatic window management without closing modules. windows opened while suspended remain where they are when resumed. Paper Pad autosave and safety functions continue. the native Windows tray and title-bar fonts remain system-controlled; app GUIs use Cascadia Mono.
 
 see [integration status](docs/integration-status.md), [implementation](docs/implementation.md) and [source provenance](docs/source-provenance.md). historical migration snapshots and scripts can be recovered from Git history, rather than occupying the current checkout.
