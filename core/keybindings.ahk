@@ -497,15 +497,10 @@ class Keybindings {
                 throw Error("Settings owner mismatch; the file was not modified.")
         }
         this.configuration := this._DefaultConfiguration()
-        ; Migrate the previously selected profile. Never guess which of the two
-        ; legacy profiles mattered, and never overwrite a damaged saved value.
-        section := "bindings"
-        if !this.document.Has(section) {
-            legacyProfile := KB_Manifest.Get(this.document, "meta", "profile", "standalone")
-            section := "profile:" legacyProfile
-        }
+        if this.document.Count && !this.document.Has("bindings")
+            throw Error("Existing keybindings settings are missing [bindings]; nothing was overwritten.")
         for actionId, action in this.actions {
-            value := KB_Manifest.Get(this.document, section, actionId, "")
+            value := KB_Manifest.Get(this.document, "bindings", actionId, "")
             if value = ""
                 continue
             fields := StrSplit(value, "`t")

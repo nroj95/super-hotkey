@@ -150,7 +150,7 @@ class ScratchpadController
         if IniRead(this.settings_path, "Window", "Monitor", "<missing>") = "<missing>"
             IniWrite "Primary", this.settings_path, "Window", "Monitor"
 
-        ; Windows INI writes use CRLF. Normalize the controller settings so Notepad3 never sees a mixture of LF and CRLF lines.
+        ; Normalize line endings to CRLF for Notepad3 compatibility.
         original_settings := FileRead(this.settings_path, "UTF-16")
         settings := StrReplace(original_settings, "`r`n", "`n")
         settings := StrReplace(settings, "`r", "`n")
