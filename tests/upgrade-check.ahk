@@ -73,6 +73,8 @@ class SuiteUpgradeChecks {
         this.ScopesAndObservers()
         this.GeometryAndOwnership()
         this.ActiveShortcutVisibility()
+        this.StagedKeybindings()
+        this.LiveCascadeSettings()
         this.Interfaces()
     }
 
@@ -241,6 +243,122 @@ class SuiteUpgradeChecks {
         }
         SuiteChecks.Rejects((*) => CapsLockModifierToggle("CapsLock"),
             "CapsLock cannot be its own double-tap modifier")
+    }
+
+    static StagedKeybindings() {
+        app := SuiteApplication(true, SuiteChecks.directory "\staged-keybindings")
+        app.InitializeCatalog()
+        manager := app.manager
+        try {
+            manager.SetPaused(true)
+            manager.Start()
+            app.ui := SuiteInterface(app)
+            before := manager.GetConfiguration()["core.keybindings"].bindings[2]
+            replacement := Keybindings.Parse("Ctrl + Alt + F11").signature
+            this.Assert(before != replacement, "staged regression binding differs from the saved default")
+            beforeFile := FileRead(manager.path, "UTF-8")
+            manager.ShowSettings()
+            candidate := manager._CloneConfiguration(manager.settingsDraft)
+            candidate["core.keybindings"].bindings[2] := replacement
+            manager._StageConfiguration(candidate)
+            this.Assert(manager.settingsApply.Enabled
+                && manager.settingsDraft["core.keybindings"].bindings[2] = replacement
+                && manager.GetConfiguration()["core.keybindings"].bindings[2] = before
+                && FileRead(manager.path, "UTF-8") = beforeFile,
+                "editing stages hotkeys without changing the live configuration or saved file")
+            manager._CloseSettings()
+            manager.ShowSettings()
+            this.Assert(manager.settingsDraft["core.keybindings"].bindings[2] = before
+                && !manager.settingsApply.Enabled,
+                "closing Keybindings discards all uncommitted edits")
+            manager._StageConfiguration(candidate)
+            this.Assert(manager._ApplyStaged()
+                && manager.GetConfiguration()["core.keybindings"].bindings[2] = replacement
+                && KB_Manifest.Get(KB_Manifest.Read(manager.path), "bindings", "core.keybindings") != "",
+                "Apply saves staged hotkeys and closes the editor without restarting")
+            manager.ShowSettings("window-cascade")
+            this.Assert(manager.settingsDone.Text = "Back"
+                && manager.settingsApply.Text = "Apply"
+                && manager.settingsModuleId = "window-cascade",
+                "module Keybindings provides Back and live Apply")
+            unrelated := manager.settingsDraft["core.keybindings"].bindings[2]
+            moduleCandidate := manager._CloneConfiguration(manager.settingsDraft)
+            moduleCandidate["window-cascade.help"].bindings[1] := Keybindings.Parse("Caps + F10").signature
+            manager._StageConfiguration(moduleCandidate)
+            manager._StageDefaults()
+            this.Assert(manager.settingsDraft["window-cascade.help"].bindings[1]
+                    = manager.actions["window-cascade.help"].defaults[1]
+                && manager.settingsDraft["core.keybindings"].bindings[2] = unrelated,
+                "module Restore defaults stages only that module's shortcuts")
+            manager._CloseSettings()
+        }
+        finally {
+            if IsObject(manager.settings)
+                manager._CloseSettings()
+            manager.Stop()
+        }
+    }
+
+    static LiveCascadeSettings() {
+        global cascade_auto_placement_paused, focus_corner_visible, focus_tab_color_presets
+        global focus_corner_active_slot_color_name, focus_corner_inactive_slot_color_name
+        global focus_corner_active_slot_color, focus_corner_inactive_slot_color
+        global cascade_history
+
+        app := SuiteApplication(true, SuiteChecks.directory "\live-cascade-settings")
+        app.InitializeCatalog()
+        manager := app.manager
+        previous := {paused: cascade_auto_placement_paused, visible: focus_corner_visible,
+            activeName: focus_corner_active_slot_color_name,
+            inactiveName: focus_corner_inactive_slot_color_name,
+            activeColor: focus_corner_active_slot_color,
+            inactiveColor: focus_corner_inactive_slot_color}
+        try {
+            manager.SetPaused(true)
+            manager.Start()
+            app.ui := SuiteInterface(app)
+            app.ui.ShowCascadeSettings()
+            settings := app.ui.windows["settings:window-cascade"]
+            expectedPaused := !previous.paused
+            expectedVisible := !previous.visible
+            activeName := previous.activeName = "Pink" ? "Green" : "Pink"
+            inactiveName := previous.inactiveName = "Blue" ? "Grey" : "Blue"
+            settings["paused"].Value := expectedPaused
+            settings["tabs"].Value := expectedVisible
+            settings["activeColor"].Choose(activeName)
+            settings["inactiveColor"].Choose(inactiveName)
+            existingHistorySize := cascade_history.Count
+            this.Assert(app.ui.pageFooters[settings.Hwnd].buttons[1].button.Text = "Apply",
+                "Cascade Kingdom Settings use Apply without restart")
+            app.ui.SaveCascade()
+            path := app.Settings.directory "\window-cascade\settings.ini"
+            this.Assert(!app.ui.windows.Has("settings:window-cascade")
+                && cascade_auto_placement_paused = expectedPaused
+                && focus_corner_visible = expectedVisible
+                && focus_corner_active_slot_color_name = activeName
+                && focus_corner_inactive_slot_color_name = inactiveName
+                && focus_corner_active_slot_color = focus_tab_color_presets[activeName]
+                && focus_corner_inactive_slot_color = focus_tab_color_presets[inactiveName],
+                "Cascade Kingdom applies placement, visibility and colors without reload")
+            this.Assert(IniRead(path, "Controls", "AutoPlacementPaused") = (expectedPaused ? "1" : "0")
+                && IniRead(path, "FocusTabs", "Visible") = (expectedVisible ? "1" : "0")
+                && IniRead(path, "FocusTabs", "ActiveSlotColor") = activeName
+                && IniRead(path, "FocusTabs", "InactiveSlotColor") = inactiveName,
+                "Cascade Kingdom live settings persist all four choices")
+            this.Assert(cascade_history.Count = existingHistorySize,
+                "applying Cascade Kingdom preferences preserves in-memory cascade history")
+        }
+        finally {
+            cascade_auto_placement_paused := previous.paused
+            focus_corner_visible := previous.visible
+            focus_corner_active_slot_color_name := previous.activeName
+            focus_corner_inactive_slot_color_name := previous.inactiveName
+            focus_corner_active_slot_color := previous.activeColor
+            focus_corner_inactive_slot_color := previous.inactiveColor
+            if IsObject(app.ui)
+                app.ui.CloseAll()
+            manager.Stop()
+        }
     }
 
     static ApplicationSuspension() {
@@ -867,8 +985,10 @@ class SuiteUpgradeChecks {
             app.ShowKeybindings()
             this.Assert(app.manager.settings.Hwnd = firstEditor, "every Keybindings entry reuses the global editor")
             editor := app.manager.settings
-            this.Assert(app.manager.settingsResetAll.Text = "Restore defaults",
-                "Keybindings restore button has the concise label")
+            this.Assert(app.manager.settingsResetAll.Text = "Restore defaults"
+                && app.manager.settingsApply.Text = "Apply"
+                && app.manager.settingsDone.Text = "Cancel",
+                "global Keybindings has Restore defaults, live Apply, and Cancel")
             editor.GetClientPos(, , &firstWidth, &firstHeight)
             this.AssertCentered(editor, "Keybindings")
             this.AssertResizeGrip(editor, "Keybindings")
@@ -890,7 +1010,7 @@ class SuiteUpgradeChecks {
                 app.manager.visibleRows[1].secondary,
                 app.manager.visibleRows[1].reset,
                 app.manager.settingsSearch,
-                app.manager.settingsResetAll, app.manager.settingsDone]
+                app.manager.settingsResetAll, app.manager.settingsApply, app.manager.settingsDone]
             weights := []
             sizes := []
             faces := []
@@ -971,6 +1091,13 @@ class SuiteUpgradeChecks {
             editor.GetClientPos(, , , &clientHeight)
             this.Assert(Abs(doneY - (clientHeight - 49)) <= 2,
                 "done button stays pinned to the bottom")
+            app.manager.settingsResetAll.GetPos(&restoreX, , &restoreW)
+            app.manager.settingsApply.GetPos(&applyX, , &applyW)
+            app.manager.settingsDone.GetPos(&cancelX, , &cancelW)
+            this.Assert(Abs(cancelX + cancelW - (adjustedWidth - 46)) <= 2
+                && Abs(applyX - (restoreX + restoreW + 14)) <= 2
+                && Abs(cancelX - (applyX + applyW + 14)) <= 2,
+                "Keybindings footer buttons are right-aligned with consistent gaps")
             editor.Show("w820 h420")
             editor.GetClientPos(, , &compactWidth, &compactHeight)
             app.manager._ResizeSettings(editor, 0, compactWidth, compactHeight)
@@ -1249,8 +1376,20 @@ class SuiteUpgradeChecks {
 
                 app.ui.OpenKeybindingsFromHelp(id)
                 this.Assert(!app.ui.windows.Has(key)
-                    && IsObject(app.manager.settings),
-                    "Keybindings closes Help without a Back button: " id)
+                    && IsObject(app.manager.settings)
+                    && app.manager.settingsModuleId = id
+                    && app.manager.settingsDone.Text = "Back",
+                    "module Help opens its own filtered Keybindings view: " id)
+                moduleName := SuiteSettings.ModuleNames[id]
+                onlyModule := true
+                for item in app.manager.rows
+                    if item.id != "" && !app.manager._ActionInSettingsModule(item.id, id)
+                        onlyModule := false
+                this.Assert(onlyModule, "module Keybindings excludes unrelated shortcuts: " id)
+                app.manager._BackToHelp()
+                this.Assert(!IsObject(app.manager.settings) && app.ui.windows.Has(key),
+                    "Back from module Keybindings restores the Help page: " id)
+                app.ui.CloseWindow(key)
             }
             app.ui.ShowHelp("scratchpad")
             this.Assert(!!WinActive("ahk_id " app.ui.windows["help:scratchpad"].Hwnd),

@@ -40,6 +40,8 @@ class Keybindings {
         this.applying := false
         this.disposed := false
         this.settings := 0
+        this.settingsDraft := 0
+        this.settingsModuleId := ""
         this.settingsIcons := []
         this.client := 0
         this.recording := 0
@@ -242,11 +244,21 @@ class Keybindings {
         }
         return rows
     }
-    _LocalCatalogSnapshot() {
+    _ActionInSettingsModule(actionId, moduleId) {
+        if moduleId = ""
+            return true
+        moduleName := SuiteSettings.ModuleNames[moduleId]
+        category := this.actions[actionId].category
+        return category = moduleName || InStr(category, moduleName " / ") = 1
+    }
+
+    _LocalCatalogSnapshot(configuration := unset, moduleId := "") {
         result := []
+        settings := IsSet(configuration) ? configuration : this.configuration
         for actionId, action in this.actions {
-            setting := this.configuration[actionId]
+            setting := settings[actionId]
             if !setting.enabled || !this.IsAvailable(action)
+                || !this._ActionInSettingsModule(actionId, moduleId)
                 continue
             result.Push({id: actionId, label: action.label,
                 category: action.category, scope: action.scope, enabled: true, help: action.help,
@@ -929,10 +941,12 @@ class Keybindings {
 
 
     ; =========================================================================
-    ; category-based, immediately saved keybinding screen
+    ; category-based, staged keybinding screen
     ; =========================================================================
 
     _SettingsTitle() {
+        if this.settingsModuleId != ""
+            return SuiteSettings.ModuleNames[this.settingsModuleId] " - Keybindings"
         if IsObject(SuiteState.App) && !SuiteState.App.ModuleActive("keyboard-layers")
             return "Keybindings — Secret Keys disabled"
 
@@ -947,15 +961,25 @@ class Keybindings {
         return "Keybindings"
     }
 
-    ShowSettings(*) {
+    ShowSettings(moduleId := "") {
         if !this.running
             throw Error("Start the keybinding manager first.")
+        if moduleId != "" && !SuiteSettings.ModuleNames.Has(moduleId)
+            throw ValueError("Unknown Keybindings module: " moduleId)
         if IsObject(this.settings) {
-            this.settings.Show()
-            return
+            if this.settingsModuleId = moduleId {
+                this.settings.Show()
+                return
+            }
+            ; Switching views discards that view's unapplied edits.
+            this._CloseSettings()
         }
 
+        this.settingsModuleId := moduleId
+        this.settingsDraft := this.GetConfiguration()
         this.participants := this.DiscoverParticipants()
+        if moduleId != ""
+            this.participants[1].name := SuiteSettings.ModuleNames[moduleId]
         this.settingsWindowWidth := 1060
         this.settingsWindowHeight := Min(860, Max(560, A_ScreenHeight - 125))
 
@@ -982,9 +1006,15 @@ class Keybindings {
         this.settingsResetAll := window.AddButton("x244 y320 w180 h31", "Restore defaults")
         this.settingsDrawButtons[this.settingsResetAll.Hwnd] := "reset"
         this.settingsResetAll.OnEvent("Click", ObjBindMethod(this, "_ResetAll"))
-        this.settingsDone := window.AddButton("x438 y320 w130 h31", "done")
+        this.settingsApply := window.AddButton("x438 y320 w120 h31", "Apply")
+        this.settingsDrawButtons[this.settingsApply.Hwnd] := "done"
+        this.settingsApply.OnEvent("Click", ObjBindMethod(this, "_ApplyStaged"))
+        this.settingsDone := window.AddButton("x572 y320 w110 h31", moduleId = "" ? "Cancel" : "Back")
         this.settingsDrawButtons[this.settingsDone.Hwnd] := "done"
-        this.settingsDone.OnEvent("Click", ObjBindMethod(this, "_RequestCloseSettings"))
+        if moduleId = ""
+            this.settingsDone.OnEvent("Click", ObjBindMethod(this, "_RequestCloseSettings"))
+        else
+            this.settingsDone.OnEvent("Click", ObjBindMethod(this, "_BackToHelp"))
         window.OnEvent("Size", ObjBindMethod(this, "_ResizeSettings"))
         window.OnEvent("ContextMenu", ObjBindMethod(this, "_EditBindingText"))
         window.OnEvent("Close", ObjBindMethod(this, "_RequestCloseSettings"))
@@ -1142,11 +1172,13 @@ class Keybindings {
             if widthChanged || heightChanged {
                 positions.Push({control: this.settingsDivider,
                     x: 22, y: height - 64, w: width - 68, h: 2})
-                footerX := Floor(width / 2) - 166
+                footerX := width - 484 ; 438px button group, 46px right margin
                 positions.Push({control: this.settingsResetAll,
                     x: footerX, y: height - 49, w: 180, h: 31})
+                positions.Push({control: this.settingsApply,
+                    x: footerX + 194, y: height - 49, w: 120, h: 31})
                 positions.Push({control: this.settingsDone,
-                    x: footerX + 194, y: height - 49, w: 130, h: 31})
+                    x: footerX + 328, y: height - 49, w: 110, h: 31})
             }
             this._MoveSettingsControls(window, positions, width)
             if rowsChanged
@@ -1279,8 +1311,9 @@ class Keybindings {
             this.settings.Title := newTitle
         this.warningButtons := Map()
         search := this.settings["search"].Value
-        this.participants[1].actions := this._LocalCatalogSnapshot()
+        this.participants[1].actions := this._LocalCatalogSnapshot(this.settingsDraft, this.settingsModuleId)
         this.rows := Keybindings.DisplayRows(this.participants, search)
+        this.settingsApply.Enabled := this._HasPendingSettings()
         maximum := Max(0, this.rows.Length - this.visibleRows.Length)
         this.scrollPosition := Min(Max(this.scrollPosition, 0), maximum)
         Keybindings._SetSettingsVisible(this.settingsScroll, maximum > 0)
@@ -1328,7 +1361,7 @@ class Keybindings {
             Keybindings._SetSettingsText(row.title, entry.label)
             Keybindings._SetSettingsEnabled(row.primary, editable)
             Keybindings._SetSettingsEnabled(row.secondary, editable)
-            setting := isLocal ? this.configuration[entry.id] : entry.setting
+            setting := isLocal ? this.settingsDraft[entry.id] : entry.setting
             for slot, control in [row.primary, row.secondary] {
                 parsed := Keybindings.Parse(setting.bindings[slot])
                 if !IsObject(parsed) {
@@ -1441,27 +1474,62 @@ class Keybindings {
         actionId := this.visibleRows[index].actionId
         if actionId = ""
             return
-        configuration := this.GetConfiguration()
+        configuration := this._CloneConfiguration(this.settingsDraft)
         configuration[actionId].bindings := this.actions[actionId].defaults.Clone()
-        this._SaveConfiguration(configuration, [actionId])
+        this._StageConfiguration(configuration)
     }
 
     _ResetAll(*) {
-        if MsgBox("Restore default hotkey assignments for all actions, including disabled modules?"
-            . "`n`nModule settings and Paper Pad notes will not change.",
+        subject := this.settingsModuleId = "" ? "all actions, including disabled modules"
+            : SuiteSettings.ModuleNames[this.settingsModuleId]
+        if MsgBox("Restore default hotkey assignments for " subject "?"
+            . "`n`nChanges stay pending until Apply. Other preferences and notes are untouched.",
             this.name, "YesNo Default2 Icon?") != "Yes"
             return
-        configuration := this.GetConfiguration()
-        for actionId, action in this.actions
-            configuration[actionId].bindings := action.defaults.Clone()
-        this._SaveConfiguration(configuration)
+        this._StageDefaults()
     }
 
-    _SaveConfiguration(configuration, editedActions := 0) {
+    _StageDefaults() {
+        configuration := this._CloneConfiguration(this.settingsDraft)
+        for actionId, action in this.actions
+            if this._ActionInSettingsModule(actionId, this.settingsModuleId)
+                configuration[actionId].bindings := action.defaults.Clone()
+        this._StageConfiguration(configuration)
+    }
+
+    _HasPendingSettings() {
+        if !IsObject(this.settingsDraft)
+            return false
+        for actionId, setting in this.settingsDraft {
+            current := this.configuration[actionId]
+            if setting.enabled != current.enabled || setting.bindings[1] != current.bindings[1]
+                || setting.bindings[2] != current.bindings[2]
+                return true
+        }
+        return false
+    }
+
+    ; Editing is purely in-memory. Conflicts are checked against all modules
+    ; by Apply(), before the manifest is written and the active hotkeys are updated.
+    _StageConfiguration(configuration) {
+        if !IsObject(this.settings)
+            return false
+        this.settingsDraft := this._CloneConfiguration(configuration)
+        this._RenderSettings()
+        return true
+    }
+
+    _ApplyStaged(*) {
+        if !IsObject(this.settings) || !this._HasPendingSettings()
+            return false
+        if IsObject(this.recording) {
+            this._EndRecording()
+            return false
+        }
         try {
-            this.Apply(configuration)
+            this.Apply(this.settingsDraft)
             this._Report("keybinding changes saved")
-            this._RenderSettings()
+            this._CloseSettings()
             return true
         }
         catch Error as failure {
@@ -1469,6 +1537,17 @@ class Keybindings {
             MsgBox(failure.Message, this.name " - binding rejected", "Icon!")
             return false
         }
+    }
+
+    _BackToHelp(*) {
+        if IsObject(this.recording) {
+            this._EndRecording()
+            return
+        }
+        moduleId := this.settingsModuleId
+        this._CloseSettings()
+        if moduleId != "" && IsObject(SuiteState.App) && IsObject(SuiteState.App.ui)
+            SuiteState.App.ui.ShowHelp(moduleId)
     }
 
     _RequestCloseSettings(*) {
@@ -1502,6 +1581,8 @@ class Keybindings {
             DllCall("DestroyIcon", "ptr", iconHandle)
         this.settingsIcons := []
         this.settings := 0
+        this.settingsDraft := 0
+        this.settingsModuleId := ""
         this.participants := []
         this._RefreshGate()
     }
@@ -1642,9 +1723,9 @@ class Keybindings {
             && MsgBox("This hotkey intercepts ordinary middle-click or mouse-wheel input. Assign it?",
                 this.name, "YesNo Default2 Icon!") != "Yes"
             return
-        configuration := this.GetConfiguration()
+        configuration := this._CloneConfiguration(this.settingsDraft)
         configuration[actionId].bindings[slot] := value
-        this._SaveConfiguration(configuration)
+        this._StageConfiguration(configuration)
     }
 
     _RecordingTimedOut(*) => this._EndRecording()
@@ -1714,7 +1795,7 @@ class Keybindings {
             for slot, button in [row.primary, row.secondary] {
                 if button.Hwnd != control.Hwnd
                     continue
-                configuration := this.GetConfiguration()
+                configuration := this._CloneConfiguration(this.settingsDraft)
                 old := Keybindings.Parse(configuration[row.actionId].bindings[slot])
                 input := InputBox("Type a hotkey, for example CapsLock, Escape, or Ctrl + Alt + J."
                     . "`n`nLeave empty to clear.",
@@ -1730,8 +1811,8 @@ class Keybindings {
                     && MsgBox("Intercept ordinary middle-click or mouse-wheel input?", this.name,
                         "YesNo Default2 Icon!") != "Yes"
                     return
-                configuration[row.actionId].bindings[slot] := input.Value
-                this._SaveConfiguration(configuration)
+                configuration[row.actionId].bindings[slot] := IsObject(parsed) ? parsed.signature : ""
+                this._StageConfiguration(configuration)
                 return
             }
         }

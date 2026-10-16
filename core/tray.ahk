@@ -501,7 +501,8 @@ class SuiteInterface {
 
     OpenKeybindingsFromHelp(id, *) {
         this.CloseWindow("help:" id)
-        this.app.ShowKeybindings()
+        this.app.CancelInputs()
+        this.app.manager.ShowSettings(id)
     }
 
     RefreshHelp(*) {
@@ -615,22 +616,48 @@ class SuiteInterface {
         window.AddText("x20 y160 w200", "Inactive-slot tab color")
         inactive := window.AddDropDownList("x240 y155 w210 vinactiveColor", colors)
         inactive.Choose(focus_corner_inactive_slot_color_name)
-        window.AddText("x20 y215 w550", "Changes apply after restarting. Hotkeys remain in the shared Keybindings editor.")
-        this.Footer(window, [["Apply and restart", ObjBindMethod(this, "SaveCascade"), 160],
+        window.AddText("x20 y215 w550", "Changes apply immediately. Existing cascades stay intact.")
+        this.Footer(window, [["Apply", ObjBindMethod(this, "SaveCascade"), 120],
             ["Back", ObjBindMethod(this, "BackToHelp", "window-cascade"), 100]], 290, 600)
         this.ShowPage(key, 600, 340, 560, 310)
     }
 
     SaveCascade(*) {
+        global cascade_auto_placement_paused, focus_corner_visible, focus_tab_color_presets
+        global focus_corner_active_slot_color_name, focus_corner_inactive_slot_color_name
+        global focus_corner_active_slot_color, focus_corner_inactive_slot_color
+
         key := "settings:window-cascade"
         window := this.windows[key]
         try {
+            paused := window["paused"].Value != 0
+            visible := window["tabs"].Value != 0
+            activeName := window["activeColor"].Text
+            inactiveName := window["inactiveColor"].Text
+            if !focus_tab_color_presets.Has(activeName) || !focus_tab_color_presets.Has(inactiveName)
+                throw ValueError("Select valid focus-tab colors.")
+
+            ; Persist first. No running state changes if the write fails.
             this.app.Settings.WritePreferences("window-cascade", Map(
-                "Controls", Map("AutoPlacementPaused", window["paused"].Value),
-                "FocusTabs", Map("Visible", window["tabs"].Value,
-                    "ActiveSlotColor", window["activeColor"].Text, "InactiveSlotColor", window["inactiveColor"].Text)))
+                "Controls", Map("AutoPlacementPaused", paused ? 1 : 0),
+                "FocusTabs", Map("Visible", visible ? 1 : 0,
+                    "ActiveSlotColor", activeName, "InactiveSlotColor", inactiveName)))
+
+            ; Reuse the same pause/resume transition as Caps + P, preserving
+            ; the rule that windows opened while paused remain unmanaged.
+            if cascade_auto_placement_paused != paused
+                ToggleCascadeAutoPlacement()
+            if cascade_auto_placement_paused != paused
+                throw Error("Automatic placement could not change mode. See the debug log.")
+
+            if focus_corner_visible != visible
+                ToggleFocusCornerVisibility()
+            focus_corner_active_slot_color_name := activeName
+            focus_corner_inactive_slot_color_name := inactiveName
+            focus_corner_active_slot_color := focus_tab_color_presets[activeName]
+            focus_corner_inactive_slot_color := focus_tab_color_presets[inactiveName]
+            QueueFocusCornerUpdate()
             this.CloseWindow(key)
-            Reload()
         }
         catch Error as failure
             this.Report(failure, "Cascade Kingdom / settings")
