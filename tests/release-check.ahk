@@ -48,9 +48,12 @@ class SuiteReleaseChecks {
         }
         finally {
             cascade_hold_to_skip_key := previousKey
-            pending_windows.Delete(987654321)
-            known_windows.Delete(987654321)
-            startup_windows.Delete(987654321)
+            if pending_windows.Has(987654321)
+                pending_windows.Delete(987654321)
+            if known_windows.Has(987654321)
+                known_windows.Delete(987654321)
+            if startup_windows.Has(987654321)
+                startup_windows.Delete(987654321)
         }
     }
 
