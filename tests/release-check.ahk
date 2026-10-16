@@ -158,8 +158,10 @@ class SuiteReleaseChecks {
     }
 
     static HoldToSkipPlacement() {
-        global cascade_hold_to_skip_key, pending_windows, known_windows, startup_windows
+        global cascade_hold_to_skip_key, cascade_hold_to_skip_choice
+        global pending_windows, known_windows, startup_windows
         previousKey := cascade_hold_to_skip_key
+        previousChoice := cascade_hold_to_skip_choice
         app := SuiteApplication(true, SuiteChecks.directory "\release-hold-skip")
         try {
             InitializeCascadeState()
@@ -171,11 +173,12 @@ class SuiteReleaseChecks {
             this.Assert(cascade_hold_to_skip_key = "Pause",
                 "Pause hold-to-skip choice survives settings reload")
             app.Settings.WritePreferences("window-cascade", Map(
-                "Controls", Map("HoldToSkipKey", "Disabled")))
+                "Controls", Map("HoldToSkipKey", "Disabled", "HoldToSkipChoice", "Pause")))
             InitializeCascadeState()
             this.Assert(cascade_hold_to_skip_key = "Disabled"
+                && cascade_hold_to_skip_choice = "Pause"
                 && !IsCascadeHoldToSkipActive(),
-                "Disabled choice leaves automatic cascading available")
+                "disabled hold-to-skip preserves the previous Pause selection")
 
             hwnd := 987654321
             request := {pid: 0}
@@ -193,6 +196,7 @@ class SuiteReleaseChecks {
         }
         finally {
             cascade_hold_to_skip_key := previousKey
+            cascade_hold_to_skip_choice := previousChoice
             if pending_windows.Has(987654321)
                 pending_windows.Delete(987654321)
             if known_windows.Has(987654321)
