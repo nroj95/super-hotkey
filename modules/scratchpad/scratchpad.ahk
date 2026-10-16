@@ -257,7 +257,7 @@ class ScratchpadController
 
 
 
-    QueueCommand(command, *)
+    QueueCommand(command, inputGeneration := -1, *)
     {
         ; Hiding or toggling the drawer ends any outstanding Windows text-input
         ; session so it cannot affect Escape after Scratchpad is reopened.
@@ -274,7 +274,8 @@ class ScratchpadController
         }
         if this.command_queue.Length >= 8
             return
-        this.command_queue.Push({name: command, source_window: WinExist("A")})
+        this.command_queue.Push({name: command, source_window: WinExist("A"),
+            inputGeneration: IsInteger(inputGeneration) ? inputGeneration : -1})
         SetTimer this.process_commands_callback, -1
     }
 
@@ -287,6 +288,9 @@ class ScratchpadController
         try {
             while this.command_queue.Length {
                 request := this.command_queue.RemoveAt(1)
+                ; Only hotkey requests expire. Autosave and direct UI operations stay available.
+                if request.inputGeneration >= 0 && !SuiteState.App.InputIsCurrent(request.inputGeneration)
+                    continue
                 try this.ExecuteCommand(request)
                 catch as failure {
                     this.command_queue := []
@@ -855,7 +859,7 @@ class ScratchpadController
 
     WelcomeText() {
         return "# Welcome to Paper Pad`n`n"
-            . "Open Paper Pad from the Super Hotkey World tray for instructions.`n"
+            . "Open Paper Pad from the Super Hotkey tray for instructions.`n"
             . "Use Keybindings to see and change the current shortcuts.`n`n"
             . "Your pages are ordinary files. Start typing below.`n`n"
     }
@@ -1486,7 +1490,7 @@ class ScratchpadController
         }
     }
 
-    HandleEscape()
+    HandleEscape(inputGeneration := -1)
     {
         if this.busy
             return
@@ -1502,10 +1506,13 @@ class ScratchpadController
             if this.command_queue.Length
                 SetTimer this.process_commands_callback, -1
         }
+        if inputGeneration >= 0 && (!SuiteState.App.InputIsCurrent(inputGeneration)
+            || !ScratchpadEditorFocused())
+            return
         if pass_escape
             Send "{Escape}" ; Completion/calltip gets Escape before the drawer.
         else
-            this.QueueCommand("hide")
+            this.QueueCommand("hide", inputGeneration)
     }
 
     RevealAfterError(source_window)
@@ -2027,7 +2034,7 @@ ScratchpadIsDialogWindow(hwnd)
 {
     if !hwnd || !DllCall("IsWindow", "ptr", hwnd, "int")
         || !DllCall("IsWindowVisible", "ptr", hwnd, "int")
-        || DllCall("IsIconic", "ptr", hwnd, "int")
+        || DllCall("IsIconic", "ptr", hwnd, "int") || IsWindowCloaked(hwnd)
         return false
 
     try {

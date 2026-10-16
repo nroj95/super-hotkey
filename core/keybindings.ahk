@@ -737,7 +737,13 @@ class Keybindings {
     ; ordinary hotkeys, guarded releases and optional layer adapter
     ; =========================================================================
 
+    _CancelPendingInput() {
+        if IsObject(SuiteState.App) && SuiteState.App.manager = this
+            SuiteState.App.CancelInputs()
+    }
+
     _Deactivate() {
+        this._CancelPendingInput()
         for route in this.routes {
             route.enabled := false
             if route.token
@@ -1024,6 +1030,7 @@ class Keybindings {
             return
         this.gated := gated
         if gated {
+            this._CancelPendingInput()
             for route in this.routes
                 if route.token
                     this._QueueEvent(route, "cancel", route.foreground, route.oneShot)
@@ -1132,7 +1139,7 @@ class Keybindings {
         this.settingsRenderedWidth := 0
         this.settingsRenderedHeight := 0
         SuiteShowCentered(window, this.settingsWindowWidth, this.settingsWindowHeight,
-            ObjBindMethod(this, "_ResizeSettings"))
+            ObjBindMethod(this, "_ResizeSettings"), true)
         OnMessage(0x020A, this.wheelCallback)
         this.wheelHookActive := true
         OnMessage(0x0115, this.verticalScrollCallback)

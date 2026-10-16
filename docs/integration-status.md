@@ -1,23 +1,33 @@
-# integration status
+# release checks
 
-## Super Hotkey v1.0.0 draft
+## automated checks
 
-five modules: Cascade Kingdom, Wonder Windows, Power-Up Utilities, Paper Pad and Secret Keys. one launcher, one AutoHotkey process, one tray, one Keybindings editor and shared diagnostics. the five Getting started pages contain module-specific guidance; their footer buttons open Settings and Keybindings as appropriate.
+on Windows with AutoHotkey v2 64-bit and Python:
 
-module and layer toggles preserve bindings. inactive hotkeys do not fire. the tray provides a persistent verbose-logging preference, a temporary Suspend toggle, a startup shortcut toggle, Restart Super Hotkey and separately confirmed reset actions. default data is stored under `%LOCALAPPDATA%\nroj\SuperHotkey`. older suite/standalone settings are not auto-imported.
+```powershell
+python tests/check.py
+```
 
-## verification boundaries
+use `--autohotkey 'C:\path\to\AutoHotkey64.exe'` for a nonstandard installation. portable structural checks can also run separately:
 
-`python tests/check.py` runs portable structural tests, parses all included AHK modules and executes isolated native/GUI checks. native tests use temporary preferences, inert callbacks and test-owned windows. no personal notes, external applications or real power actions are modified.
+```powershell
+python -m unittest discover -s tests -p 'test_*.py'
+```
 
-automated checks cannot guarantee physical keyboard behavior, actual Notepad3 save parity, multi-monitor placement, Windows startup-link operation, or power suspend/resume behavior.
+CI runs on pull requests and pushes to `main`. it checks the committed source: portable structure tests, a complete launcher parse, and isolated native/GUI regressions. temporary preferences, test-owned windows and inert command callbacks keep these checks away from personal notes and real sleep, audio or text-output actions.
 
-## remaining manual acceptance
+regressions cover module/layer availability, scoped conflicts, staged editing, geometry ownership, GUI layout, cancelled/deferred commands, lock/resume state and Paper Pad request expiry. check the actual CI result for the revision being released; a successful parse alone is not a passing test suite.
 
-1. verify the flat tray and Getting started pages, centered/resizeable windows, Keybindings controls and shared icon. test module-disabled states.
-2. test each CapsLock/Pause combination and their held/one-shot modes; disabled layers must return normal keys. test the tray Suspend and resume functions, including no automatic cascading or deferred placement while suspended.
-3. test Wonder Windows layouts, stretch, focus and swap against Cascade Kingdom on actual displays, including explicit adoption and drag placement.
-4. use disposable Paper Pad pages: new, save, switch, hide, exit/restart, conflicting on-disk changes and unresolved Notepad3 dialogs. ensure editor-only hotkeys are contextual.
-5. test both confirmed reset operations, verbose logging, startup checkbox, saving settings in the new data root and resuming from Windows sleep/unlock.
+## desktop acceptance before tagging
 
-keep `main` as the migration checkpoint until desktop acceptance and a release are explicitly approved. never delete standalone repositories or personal files as part of repository cleanup.
+these require a real desktop and are not replaced by CI:
+
+1. test held, one-shot and double-tap CapsLock/Pause input; disable each layer and confirm native keys return. record, apply and cancel assignments. suspend with a key held and check for stuck output or delayed actions after resuming.
+2. test Cascade Kingdom and Wonder Windows together: new windows, adoption, drag placement, stretch/restore, constrained-window swaps, focus tabs and minimize/restore. include mixed DPI, negative monitor coordinates, a disconnected display and virtual desktops.
+3. use disposable Paper Pad pages: new, save, rename, switch, hide, delete to Recycle Bin and exit/restart. test external file changes, pending Notepad3 dialogs and a missing or unresponsive editor. verify that real notes remain untouched by resets.
+4. test startup-link creation/removal, module settings, verbose logging and confirmed resets. verify settings persist in the intended folder. keep old standalone scripts stopped.
+5. test actual sleep/unlock and tray suspension together. inspect input recovery and automatic placement, including windows opened while paused. test system utilities deliberately, not as part of the automated harness.
+
+also inspect Help, Settings and Keybindings on the intended display scaling. Keybindings needs room for an 820 × 520 logical-pixel layout; text-only Help pages grow to fit their guides. CI's small desktop does not certify every high-DPI display configuration.
+
+publish a release tag only after desktop acceptance. no cleanup or reset should delete standalone repositories or personal files.

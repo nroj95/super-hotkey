@@ -11,12 +11,9 @@ SuiteGui(options := "", title := "") {
     return window
 }
 
-SuiteShowCentered(window, width, height, layoutCallback := 0) {
+SuiteShowCentered(window, width, height, layoutCallback := 0, fitWorkArea := false) {
     ; Size while hidden so the user only sees the correctly centered layout.
     window.Show("Hide w" width " h" height)
-    window.GetClientPos(, , &clientWidth, &clientHeight)
-    if HasMethod(layoutCallback, "Call")
-        layoutCallback.Call(window, 0, clientWidth, clientHeight)
 
     rect := Buffer(16, 0)
     point := Buffer(8, 0)
@@ -36,6 +33,17 @@ SuiteShowCentered(window, width, height, layoutCallback := 0) {
         }
     }
     MonitorGetWorkArea(selected, &left, &top, &right, &bottom)
+    if fitWorkArea {
+        fitted := SuiteFitClientSize(window, width, height, right - left, bottom - top)
+        window.Show("Hide w" fitted.width " h" fitted.height)
+        if !DllCall("GetWindowRect", "ptr", window.Hwnd, "ptr", rect, "int")
+            throw OSError(A_LastError, "Measure Super Hotkey window")
+        outerWidth := NumGet(rect, 8, "int") - NumGet(rect, 0, "int")
+        outerHeight := NumGet(rect, 12, "int") - NumGet(rect, 4, "int")
+    }
+    window.GetClientPos(, , &clientWidth, &clientHeight)
+    if HasMethod(layoutCallback, "Call")
+        layoutCallback.Call(window, 0, clientWidth, clientHeight)
     x := left + Floor((right - left - outerWidth) / 2)
     y := top + Floor((bottom - top - outerHeight) / 2)
     if !DllCall("SetWindowPos", "ptr", window.Hwnd, "ptr", 0,
@@ -43,6 +51,23 @@ SuiteShowCentered(window, width, height, layoutCallback := 0) {
         throw OSError(A_LastError, "Position Super Hotkey window")
     SuiteSizeGrip.Move(window)
     window.Show()
+}
+
+SuiteFitClientSize(window, width, height, workWidth, workHeight) {
+    window.GetClientPos(, , &logicalWidth, &logicalHeight)
+    client := Buffer(16, 0)
+    outer := Buffer(16, 0)
+    if !logicalWidth || !logicalHeight
+        || !DllCall("GetClientRect", "ptr", window.Hwnd, "ptr", client, "int")
+        || !DllCall("GetWindowRect", "ptr", window.Hwnd, "ptr", outer, "int")
+        throw OSError(A_LastError, "Measure Super Hotkey client area")
+    physicalWidth := NumGet(client, 8, "int")
+    physicalHeight := NumGet(client, 12, "int")
+    borderWidth := NumGet(outer, 8, "int") - NumGet(outer, 0, "int") - physicalWidth
+    borderHeight := NumGet(outer, 12, "int") - NumGet(outer, 4, "int") - physicalHeight
+    ; Gui dimensions are DPI-scaled; the work area and native frame are not.
+    return {width: Max(1, Min(width, Floor((workWidth - borderWidth) * logicalWidth / physicalWidth))),
+        height: Max(1, Min(height, Floor((workHeight - borderHeight) * logicalHeight / physicalHeight)))}
 }
 
 class SuiteFullscreen {

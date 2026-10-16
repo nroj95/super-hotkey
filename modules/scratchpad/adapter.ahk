@@ -39,7 +39,7 @@ class ScratchpadModule {
             SuiteState.Log.Write("Paper Pad", "dry run: " command)
             return
         }
-        SetTimer(ObjBindMethod(this, "Execute", command, event.foregroundHwnd), -1)
+        SuiteState.App.QueueInput(ObjBindMethod(this, "Execute", command, event.foregroundHwnd))
     }
 
     static Execute(command, foreground, *) {
@@ -53,8 +53,8 @@ class ScratchpadModule {
                 scratchpad.ConsumeSystemTextInputEscape()
                 Send "{Escape}"
             } else
-                scratchpad.HandleEscape()
+                scratchpad.HandleEscape(SuiteState.App.inputGeneration)
         } else
-            scratchpad.QueueCommand(command)
+            scratchpad.QueueCommand(command, SuiteState.App.inputGeneration)
     }
 }

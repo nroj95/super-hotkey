@@ -54,6 +54,7 @@ UpdateFocusCornerOverlays()
     slot_stacks := []
     stacks_by_slot := Map()
     geometry_by_monitor := Map()
+    dpi_by_monitor := Map()
     highest_hwnd_by_monitor := Map()
     highest_y_by_monitor := Map()
 
@@ -88,6 +89,7 @@ UpdateFocusCornerOverlays()
             if CascadeMonitorNeedsRefresh(monitor_index)
                 return
             geometry_by_monitor[monitor_index] := GetCanonicalCascadeGeometry(monitor_index)
+            dpi_by_monitor[monitor_index] := GetCascadeMonitorDpi(monitor_index)
         }
         slot_index := FindNearestCascadeSlot(window_x, window_y,
             geometry_by_monitor[monitor_index].slots, cascade_slot_tolerance)
@@ -197,6 +199,7 @@ UpdateFocusCornerOverlays()
                     bounds[2],
                     bounds[3],
                     bounds[4],
+                    dpi_by_monitor[bounds[5]],
                     full_height,
                     active_slot_targets.Has(hwnd)
                 )
@@ -272,6 +275,7 @@ ShowFocusCornerOverlay(
     window_y,
     window_width,
     window_height,
+    dpi,
     full_height := false,
     active_slot := false
 )
@@ -313,7 +317,7 @@ ShowFocusCornerOverlay(
     }
 
     overlay.alpha := marker_alpha
-    dpi := GetCascadeWindowMonitorDpi(hwnd)
+    ; Reuse the pass's validated monitor DPI instead of enumerating displays here.
 
     if (
         overlay.shown

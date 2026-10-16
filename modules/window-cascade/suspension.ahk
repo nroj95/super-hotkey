@@ -9,8 +9,9 @@
 ; =============================================================================
 
 IsCascadeEnabled() {
-    return SuiteState.App.ModuleActive("window-cascade") && !SuiteState.App.dryRun
-        && !SuiteState.App.suspended
+    app := SuiteState.App
+    return app.ModuleActive("window-cascade") && !app.dryRun && !app.stopping
+        && !app.suspended && !app.systemSuspended && !app.sessionLocked
 }
 
 IsCascadeAutoPlacementEnabled()

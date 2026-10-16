@@ -1315,9 +1315,13 @@ class SuiteUpgradeChecks {
             this.AssertCentered(editor, "Keybindings")
             this.AssertResizeGrip(editor, "Keybindings")
             expectedKeybindingsHeight := Min(860, Max(560, A_ScreenHeight - 125))
-            this.Assert(firstWidth = 1060 && firstHeight = expectedKeybindingsHeight,
-                "Keybindings opening size: " firstWidth "x" firstHeight
-                " (expected 1060x" expectedKeybindingsHeight ")")
+            monitor := GetMonitorForWindow(editor.Hwnd)
+            MonitorGetWorkArea(monitor, &workLeft, &workTop, &workRight, &workBottom)
+            expectedSize := SuiteFitClientSize(editor, 1060, expectedKeybindingsHeight,
+                workRight - workLeft, workBottom - workTop)
+            this.Assert(Abs(firstWidth - expectedSize.width) <= 1
+                && Abs(firstHeight - expectedSize.height) <= 1,
+                "Keybindings opening size fits the current monitor: " firstWidth "x" firstHeight)
             this.Assert(!HasProp(app.manager, "settingsRefresh"),
                 "Keybindings no longer has a Refresh button")
             this.Assert(app.manager.rows[1].label = "Global"
@@ -1371,7 +1375,7 @@ class SuiteUpgradeChecks {
                 ", layout " app.manager.settingsRenderedHeight ")")
             markerRow := app.manager.visibleRows[1]
             markerRow.title.Text := "layout-only marker"
-            editor.Show("w1080 h850")
+            editor.Show("w1080 h" expandedHeight)
             editor.GetClientPos(, , &adjustedWidth, &adjustedHeight)
             app.manager._ResizeSettings(editor, 0, adjustedWidth, adjustedHeight)
             this.Assert(markerRow.title.Text = "layout-only marker",
@@ -1480,7 +1484,8 @@ class SuiteUpgradeChecks {
             IniWrite("900", app.manager.root "\window.ini", "Window", "Height")
             app.manager.ShowSettings()
             app.manager.settings.GetClientPos(, , &reopenedW, &reopenedH)
-            this.Assert(reopenedW = 1060 && reopenedH = expectedKeybindingsHeight,
+            this.Assert(Abs(reopenedW - expectedSize.width) <= 1
+                && Abs(reopenedH - expectedSize.height) <= 1,
                 "Keybindings ignores size history and reopens at its adaptive default")
             this.AssertCentered(app.manager.settings, "reopened Keybindings")
             app.manager._CloseSettings()
