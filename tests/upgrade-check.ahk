@@ -322,8 +322,8 @@ class SuiteUpgradeChecks {
             this.Assert(manager.gated && app.suspended,
                 "suspending while Keybindings is open keeps inputs gated")
             manager._CloseSettings()
-            this.Assert(!IsObject(manager.editorInputHook) && !manager._EditorCapsBlockActive(),
-                "closing Keybindings releases its temporary input observer")
+            this.Assert(!IsObject(manager.settings),
+                "closing Keybindings destroys the editor")
             this.Assert(manager.gated && manager.paused,
                 "closing Keybindings does not bypass suspended hotkeys")
             app.ui.ToggleSuspension()
