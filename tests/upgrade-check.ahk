@@ -849,6 +849,7 @@ class SuiteUpgradeChecks {
                 && manager.actions["window-cascade.copy-log"].id = "window-cascade.copy-log",
                 "Global rename leaves saved action IDs unchanged")
             rows := Keybindings.DisplayRows(manager.DiscoverParticipants())
+            this.CheckDisplayOrder(rows)
             actionScopes := Map()
             cleanHeadings := true
             for row in rows {
@@ -1053,6 +1054,107 @@ class SuiteUpgradeChecks {
             WW_fancyzones_integration_state := false
             manager.Stop()
         }
+    }
+
+    static AssertDisplaySequence(rows, actionIds, label) {
+        ; Each visible action must follow its predecessor. Missing actions fail
+        ; too, so an accidental rename or deletion cannot pass unnoticed.
+        positions := Map()
+        for index, row in rows
+            if row.id != ""
+                positions[row.id] := index
+        previous := 0
+        ordered := true
+        for actionId in actionIds {
+            if !positions.Has(actionId) || positions[actionId] <= previous {
+                ordered := false
+                break
+            }
+            previous := positions[actionId]
+        }
+        this.Assert(ordered, label)
+    }
+
+    static CheckDisplayOrder(rows) {
+        this.AssertDisplaySequence(rows, [
+            "core.keybindings", "window-cascade.copy-log", "window-cascade.reset-log"],
+            "Global shortcuts group application first and logs together")
+        this.AssertDisplaySequence(rows, [
+            "scratchpad.help", "scratchpad.toggle", "scratchpad.new",
+            "scratchpad.save", "scratchpad.delete", "scratchpad.previous",
+            "scratchpad.next", "scratchpad.hide"],
+            "Paper Pad groups document operations and page navigation")
+        this.AssertDisplaySequence(rows, [
+            "window-cascade.help", "window-cascade.focus-previous", "window-cascade.focus-next",
+            "window-cascade.slot-previous", "window-cascade.slot-next",
+            "window-cascade.swap-up", "window-cascade.swap-down",
+            "window-cascade.rotate-next", "window-cascade.rotate-previous",
+            "window-cascade.adopt", "window-cascade.bring-forward", "window-cascade.minimize",
+            "window-cascade.auto-placement", "window-cascade.gather",
+            "window-cascade.move-left", "window-cascade.move-right",
+            "window-cascade.close-active", "window-cascade.close-monitor"],
+            "Cascade Kingdom groups navigation, rotation and management")
+        this.AssertDisplaySequence(rows, [
+            "win-key-overhaul.help", "win-key-overhaul.focus-up",
+            "win-key-overhaul.focus-down", "win-key-overhaul.focus-left",
+            "win-key-overhaul.focus-right", "win-key-overhaul.cycle-expanded",
+            "win-key-overhaul.maximize", "win-key-overhaul.restore", "win-key-overhaul.minimize",
+            "win-key-overhaul.layout-left", "win-key-overhaul.layout-right",
+            "win-key-overhaul.tile-top-left", "win-key-overhaul.tile-top",
+            "win-key-overhaul.tile-top-right", "win-key-overhaul.tile-bottom-left",
+            "win-key-overhaul.tile-bottom", "win-key-overhaul.tile-bottom-right",
+            "win-key-overhaul.stretch-left", "win-key-overhaul.stretch-right",
+            "win-key-overhaul.stretch-height", "win-key-overhaul.reset-stretch",
+            "win-key-overhaul.swap-next", "win-key-overhaul.swap-previous",
+            "win-key-overhaul.isolate", "win-key-overhaul.minimize-all"],
+            "Wonder Windows groups focus, positioning, stretching and grouping")
+        this.AssertDisplaySequence(rows, [
+            "power-hotkey.interface.open", "power-hotkey.system.wake-speakers",
+            "power-hotkey.system.sleep"],
+            "Power-Up Utilities groups general system controls")
+        this.AssertDisplaySequence(rows, [
+            "power-hotkey.keyboard.f13", "power-hotkey.keyboard.f18",
+            "power-hotkey.keyboard.f24"],
+            "extra function keys follow numeric order")
+        this.AssertDisplaySequence(rows, [
+            "power-hotkey.keyboard.numpad0", "power-hotkey.keyboard.numpad5",
+            "power-hotkey.keyboard.numpad9"],
+            "virtual number pad follows numeric order")
+        this.AssertDisplaySequence(rows, [
+            "power-hotkey.text.apostrophe", "power-hotkey.text.en-dash",
+            "power-hotkey.text.nbsp", "power-hotkey.text.sharp-s",
+            "power-hotkey.text.timestamp"],
+            "text utilities keep characters together before timestamp")
+        this.AssertDisplaySequence(rows, [
+            "power-hotkey.terminal.copy", "power-hotkey.terminal.clear"],
+            "Terminal copy precedes destructive clear")
+        this.AssertDisplaySequence(rows, [
+            "keyboard-layers.help", "power-hotkey.keyboard.toggle-caps"],
+            "Secret Keys keeps Help first")
+        powerHeadings := []
+        for row in rows
+            if row.id = "" && InStr(row.label, "Power-Up Utilities") = 1
+                powerHeadings.Push(row.label)
+        this.Assert(powerHeadings.Length = 5
+            && powerHeadings[1] = "Power-Up Utilities"
+            && powerHeadings[2] = "Power-Up Utilities / Extra function keys"
+            && powerHeadings[3] = "Power-Up Utilities / Virtual number pad"
+            && powerHeadings[4] = "Power-Up Utilities / Text and symbols"
+            && powerHeadings[5] = "Power-Up Utilities / Windows Terminal",
+            "existing Power-Up Utilities headings have a purposeful order")
+        ; Search/filtering must retain the declared order, not the source order.
+        subset := [{id: "win-key-overhaul.minimize"}, {id: "win-key-overhaul.focus-up"},
+            {id: "win-key-overhaul.unknown"}]
+        reordered := Keybindings.OrderDisplayEntries("Wonder Windows", subset)
+        this.Assert(reordered.Length = 3
+            && reordered[1].id = "win-key-overhaul.focus-up"
+            && reordered[2].id = "win-key-overhaul.minimize"
+            && reordered[3].id = "win-key-overhaul.unknown",
+            "filtered actions keep their order and unknown future actions follow")
+        original := Keybindings.OrderDisplayEntries("Unregistered category", subset)
+        this.Assert(original.Length = 3 && original[1].id = subset[1].id
+            && original[2].id = subset[2].id && original[3].id = subset[3].id,
+            "unrecognized categories retain their original order")
     }
 
     static RouteExists(manager, actionId) {

@@ -226,19 +226,123 @@ class Keybindings {
                 ; An extension-only module still gets its main heading.
                 if !grouped.Has(moduleName)
                     rows.Push({id: "", kind: "owner", label: moduleName, ownerId: participant.id})
-                for category in modules[moduleName] {
+                for category in Keybindings.OrderDisplayCategories(moduleName, modules[moduleName]) {
                     heading := (InStr(category, " / ") || allCategories.Count > 1) ? category : participant.name
                     if participant.id != participants[1].id && !participant.controlReady
                         heading .= " (view only)"
                     rows.Push({id: "", kind: "owner", label: heading,
                         ownerId: participant.id})
-                    for entry in grouped[category]
+                    for entry in Keybindings.OrderDisplayEntries(category, grouped[category])
                         rows.Push(entry)
                 }
             }
         }
         return rows
     }
+    ; Reorder existing Power-Up Utilities subcategories without adding headings.
+    static OrderDisplayCategories(moduleName, categories) {
+        if moduleName != "Power-Up Utilities"
+            return categories
+        preferred := ["Power-Up Utilities",
+            "Power-Up Utilities / Extra function keys",
+            "Power-Up Utilities / Virtual number pad",
+            "Power-Up Utilities / Text and symbols",
+            "Power-Up Utilities / Windows Terminal"]
+        result := []
+        placed := Map()
+        for wanted in preferred
+            for category in categories
+                if category = wanted {
+                    result.Push(category)
+                    placed[category] := true
+                }
+        for category in categories
+            if !placed.Has(category)
+                result.Push(category)
+        return result
+    }
+
+    ; Visual order only. IDs, registration order, categories and saved bindings
+    ; are unchanged. Unknown/new actions follow the listed ones in their category.
+    static OrderDisplayEntries(category, entries) {
+        static order := Map(
+            "Global", [
+                "core.keybindings", "window-cascade.copy-log", "window-cascade.reset-log"],
+            "Paper Pad", [
+                "scratchpad.help", "scratchpad.toggle"],
+            "Paper Pad / Inside the editor", [
+                "scratchpad.new", "scratchpad.save", "scratchpad.delete",
+                "scratchpad.previous", "scratchpad.next", "scratchpad.hide"],
+            "Cascade Kingdom", [
+                "window-cascade.help",
+                "window-cascade.focus-previous", "window-cascade.focus-next",
+                "window-cascade.slot-previous", "window-cascade.slot-next",
+                "window-cascade.swap-up", "window-cascade.swap-down",
+                "window-cascade.rotate-next", "window-cascade.rotate-previous",
+                "window-cascade.adopt", "window-cascade.bring-forward",
+                "window-cascade.minimize", "window-cascade.auto-placement",
+                "window-cascade.gather", "window-cascade.move-left", "window-cascade.move-right",
+                "window-cascade.close-active", "window-cascade.close-monitor"],
+            "Wonder Windows", [
+                "win-key-overhaul.help",
+                "win-key-overhaul.focus-up", "win-key-overhaul.focus-down",
+                "win-key-overhaul.focus-left", "win-key-overhaul.focus-right",
+                "win-key-overhaul.cycle-expanded",
+                "win-key-overhaul.maximize", "win-key-overhaul.restore", "win-key-overhaul.minimize",
+                "win-key-overhaul.layout-left", "win-key-overhaul.layout-right",
+                "win-key-overhaul.tile-top-left", "win-key-overhaul.tile-top",
+                "win-key-overhaul.tile-top-right", "win-key-overhaul.tile-bottom-left",
+                "win-key-overhaul.tile-bottom", "win-key-overhaul.tile-bottom-right",
+                "win-key-overhaul.stretch-left", "win-key-overhaul.stretch-right",
+                "win-key-overhaul.stretch-height", "win-key-overhaul.reset-stretch",
+                "win-key-overhaul.swap-next", "win-key-overhaul.swap-previous",
+                "win-key-overhaul.isolate", "win-key-overhaul.minimize-all"],
+            "Wonder Windows / FancyZones", [
+                "win-key-overhaul.zone-up", "win-key-overhaul.zone-down",
+                "win-key-overhaul.zone-left", "win-key-overhaul.zone-right"],
+            "Power-Up Utilities", [
+                "power-hotkey.interface.open", "power-hotkey.system.wake-speakers",
+                "power-hotkey.system.sleep"],
+            "Power-Up Utilities / Extra function keys", [
+                "power-hotkey.keyboard.f13", "power-hotkey.keyboard.f14",
+                "power-hotkey.keyboard.f15", "power-hotkey.keyboard.f16",
+                "power-hotkey.keyboard.f17", "power-hotkey.keyboard.f18",
+                "power-hotkey.keyboard.f19", "power-hotkey.keyboard.f20",
+                "power-hotkey.keyboard.f21", "power-hotkey.keyboard.f22",
+                "power-hotkey.keyboard.f23", "power-hotkey.keyboard.f24"],
+            "Power-Up Utilities / Virtual number pad", [
+                "power-hotkey.keyboard.numpad0", "power-hotkey.keyboard.numpad1",
+                "power-hotkey.keyboard.numpad2", "power-hotkey.keyboard.numpad3",
+                "power-hotkey.keyboard.numpad4", "power-hotkey.keyboard.numpad5",
+                "power-hotkey.keyboard.numpad6", "power-hotkey.keyboard.numpad7",
+                "power-hotkey.keyboard.numpad8", "power-hotkey.keyboard.numpad9"],
+            "Power-Up Utilities / Text and symbols", [
+                "power-hotkey.text.apostrophe", "power-hotkey.text.en-dash",
+                "power-hotkey.text.nbsp", "power-hotkey.text.sharp-s",
+                "power-hotkey.text.timestamp"],
+            "Power-Up Utilities / Windows Terminal", [
+                "power-hotkey.terminal.copy", "power-hotkey.terminal.clear"],
+            "Secret Keys", [
+                "keyboard-layers.help", "power-hotkey.keyboard.toggle-caps"])
+        if !order.Has(category)
+            return entries
+        byId := Map()
+        for entry in entries
+            byId[entry.id] := entry
+        result := []
+        placed := Map()
+        for actionId in order[category] {
+            if byId.Has(actionId) {
+                result.Push(byId[actionId])
+                placed[actionId] := true
+            }
+        }
+        for entry in entries
+            if !placed.Has(entry.id)
+                result.Push(entry)
+        return result
+    }
+
     _ActionInSettingsModule(actionId, moduleId) {
         if moduleId = ""
             return true
