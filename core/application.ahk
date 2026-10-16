@@ -230,11 +230,10 @@ class SuiteApplication {
     }
 
     RefreshInputGate() {
-        modulesOpen := IsObject(this.ui) && this.ui.HasSettingsOpen()
         if !IsObject(this.manager) || this.manager.disposed
             return
         this.manager.SetPaused(this.dryRun || this.stopping
-            || this.systemSuspended || this.suspended || modulesOpen)
+            || this.systemSuspended || this.suspended)
     }
 
     PowerEvent(event, *) {

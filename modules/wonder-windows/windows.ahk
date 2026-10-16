@@ -48,7 +48,7 @@ WW_WindowStateMatchesProcess(hwnd, saved)
 
 WW_IsWindowToggleCandidate(hwnd)
 {
-    if !hwnd || SuiteWindowOwnership.IsSuiteSurface(hwnd)
+    if !SuiteWindowOwnership.AllowsWonderWindows(hwnd)
         return false
 
     if !DllCall("IsWindowVisible", "ptr", hwnd, "int")

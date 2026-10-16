@@ -157,7 +157,7 @@ WW_IsWindowSwapCandidate(hwnd, monitor_handle)
 {
     global WW_borderless_windows
 
-    if !hwnd || SuiteWindowOwnership.IsSuiteSurface(hwnd)
+    if !SuiteWindowOwnership.AllowsWonderWindows(hwnd)
         return false
 
     if WW_borderless_windows.Has(hwnd)

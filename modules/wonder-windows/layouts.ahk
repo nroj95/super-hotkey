@@ -20,6 +20,8 @@ WW_StretchWindowVertically()
     window := "ahk_id " hwnd
 
     try {
+        if !WW_RestoreSuiteFullscreen(hwnd)
+            return
         WW_RememberNormalWindowPlacement(hwnd)
         WW_PruneVerticalStretchWindows()
 
@@ -207,6 +209,8 @@ WW_ToggleHorizontalStretch(side)
     window := "ahk_id " hwnd
 
     try {
+        if !WW_RestoreSuiteFullscreen(hwnd)
+            return
         WW_RememberNormalWindowPlacement(hwnd)
         WW_PruneHorizontalStretchWindows()
 
@@ -958,6 +962,8 @@ WW_PruneLayoutStates()
 
 WW_PrepareWindowForPlacement(hwnd)
 {
+    if !WW_RestoreSuiteFullscreen(hwnd)
+        throw Error("Could not exit Super Hotkey fullscreen before placement.")
     SuiteWindowOwnership.Claim(hwnd)
     global WW_borderless_windows
     WW_RememberNormalWindowPlacement(hwnd)

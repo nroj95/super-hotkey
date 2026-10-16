@@ -535,6 +535,10 @@ class SuiteUpgradeChecks {
                 this.Assert(manager.client.session,
                     "CapsLock and Pause layer hooks return when hotkeys resume")
 
+            app.ui.ShowModules()
+            this.Assert(!manager.gated && !manager.paused,
+                "module settings keep configured hotkeys active")
+            app.ui.CloseModules()
             manager.ShowSettings()
             this.Assert(!manager.gated && !manager.paused,
                 "Keybindings keeps normal hotkeys active when not recording")
@@ -780,7 +784,10 @@ class SuiteUpgradeChecks {
             try {
                 this.Assert(!SuiteSizeGrip.handles.Has(window.Hwnd),
                     "non-resizable suite windows have no sizing grip")
-                this.Assert(SuiteWindowOwnership.IsSuiteSurface(window.Hwnd), "Wonder Windows excludes the suite's own windows")
+                this.Assert(SuiteWindowOwnership.IsSuiteSurface(window.Hwnd),
+                    "private suite tool windows are recognized")
+                this.Assert(!SuiteWindowOwnership.AllowsWonderWindows(window.Hwnd),
+                    "private suite tool windows are excluded from Wonder Windows")
                 this.Assert(IsIgnoredByWindowCascade(window.Hwnd), "suite GUI is marked before it can be cascaded")
                 SuiteWindowOwnership.Claim(window.Hwnd)
                 this.Assert(SuiteWindowOwnership.IsManual(window.Hwnd), "manual geometry ownership is recorded per HWND and process")
@@ -799,6 +806,23 @@ class SuiteUpgradeChecks {
                 this.Assert(!SuiteWindowOwnership.IsManual(window.Hwnd), "a lost per-window marker invalidates cached manual ownership")
             }
             finally window.Destroy()
+            guiProbe := SuiteGui("+Resize", "Wonder Windows GUI eligibility test")
+            try {
+                SuiteFullscreen.Enable(guiProbe)
+                guiProbe.Show("NA w600 h400")
+                this.Assert(SuiteWindowOwnership.AllowsWonderWindows(guiProbe.Hwnd)
+                    && WW_IsWindowToggleCandidate(guiProbe.Hwnd),
+                    "normal suite GUIs are Wonder Windows candidates")
+                this.Assert(IsIgnoredByWindowCascade(guiProbe.Hwnd),
+                    "Cascade Kingdom continues to ignore normal suite GUIs")
+                DllCall("SetPropW", "ptr", guiProbe.Hwnd, "str", "nroj.Scratchpad.Notepad3Window", "ptr", 1, "int")
+                this.Assert(SuiteWindowOwnership.AllowsWonderWindows(guiProbe.Hwnd),
+                    "marked Paper Pad editor windows remain eligible")
+            }
+            finally {
+                SuiteSizeGrip.Detach(guiProbe)
+                guiProbe.Destroy()
+            }
             focusTabProbe := CreatePhysicalGui("-Caption -DPIScale +ToolWindow +E0x08000000",
                 "Cascade Kingdom focus tab grip test")
             try this.Assert(!SuiteSizeGrip.handles.Has(focusTabProbe.Hwnd),
@@ -868,6 +892,9 @@ class SuiteUpgradeChecks {
                 && Keybindings.ContextTagText("paper-pad") = "editor only"
                 && Keybindings.ContextTagText("windows-terminal") = "terminal only",
                 "only application-specific shortcuts receive readable context tags")
+            this.Assert(manager.actions["win-key-overhaul.layout-left"].scope = ""
+                && manager.actions["scratchpad.previous"].scope = "paper-pad",
+                "Wonder Windows is a global fallback for Paper Pad editor shortcuts")
             this.Assert(manager.actions["power-hotkey.terminal.clear"].scope = "windows-terminal"
                 && manager.actions["power-hotkey.terminal.copy"].scope = "windows-terminal",
                 "Terminal shortcuts are gated by the actual foreground application")

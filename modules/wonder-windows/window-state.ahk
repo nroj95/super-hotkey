@@ -121,11 +121,23 @@ WW_GetWindowControlTarget(restore_minimized := true)
     }
 
     hwnd := WinExist("A")
-    if !hwnd || SuiteWindowOwnership.IsSuiteSurface(hwnd)
+    if !SuiteWindowOwnership.AllowsWonderWindows(hwnd)
         return 0
     try return WW_IsWinKeyOverhaulShellClass(WinGetClass(hwnd)) ? 0 : hwnd
     catch
         return 0
+}
+
+; Keep the built-in F11 state authoritative for suite GUIs.
+WW_RestoreSuiteFullscreen(hwnd)
+{
+    if !SuiteFullscreen.placements.Has(hwnd)
+        return true
+    try WinActivate("ahk_id " hwnd)
+    if !WinActive("ahk_id " hwnd)
+        return false
+    SuiteFullscreen.Toggle()
+    return !SuiteFullscreen.placements.Has(hwnd)
 }
 
 WW_ForgetLastMinimizedWindow()
@@ -148,6 +160,10 @@ WW_MaximizeWindowTarget()
 
     if !hwnd
         return
+    if SuiteFullscreen.placements.Has(hwnd) {
+        WW_RestoreSuiteFullscreen(hwnd)
+        return
+    }
     SuiteWindowOwnership.Claim(hwnd)
 
     WW_ForgetHorizontalStretch(hwnd)
@@ -163,7 +179,11 @@ WW_MaximizeWindowTarget()
         }
 
         if WinGetMinMax(window) = 1 {
-            WW_EnterBorderlessFullscreen(hwnd)
+            if DllCall("GetPropW", "ptr", hwnd, "str", SuiteFullscreen.marker, "ptr") {
+                WinActivate(window)
+                SuiteFullscreen.Toggle()
+            } else
+                WW_EnterBorderlessFullscreen(hwnd)
             return
         }
 
@@ -231,7 +251,7 @@ WW_RestoreWindowTarget()
 
     hwnd := WW_GetWindowControlTarget()
 
-    if !hwnd
+    if !hwnd || !WW_RestoreSuiteFullscreen(hwnd)
         return
     SuiteWindowOwnership.Claim(hwnd)
 

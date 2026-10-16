@@ -83,10 +83,10 @@ class WonderWindowsModule {
             {category: fancyZones ? "Wonder Windows / FancyZones" : "Wonder Windows",
                 available: fancyZones ? ObjBindMethod(this, "FancyZonesAvailable", arguments[1])
                     : ObjBindMethod(this, "Available"),
-                scope: "!paper-pad", context: context})
+                scope: "", context: context})
     }
 
-    WindowContext(*) => !SuiteWindowOwnership.IsSuiteSurface(DllCall("GetForegroundWindow", "ptr"))
+    WindowContext(*) => SuiteWindowOwnership.AllowsWonderWindows(DllCall("GetForegroundWindow", "ptr"))
 
     FancyZonesContext(direction, *) {
         global WW_fancyzones_process_id, WW_fancyzones_integration_state

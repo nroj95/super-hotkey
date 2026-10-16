@@ -210,6 +210,17 @@ class SuiteWindowOwnership {
             || DllCall("GetPropW", "ptr", hwnd, "str", "nroj.Scratchpad.Notepad3Window", "ptr"))
     }
 
+    ; Ordinary suite GUIs and the marked Paper Pad editor may be arranged by
+    ; Wonder Windows; overlays, hooks, and private utility windows stay excluded.
+    static AllowsWonderWindows(hwnd) {
+        if !hwnd
+            return false
+        if !this.IsSuiteSurface(hwnd)
+            return true
+        return !!DllCall("GetPropW", "ptr", hwnd, "str", SuiteFullscreen.marker, "ptr")
+            || !!DllCall("GetPropW", "ptr", hwnd, "str", "nroj.Scratchpad.Notepad3Window", "ptr")
+    }
+
     static IsManual(hwnd) {
         if !this.windows.Has(hwnd)
             return false

@@ -81,7 +81,6 @@ class SuiteInterface {
         if configuration {
             this.configurationWindows[key] := true
             this.app.CancelInputs()
-            this.app.RefreshInputGate()
         }
         return window
     }
@@ -249,7 +248,6 @@ class SuiteInterface {
             this.configurationWindows.Delete(key)
         if key = "modules"
             this.modulesWindow := 0
-        this.app.RefreshInputGate()
     }
 
     CloseAll() {
