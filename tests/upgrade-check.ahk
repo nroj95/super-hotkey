@@ -67,6 +67,8 @@ class SuiteUpgradeChecks {
         this.Preferences()
         this.IndependentLayers()
         this.CapsLockDoubleTap()
+        this.LayerDoubleTapGestures()
+        this.LayerRecordingGestures()
         this.LayerIndicatorDelay()
         this.ApplicationSuspension()
         this.DisabledModuleWarning()
@@ -178,6 +180,132 @@ class SuiteUpgradeChecks {
                 }
             }
             finally manager.Stop()
+        }
+    }
+
+    static LayerDoubleTapGestures() {
+        global CPL
+        caps := Keybindings.Parse("Caps + Caps")
+        pauseBinding := Keybindings.Parse("Pause + Pause")
+        this.Assert(caps.doubleTap && caps.layer = "caps" && caps.modifiers = 0
+            && caps.label = "Caps + Caps"
+            && Keybindings.Parse(caps.signature).signature = caps.signature,
+            "Caps + Caps is an explicit, persisted double-tap shortcut")
+        this.Assert(pauseBinding.doubleTap && pauseBinding.layer = "pause" && pauseBinding.modifiers = 0
+            && pauseBinding.label = "Pause + Pause"
+            && Keybindings.Parse(pauseBinding.signature).signature = pauseBinding.signature,
+            "Pause + Pause is an explicit, persisted double-tap shortcut")
+        this.Assert(!Keybindings.Parse("Caps + F1").doubleTap
+            && !Keybindings.Parse("Pause + F1").doubleTap,
+            "ordinary layer chords remain normal bindings")
+        SuiteChecks.Rejects((*) => Keybindings.Parse("Caps + Pause"),
+            "Caps cannot use the opposite activation key as a suffix")
+        SuiteChecks.Rejects((*) => Keybindings.Parse("Pause + CapsLock"),
+            "Pause cannot use the opposite activation key as a suffix")
+        SuiteChecks.Rejects((*) => Keybindings.Parse("Pause + CtrlBreak"),
+            "CtrlBreak cannot duplicate the Pause double-tap gesture")
+        SuiteChecks.Rejects((*) => Keybindings.Parse("Caps + Ctrl + Caps"),
+            "self-prefix double-taps cannot include extra modifiers")
+
+        this.Assert(CPL.oneShotMs = 1400
+            && CPL_DoubleTapCandidate("caps", "caps", 1500, 1499)
+            && !CPL_DoubleTapCandidate("caps", "caps", 1500, 1500)
+            && !CPL_DoubleTapCandidate("pause", "caps", 1500, 200)
+            && !CPL_DoubleTapCandidate("", "caps", 1500, 200),
+            "a second tap uses the exact 1400 ms one-shot deadline")
+        layer := {started: 100, used: false, doubleTap: true}
+        this.Assert(CPL_DoubleTapCompleted(layer, true, true, 340, 0, true, 250)
+            && !CPL_DoubleTapCompleted(layer, true, true, 351, 0, true, 250)
+            && !CPL_DoubleTapCompleted(layer, true, true, 200, 1, true, 250),
+            "the second tap must be released quickly without modifiers")
+        layer.used := true
+        this.Assert(!CPL_DoubleTapCompleted(layer, true, true, 200, 0, true, 250),
+            "using a held layer chord suppresses its double-tap shortcut")
+        layer.used := false
+        layer.doubleTap := false
+        this.Assert(!CPL_DoubleTapCompleted(layer, true, true, 200, 0, true, 250),
+            "an ordinary first tap or tap-then-hold never counts as a double-tap")
+        phases := []
+        CPL_DeliverDoubleTap({callback: (event) => phases.Push(event.phase)})
+        this.Assert(phases.Length = 2 && phases[1] = "down" && phases[2] = "up",
+            "double-tap actions dispatch one complete press after release")
+
+        app := SuiteApplication(true, SuiteChecks.directory "\layer-self-double-taps")
+        app.InitializeCatalog()
+        manager := app.manager
+        try {
+            manager.SetPaused(true)
+            manager.Start()
+            config := manager.GetConfiguration()
+            config["scratchpad.toggle"].bindings[1] := "Caps + Caps"
+            config["scratchpad.help"].bindings[2] := "Pause + Pause"
+            manager.Apply(config)
+            this.Assert(manager.GetConfiguration()["scratchpad.toggle"].bindings[1] = caps.signature
+                && manager.GetConfiguration()["scratchpad.help"].bindings[2] = pauseBinding.signature,
+                "manual self-prefix assignments save through normal Keybindings")
+            this.Assert(CPL.doubleTapKeys.Has("caps") && CPL.doubleTapKeys.Has("pause")
+                && !CPL.keyGroups.Has(caps.key) && !CPL.keyGroups.Has(pauseBinding.key),
+                "double-tap shortcuts never register native activation-key suffix hooks")
+            conflicting := manager.GetConfiguration()
+            conflicting["scratchpad.help"].bindings[1] := "Caps + Caps"
+            SuiteChecks.Rejects((*) => manager.Apply(conflicting),
+                "two double-tap actions in the same context still conflict")
+            this.Assert(manager.GetConfiguration()["scratchpad.toggle"].bindings[1] = caps.signature,
+                "rejected double-tap conflict preserves the saved configuration")
+        }
+        finally manager.Stop()
+    }
+
+    static LayerRecordingGestures() {
+        ; Verify the recorder's state transitions without actual key injection.
+        for prefix in ["caps", "pause"] {
+            record := {prefixDown: "", prefixDownAt: 0, prefixUsed: false,
+                prefixCancel: false, armedLayer: "", armedAt: 0}
+            this.Assert(Keybindings.RecordingPrefixDown(record, prefix, 100)
+                && Keybindings.RecordingPrefixUp(record, prefix, 180, 0) = "armed"
+                && Keybindings.RecordingOneShotLayer(record, 1579) = prefix
+                && Keybindings.RecordingOneShotLayer(record, 1580) = ""
+                && Keybindings.RecordingOneShotLayer(record, 1581) = "",
+                prefix " tap arms one-shot recording for the next key")
+            this.Assert(!Keybindings.RecordingBareKey(record, "normal", 200, 0)
+                && Keybindings.RecordingBareKey(record, "normal", 1581, 0),
+                prefix " one-shot Escape/Backspace are recorded, not cancelled or cleared")
+
+            this.Assert(Keybindings.RecordingPrefixDown(record, prefix, 350)
+                && record.prefixCancel
+                && Keybindings.RecordingPrefixUp(record, prefix, 490, 0) = "double",
+                prefix " double-tap is recognized only after second quick release")
+            this.Assert(record.armedLayer = "" && record.prefixDown = "",
+                prefix " double-tap consumes the one-shot state")
+
+            Keybindings.RecordingPrefixDown(record, prefix, 600)
+            Keybindings.RecordingPrefixUp(record, prefix, 680, 0)
+            this.Assert(Keybindings.RecordingPrefixDown(record, prefix, 2079)
+                && record.prefixCancel
+                && Keybindings.RecordingPrefixUp(record, prefix, 2119, 0) = "double",
+                prefix " double-tap accepts the full one-shot window")
+
+            Keybindings.RecordingPrefixDown(record, prefix, 3000)
+            Keybindings.RecordingPrefixUp(record, prefix, 3070, 0)
+            this.Assert(Keybindings.RecordingPrefixDown(record, prefix, 4470)
+                && !record.prefixCancel
+                && Keybindings.RecordingPrefixUp(record, prefix, 4540, 0) = "armed",
+                prefix " at the expired one-shot deadline a new tap begins")
+
+            Keybindings.RecordingPrefixDown(record, prefix, 4700)
+            this.Assert(record.prefixCancel
+                && Keybindings.RecordingPrefixUp(record, prefix, 5000, 0) = "",
+                prefix " tap then hold does not record double-tap")
+
+            Keybindings.RecordingPrefixDown(record, prefix, 5500)
+            record.prefixUsed := true
+            this.Assert(Keybindings.RecordingPrefixUp(record, prefix, 5550, 0) = ""
+                && record.armedLayer = "",
+                prefix " hold-plus-key does not become one-shot recording")
+            Keybindings.RecordingPrefixDown(record, prefix, 6000)
+            this.Assert(Keybindings.RecordingPrefixUp(record, prefix, 6050, 1) = ""
+                && record.armedLayer = "",
+                prefix " with modifiers cannot arm a tap")
         }
     }
 

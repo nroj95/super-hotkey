@@ -9,7 +9,10 @@ CPL_PrefixDown(layerName, physicalKey, *) {
     if layer.down
         return
 
-    cancelTap := CPL.armed = layerName
+    ; A second prefix tap uses the same one-shot deadline as another key.
+    doubleTap := CPL_DoubleTapCandidate(CPL.armed, layerName,
+        CPL.armedUntil, CPL_Now())
+    cancelTap := doubleTap
     CPL_Disarm()
     ; Switching prefixes cancels previous holds rather than ambiguously stacking.
     if CPL.selected != "" && CPL.selected != layerName {
@@ -25,6 +28,7 @@ CPL_PrefixDown(layerName, physicalKey, *) {
     layer.started := CPL_Now()
     layer.physicalKey := physicalKey
     layer.cancelTap := cancelTap
+    layer.doubleTap := doubleTap
     CPL.selected := layerName
     CPL_StartObserver()
     CPL_UpdateReleaseTimer()
@@ -50,11 +54,18 @@ CPL_FinishPrefix(layerName, allowTap) {
     selected := CPL.selected = layerName
     if selected
         SetTimer(CPL_Indicator, 0)
+    now := CPL_Now()
+    modifiers := CPL_ModifierMask()
     shouldArm := allowTap && selected && !layer.used && !layer.cancelTap
-        && CPL_Now() - layer.started <= CPL.tapMaxMs
-        && CPL_ModifierMask() = 0 && CPL.enabled
+        && now - layer.started <= CPL.tapMaxMs
+        && modifiers = 0 && CPL.enabled
+    doubleRoute := 0
+    if CPL_DoubleTapCompleted(layer, allowTap, selected, now, modifiers,
+        CPL.enabled, CPL.tapMaxMs) && CPL.doubleTapKeys.Has(layerName)
+        doubleRoute := CPL_SelectRoute(CPL.doubleTapKeys[layerName])
 
     layer.down := false
+    layer.doubleTap := false
     layer.physicalKey := ""
     if selected
         CPL.selected := ""
@@ -67,6 +78,28 @@ CPL_FinishPrefix(layerName, allowTap) {
     CPL_UpdateObserver()
     CPL_UpdateReleaseTimer()
     CPL_Indicator()
+    if IsObject(doubleRoute)
+        CPL_DeliverDoubleTap(doubleRoute)
+}
+
+; The prefix remains a double-tap candidate only while one-shot is armed.
+CPL_DoubleTapCandidate(armed, layerName, armedUntil, now) {
+    return armed = layerName && now < armedUntil
+}
+
+; The second press must also finish quickly and without any chord or modifiers.
+CPL_DoubleTapCompleted(layer, allowTap, selected, now, modifiers, enabled, tapMaxMs) {
+    return allowTap && selected && !layer.used && layer.doubleTap
+        && now >= layer.started && now - layer.started <= tapMaxMs
+        && modifiers = 0 && enabled
+}
+
+; Deliver a complete, non-repeating press only after the second release.
+CPL_DeliverDoubleTap(route) {
+    press := {route: route, oneShot: true,
+        foreground: DllCall("GetForegroundWindow", "ptr"), started: CPL_Now()}
+    CPL_SendEvent(press, 1)
+    CPL_SendEvent(press, 3)
 }
 
 CPL_Disarm() {
@@ -319,6 +352,7 @@ CPL_Reset(reason := "manual") {
         layer.down := false
         layer.used := true
         layer.cancelTap := true
+        layer.doubleTap := false
         layer.physicalKey := ""
     }
     for keyId, press in CPL.pressed

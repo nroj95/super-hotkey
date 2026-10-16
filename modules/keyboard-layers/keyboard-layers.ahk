@@ -31,7 +31,15 @@ class LocalKeyboardLayers {
         route := {routeKey: routeKey, layer: layer, modifiers: modifiers, key: key,
             label: label, callback: callback, repeat: repeat, context: context,
             enabled: true, state: "paused"}
-        CPL_EnsureRouteVariant(route)
+        ; Self-prefix gestures are resolved on the second *release*. Never
+        ; register the layer's own activation key as a suffix hotkey.
+        isDoubleTap := modifiers = 0 && ((layer = "caps" && GetKeyVK(key) = 0x14)
+            || (layer = "pause" && GetKeyVK(key) = 0x13))
+        if isDoubleTap
+            CPL.doubleTapKeys[layer] := routeKey
+        else
+            CPL_EnsureRouteVariant(route)
+        route.doubleTap := isDoubleTap
         if !CPL.routes.Has(routeKey)
             CPL.routes[routeKey] := []
         CPL.routes[routeKey].Push(route)
@@ -50,8 +58,11 @@ class LocalKeyboardLayers {
                     break
                 }
             }
-            if !group.Length
+            if !group.Length {
                 CPL.routes.Delete(route.routeKey)
+                if route.doubleTap && CPL.doubleTapKeys.Has(route.layer)
+                    CPL.doubleTapKeys.Delete(route.layer)
+            }
         }
         for index, item in this.bindings {
             if item = route {
@@ -146,6 +157,7 @@ class LocalKeyboardLayers {
         HotIf()
         ToolTip(, , , 2)
         CPL.routes.Clear()
+        CPL.doubleTapKeys.Clear()
         this.bindings := []
     }
 }
@@ -154,12 +166,12 @@ CPL_Initialize(layers := unset) {
     global CPL
     CPL := {tapMaxMs: 250, oneShotMs: 1400, releasePollMs: 15,
         showIndicator: true, maxKeyGroups: 256, enabled: false, stopping: false,
-        selected: "", armed: "", armedUntil: 0, routes: Map(), keyGroups: Map(),
+        selected: "", armed: "", armedUntil: 0, routes: Map(), doubleTapKeys: Map(), keyGroups: Map(),
         pressed: Map(), blockedKeys: Map(), blockedPrefixes: Map(), layers: Map(), observer: 0,
         enabledLayers: IsSet(layers) ? layers.Clone() : Map("caps", true, "pause", true)}
     for name in ["caps", "pause"]
         CPL.layers[name] := {down: false, used: false, started: 0,
-            physicalKey: "", cancelTap: false}
+            physicalKey: "", cancelTap: false, doubleTap: false}
 }
 
 CPL_SelectRoute(routeKey) {

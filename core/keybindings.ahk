@@ -360,9 +360,16 @@ class Keybindings {
                 }
             }
         }
+        ; 'Caps + Caps' is a deliberate second tap, not a held layer chord.
+        if layer = "caps" && StrLower(keyName) = "caps"
+            keyName := "CapsLock"
         key := Keybindings._BaseKey(keyName)
-        if layer != "normal" && key.activation
-            throw ValueError("A layer activation key cannot also be its suffix.")
+        doubleTap := (layer = "caps" && key.vk = 0x14)
+            || (layer = "pause" && key.vk = 0x13)
+        if layer != "normal" && key.activation && !doubleTap
+            throw ValueError("A different layer activation key cannot be its suffix.")
+        if doubleTap && mask
+            throw ValueError("Layer double-taps cannot include Ctrl, Alt, Shift or Win.")
         ; An accidental global click binding could make Windows unusable.
         if key.mouse && (key.code = "LButton" || key.code = "RButton")
             throw ValueError("Left and right mouse buttons cannot be assigned as hotkeys.")
@@ -375,7 +382,8 @@ class Keybindings {
             if mask & bit
                 prefix .= name " + "
         return {layer: layer, modifiers: mask, key: key.code, mouse: key.mouse, activationKey: key.activation,
-            wheel: key.wheel, label: prefix key.label,
+            wheel: key.wheel, doubleTap: doubleTap,
+            label: doubleTap ? (layer = "caps" ? "Caps + Caps" : "Pause + Pause") : prefix key.label,
             signature: layer "|" mask "|" StrLower(key.code)}
     }
 
@@ -1609,6 +1617,8 @@ class Keybindings {
             return
         record := {hook: 0, pending: "", pendingKey: "", clearing: false,
             actionId: actionId, slot: slot,
+            prefixDown: "", prefixDownAt: 0, prefixUsed: false,
+            prefixCancel: false, armedLayer: "", armedAt: 0,
             finish: ObjBindMethod(this, "_FinishRecordedKey"),
             timeout: ObjBindMethod(this, "_RecordingTimedOut")}
         this.recording := record
@@ -1620,6 +1630,7 @@ class Keybindings {
             hook := InputHook("L0 I101")
             hook.KeyOpt("{All}", "SN")
             hook.OnKeyDown := ObjBindMethod(this, "_RecordKey")
+            hook.OnKeyUp := ObjBindMethod(this, "_RecordKeyUp")
             record.hook := hook
             hook.Start()
             HotIf()
@@ -1649,6 +1660,92 @@ class Keybindings {
         return "normal"
     }
 
+    ; The recorder is active while Secret Keys is gated, so it must track
+    ; prefix taps itself instead of relying on the running layer dispatcher.
+    _RecordingPrefixLayer(vk) {
+        if !IsObject(this.client)
+            return ""
+        if vk = 0x14 && this.client.LayerEnabled("caps")
+            return "caps"
+        if (vk = 0x13 || vk = 3) && this.client.LayerEnabled("pause")
+            return "pause"
+        return ""
+    }
+
+    ; These two transition helpers are deterministic so timing and tap-then-hold
+    ; behavior can be regression tested without injecting real keyboard input.
+    static RecordingPrefixDown(record, layer, now, oneShotMs := 1400) {
+        if record.prefixDown != ""
+            return false
+        elapsed := now - record.armedAt
+        record.prefixCancel := record.armedLayer = layer
+            && elapsed >= 0 && elapsed < oneShotMs
+        record.prefixDown := layer
+        record.prefixDownAt := now
+        record.prefixUsed := false
+        record.armedLayer := ""
+        return true
+    }
+
+    static RecordingPrefixUp(record, layer, now, modifiers, tapMaxMs := 250) {
+        if record.prefixDown != layer
+            return ""
+        elapsed := now - record.prefixDownAt
+        quick := !record.prefixUsed && modifiers = 0
+            && elapsed >= 0 && elapsed <= tapMaxMs
+        doubleTap := quick && record.prefixCancel
+        cancelled := record.prefixCancel
+        record.prefixDown := ""
+        record.prefixCancel := false
+        record.prefixUsed := false
+        if doubleTap
+            return "double"
+        if quick && !cancelled {
+            record.armedLayer := layer
+            record.armedAt := now
+            return "armed"
+        }
+        return ""
+    }
+
+    static RecordingOneShotLayer(record, now, oneShotMs := 1400) {
+        elapsed := now - record.armedAt
+        if record.armedLayer != "" && elapsed >= 0 && elapsed < oneShotMs
+            return record.armedLayer
+        return ""
+    }
+
+    static RecordingBareKey(record, physicalLayer, now, modifiers) {
+        ; Escape cancels and Backspace clears only without a held or one-shot prefix.
+        return physicalLayer = "normal" && record.prefixDown = ""
+            && Keybindings.RecordingOneShotLayer(record, now) = "" && modifiers = 0
+    }
+
+    _RecordPrefixRelease(layer) {
+        if !IsObject(this.recording) || this.recording.pending != ""
+            return
+        record := this.recording
+        result := Keybindings.RecordingPrefixUp(record, layer, A_TickCount,
+            Keybindings.ModifierMask())
+        if result = "double" {
+            ; No prefix is physically held on release. The normal finish watcher
+            ; will stage this complete, non-repeating double-tap assignment.
+            key := layer = "caps" ? "CapsLock" : "vk13"
+            this._StageRecordedBinding(layer, 0, key, "")
+        } else if result = "armed"
+            record.button.Text := "press next key..."
+        else
+            record.button.Text := "press keys..."
+    }
+
+    _RecordKeyUp(hook, vk, sc) {
+        if !IsObject(this.recording)
+            return
+        layer := this._RecordingPrefixLayer(vk)
+        if layer != "" && this.recording.prefixDown = layer
+            this._RecordPrefixRelease(layer)
+    }
+
     _RecordKey(hook, vk, sc) {
         if !IsObject(this.recording)
             return
@@ -1656,8 +1753,10 @@ class Keybindings {
             this._EndRecording()
             return
         }
+        record := this.recording
         layer := this._CaptureLayer()
-        bare := layer = "normal" && Keybindings.ModifierMask() = 0
+        bare := Keybindings.RecordingBareKey(record, layer, A_TickCount,
+            Keybindings.ModifierMask())
         if vk = 0x1B && bare {
             this._EndRecording()
             return
@@ -1674,10 +1773,27 @@ class Keybindings {
         if vk = 0x10 || vk = 0x11 || vk = 0x12 || (vk >= 0xA0 && vk <= 0xA5)
             || vk = 0x5B || vk = 0x5C
             return
-        if IsObject(this.client) && this.client.OwnsPrefix(key)
+        prefix := this._RecordingPrefixLayer(vk)
+        if prefix != "" {
+            if record.pending = "" && Keybindings.RecordingPrefixDown(record,
+                prefix, A_TickCount)
+                record.button.Text := "press next key..."
             return
-        if this.recording.pending = ""
-            this._StageRecordedBinding(layer, Keybindings.ModifierMask(), key, key)
+        }
+        if record.pending != ""
+            return
+        ; A held prefix records a normal chord. A released, quickly tapped
+        ; prefix supplies the one-shot layer for the next key (up to 1400 ms).
+        if record.prefixDown != "" {
+            layer := record.prefixDown
+            record.prefixUsed := true
+        } else {
+            oneShotLayer := Keybindings.RecordingOneShotLayer(record, A_TickCount)
+            if oneShotLayer != ""
+                layer := oneShotLayer
+        }
+        record.armedLayer := ""
+        this._StageRecordedBinding(layer, Keybindings.ModifierMask(), key, key)
     }
 
     _RecordMouse(mouseName, *) {
@@ -1719,6 +1835,14 @@ class Keybindings {
         if !IsObject(this.settings) || !WinActive("ahk_id " this.settings.Hwnd) {
             this._EndRecording()
             return
+        }
+        ; Pause may not generate a conventional key-up on every keyboard.
+        ; Poll physical state as a fallback; normal InputHook key-up is preferred.
+        if record.pending = "" && record.prefixDown != "" {
+            released := record.prefixDown = "caps" ? !GetKeyState("CapsLock", "P")
+                : !GetKeyState("Pause", "P") && !GetKeyState("CtrlBreak", "P")
+            if released && A_TickCount - record.prefixDownAt >= 20
+                this._RecordPrefixRelease(record.prefixDown)
         }
         if record.pending = "" || (record.pendingKey != "" && GetKeyState(record.pendingKey, "P"))
             return
