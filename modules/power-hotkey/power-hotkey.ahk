@@ -87,7 +87,14 @@ class PowerHotkeys {
             return
         }
         token := event.actionId "|" event.slot
-        if event.phase = "up" || event.phase = "cancel" {
+        if event.phase = "cancel" {
+            if this.pending.Has(token)
+                this.pending.Delete(token)
+            if !this.pending.Count
+                SetTimer(this.pollCallback, 0)
+            return
+        }
+        if event.phase = "up" {
             ; Layer events remain authoritative when another process consumed
             ; the physical key before our local keyboard hook could observe it.
             if this.pending.Has(token)

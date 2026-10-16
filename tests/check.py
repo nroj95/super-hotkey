@@ -102,6 +102,7 @@ def main() -> None:
         harness = Path(stream.name)
         stream.write('#Include "super-hotkey.ahk"\n')
         stream.write('#Include "%A_ScriptDir%\\tests\\upgrade-check.ahk"\n')
+        stream.write('#Include "%A_ScriptDir%\\tests\\release-check.ahk"\n')
         stream.write('#Include "%A_ScriptDir%\\tests\\runtime-check.ahk"\n#Warn All, StdOut\n')
     try:
         result = run([str(executable), '/ErrorStdOut=UTF-8', str(harness)])

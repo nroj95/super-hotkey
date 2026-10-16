@@ -1,7 +1,7 @@
 name: Suite checks
 on:
   push:
-    branches: [integrate-suite]
+    branches: [main]
   pull_request:
   workflow_dispatch:
 permissions:

@@ -34,6 +34,7 @@ class SuiteChecks {
         this.CheckExitVeto()
         this.CheckDryRunLifecycle()
         SuiteUpgradeChecks.Run()
+        SuiteReleaseChecks.Run()
     }
 
     static CheckSettings() {

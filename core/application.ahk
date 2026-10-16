@@ -29,7 +29,9 @@ class SuiteApplication {
         this.ui := 0
         this.stopping := false
         this.systemSuspended := false
+        this.sessionLocked := false
         this.suspended := false
+        this.inputGeneration := 0
         this.cascadeInitialized := false
         this.cascadeStarted := false
         this.scratchpadStarted := false
@@ -167,13 +169,13 @@ class SuiteApplication {
 
     OpenBindingsEvent(event) {
         if event.phase = "down"
-            SetTimer(ObjBindMethod(this, "ToggleKeybindings"), -1)
+            this.QueueInput(ObjBindMethod(this, "ToggleKeybindings"))
     }
 
     HelpShortcutEvent(moduleId, event) {
         if event.phase != "down" || this.dryRun || this.stopping
             return
-        SetTimer(ObjBindMethod(this, "ShowModuleHelp", moduleId), -1)
+        this.QueueInput(ObjBindMethod(this, "ShowModuleHelp", moduleId))
     }
 
     ShowModuleHelp(moduleId, *) {
@@ -181,7 +183,25 @@ class SuiteApplication {
             this.ui.ToggleHelp(moduleId)
     }
 
+    InputIsCurrent(generation) {
+        return generation = this.inputGeneration && !this.dryRun && !this.stopping
+            && IsObject(this.manager) && this.manager.running
+            && !this.manager.gated && !this.manager.applying
+    }
+
+    QueueInput(callback, arguments*) {
+        generation := this.inputGeneration
+        SetTimer((*) => this.RunInput(generation, callback, arguments*), -1)
+    }
+
+    RunInput(generation, callback, arguments*) {
+        if this.InputIsCurrent(generation)
+            callback.Call(arguments*)
+    }
+
     CancelInputs() {
+        ; Expire deferred callbacks even if input resumes before their timer runs.
+        this.inputGeneration += 1
         if IsObject(this.capsToggle)
             this.capsToggle.Reset()
         if IsObject(this.wonder)
@@ -233,38 +253,46 @@ class SuiteApplication {
         if !IsObject(this.manager) || this.manager.disposed
             return
         this.manager.SetPaused(this.dryRun || this.stopping
-            || this.systemSuspended || this.suspended)
+            || this.systemSuspended || this.sessionLocked || this.suspended)
     }
 
     PowerEvent(event, *) {
-        if event = 4 {
-            this.systemSuspended := true
-            this.RefreshInputGate()
-            this.CancelInputs()
-        } else if event = 7 || event = 0x12 {
-            this.systemSuspended := true
-            this.RefreshInputGate()
-            this.CancelInputs()
+        if event != 4 && event != 7 && event != 0x12
+            return
+        SetTimer(this.resumeCallback, 0)
+        this.systemSuspended := true
+        this.RefreshInputGate()
+        this.CancelInputs()
+        if this.cascadeStarted
+            WindowCascadeModule.Suspend()
+        if event != 4
             SetTimer(this.resumeCallback, -500)
-        }
     }
 
     SessionEvent(event, *) {
         if event = 6 || event = 7 {
-            this.systemSuspended := true
+            this.sessionLocked := true
             this.RefreshInputGate()
             this.CancelInputs()
-        } else if event = 8
+            if this.cascadeStarted
+                WindowCascadeModule.Suspend()
+        } else if event = 8 {
+            this.sessionLocked := false
             SetTimer(this.resumeCallback, -500)
+        }
     }
 
     ResumeInputs(*) {
         if this.stopping
             return
         InstallKeybdHook(true, true)
+        if this.cascadeStarted && !this.sessionLocked && !this.suspended
+            WindowCascadeModule.Resume()
+        ; Automatic power resume is not evidence that the session was unlocked.
         this.systemSuspended := false
         this.RefreshInputGate()
-        SuiteState.Log.Write("Core", "inputs recovered after resume/unlock")
+        SuiteState.Log.Write("Core", this.sessionLocked
+            ? "power resumed; session remains locked" : "inputs recovered after resume/unlock")
     }
 
     Stop(reason := "Exit", code := 0) {
