@@ -899,7 +899,7 @@ class Keybindings {
     }
 
     _RefreshGate() {
-        gated := this.paused || IsObject(this.settings) || this.externalCapture || !this.running
+        gated := this.paused || this.externalCapture || !this.running
         if gated = this.gated
             return
         this.gated := gated

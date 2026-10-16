@@ -1638,7 +1638,7 @@ class ScratchpadController
 
 
 
-    ShowHelp(*) => SuiteState.App.ui.ShowHelp("scratchpad")
+    ShowHelp(*) => SuiteState.App.ui.ToggleHelp("scratchpad")
 
     ExitScratchpad()
     {

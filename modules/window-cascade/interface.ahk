@@ -72,7 +72,7 @@ UpdateTrayMenu() {
 
 ToggleWindowCascadeHelp(*) {
     if IsObject(SuiteState.App.ui)
-        SuiteState.App.ui.ShowHelp("window-cascade")
+        SuiteState.App.ui.ToggleHelp("window-cascade")
 }
 
 CloseWindowCascadeHelp(*) {

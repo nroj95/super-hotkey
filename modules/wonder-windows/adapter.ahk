@@ -122,7 +122,7 @@ class WonderWindowsModule {
 
     HelpEvent(event) {
         if event.phase = "down" && !this.dryRun
-            SetTimer((*) => SuiteState.App.ui.ShowHelp("win-key-overhaul"), -1)
+            SetTimer((*) => SuiteState.App.ui.ToggleHelp("win-key-overhaul"), -1)
     }
 
     Event(event) {

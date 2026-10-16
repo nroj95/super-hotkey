@@ -280,6 +280,17 @@ class SuiteInterface {
     ; Help and suite-wide module selection
     ; =========================================================================
 
+    ; Keyboard shortcuts toggle the active Help page. Tray navigation
+    ; continues to show/raise existing pages without unexpectedly closing them.
+    ToggleHelp(id, *) {
+        key := "help:" id
+        if this.windows.Has(key) && WinActive("ahk_id " this.windows[key].Hwnd) {
+            this.CloseWindow(key)
+            return
+        }
+        this.ShowHelp(id)
+    }
+
     ShowHelp(id, *) {
         key := "help:" id
         if this.Existing(key)

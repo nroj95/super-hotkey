@@ -167,7 +167,7 @@ class SuiteApplication {
 
     OpenBindingsEvent(event) {
         if event.phase = "down"
-            SetTimer(ObjBindMethod(this, "ShowKeybindings"), -1)
+            SetTimer(ObjBindMethod(this, "ToggleKeybindings"), -1)
     }
 
     HelpShortcutEvent(moduleId, event) {
@@ -178,7 +178,7 @@ class SuiteApplication {
 
     ShowModuleHelp(moduleId, *) {
         if !this.stopping && IsObject(this.ui)
-            this.ui.ShowHelp(moduleId)
+            this.ui.ToggleHelp(moduleId)
     }
 
     CancelInputs() {
@@ -193,6 +193,15 @@ class SuiteApplication {
             cascade_command_queue := []
             StopFocusTabClick()
         }
+    }
+
+    ToggleKeybindings(*) {
+        if IsObject(this.manager.settings)
+            && WinActive("ahk_id " this.manager.settings.Hwnd) {
+            this.manager._RequestCloseSettings()
+            return
+        }
+        this.ShowKeybindings()
     }
 
     ShowKeybindings(*) {

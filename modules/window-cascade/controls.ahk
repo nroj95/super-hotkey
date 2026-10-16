@@ -242,6 +242,12 @@ DispatchCascadeCommand(command)
 
     CancelNewWindowFocus()
 
+    ; Help should still toggle when its own window is maximized.
+    if command_id = cascade_command_show_help {
+        ToggleWindowCascadeHelp()
+        return
+    }
+
     if ActiveWindowBlocksCascadeCommands()
         return
 
@@ -291,9 +297,6 @@ DispatchCascadeCommand(command)
 
         case cascade_command_gather_to_monitor:
             GatherCascadesToCommandMonitor()
-
-        case cascade_command_show_help:
-            ToggleWindowCascadeHelp()
 
         case cascade_command_move_monitor_left:
             MoveCascadeWindowAcrossMonitor(parameter, "Left")

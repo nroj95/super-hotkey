@@ -289,11 +289,41 @@ class SuiteUpgradeChecks {
                     "CapsLock and Pause layer hooks return when hotkeys resume")
 
             manager.ShowSettings()
-            this.Assert(manager.gated, "opening Keybindings pauses inputs")
+            this.Assert(!manager.gated && !manager.paused,
+                "Keybindings keeps normal hotkeys active when not recording")
+            if IsObject(manager.client)
+                this.Assert(manager.client.session,
+                    "Keybindings does not reset the running Caps/Pause layer session")
+            this.Assert(SuiteFullscreen.Active(),
+                "F11 fullscreen remains available while Keybindings is open")
+            app.ToggleKeybindings()
+            this.Assert(!IsObject(manager.settings) && !manager.gated,
+                "opening shortcut closes the focused Keybindings window")
+            app.ToggleKeybindings()
+            this.Assert(IsObject(manager.settings) && !manager.gated,
+                "the same shortcut reopens Keybindings without gating input")
+            recordIndex := 0
+            for index, row in manager.visibleRows {
+                if row.actionId != "" {
+                    recordIndex := index
+                    break
+                }
+            }
+            this.Assert(recordIndex > 0, "Keybindings has a recordable assignment")
+            manager._BeginRecording(recordIndex, 1)
+            this.Assert(IsObject(manager.recording) && manager.gated,
+                "recording alone temporarily gates normal hotkeys")
+            this.Assert(!SuiteFullscreen.Active(),
+                "F11 fullscreen is disabled during keybinding recording")
+            manager._EndRecording()
+            this.Assert(!manager.gated && SuiteFullscreen.Active(),
+                "ending recording restores normal hotkeys and F11")
             app.ui.ToggleSuspension()
             this.Assert(manager.gated && app.suspended,
                 "suspending while Keybindings is open keeps inputs gated")
             manager._CloseSettings()
+            this.Assert(!IsObject(manager.editorInputHook) && !manager._EditorCapsBlockActive(),
+                "closing Keybindings releases its temporary input observer")
             this.Assert(manager.gated && manager.paused,
                 "closing Keybindings does not bypass suspended hotkeys")
             app.ui.ToggleSuspension()
@@ -1223,6 +1253,14 @@ class SuiteUpgradeChecks {
                     "Keybindings closes Help without a Back button: " id)
             }
             app.ui.ShowHelp("scratchpad")
+            this.Assert(!!WinActive("ahk_id " app.ui.windows["help:scratchpad"].Hwnd),
+                "the Help page becomes active for its keyboard shortcut")
+            app.ui.ToggleHelp("scratchpad")
+            this.Assert(!app.ui.windows.Has("help:scratchpad"),
+                "the same Help shortcut closes its active page")
+            app.ui.ToggleHelp("scratchpad")
+            this.Assert(app.ui.windows.Has("help:scratchpad"),
+                "the Help shortcut opens the page again")
             app.ui.windows["help:scratchpad"].GetClientPos(, , &lastHelpW, &lastHelpH)
             this.Assert(lastHelpW = 820 && lastHelpH = 480,
                 "Help reopens at the smaller default regardless of prior resizing")

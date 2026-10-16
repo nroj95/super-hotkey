@@ -164,7 +164,7 @@ class PowerHotkeys {
                 case "terminal-clear": this.terminal.Clear(job)
                 case "speaker-wake": this.utilities.WakeSpeakers(job)
                 case "sleep": this.utilities.SleepComputer(job)
-                case "interface": SuiteState.App.ui.ShowHelp("power-hotkey")
+                case "interface": SuiteState.App.ui.ToggleHelp("power-hotkey")
                 default: throw Error("Unknown action kind: " job.action.kind)
             }
         }

@@ -129,7 +129,7 @@ class SuiteStructureTests(unittest.TestCase):
         self.assertIn('nroj.Scratchpad.Controller', text)
         self.assertIn('"\\Scratchpad"', text)
         self.assertNotIn('this.toggle_hotkey_name', text)
-        self.assertIn('SuiteState.App.ui.ShowHelp("scratchpad")', text)
+        self.assertIn('SuiteState.App.ui.ToggleHelp("scratchpad")', text)
 
 
 if __name__ == '__main__':
