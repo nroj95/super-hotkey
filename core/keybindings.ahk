@@ -163,16 +163,11 @@ class Keybindings {
             modules := Map()
             moduleOrder := []
             allCategories := Map()
-            categoryScopes := Map()
             for action in participant.actions {
                 if !action.enabled
                     continue
                 allCategories[action.category] := true
                 scope := HasProp(action, "scope") ? action.scope : ""
-                if !categoryScopes.Has(action.category)
-                    categoryScopes[action.category] := scope
-                else if categoryScopes[action.category] != scope
-                    categoryScopes[action.category] := ""
                 searchable := participant.name " " action.id " " action.category " " action.label
                 for encoded in action.bindings {
                     parsed := Keybindings.Parse(encoded)
@@ -194,7 +189,7 @@ class Keybindings {
                     else
                         modules[moduleName].InsertAt(1, action.category)
                 }
-                entry := {id: action.id, label: action.label,
+                entry := {id: action.id, label: action.label, scope: scope,
                     ownerId: participant.id, setting: action,
                     editable: (participant.id = participants[1].id || participant.controlReady)}
                 if HasProp(action, "help") && action.help
@@ -236,7 +231,7 @@ class Keybindings {
                     if participant.id != participants[1].id && !participant.controlReady
                         heading .= " (view only)"
                     rows.Push({id: "", kind: "owner", label: heading,
-                        scope: categoryScopes[category], ownerId: participant.id})
+                        ownerId: participant.id})
                     for entry in grouped[category]
                         rows.Push(entry)
                 }
@@ -1031,13 +1026,26 @@ class Keybindings {
         this.verticalScrollHookActive := true
     }
 
-    ; Center the heading and marker as one group without overlapping controls.
-    static ScopeHeadingLayout(width, heading) {
-        titleWidth := StrLen(heading) * 8 + 16 ; Cascadia Mono, 10 pt
-        gap := 8
-        markerWidth := 84
-        x := Floor((width - 24 - titleWidth - gap - markerWidth) / 2)
-        return {x: x, titleWidth: titleWidth, markerX: x + titleWidth + gap}
+    ; Small, explanatory context tags, only for positive application scopes.
+    ; Inverse scopes are exclusion rules, not single-application shortcuts.
+    static ContextTagText(scope) {
+        switch scope {
+            case "paper-pad": return "editor only"
+            case "windows-terminal": return "terminal only"
+            default: return ""
+        }
+    }
+
+    ; Cascadia Mono at 10 pt is approximately 8 logical pixels per glyph.
+    ; Bound the label to the existing description column so it cannot reach
+    ; into the keybinding buttons. SS_ENDELLIPSIS handles narrow windows.
+    static ContextRowLayout(label, tag, primaryX) {
+        available := Max(80, primaryX - 33) ; x22 to 11px before binding
+        if tag = ""
+            return {titleWidth: available, tagX: 22, tagWidth: 0}
+        tagWidth := Ceil(StrLen(tag) * 6.5) + 6 ; 8pt text, 3px horizontal padding
+        titleWidth := Max(1, Min(StrLen(label) * 8, available - tagWidth - 12))
+        return {titleWidth: titleWidth, tagX: 22 + titleWidth + 12, tagWidth: tagWidth}
     }
 
     ; Avoid dispatching redundant WM_SETTEXT, ShowWindow and EnableWindow updates.
@@ -1068,9 +1076,10 @@ class Keybindings {
     _AddSettingsRow() {
         index := this.settingsRowPool.Length + 1
         window := this.settings
-        title := window.AddText("Hidden x22 y48 w290 h25", "")
+        title := window.AddText("Hidden x22 y48 w290 h25 +0x4000", "") ; SS_ENDELLIPSIS
         categoryTitle := window.AddText("Hidden x22 y48 w752 h25 Center", "")
-        scopeIndicator := window.AddText("Hidden x580 y48 w84 h25 c777777", "[scoped]")
+        contextTag := window.AddText("Hidden x22 y48 w80 h16 Border Center c777777", "")
+        contextTag.SetFont("s8 c777777", "Cascadia Mono")
         primary := window.AddButton("Hidden x358 y48 w167 h29", "unbound")
         secondary := window.AddButton("Hidden x535 y48 w153 h29", "unbound")
         reset := window.AddButton("Hidden x698 y48 w76 h29", "reset")
@@ -1081,7 +1090,7 @@ class Keybindings {
         secondary.OnEvent("Click", ObjBindMethod(this, "_BeginRecording", index, 2))
         reset.OnEvent("Click", ObjBindMethod(this, "_ResetAction", index))
         this.settingsRowPool.Push({title: title, categoryTitle: categoryTitle,
-            scopeIndicator: scopeIndicator, primary: primary, secondary: secondary,
+            contextTag: contextTag, primary: primary, secondary: secondary,
             reset: reset, actionId: ""})
     }
 
@@ -1119,7 +1128,7 @@ class Keybindings {
                     if index > rowCount {
                         row.title.Visible := false
                         row.categoryTitle.Visible := false
-                        row.scopeIndicator.Visible := false
+                        row.contextTag.Visible := false
                         row.primary.Visible := false
                         row.secondary.Visible := false
                         row.reset.Visible := false
@@ -1148,16 +1157,14 @@ class Keybindings {
                 primaryX := secondaryX - primaryWidth - 10
                 for index, row in this.visibleRows {
                     y := 48 + (index - 1) * 35
+                    tag := row.contextTag.Visible ? row.contextTag.Text : ""
+                    layout := Keybindings.ContextRowLayout(row.title.Text, tag, primaryX)
                     positions.Push({control: row.title,
-                        x: 22, y: y + 6, w: primaryX - 33, h: 25})
-                    scoped := row.scopeIndicator.Visible
-                    headingLayout := scoped ? Keybindings.ScopeHeadingLayout(width, row.categoryTitle.Text) : 0
+                        x: 22, y: y + 6, w: layout.titleWidth, h: 25})
+                    positions.Push({control: row.contextTag,
+                        x: layout.tagX, y: y + 3, w: layout.tagWidth, h: 16})
                     positions.Push({control: row.categoryTitle,
-                        x: scoped ? headingLayout.x : 22, y: y + 6,
-                        w: scoped ? headingLayout.titleWidth : width - 68, h: 25})
-                    positions.Push({control: row.scopeIndicator,
-                        x: scoped ? headingLayout.markerX : width - 110,
-                        y: y + 6, w: 84, h: 25})
+                        x: 22, y: y + 6, w: width - 68, h: 25})
                     positions.Push({control: row.primary,
                         x: primaryX, y: y, w: primaryWidth, h: 29})
                     positions.Push({control: row.secondary,
@@ -1340,8 +1347,8 @@ class Keybindings {
             row.ownerId := isAction ? entry.ownerId : ""
             Keybindings._SetSettingsVisible(row.title, isAction)
             Keybindings._SetSettingsVisible(row.categoryTitle, visible && !isAction)
-            scoped := visible && !isAction && HasProp(entry, "scope") && entry.scope != ""
-            Keybindings._SetSettingsVisible(row.scopeIndicator, scoped)
+            if !isAction
+                Keybindings._SetSettingsVisible(row.contextTag, false)
             Keybindings._SetSettingsVisible(row.primary, isAction)
             Keybindings._SetSettingsVisible(row.secondary, isAction)
             Keybindings._SetSettingsVisible(row.reset, isLocal)
@@ -1350,15 +1357,18 @@ class Keybindings {
             if !isAction {
                 heading := entry.label = "Global" ? "★ Global ★" : entry.label
                 Keybindings._SetSettingsText(row.categoryTitle, heading)
-                if scoped {
-                    layout := Keybindings.ScopeHeadingLayout(clientWidth, heading)
-                    Keybindings._MoveSettingsHeading(row.categoryTitle, layout.x, layout.titleWidth)
-                    Keybindings._MoveSettingsHeading(row.scopeIndicator, layout.markerX)
-                } else
-                    Keybindings._MoveSettingsHeading(row.categoryTitle, 22, clientWidth - 68)
+                Keybindings._MoveSettingsHeading(row.categoryTitle, 22, clientWidth - 68)
                 continue
             }
             Keybindings._SetSettingsText(row.title, entry.label)
+            tag := Keybindings.ContextTagText(entry.scope)
+            Keybindings._SetSettingsText(row.contextTag, tag)
+            row.primary.GetPos(&primaryX)
+            layout := Keybindings.ContextRowLayout(entry.label, tag, primaryX)
+            Keybindings._MoveSettingsHeading(row.title, 22, layout.titleWidth)
+            if tag != ""
+                Keybindings._MoveSettingsHeading(row.contextTag, layout.tagX, layout.tagWidth)
+            Keybindings._SetSettingsVisible(row.contextTag, tag != "")
             Keybindings._SetSettingsEnabled(row.primary, editable)
             Keybindings._SetSettingsEnabled(row.secondary, editable)
             setting := isLocal ? this.settingsDraft[entry.id] : entry.setting

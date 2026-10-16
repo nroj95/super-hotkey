@@ -721,16 +721,23 @@ class SuiteUpgradeChecks {
                 && manager.actions["window-cascade.copy-log"].id = "window-cascade.copy-log",
                 "Global rename leaves saved action IDs unchanged")
             rows := Keybindings.DisplayRows(manager.DiscoverParticipants())
-            scopedHeadings := Map()
-            for row in rows
-                if row.id = ""
-                    scopedHeadings[row.label] := HasProp(row, "scope") ? row.scope : ""
-            this.Assert(scopedHeadings["Paper Pad / Inside the editor"] = "paper-pad"
-                && scopedHeadings["Power-Up Utilities / Windows Terminal"] = "windows-terminal",
-                "only scoped categories carry scope metadata")
-            this.Assert(scopedHeadings["Global"] = "" && scopedHeadings["Power-Up Utilities"] = ""
-                && scopedHeadings["Wonder Windows"] = "",
-                "mixed and global categories remain unmarked")
+            actionScopes := Map()
+            cleanHeadings := true
+            for row in rows {
+                if row.id = "" {
+                    if HasProp(row, "scope")
+                        cleanHeadings := false
+                } else
+                    actionScopes[row.id] := row.scope
+            }
+            this.Assert(cleanHeadings && actionScopes["scratchpad.save"] = "paper-pad"
+                && actionScopes["power-hotkey.terminal.copy"] = "windows-terminal",
+                "scopes belong to action descriptions rather than category headings")
+            this.Assert(actionScopes["core.keybindings"] = ""
+                && Keybindings.ContextTagText("!paper-pad") = ""
+                && Keybindings.ContextTagText("paper-pad") = "editor only"
+                && Keybindings.ContextTagText("windows-terminal") = "terminal only",
+                "only application-specific shortcuts receive readable context tags")
             this.Assert(manager.actions["power-hotkey.terminal.clear"].scope = "windows-terminal"
                 && manager.actions["power-hotkey.terminal.copy"].scope = "windows-terminal",
                 "Terminal shortcuts are gated by the actual foreground application")
@@ -1105,15 +1112,37 @@ class SuiteUpgradeChecks {
                 "resizing smaller reduces the visible row count without losing the catalog")
             app.manager.settingsSearch.Value := "Inside the editor"
             app.manager._SearchChanged()
-            scopedRow := app.manager.visibleRows[2]
-            scopedRow.categoryTitle.GetPos(&headingX, , &headingWidth)
-            scopedRow.scopeIndicator.GetPos(&scopeX)
-            this.Assert(scopedRow.scopeIndicator.Visible && headingX + headingWidth < scopeX,
-                "scope indicator never overlaps its heading")
+            headingRow := app.manager.visibleRows[2]
+            this.Assert(headingRow.categoryTitle.Visible
+                && headingRow.categoryTitle.Text = "Paper Pad / Inside the editor"
+                && !headingRow.contextTag.Visible,
+                "category headings no longer show the generic scoped marker")
+            paperRow := app.manager.visibleRows[3]
+            paperRow.title.GetPos(&descriptionX, &descriptionY, &descriptionWidth, &descriptionHeight)
+            paperRow.contextTag.GetPos(&tagX, &tagY, &tagWidth, &tagHeight)
+            paperRow.primary.GetPos(&bindingX)
+            this.Assert(paperRow.contextTag.Visible && paperRow.contextTag.Text = "editor only"
+                && descriptionX + descriptionWidth < tagX
+                && tagX + tagWidth < bindingX,
+                "Paper Pad context tag follows its description without overlapping bindings")
+            this.Assert(tagX - (descriptionX + descriptionWidth) = 12
+                && tagWidth <= 80 && tagHeight = 16
+                && tagY < descriptionY && tagHeight < descriptionHeight,
+                "context tag is compact, close to the description, and slightly raised")
+            app.manager.settingsSearch.Value := "Windows Terminal"
+            app.manager._SearchChanged()
+            terminalRow := app.manager.visibleRows[3]
+            terminalRow.contextTag.GetPos(&terminalTagX, , &terminalTagWidth)
+            terminalRow.primary.GetPos(&terminalBindingX)
+            this.Assert(terminalRow.contextTag.Visible
+                && terminalRow.contextTag.Text = "terminal only"
+                && terminalTagWidth <= 100
+                && terminalTagX + terminalTagWidth < terminalBindingX,
+                "Windows Terminal context tag fits inside the narrow description column")
             app.manager.settingsSearch.Value := ""
             app.manager._SearchChanged()
-            this.Assert(!app.manager.visibleRows[1].scopeIndicator.Visible,
-                "unscoped heading hides its marker after reusing a row")
+            this.Assert(!app.manager.visibleRows[1].contextTag.Visible,
+                "unscoped heading hides the reused row's context tag")
             app.manager._CloseSettings()
             IniWrite("1300", app.manager.root "\window.ini", "Window", "Width")
             IniWrite("900", app.manager.root "\window.ini", "Window", "Height")
