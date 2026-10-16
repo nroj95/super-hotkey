@@ -35,6 +35,26 @@ class SuiteLog {
 
     Read() => FileExist(this.path) ? FileRead(this.path, "UTF-8") : ""
 
+    ReadRecent(maximumBytes := 24576) {
+        if !FileExist(this.path)
+            return ""
+        file := FileOpen(this.path, "r", "UTF-8")
+        try {
+            offset := Max(0, file.Length - maximumBytes)
+            file.Pos := offset
+            recent := file.Read()
+            if !offset
+                return recent
+
+            ; Discard the potentially partial UTF-8 line at the byte boundary.
+            newline := InStr(recent, "`n")
+            if newline
+                recent := SubStr(recent, newline + 1)
+            return "[Showing recent entries. Copy or Open file for the full log.]`r`n`r`n" recent
+        }
+        finally file.Close()
+    }
+
     Clear(*) {
         if FileExist(this.path)
             FileMove(this.path, this.path ".old", true)
