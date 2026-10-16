@@ -44,7 +44,7 @@ class WonderWindowsModule {
         this.Add("cycle-expanded", "cycle maximized / fullscreen windows", WW_CycleMaximizedFullscreenWindows,
             ["Win + Shift + Tab"])
         this.manager.AddAction("win-key-overhaul.help", "show Wonder Windows help",
-            ObjBindMethod(this, "HelpEvent"), ["Win + Ctrl + H"],
+            ObjBindMethod(this, "HelpEvent"), ["Caps + Win + H"],
             {category: "Wonder Windows", help: true,
                 available: ObjBindMethod(this, "Available")})
     }

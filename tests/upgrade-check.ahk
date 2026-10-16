@@ -1013,7 +1013,7 @@ class SuiteUpgradeChecks {
             this.Assert(saved["window-cascade.help"].bindings[1]
                 = Keybindings.Parse("Caps + H").signature
                 && saved["win-key-overhaul.help"].bindings[1]
-                    = Keybindings.Parse("Win + Ctrl + H").signature
+                    = Keybindings.Parse("Caps + Win + H").signature
                 && saved["power-hotkey.interface.open"].bindings[1]
                     = Keybindings.Parse("Pause + H").signature,
                 "existing module Help shortcuts retain their original defaults")
@@ -1022,7 +1022,7 @@ class SuiteUpgradeChecks {
             this.Assert(!this.RouteExists(manager, "keyboard-layers.help"),
                 "unassigned Secret Keys Help installs no shortcut")
             this.Assert(InStr(ModuleHelp.Text("keyboard-layers", manager),
-                "HOLD A KEY FOR MORE HOTKEYS") = 1
+                "WHY I MADE THIS") = 1
                 && !InStr(ModuleHelp.Text("keyboard-layers", manager), "CURRENT SAVED SHORTCUTS"),
                 "Secret Keys help provides a practical guide without a shortcut inventory")
             filtered := Keybindings.DisplayRows(manager.DiscoverParticipants(), "Inside the editor")
@@ -1503,16 +1503,18 @@ class SuiteUpgradeChecks {
                     "power-hotkey", "MORE KEYS WITHOUT A NEW KEYBOARD",
                     "scratchpad", "YOUR OWN QUICK-NOTES DRAWER",
                     "keyboard-layers", "HOLD A KEY FOR MORE HOTKEYS")
-                this.Assert(InStr(guide, firstHeading[id]) = 1
+                this.Assert(InStr(guide, "WHY I MADE THIS`r`n") = 1
+                    && InStr(guide, "`r`n`r`n" firstHeading[id]) > 0
                     && !InStr(guide, "GETTING STARTED"),
-                    "each module opens with its own distinct subject heading: " id)
+                    "each module starts with a personal introduction: " id)
                 this.Assert(StrLen(guide) >= 600,
                     "each Help guide provides substantial practical usage details: " id)
                 this.Assert(InStr(guide, "until you") > 0 || id != "window-cascade",
                     "Help sentences aren't split by fixed hard line breaks")
                 window.GetClientPos(, , &helpWidth, &helpHeight)
-                this.Assert(helpWidth = 820 && helpHeight = 480,
-                    "Help opens at a smaller default size: " id)
+                expectedHelpHeight := Max(480, 145 + app.ui.HelpTextHeight(id, 820) + 12)
+                this.Assert(helpWidth = 820 && helpHeight = expectedHelpHeight,
+                    "Help opens tall enough for its introduction: " id)
                 this.AssertCentered(window, SuiteSettings.ModuleNames[id] " Help")
                 this.AssertResizeGrip(window, SuiteSettings.ModuleNames[id] " Help")
                 titlePart := app.ui.helpLayouts[id].header
@@ -1542,10 +1544,8 @@ class SuiteUpgradeChecks {
                 fontFace := StrGet(fontData.Ptr + 28, 32, "UTF-16")
                 this.Assert(fontFace = "Cascadia Mono" || fontFace = "Consolas",
                     "help font is the old Cascadia Mono or the Windows fallback: " id)
-                lineCount := StrSplit(guide, "`n").Length
                 this.Assert(helpWidth >= 560 && helpHeight >= 400
-                    && textHeight > 310 && textY + textHeight < helpHeight - 60
-                    && lineCount * 20 <= textHeight,
+                    && textHeight > 310 && textY + textHeight < helpHeight - 60,
                     "initial help page fits its complete guide: " id)
                 this.Assert(app.ui.HelpTextHeight(id, helpWidth) <= textHeight,
                     "all Help guide paragraphs fit above the footer at startup: " id)

@@ -328,6 +328,10 @@ class SuiteInterface {
             this.helpSizingInstalled := true
         }
         window.OnEvent("Size", ObjBindMethod(this, "ResizeHelp", id))
+        ; Measure after giving the hidden GUI its opening width. Keep the compact
+        ; default when it fits, but grow taller rather than clip the new intro.
+        window.Show("Hide w" width " h" height)
+        height := Max(height, 145 + this.HelpTextHeight(id, width) + 12)
         SuiteShowCentered(window, width, height, ObjBindMethod(this, "ResizeHelp", id))
     }
 
