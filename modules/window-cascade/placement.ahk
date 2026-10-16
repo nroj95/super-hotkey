@@ -296,6 +296,8 @@ TryProvisionalNewWindowPlacement(hwnd, source_hwnd, queued_monitor, request)
 {
     global placement_reservations, cascade_display_generation
 
+    if SkipPendingCascadePlacement(hwnd, request, IsCascadeHoldToSkipActive())
+        return false
     if request.HasOwnProp("provisional_placement") && IsObject(request.provisional_placement)
         return true
 
@@ -346,6 +348,9 @@ TryProvisionalNewWindowPlacement(hwnd, source_hwnd, queued_monitor, request)
                 placement_reservations.Delete(hwnd)
             return false
         }
+
+        if SkipPendingCascadePlacement(hwnd, request, IsCascadeHoldToSkipActive(), plan.reservation)
+            return false
 
         DebugLog(
             "Provisional new-window placement begin."
@@ -475,6 +480,8 @@ PlaceNewWindow(
     retry_scheduled := false
     owned_reservation := 0
     try {
+        if SkipPendingCascadePlacement(hwnd, request, IsCascadeHoldToSkipActive())
+            return
         if !IsCurrentNewWindowPlacement(hwnd, request)
             || handled_windows.Has(hwnd) || IsCascadeWindowBeingDragged(hwnd)
             return
@@ -757,6 +764,8 @@ PlaceNewWindow(
 
         set_window_pos_start_tick := A_TickCount
 
+        if SkipPendingCascadePlacement(hwnd, request, IsCascadeHoldToSkipActive(), owned_reservation)
+            return
         if !IsCurrentNewWindowPlacement(hwnd, request)
             || handled_windows.Has(hwnd) || IsCascadeWindowBeingDragged(hwnd)
             return
@@ -1260,6 +1269,20 @@ StabilizePlacedWindow(
     }
 }
 
+
+; A hold can begin after discovery but before an asynchronous placement.
+; Mark skipped windows as known so release never triggers retroactive cascading.
+SkipPendingCascadePlacement(hwnd, request, skip, reservation := 0)
+{
+    global pending_windows
+    if !skip || !IsObject(request) || !pending_windows.Has(hwnd)
+        || pending_windows[hwnd] != request
+        return false
+    RememberWindowDuringAutoPlacementPause(hwnd)
+    pending_windows.Delete(hwnd)
+    ReleaseFailedNewWindowPlacementReservation(hwnd, request, reservation)
+    return true
+}
 
 IsCurrentNewWindowPlacement(hwnd, request)
 {

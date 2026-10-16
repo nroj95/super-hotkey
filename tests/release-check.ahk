@@ -4,12 +4,58 @@ class SuiteReleaseChecks {
 
     static Run() {
         this.PowerCancellation()
+        this.HoldToSkipPlacement()
         this.DeferredInputsAndSessions()
         this.WindowSizingAndCloaking()
         this.FocusTabDpi()
     }
 
     static Assert(condition, label) => SuiteChecks.Assert(condition, label)
+
+    static HoldToSkipPlacement() {
+        global cascade_hold_to_skip_key, pending_windows, known_windows, startup_windows
+        previousKey := cascade_hold_to_skip_key
+        app := SuiteApplication(true, SuiteChecks.directory "\release-hold-skip")
+        try {
+            InitializeCascadeState()
+            this.Assert(cascade_hold_to_skip_key = "CapsLock",
+                "CapsLock is the default hold-to-skip placement key")
+            app.Settings.WritePreferences("window-cascade", Map(
+                "Controls", Map("HoldToSkipKey", "Pause")))
+            InitializeCascadeState()
+            this.Assert(cascade_hold_to_skip_key = "Pause",
+                "Pause hold-to-skip choice survives settings reload")
+            app.Settings.WritePreferences("window-cascade", Map(
+                "Controls", Map("HoldToSkipKey", "Disabled")))
+            InitializeCascadeState()
+            this.Assert(cascade_hold_to_skip_key = "Disabled"
+                && !IsCascadeHoldToSkipActive(),
+                "Disabled choice leaves automatic cascading available")
+
+            hwnd := 987654321
+            request := {pid: 0}
+            pending_windows[hwnd] := request
+            this.Assert(!SkipPendingCascadePlacement(hwnd, request, false)
+                && pending_windows.Has(hwnd),
+                "an unheld skip key leaves queued placement available")
+            this.Assert(!SkipPendingCascadePlacement(hwnd, {pid: 0}, true)
+                && pending_windows.Has(hwnd),
+                "a stale placement request cannot claim a new window")
+            this.Assert(SkipPendingCascadePlacement(hwnd, request, true)
+                && !pending_windows.Has(hwnd)
+                && known_windows.Has(hwnd) && startup_windows.Has(hwnd),
+                "a held skip key permanently excludes the queued window")
+        }
+        finally {
+            cascade_hold_to_skip_key := previousKey
+            if pending_windows.Has(987654321)
+                pending_windows.Delete(987654321)
+            if known_windows.Has(987654321)
+                known_windows.Delete(987654321)
+            if startup_windows.Has(987654321)
+                startup_windows.Delete(987654321)
+        }
+    }
 
     static PowerCancellation() {
         app := SuiteApplication(true, SuiteChecks.directory "\release-power")
