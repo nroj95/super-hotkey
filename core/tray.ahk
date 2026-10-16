@@ -877,8 +877,8 @@ class SuiteInterface {
         verbose := window.AddCheckbox("x20 y18 w750 vverbose", "Verbose debugging for the whole application")
         verbose.Value := SuiteState.Log.verbose
         verbose.OnEvent("Click", ObjBindMethod(this, "SetVerbose"))
-        window.AddText("x20 y50 w760", "Errors are always logged. Verbose diagnostics may include window titles and paths, not note or clipboard contents.")
-        window.AddEdit("x20 y85 w760 h335 ReadOnly +VScroll vlog", SuiteState.Log.Read())
+        window.AddText("x20 y50 w760", "Showing recent entries only. Copy or Open file accesses the full log; verbose mode may include window titles and paths.")
+        window.AddEdit("x20 y85 w760 h335 ReadOnly +VScroll vlog", SuiteState.Log.ReadRecent())
         footer := this.Footer(window, [["Copy", ObjBindMethod(this, "CopyLog"), 100],
             ["Clear...", ObjBindMethod(this, "ClearLog"), 100],
             ["Open file", ObjBindMethod(this, "OpenLogFile"), 115],
@@ -927,7 +927,7 @@ class SuiteInterface {
 
     RefreshLog(*) {
         if this.windows.Has("log")
-            this.windows["log"]["log"].Value := SuiteState.Log.Read()
+            this.windows["log"]["log"].Value := SuiteState.Log.ReadRecent()
     }
 
     CopyLog(*) {
