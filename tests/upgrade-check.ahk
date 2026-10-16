@@ -128,7 +128,7 @@ class SuiteUpgradeChecks {
                 manager.SetPaused(true)
                 manager.Start()
                 this.Assert(IsObject(manager.client) = (flags[1] || flags[2]), "adapter presence: " label)
-                this.Assert((manager.BindingUnavailable(Keybindings.Parse("Caps + K")) = "") = flags[1],
+                this.Assert((manager.BindingUnavailable(Keybindings.Parse("Caps + Alt + K")) = "") = flags[1],
                     "Caps assignment availability: " label)
                 this.Assert((manager.BindingUnavailable(Keybindings.Parse("Pause + T")) = "") = flags[2],
                     "Pause assignment availability: " label)
@@ -237,6 +237,7 @@ class SuiteUpgradeChecks {
             manager.SetPaused(true)
             manager.Start()
             config := manager.GetConfiguration()
+            config["power-hotkey.system.wake-speakers"].bindings[1] := ""
             config["scratchpad.toggle"].bindings[1] := "Caps + Caps"
             config["scratchpad.help"].bindings[2] := "Pause + Pause"
             manager.Apply(config)
@@ -598,7 +599,7 @@ class SuiteUpgradeChecks {
             manager.settings["search"].Value := "open Keybindings"
             manager._RenderSettings()
             core := manager.visibleRows[2]
-            this.Assert(InStr(core.primary.Text, "⚠ Caps + K") = 1
+            this.Assert(InStr(core.primary.Text, "⚠ Caps + Alt + K") = 1
                 && core.secondary.Text = "Ctrl + Alt + K"
                 && core.primary.Enabled,
                 "disabled Secret Keys marks only the Caps binding and leaves it editable")

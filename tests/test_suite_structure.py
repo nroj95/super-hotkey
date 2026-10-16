@@ -28,7 +28,7 @@ class SuiteStructureTests(unittest.TestCase):
         application = (ROOT / 'core/application.ahk').read_text(encoding='utf-8')
         self.assertIn('static Name := "Super Hotkey"', application)
         self.assertIn('static Version := "1.0.0"', application)
-        self.assertIn('Keybindings("super-hotkey-world"', application)
+        self.assertIn('Keybindings("super-hotkey"', application)
         self.assertIn(r'\nroj\SuperHotkey"', application)
         self.assertNotIn('ImportLegacyModuleSettings', application)
         self.assertFalse((ROOT / 'super-hotkey-world.ahk').exists())

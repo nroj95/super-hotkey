@@ -47,7 +47,7 @@ class SuiteApplication {
     }
 
     Start(openSettings := false) {
-        name := "Local\nroj.SuperHotkeyWorld" (this.dryRun ? ".Preview." DllCall("GetCurrentProcessId", "uint") : "")
+        name := "Local\nroj.SuperHotkey" (this.dryRun ? ".Preview." DllCall("GetCurrentProcessId", "uint") : "")
         this.mutex := DllCall("CreateMutexW", "ptr", 0, "int", false, "str", name, "ptr")
         if !this.mutex || A_LastError = 183
             throw Error("Another Super Hotkey instance is running. Close it before starting another copy.")
@@ -120,13 +120,13 @@ class SuiteApplication {
             statusCallback: ObjBindMethod(this, "BindingStatus")}
         if this.ModuleActive("keyboard-layers") && (this.activeLayers["caps"] || this.activeLayers["pause"])
             options.layerFactory := (name, status) => LocalKeyboardLayers(name, status, this.activeLayers)
-        this.manager := Keybindings("super-hotkey-world", SuiteApplication.Name, options)
+        this.manager := Keybindings("super-hotkey", SuiteApplication.Name, options)
         this.manager.RegisterScope("paper-pad", PaperPadWindowActive)
         this.manager.RegisterScope("windows-terminal", (*) => WinActive("ahk_exe WindowsTerminal.exe"))
         ; One foreground window cannot be both Notepad3 Paper Pad and Windows Terminal.
         this.manager.RegisterDisjointScopes("paper-pad", "windows-terminal")
         this.manager.AddAction("core.keybindings", "open Keybindings", ObjBindMethod(this, "OpenBindingsEvent"),
-            ["Caps + K", "Ctrl + Alt + K"], {category: "Global"})
+            ["Caps + Alt + K", "Ctrl + Alt + K"], {category: "Global"})
         this.power := PowerHotkeys(this.manager, this.dryRun)
         WindowCascadeModule.Register(this.manager)
         ScratchpadModule.Register(this.manager)

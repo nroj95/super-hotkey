@@ -30,8 +30,6 @@ class PowerHotkeys {
         category := subcategories.Has(moduleId)
             ? "Power-Up Utilities / " subcategories[moduleId] : "Power-Up Utilities"
         actionId := "power-hotkey." actionId
-        if kind = "terminal-clear"
-            defaultBinding := "Caps + Ctrl + K"
         this.catalog[actionId] := {id: actionId, moduleId: moduleId, kind: kind,
             value: value, needsFocus: needsFocus}
         this.manager.AddAction(actionId, label, ObjBindMethod(this, "Dispatch"),
