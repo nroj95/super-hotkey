@@ -1120,25 +1120,42 @@ class SuiteUpgradeChecks {
             paperRow := app.manager.visibleRows[3]
             paperRow.title.GetPos(&descriptionX, &descriptionY, &descriptionWidth, &descriptionHeight)
             paperRow.contextTag.GetPos(&tagX, &tagY, &tagWidth, &tagHeight)
-            paperRow.primary.GetPos(&bindingX)
+            paperRow.primary.GetPos(&bindingX, &bindingY, , &bindingHeight)
             this.Assert(paperRow.contextTag.Visible && paperRow.contextTag.Text = "editor only"
-                && descriptionX + descriptionWidth < tagX
-                && tagX + tagWidth < bindingX,
-                "Paper Pad context tag follows its description without overlapping bindings")
-            this.Assert(tagX - (descriptionX + descriptionWidth) = 12
-                && tagWidth <= 80 && tagHeight = 16
-                && tagY < descriptionY && tagHeight < descriptionHeight,
-                "context tag is compact, close to the description, and slightly raised")
+                && descriptionX + descriptionWidth + 8 <= tagX
+                && tagX + tagWidth + 12 = bindingX,
+                "Paper Pad context tag sits immediately before the first binding")
+            this.Assert(tagWidth <= 80 && tagHeight = 16
+                && tagY = bindingY + 6
+                && Abs((tagY + tagHeight / 2) - (bindingY + bindingHeight / 2)) <= 1
+                && tagHeight < descriptionHeight,
+                "context tag is compact and vertically centered with the binding")
+            nextPaperRow := app.manager.visibleRows[4]
+            nextPaperRow.contextTag.GetPos(&nextTagX, , &nextTagWidth)
+            nextPaperRow.primary.GetPos(&nextBindingX)
+            this.Assert(nextPaperRow.contextTag.Visible
+                && nextTagX = tagX && nextTagWidth = tagWidth
+                && nextBindingX = bindingX,
+                "Paper Pad context tags align across different description lengths")
             app.manager.settingsSearch.Value := "Windows Terminal"
             app.manager._SearchChanged()
             terminalRow := app.manager.visibleRows[3]
+            terminalRow.title.GetPos(&terminalDescriptionX, , &terminalDescriptionWidth)
             terminalRow.contextTag.GetPos(&terminalTagX, , &terminalTagWidth)
             terminalRow.primary.GetPos(&terminalBindingX)
             this.Assert(terminalRow.contextTag.Visible
                 && terminalRow.contextTag.Text = "terminal only"
                 && terminalTagWidth <= 100
-                && terminalTagX + terminalTagWidth < terminalBindingX,
-                "Windows Terminal context tag fits inside the narrow description column")
+                && terminalDescriptionX + terminalDescriptionWidth + 8 <= terminalTagX
+                && terminalTagX + terminalTagWidth + 12 = terminalBindingX,
+                "Windows Terminal context tag is aligned before its binding")
+            editor.Show("w1080 h420")
+            editor.GetClientPos(, , &widerWidth, &widerHeight)
+            app.manager._ResizeSettings(editor, 0, widerWidth, widerHeight)
+            terminalRow.contextTag.GetPos(&wideTagX, , &wideTagWidth)
+            terminalRow.primary.GetPos(&wideBindingX)
+            this.Assert(wideTagX + wideTagWidth + 12 = wideBindingX,
+                "context tag remains anchored beside its binding after resizing")
             app.manager.settingsSearch.Value := ""
             app.manager._SearchChanged()
             this.Assert(!app.manager.visibleRows[1].contextTag.Visible,

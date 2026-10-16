@@ -1036,16 +1036,16 @@ class Keybindings {
         }
     }
 
-    ; Cascadia Mono at 10 pt is approximately 8 logical pixels per glyph.
-    ; Bound the label to the existing description column so it cannot reach
-    ; into the keybinding buttons. SS_ENDELLIPSIS handles narrow windows.
+    ; Anchor context tags before the first binding box, not after the
+    ; variable-length description. Ellipsize labels that run into the tag.
     static ContextRowLayout(label, tag, primaryX) {
         available := Max(80, primaryX - 33) ; x22 to 11px before binding
         if tag = ""
             return {titleWidth: available, tagX: 22, tagWidth: 0}
-        tagWidth := Ceil(StrLen(tag) * 6.5) + 6 ; 8pt text, 3px horizontal padding
-        titleWidth := Max(1, Min(StrLen(label) * 8, available - tagWidth - 12))
-        return {titleWidth: titleWidth, tagX: 22 + titleWidth + 12, tagWidth: tagWidth}
+        tagWidth := Ceil(StrLen(tag) * 6.0) + 6 ; 7.25pt text, 3px horizontal padding
+        tagX := primaryX - tagWidth - 12 ; 12px before the first binding box
+        titleWidth := Max(1, Min(StrLen(label) * 8, tagX - 22 - 8))
+        return {titleWidth: titleWidth, tagX: tagX, tagWidth: tagWidth}
     }
 
     ; Avoid dispatching redundant WM_SETTEXT, ShowWindow and EnableWindow updates.
@@ -1079,7 +1079,7 @@ class Keybindings {
         title := window.AddText("Hidden x22 y48 w290 h25 +0x4000", "") ; SS_ENDELLIPSIS
         categoryTitle := window.AddText("Hidden x22 y48 w752 h25 Center", "")
         contextTag := window.AddText("Hidden x22 y48 w80 h16 Border Center c777777", "")
-        contextTag.SetFont("s8 c777777", "Cascadia Mono")
+        contextTag.SetFont("s7.25 c777777", "Cascadia Mono")
         primary := window.AddButton("Hidden x358 y48 w167 h29", "unbound")
         secondary := window.AddButton("Hidden x535 y48 w153 h29", "unbound")
         reset := window.AddButton("Hidden x698 y48 w76 h29", "reset")
@@ -1162,7 +1162,7 @@ class Keybindings {
                     positions.Push({control: row.title,
                         x: 22, y: y + 6, w: layout.titleWidth, h: 25})
                     positions.Push({control: row.contextTag,
-                        x: layout.tagX, y: y + 3, w: layout.tagWidth, h: 16})
+                        x: layout.tagX, y: y + 6, w: layout.tagWidth, h: 16})
                     positions.Push({control: row.categoryTitle,
                         x: 22, y: y + 6, w: width - 68, h: 25})
                     positions.Push({control: row.primary,
