@@ -4,10 +4,10 @@ class ScratchpadModule {
         manager.AddAction("scratchpad.help", "show Paper Pad help",
             ObjBindMethod(SuiteState.App, "HelpShortcutEvent", "scratchpad"), ["Pause + F12"],
             {category: "Paper Pad", help: true, available: ObjBindMethod(this, "Available")})
-        manager.AddAction("scratchpad.toggle", "toggle Paper Pad", ObjBindMethod(this, "Event", "toggle"),
+        manager.AddAction("scratchpad.toggle", "show / hide Paper Pad", ObjBindMethod(this, "Event", "toggle"),
             ["Win + F12"], {category: "Paper Pad", available: ObjBindMethod(this, "Available")})
         actions := [
-            ["hide", "hide / dismiss completion", ["Escape"]],
+            ["hide", "hide Paper Pad / dismiss completion", ["Escape"]],
             ["new", "new page", ["Ctrl + N"]],
             ["save", "save page", ["Ctrl + S"]],
             ["delete", "delete page to Recycle Bin", ["Win + F4"]],

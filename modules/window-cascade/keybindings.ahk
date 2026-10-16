@@ -45,9 +45,9 @@ InitializeCascadeKeybindings(manager)
         cascade_command_adopt_active, "Caps + Insert")
     CascadeAddAction(manager, "bring-forward", "bring this monitor's cascade forward",
         cascade_command_bring_forward, "Caps + Home")
-    CascadeAddAction(manager, "minimize", "minimize or restore managed windows",
+    CascadeAddAction(manager, "minimize", "minimize / restore managed windows",
         cascade_command_toggle_minimize, "Caps + M")
-    CascadeAddAction(manager, "auto-placement", "pause or resume automatic cascading",
+    CascadeAddAction(manager, "auto-placement", "pause / resume automatic cascading",
         cascade_command_toggle_auto_placement, "Caps + P")
     CascadeAddAction(manager, "gather", "gather cascades onto this monitor",
         cascade_command_gather_to_monitor, "Caps + F7")

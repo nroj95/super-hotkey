@@ -11,27 +11,32 @@ class WonderWindowsModule {
         this.pollCallback := ObjBindMethod(this, "PollCompatibility")
         this.optionalAvailability := "0000"
         this.Add("maximize", "maximize / toggle borderless fullscreen", WW_MaximizeWindowTarget, ["Win + Up"])
-        this.Add("restore", "restore the normal window rectangle", WW_RestoreWindowTarget, ["Win + Down"])
+        this.Add("restore", "restore normal window size / position", WW_RestoreWindowTarget, ["Win + Down"])
         for side in ["left", "right"] {
             this.Add("layout-" side, "cycle " side " layouts", WW_CycleWindowSnap, ["Win + " side], [side])
-            this.Add("stretch-" side, "toggle " side " edge stretch", WW_ToggleHorizontalStretch,
+            this.Add("stretch-" side, "stretch " side " to obstacle / restore", WW_ToggleHorizontalStretch,
                 ["Win + Shift + " side], [side])
         }
         this.Add("stretch-height", "stretch vertically until obstacles", WW_StretchWindowVertically, ["Win + Shift + Up"])
         this.Add("stretch-full-cycle", "cycle full-height / full-width stretch", WW_CycleFullStretch, ["Caps + Win + Enter"])
-        this.Add("reset-stretch", "restore remembered stretch", WW_ResetWindowStretch, ["Win + Shift + Down", "Caps + Win + Backspace"])
+        this.Add("reset-stretch", "undo window stretch", WW_ResetWindowStretch, ["Win + Shift + Down", "Caps + Win + Backspace"])
         this.Add("minimize", "minimize / restore last minimized window", WW_MinimizeActiveWindow, ["Win + Backspace"])
-        this.Add("isolate", "isolate active window / restore group", WW_ToggleOtherWindows, ["Win + Shift + Home"])
-        this.Add("minimize-all", "minimize / restore window group", WW_ToggleAllWindows, ["Win + M"])
+        this.Add("isolate", "isolate active window / restore", WW_ToggleOtherWindows, ["Win + Shift + Home"])
+        this.Add("minimize-all", "minimize / restore all windows", WW_ToggleAllWindows, ["Win + M"])
         for corner, key in Map("top-left", "Insert", "bottom-left", "Delete", "top-right", "PgUp", "bottom-right", "PgDn")
             this.Add("tile-" corner, "place " corner " tile", WW_PlaceCornerTile, ["Win + " key], [corner])
         this.Add("tile-top", "cycle top-center tiles", WW_PlaceCenterTile, ["Win + Home"], ["top"])
         this.Add("tile-bottom", "cycle bottom-center tiles", WW_PlaceCenterTile, ["Win + End"], ["bottom"])
-        this.Add("swap-next", "swap with next clockwise window", WW_SwapWindow, ["Win + Enter"], ["clockwise"])
-        this.Add("swap-previous", "swap with previous clockwise window", WW_SwapWindow,
+        this.Add("swap-next", "swap with clockwise neighbor", WW_SwapWindow, ["Win + Enter"], ["clockwise"])
+        this.Add("swap-previous", "swap with counterclockwise neighbor", WW_SwapWindow,
             ["Win + Shift + Enter"], ["counter-clockwise"])
+        focusLabels := Map(
+            "left", "focus nearest window to the left",
+            "right", "focus nearest window to the right",
+            "up", "focus nearest window above",
+            "down", "focus nearest window below")
         for direction in ["left", "right", "up", "down"] {
-            this.Add("focus-" direction, "focus window " direction, WW_FocusNearestWindow,
+            this.Add("focus-" direction, focusLabels[direction], WW_FocusNearestWindow,
                 ["Caps + Win + " direction], [direction])
             this.Add("zone-" direction, "FancyZones: move " direction, WW_MoveWindowThroughFancyZones,
                 ["Ctrl + Alt + " direction], [direction], true)
