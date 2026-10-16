@@ -117,6 +117,26 @@ WW_FullStretchRectangle(original, work_area, mode)
     throw ValueError("Unknown full stretch mode: " mode)
 }
 
+; Keep each window's accepted dimensions, placing it as near as possible to
+; the other window's original top-left corner. Refuse truly unfittable sizes.
+WW_FitSwapRectangle(destination, accepted, work_area)
+{
+    width := accepted[3]
+    height := accepted[4]
+    left := work_area[1]
+    top := work_area[2]
+    right := work_area[3]
+    bottom := work_area[4]
+
+    if width <= 0 || height <= 0 || right <= left || bottom <= top
+        || width > right - left || height > bottom - top
+        return 0
+
+    x := Max(left, Min(destination[1], right - width))
+    y := Max(top, Min(destination[2], bottom - height))
+    return [x, y, width, height]
+}
+
 WW_GetCollisionLimitedEdge(side, active_rect, obstacles, work_edge, tolerance := 1)
 {
     active_left := active_rect[1]

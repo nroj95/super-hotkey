@@ -203,6 +203,7 @@ class WonderWindowsModule {
         SetTimer(WW_ReassertFancyZonesKeyboardHook, 0)
         SetTimer(WW_WatchDemotedBorderlessSwitcherWindows, 0)
         WW_ClearFocusHighlight(true)
+        WW_RunWindowCommand(WW_ClearSwapZones)
         WW_RunWindowCommand(WW_RestoreAllFullStretches)
         WW_RunWindowCommand(WW_RestoreAllVerticalStretches)
         WW_RunWindowCommand(WW_RestoreAllHorizontalStretches)

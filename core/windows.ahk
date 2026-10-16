@@ -270,6 +270,7 @@ class SuiteWindowOwnership {
             ; A refused restoration leaves manual ownership and recovery state intact.
             if WW_borderless_windows.Has(hwnd)
                 WW_RunWindowCommand(WW_RestoreBorderlessWindow, hwnd, false, true)
+            WW_ForgetSwapZone(hwnd)
             for states in [WW_horizontal_stretch_windows, WW_vertical_stretch_windows,
                 WW_layout_cycle_windows, WW_center_tile_next_sides, WW_normal_window_placements,
                 WW_full_stretch_windows]

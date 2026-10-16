@@ -787,6 +787,21 @@ class SuiteUpgradeChecks {
                     WW_FullStretchRectangle([100, 200, 300, 200], [0, 0, 900, 1100], "width"),
                     [0, 200, 900, 200], 0),
                 "full stretch modes retain the untouched dimension")
+            this.Assert(WW_RectanglesMatch(
+                WW_FitSwapRectangle([100, 150, 800, 500], [100, 150, 800, 500], [0, 0, 1600, 900]),
+                [100, 150, 800, 500], 0),
+                "best-effort swap does not alter a fitting destination")
+            this.Assert(WW_RectanglesMatch(
+                WW_FitSwapRectangle([900, 600, 400, 300], [900, 600, 820, 520], [0, 0, 1600, 900]),
+                [780, 380, 820, 520], 0),
+                "size-constrained swaps keep accepted dimensions on-screen")
+            this.Assert(WW_RectanglesMatch(
+                WW_FitSwapRectangle([-100, -80, 400, 300], [-100, -80, 820, 520], [-1600, -900, 0, 0]),
+                [-820, -520, 820, 520], 0),
+                "best-effort swap handles negative desktop coordinates")
+            this.Assert(!IsObject(WW_FitSwapRectangle([100, 100, 400, 300],
+                [100, 100, 1800, 300], [0, 0, 1600, 900])),
+                "unfittable window dimensions require swapping rollback")
             this.Assert(WW_GetCollisionLimitedEdge("left", [400, 0, 200, 300], [[100, 0, 200, 300]], 0) = 300,
                 "horizontal stretch stops at the nearest facing edge")
             this.Assert(WW_GetCollisionLimitedEdge("left", [400, 0, 200, 300], [[450, 0, 200, 300]], 0) = 0,
@@ -824,6 +839,36 @@ class SuiteUpgradeChecks {
                 this.Assert(SuiteWindowOwnership.AllowsWonderWindows(guiProbe.Hwnd)
                     && WW_IsWindowToggleCandidate(guiProbe.Hwnd),
                     "normal suite GUIs are Wonder Windows candidates")
+                ; A large window may occupy a smaller logical swap zone.
+                guiActual := WW_GetWindowLayoutRectangle(guiProbe.Hwnd)
+                guiZone := [guiActual[1], guiActual[2],
+                    Max(50, guiActual[3] - 130), Max(50, guiActual[4] - 90)]
+                WW_SaveSwapZone(guiProbe.Hwnd, guiZone)
+                this.Assert(WW_RectanglesMatch(WW_GetSwapZone(guiProbe.Hwnd), guiZone, 0),
+                    "oversized GUI retains its logical swap zone")
+                global WW_swap_zones
+                this.Assert(WW_swap_zones.Has(guiProbe.Hwnd)
+                    && WW_RectanglesMatch(WW_swap_zones[guiProbe.Hwnd]["applied"], guiActual, 2),
+                    "logical zone and actual GUI rectangle stay separate")
+                ; A recycled HWND must not inherit the previous window's zone.
+                DllCall("RemovePropW", "ptr", guiProbe.Hwnd,
+                    "str", "nroj.SuperHotkey.SwapZone", "ptr")
+                this.Assert(WW_RectanglesMatch(WW_GetSwapZone(guiProbe.Hwnd), guiActual, 2)
+                    && !WW_swap_zones.Has(guiProbe.Hwnd),
+                    "reopened GUI without the zone marker inherits no stale swap zone")
+                WW_SaveSwapZone(guiProbe.Hwnd, guiZone)
+                WW_swap_zones[0] := Map("pid", 0)
+                WW_PruneSwapZones()
+                this.Assert(!WW_swap_zones.Has(0),
+                    "dead swap windows do not retain logical zone records")
+                ; Manual resizing must forget stale zones rather than spreading them.
+                WinGetPos(&gX, &gY, &gW, &gH, guiProbe.Hwnd)
+                WinMove(gX, gY, gW + 70, gH, guiProbe.Hwnd)
+                Sleep 40
+                this.Assert(WW_RectanglesMatch(WW_GetSwapZone(guiProbe.Hwnd),
+                    WW_GetWindowLayoutRectangle(guiProbe.Hwnd), 2)
+                    && !WW_swap_zones.Has(guiProbe.Hwnd),
+                    "manual GUI resize invalidates its remembered swap zone")
                 this.Assert(IsIgnoredByWindowCascade(guiProbe.Hwnd),
                     "Cascade Kingdom continues to ignore normal suite GUIs")
                 DllCall("SetPropW", "ptr", guiProbe.Hwnd, "str", "nroj.Scratchpad.Notepad3Window", "ptr", 1, "int")
