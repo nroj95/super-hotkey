@@ -265,12 +265,14 @@ class SuiteWindowOwnership {
         if forAdoption {
             global WW_borderless_windows, WW_horizontal_stretch_windows, WW_vertical_stretch_windows
             global WW_layout_cycle_windows, WW_center_tile_next_sides, WW_normal_window_placements
+            global WW_full_stretch_windows
             ; Restore the native frame before handing geometry to the cascade.
             ; A refused restoration leaves manual ownership and recovery state intact.
             if WW_borderless_windows.Has(hwnd)
                 WW_RunWindowCommand(WW_RestoreBorderlessWindow, hwnd, false, true)
             for states in [WW_horizontal_stretch_windows, WW_vertical_stretch_windows,
-                WW_layout_cycle_windows, WW_center_tile_next_sides, WW_normal_window_placements]
+                WW_layout_cycle_windows, WW_center_tile_next_sides, WW_normal_window_placements,
+                WW_full_stretch_windows]
                 if states.Has(hwnd)
                     states.Delete(hwnd)
         }

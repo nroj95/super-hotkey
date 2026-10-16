@@ -776,6 +776,17 @@ class SuiteUpgradeChecks {
                 && bottom[2] + bottom[4] = 500, "odd negative-coordinate layouts retain exact shared boundaries")
             this.Assert(WW_GetNextCycleIndex(4, 4) = 1 && WW_GetNextCycleIndex(1, 4, true) = 4,
                 "layout cycling wraps in both directions")
+            vertical := WW_GetCollisionLimitedVerticalBounds([100, 200, 300, 200],
+                [[100, 0, 300, 150], [100, 550, 300, 100], [600, 300, 200, 100]], 0, 900)
+            this.Assert(vertical[1] = 150 && vertical[2] = 550,
+                "vertical extension stops at upper and lower obstacles")
+            this.Assert(WW_RectanglesMatch(
+                WW_FullStretchRectangle([100, 200, 300, 200], [0, 0, 900, 1100], "height"),
+                [100, 0, 300, 1100], 0)
+                && WW_RectanglesMatch(
+                    WW_FullStretchRectangle([100, 200, 300, 200], [0, 0, 900, 1100], "width"),
+                    [0, 200, 900, 200], 0),
+                "full stretch modes retain the untouched dimension")
             this.Assert(WW_GetCollisionLimitedEdge("left", [400, 0, 200, 300], [[100, 0, 200, 300]], 0) = 300,
                 "horizontal stretch stops at the nearest facing edge")
             this.Assert(WW_GetCollisionLimitedEdge("left", [400, 0, 200, 300], [[450, 0, 200, 300]], 0) = 0,
@@ -1132,7 +1143,8 @@ class SuiteUpgradeChecks {
             "win-key-overhaul.tile-top-right", "win-key-overhaul.tile-bottom-left",
             "win-key-overhaul.tile-bottom", "win-key-overhaul.tile-bottom-right",
             "win-key-overhaul.stretch-left", "win-key-overhaul.stretch-right",
-            "win-key-overhaul.stretch-height", "win-key-overhaul.reset-stretch",
+            "win-key-overhaul.stretch-height", "win-key-overhaul.stretch-full-cycle",
+            "win-key-overhaul.reset-stretch",
             "win-key-overhaul.swap-next", "win-key-overhaul.swap-previous",
             "win-key-overhaul.isolate", "win-key-overhaul.minimize-all"],
             "Wonder Windows groups focus, positioning, stretching and grouping")

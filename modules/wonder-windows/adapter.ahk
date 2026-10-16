@@ -17,8 +17,9 @@ class WonderWindowsModule {
             this.Add("stretch-" side, "toggle " side " edge stretch", WW_ToggleHorizontalStretch,
                 ["Win + Shift + " side], [side])
         }
-        this.Add("stretch-height", "stretch to full height", WW_StretchWindowVertically, ["Win + Shift + Up"])
-        this.Add("reset-stretch", "restore remembered stretch", WW_ResetWindowStretch, ["Win + Shift + Down"])
+        this.Add("stretch-height", "stretch vertically until obstacles", WW_StretchWindowVertically, ["Win + Shift + Up"])
+        this.Add("stretch-full-cycle", "cycle full-height / full-width stretch", WW_CycleFullStretch, ["Caps + Win + Enter"])
+        this.Add("reset-stretch", "restore remembered stretch", WW_ResetWindowStretch, ["Win + Shift + Down", "Caps + Win + Backspace"])
         this.Add("minimize", "minimize / restore last minimized window", WW_MinimizeActiveWindow, ["Win + Backspace"])
         this.Add("isolate", "isolate active window / restore group", WW_ToggleOtherWindows, ["Win + Shift + Home"])
         this.Add("minimize-all", "minimize / restore window group", WW_ToggleAllWindows, ["Win + M"])
@@ -31,7 +32,7 @@ class WonderWindowsModule {
             ["Win + Shift + Enter"], ["counter-clockwise"])
         for direction in ["left", "right", "up", "down"] {
             this.Add("focus-" direction, "focus window " direction, WW_FocusNearestWindow,
-                ["Win + Alt + " direction], [direction])
+                ["Caps + Win + " direction], [direction])
             this.Add("zone-" direction, "FancyZones: move " direction, WW_MoveWindowThroughFancyZones,
                 ["Ctrl + Alt + " direction], [direction], true)
         }
@@ -197,6 +198,7 @@ class WonderWindowsModule {
         SetTimer(WW_ReassertFancyZonesKeyboardHook, 0)
         SetTimer(WW_WatchDemotedBorderlessSwitcherWindows, 0)
         WW_ClearFocusHighlight(true)
+        WW_RunWindowCommand(WW_RestoreAllFullStretches)
         WW_RunWindowCommand(WW_RestoreAllVerticalStretches)
         WW_RunWindowCommand(WW_RestoreAllHorizontalStretches)
         WW_RunWindowCommand(WW_RestoreAllBorderlessWindows, reason, code)

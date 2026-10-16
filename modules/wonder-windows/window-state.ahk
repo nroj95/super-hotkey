@@ -168,6 +168,7 @@ WW_MaximizeWindowTarget()
 
     WW_ForgetHorizontalStretch(hwnd)
     WW_ForgetVerticalStretch(hwnd)
+    WW_ForgetFullStretch(hwnd)
 
     window := "ahk_id " hwnd
 
@@ -269,6 +270,7 @@ WW_RestoreWindowTarget()
 
         WW_ForgetHorizontalStretch(hwnd)
         WW_ForgetVerticalStretch(hwnd)
+        WW_ForgetFullStretch(hwnd)
         WW_ForgetWindowLayoutCycle(hwnd)
         WinActivate(hwnd)
     }

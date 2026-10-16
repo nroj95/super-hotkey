@@ -81,6 +81,42 @@ WW_RectanglesMatch(first, second, tolerance := 4)
 ; collision-limited horizontal extension
 ; =============================================================================
 
+WW_GetCollisionLimitedVerticalBounds(active_rect, obstacles, work_top, work_bottom, tolerance := 1)
+{
+    left := active_rect[1]
+    top := active_rect[2]
+    right := left + active_rect[3]
+    bottom := top + active_rect[4]
+    limit_top := Min(work_top, top)
+    limit_bottom := Max(work_bottom, bottom)
+
+    for obstacle in obstacles {
+        if obstacle[3] <= 0 || obstacle[4] <= 0
+            continue
+        other_left := obstacle[1]
+        other_top := obstacle[2]
+        other_right := other_left + obstacle[3]
+        other_bottom := other_top + obstacle[4]
+        if Min(right, other_right) <= Max(left, other_left)
+            continue
+        ; Never shrink because of a window already overlapping our rectangle.
+        if other_bottom <= top + tolerance
+            limit_top := Max(limit_top, Min(top, other_bottom))
+        if other_top >= bottom - tolerance
+            limit_bottom := Min(limit_bottom, Max(bottom, other_top))
+    }
+    return [limit_top, limit_bottom]
+}
+
+WW_FullStretchRectangle(original, work_area, mode)
+{
+    if mode = "height"
+        return [original[1], work_area[2], original[3], work_area[4] - work_area[2]]
+    if mode = "width"
+        return [work_area[1], original[2], work_area[3] - work_area[1], original[4]]
+    throw ValueError("Unknown full stretch mode: " mode)
+}
+
 WW_GetCollisionLimitedEdge(side, active_rect, obstacles, work_edge, tolerance := 1)
 {
     active_left := active_rect[1]

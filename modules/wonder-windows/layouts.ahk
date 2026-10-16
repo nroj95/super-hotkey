@@ -78,18 +78,97 @@ WW_StretchWindowVertically()
             )
         }
 
-        if !WW_MoveWindowToVisibleVerticalBounds(
-            hwnd,
-            work_top,
-            work_bottom,
-            1
-        ) {
+        bounds := WW_GetCollisionLimitedVerticalBounds(
+            WW_GetWindowLayoutRectangle(hwnd),
+            WW_GetHorizontalStretchObstacles(hwnd, monitor_handle),
+            work_top, work_bottom
+        )
+        if !WW_MoveWindowToVisibleVerticalBounds(hwnd, bounds[1], bounds[2]) {
             WW_DebugLog(
                 "Vertical stretch move failed; preserving restore state. hwnd="
                 . hwnd
             )
-        }
+        } else
+            WW_ForgetFullStretch(hwnd)
     }
+}
+
+WW_CycleFullStretch()
+{
+    Critical "On"
+    global WW_full_stretch_windows, WW_borderless_windows
+
+    hwnd := WW_GetWindowControlTarget()
+    if !hwnd
+        return
+
+    try {
+        if !WW_RestoreSuiteFullscreen(hwnd)
+            return
+        WW_RememberNormalWindowPlacement(hwnd)
+        if WW_borderless_windows.Has(hwnd)
+            WW_RestoreBorderlessWindow(hwnd, false, true)
+        else if WinGetMinMax(hwnd) != 0
+            WinRestore(hwnd)
+
+        WW_PruneFullStretchWindows()
+        monitor := DllCall("MonitorFromWindow", "ptr", hwnd, "uint", 2, "ptr")
+        work := WW_GetLayoutWorkArea(hwnd)
+        current := WW_GetWindowLayoutRectangle(hwnd)
+        original := current
+        mode := "height"
+
+        if WW_full_stretch_windows.Has(hwnd) {
+            saved := WW_full_stretch_windows[hwnd]
+            if WW_IsStretchStateCurrent(hwnd, saved, monitor, work)
+                && WW_RectanglesMatch(saved["applied"], current, 3) {
+                original := saved["original"]
+                mode := saved["mode"] = "height" ? "width" : "height"
+            } else
+                WW_full_stretch_windows.Delete(hwnd)
+        }
+
+        target := WW_FullStretchRectangle(original, work, mode)
+        if !WW_MoveWindowToVisibleRectangle(hwnd, target)
+            return
+
+        WW_ForgetHorizontalStretch(hwnd)
+        WW_ForgetVerticalStretch(hwnd)
+        WW_ForgetWindowLayoutCycle(hwnd)
+        WW_full_stretch_windows[hwnd] := Map(
+            "pid", WinGetPID(hwnd), "monitor", monitor, "work_area", work,
+            "original", original, "mode", mode,
+            "applied", WW_GetWindowLayoutRectangle(hwnd)
+        )
+    }
+    catch Error as failure
+        WW_DebugError("Cycle full stretch", failure)
+}
+
+WW_ForgetFullStretch(hwnd)
+{
+    global WW_full_stretch_windows
+    if WW_full_stretch_windows.Has(hwnd)
+        WW_full_stretch_windows.Delete(hwnd)
+}
+
+WW_PruneFullStretchWindows()
+{
+    global WW_full_stretch_windows
+    for hwnd, saved in WW_full_stretch_windows.Clone()
+        if !WW_WindowStateMatchesProcess(hwnd, saved)
+            WW_full_stretch_windows.Delete(hwnd)
+}
+
+WW_RestoreAllFullStretches()
+{
+    global WW_full_stretch_windows
+    for hwnd, saved in WW_full_stretch_windows.Clone() {
+        if !WW_IsStretchStateCurrent(hwnd, saved)
+            continue
+        try WW_MoveWindowToVisibleRectangle(hwnd, saved["original"])
+    }
+    WW_full_stretch_windows := Map()
 }
 
 WW_ResetWindowStretch()
@@ -103,6 +182,17 @@ WW_ResetWindowStretch()
 
     if !hwnd
         return
+
+    global WW_full_stretch_windows
+    if WW_full_stretch_windows.Has(hwnd) {
+        saved := WW_full_stretch_windows[hwnd]
+        if WW_IsStretchStateCurrent(hwnd, saved)
+            && WW_MoveWindowToVisibleRectangle(hwnd, saved["original"])
+            WW_ForgetFullStretch(hwnd)
+        else if !WW_IsStretchStateCurrent(hwnd, saved)
+            WW_ForgetFullStretch(hwnd)
+        return
+    }
 
     current_monitor := DllCall(
         "MonitorFromWindow",
@@ -343,6 +433,7 @@ WW_ToggleHorizontalStretch(side)
             return
         }
 
+        WW_ForgetFullStretch(hwnd)
         if side = "left" {
             state["original_left"] := original_edge
             state["left_stretched"] := next_stretched
@@ -942,7 +1033,9 @@ WW_ForgetWindowLayoutCycle(hwnd)
 WW_PruneLayoutStates()
 {
     global WW_layout_cycle_windows, WW_center_tile_next_sides, WW_normal_window_placements
-    for states in [WW_layout_cycle_windows, WW_center_tile_next_sides, WW_normal_window_placements] {
+    global WW_full_stretch_windows
+    for states in [WW_layout_cycle_windows, WW_center_tile_next_sides,
+        WW_normal_window_placements, WW_full_stretch_windows] {
         stale_hwnds := []
         for hwnd, entry in states {
             stale := !DllCall("IsWindow", "ptr", hwnd, "int")
@@ -969,6 +1062,7 @@ WW_PrepareWindowForPlacement(hwnd)
     WW_RememberNormalWindowPlacement(hwnd)
     WW_ForgetHorizontalStretch(hwnd)
     WW_ForgetVerticalStretch(hwnd)
+    WW_ForgetFullStretch(hwnd)
 
     if WW_borderless_windows.Has(hwnd) {
         WW_RestoreBorderlessWindow(hwnd, false, true)

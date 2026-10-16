@@ -294,7 +294,8 @@ class Keybindings {
                 "win-key-overhaul.tile-top-right", "win-key-overhaul.tile-bottom-left",
                 "win-key-overhaul.tile-bottom", "win-key-overhaul.tile-bottom-right",
                 "win-key-overhaul.stretch-left", "win-key-overhaul.stretch-right",
-                "win-key-overhaul.stretch-height", "win-key-overhaul.reset-stretch",
+                "win-key-overhaul.stretch-height", "win-key-overhaul.stretch-full-cycle",
+                "win-key-overhaul.reset-stretch",
                 "win-key-overhaul.swap-next", "win-key-overhaul.swap-previous",
                 "win-key-overhaul.isolate", "win-key-overhaul.minimize-all"],
             "Wonder Windows / FancyZones", [
