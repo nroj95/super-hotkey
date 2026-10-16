@@ -4,6 +4,7 @@ class SuiteReleaseChecks {
 
     static Run() {
         this.PowerCancellation()
+        this.LargeDebugLog()
         this.HoldToSkipPlacement()
         this.CascadeLaunchMonitors()
         this.DeferredInputsAndSessions()
@@ -12,6 +13,33 @@ class SuiteReleaseChecks {
     }
 
     static Assert(condition, label) => SuiteChecks.Assert(condition, label)
+
+    static LargeDebugLog() {
+        app := SuiteApplication(true, SuiteChecks.directory "\release-large-log")
+        app.ui := SuiteInterface(app)
+        try {
+            ; A full-size verbose log must not exceed the native Edit control limit.
+            line := StrReplace(Format("{:1024}", "log entry"), " ", ".") "`n"
+            fixture := ""
+            Loop 1500
+                fixture .= line
+            FileAppend(fixture "recent-tail-marker`n", SuiteState.Log.path, "UTF-8-RAW")
+            this.Assert(FileGetSize(SuiteState.Log.path) > 1000000,
+                "debug viewer regression uses a large disposable log")
+            app.ui.OpenLog()
+            preview := app.ui.windows["log"]["log"].Value
+            this.Assert(StrLen(preview) < 26000 && InStr(preview, "recent-tail-marker"),
+                "large debug log opens with a bounded recent preview")
+            SuiteState.Log.Write("Core", "refresh-tail-marker")
+            app.ui.RefreshLog()
+            refreshed := app.ui.windows["log"]["log"].Value
+            this.Assert(StrLen(refreshed) < 26000 && InStr(refreshed, "refresh-tail-marker"),
+                "refreshing a large log remains bounded and shows newest entries")
+            this.Assert(StrLen(SuiteState.Log.Read()) > 1000000,
+                "preview does not truncate the full log on disk")
+        }
+        finally app.ui.CloseAll()
+    }
 
     static CascadeLaunchMonitors() {
         global cascade_displays, cascade_launch_hint, new_window_focus_timeout_ms
