@@ -226,7 +226,7 @@ ReserveNewWindowPlacement(hwnd, source_hwnd, queued_monitor, request)
     global cascade_display_generation
 
     display_generation := cascade_display_generation
-    target_monitor := GetTargetMonitor(hwnd, source_hwnd, queued_monitor)
+    target_monitor := ResolveCascadePlacementMonitor(request, queued_monitor)
     dpi_transition :=
         GetCascadeWindowMonitorDpi(hwnd) != GetCascadeMonitorDpi(target_monitor)
 
@@ -493,8 +493,7 @@ PlaceNewWindow(
                 retry_count, settle_complete, request), -placement_ready_retry_ms)
             return
         }
-        if request.HasOwnProp("monitor_device") && request.monitor_device != ""
-            queued_monitor := FindCascadeMonitorDevice(request.monitor_device)
+        queued_monitor := ResolveCascadePlacementMonitor(request, queued_monitor)
 
         DebugLog(
             "PlaceNewWindow begin."
@@ -705,7 +704,8 @@ PlaceNewWindow(
                         target_y,
                         window_width,
                         window_height,
-                        dpi_transition
+                        dpi_transition,
+                        true
                     )
                     StartNewWindowFocus(hwnd, request.focus)
                     return
@@ -839,7 +839,8 @@ PlaceNewWindow(
             target_y,
             window_width,
             window_height,
-            dpi_transition
+            dpi_transition,
+            true
         )
         StartNewWindowFocus(hwnd, request.focus)
 
@@ -903,7 +904,8 @@ SchedulePlacementStabilization(
     target_y,
     target_width,
     target_height,
-    dpi_transition := false
+    dpi_transition := false,
+    startup_check := false
 )
 {
     if !IsCascadeEnabled()
@@ -934,7 +936,8 @@ SchedulePlacementStabilization(
                 target_width,
                 target_height,
                 stabilization_generation,
-                delay_ms
+                delay_ms,
+                0, 0, 0, startup_check
             ),
             -delay_ms
         )
@@ -960,7 +963,8 @@ StabilizePlacedWindow(
     delay_ms,
     attempt := 0,
     passive_stage := 0,
-    confirmation_count := 0
+    confirmation_count := 0,
+    startup_check := false
 )
 {
     global handled_windows, placement_reservations
@@ -976,7 +980,7 @@ StabilizePlacedWindow(
     if IsCascadeDisplayTransition() {
         SetTimer(StabilizePlacedWindow.Bind(hwnd, target_x, target_y, target_width,
             target_height, stabilization_generation, delay_ms, attempt, passive_stage,
-            confirmation_count), -200)
+            confirmation_count, startup_check), -200)
         return
     }
     dpi_transition := placement_dpi_generations.Has(hwnd)
@@ -1005,7 +1009,8 @@ StabilizePlacedWindow(
 
     try {
         ; Do not fight an intentional maximize/minimize transition.
-        if WinGetMinMax("ahk_id " hwnd) != 0 {
+        if WinGetMinMax("ahk_id " hwnd) != 0 || IsIgnoredByWindowCascade(hwnd)
+            || IsCascadeWindowBeingDragged(hwnd) {
             FinishPlacementStabilization(hwnd, stabilization_generation)
 
             return
@@ -1051,12 +1056,14 @@ StabilizePlacedWindow(
         )
 
         if !needs_correction {
-            ; A destination app can apply WM_DPICHANGED after the first move.
-            ; Require one additional match for DPI transfers, not endless polling.
-            if dpi_transition && confirmation_count < 1 {
+            ; A browser can restore remembered geometry after the first match,
+            ; even on equal-DPI displays. New windows get one trailing check.
+            confirmation_delay := GetCascadeConfirmationDelay(startup_check,
+                dpi_transition, confirmation_count)
+            if confirmation_delay {
                 SetTimer(StabilizePlacedWindow.Bind(hwnd, target_x, target_y, target_width,
-                    target_height, stabilization_generation, placement_stabilize_retry_ms,
-                    attempt, passive_stage, confirmation_count + 1), -placement_stabilize_retry_ms)
+                    target_height, stabilization_generation, confirmation_delay,
+                    attempt, passive_stage, confirmation_count + 1, false), -confirmation_delay)
                 return
             }
             FinishPlacementStabilization(hwnd, stabilization_generation)
@@ -1089,7 +1096,8 @@ StabilizePlacedWindow(
                     placement_stabilize_confirmation_ms,
                     attempt,
                     passive_stage,
-                    confirmation_count + 1
+                    confirmation_count + 1,
+                    startup_check
                 ),
                 -placement_stabilize_confirmation_ms
             )
@@ -1108,9 +1116,13 @@ StabilizePlacedWindow(
         ; A mismatch does not immediately mean that Cascade needs to fight the
         ; application. Give the window progressively more time to finish its
         ; own startup or asynchronous geometry changes.
-        ; Resolve at most three DPI-transition mismatches promptly. Unrelated
-        ; app-driven geometry changes retain the existing passive/backoff policy.
-        if !(dpi_transition && attempt < 3)
+        ; A wrong monitor is not a cosmetic size disagreement. Correct the first
+        ; three misses promptly even when both displays use the same DPI.
+        current_monitor := GetMonitorForPoint(current_x + current_width / 2,
+            current_y + current_height / 2)
+        target_monitor := GetMonitorForPoint(target_x + target_width / 2,
+            target_y + target_height / 2)
+        if !ShouldCorrectCascadeMonitorPromptly(dpi_transition, current_monitor, target_monitor, attempt)
             && passive_stage < placement_stabilize_backoff_delays_ms.Length {
             next_passive_stage := passive_stage + 1
 
@@ -1129,7 +1141,9 @@ StabilizePlacedWindow(
                     stabilization_generation,
                     passive_delay_ms,
                     attempt,
-                    next_passive_stage
+                    next_passive_stage,
+                    confirmation_count,
+                    startup_check
                 ),
                 -passive_delay_ms
             )
@@ -1186,7 +1200,7 @@ StabilizePlacedWindow(
         if IsCascadeDisplayTransition() {
             SetTimer(StabilizePlacedWindow.Bind(hwnd, target_x, target_y, target_width,
                 target_height, stabilization_generation, delay_ms, attempt, passive_stage,
-                confirmation_count), -200)
+                confirmation_count, startup_check), -200)
             return
         }
 
@@ -1249,7 +1263,9 @@ StabilizePlacedWindow(
                 stabilization_generation,
                 placement_stabilize_retry_ms,
                 next_attempt,
-                0
+                0,
+                confirmation_count,
+                startup_check
             ),
             -placement_stabilize_retry_ms
         )
@@ -1269,6 +1285,19 @@ StabilizePlacedWindow(
     }
 }
 
+
+ShouldCorrectCascadeMonitorPromptly(dpi_transition, current_monitor, target_monitor, attempt)
+{
+    return attempt < 3 && (dpi_transition
+        || (current_monitor && target_monitor && current_monitor != target_monitor))
+}
+
+GetCascadeConfirmationDelay(startup_check, dpi_transition, confirmation_count)
+{
+    global placement_startup_confirmation_ms, placement_stabilize_retry_ms
+    return startup_check ? placement_startup_confirmation_ms
+        : (dpi_transition && confirmation_count < 1 ? placement_stabilize_retry_ms : 0)
+}
 
 ; A hold can begin after discovery but before an asynchronous placement.
 ; Mark skipped windows as known so release never triggers retroactive cascading.

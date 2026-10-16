@@ -211,6 +211,7 @@ class SuiteApplication {
         if this.cascadeStarted {
             global cascade_command_queue
             cascade_command_queue := []
+            CancelNewWindowFocus()
             StopFocusTabClick()
         }
     }

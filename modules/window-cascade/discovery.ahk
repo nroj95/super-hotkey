@@ -80,23 +80,26 @@ QueueWindowPlacement(hwnd, source_hwnd)
         return
     request := {pid: pid, focus: CaptureNewWindowFocusContext(hwnd)}
     ConsumeExplorerSpaceIntentForNewWindow(hwnd, source_hwnd, pid)
-    pending_windows[hwnd] := request
-
-    ; Snapshot once here. Readiness retries and settling reuse this monitor
-    ; instead of sampling a later mouse position.
+    ; Choose the destination now, before focus or the source window can move.
+    ; Readiness retries and settling keep this choice, not just the mouse position.
     MouseGetPosPixels(&queue_mouse_x, &queue_mouse_y)
-    queued_monitor := GetMonitorForPoint(
-        queue_mouse_x,
-        queue_mouse_y
-    )
+    pointer_monitor := GetMonitorForPoint(queue_mouse_x, queue_mouse_y)
+    queued_monitor := TakeCascadeTaskbarMonitor(hwnd, request.focus)
+    monitor_reason := "taskbar-click"
+    if !queued_monitor
+        queued_monitor := GetTargetMonitor(hwnd, source_hwnd, pointer_monitor, &monitor_reason)
     ; The device name survives an index reorder while a new window is settling.
     request.monitor_device := GetCascadeMonitorDevice(queued_monitor)
+    request.monitor_reason := monitor_reason
+    pending_windows[hwnd] := request
 
     DebugLog(
         "Queue placement."
         . " | target=" DebugDescribeWindow(hwnd)
         . " | source=" DebugDescribeWindow(source_hwnd)
         . " | queued-monitor=" queued_monitor
+        . " | monitor-reason=" monitor_reason
+        . " | monitor-device=" request.monitor_device
         . " | mouse=(" queue_mouse_x "," queue_mouse_y ")"
     )
 
@@ -193,6 +196,8 @@ GetHandledWindowReshowIntent(hwnd, trigger := "show")
         return 0
 
     hint := cascade_launch_hint
+    if hint.HasOwnProp("placement_hwnd") || hint.HasOwnProp("placement_cancelled")
+        return 0
     hint_age := (A_TickCount - hint.tick) & 0xFFFFFFFF
     if hint_age > handled_reshow_hint_max_age_ms
         return 0
@@ -294,6 +299,7 @@ TryQueueHandledWindowReshow(hwnd, trigger := "show")
             return true
     } else {
         hint.reshow_hwnd := hwnd
+        StopCascadeLaunchObserver(hint)
     }
 
     request := {

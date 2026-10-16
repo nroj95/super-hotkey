@@ -18,6 +18,8 @@ reconfiguration and input gating invalidate module queues and deferred callbacks
 
 tray suspension, Windows sleep and session locking gate input and pause Cascade Kingdom. automatic power resume cannot clear a session lock or explicit tray suspension. windows opened during a pause remain unmanaged when automatic placement resumes.
 
+new-window placement snapshots the destination at discovery: a fresh taskbar click wins once; otherwise the real source window wins over the launch pointer. delayed placement keeps the display identity, not a later source or mouse position. a removed destination falls back to the primary display. wrong-monitor corrections are prompt but bounded, including equal-DPI displays; new windows receive one trailing startup check.
+
 Wonder Windows claims manually positioned windows until explicit cascade adoption. stale ownership is rejected. focus-tab rendering reuses the validated per-monitor DPI snapshot instead of repeating monitor discovery inside its critical section. optional FancyZones changes require confirmation.
 
 Paper Pad controls a dedicated Notepad3 instance and saves before hiding, switching pages or exiting. unsafe operations can be refused. resets preserve notes, editor paths and page state; settings writes use atomic replacements and backups.

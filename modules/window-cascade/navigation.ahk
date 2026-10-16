@@ -737,6 +737,33 @@ CaptureCascadeLaunchIntent(hwnd)
             monitor: monitor,
             monitor_device: monitor ? GetCascadeMonitorDevice(monitor) : ""
         }
+        ; Observe only until this click is used or expires. A later Ctrl+N must
+        ; follow its source window, not an earlier taskbar click on another display.
+        observer := InputHook("V L0 I101 T3")
+        observer.KeyOpt("{All}", "N")
+        observer.KeyOpt("{LShift}{RShift}{LCtrl}{RCtrl}{LAlt}{RAlt}{LWin}{RWin}"
+            . "{CapsLock}{Pause}{CtrlBreak}", "-N")
+        observer.OnKeyDown := CancelCascadeTaskbarPlacementIntent
+        cascade_launch_hint.key_observer := observer
+        observer.Start()
+    }
+}
+
+CancelCascadeTaskbarPlacementIntent(observer, *)
+{
+    global cascade_launch_hint
+    if IsObject(cascade_launch_hint) && cascade_launch_hint.HasOwnProp("key_observer")
+        && cascade_launch_hint.key_observer = observer {
+        cascade_launch_hint.placement_cancelled := true
+        StopCascadeLaunchObserver(cascade_launch_hint)
+    }
+}
+
+StopCascadeLaunchObserver(hint)
+{
+    if IsObject(hint) && hint.HasOwnProp("key_observer") {
+        hint.key_observer.Stop()
+        hint.DeleteProp("key_observer")
     }
 }
 
@@ -806,6 +833,7 @@ CancelNewWindowFocus(expected_request := 0)
     if IsObject(expected_request) && new_window_focus_request != expected_request
         return
     new_window_focus_request := 0
+    StopCascadeLaunchObserver(cascade_launch_hint)
     cascade_launch_hint := 0
     SetTimer(WatchNewWindowFocus, 0)
 }

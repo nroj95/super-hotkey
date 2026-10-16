@@ -57,6 +57,8 @@ placement_settle_delay_ms := 300
 
 ; Keep one late safety check in case an application changes geometry again.
 placement_stabilize_delays_ms := [500]
+; One final check after a new window first matches; no extra idle polling.
+placement_startup_confirmation_ms := 1500
 placement_stabilize_tolerance := 6
 
 ; A busy window may not process an asynchronous placement immediately.

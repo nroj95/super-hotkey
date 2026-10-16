@@ -451,22 +451,23 @@ GetCommandMonitor()
     return GetMonitorForPoint(mouse_x, mouse_y)
 }
 
-GetTargetMonitor(hwnd, source_hwnd, queued_monitor := 0)
+GetTargetMonitor(hwnd, source_hwnd, queued_monitor := 0, &reason := "")
 {
     global desktop_monitor_hint, desktop_monitor_hint_tick
     global desktop_monitor_hint_max_age_ms
 
     ; Normal case: follow the real application window the user was working in.
-    if source_hwnd
+    if source_hwnd && source_hwnd != hwnd
         && WinExist("ahk_id " source_hwnd)
         && !IsShellSurfaceWindow(source_hwnd)
     {
-        monitor_index := GetMonitorForWindow(source_hwnd)
+        monitor_index := GetCascadeSourceMonitor(source_hwnd)
 
         if monitor_index {
             ; A real app interaction supersedes any older desktop-click hint.
             desktop_monitor_hint := 0
             desktop_monitor_hint_tick := 0
+            reason := "source-window"
 
             return monitor_index
         }
@@ -478,13 +479,14 @@ GetTargetMonitor(hwnd, source_hwnd, queued_monitor := 0)
         desktop_monitor_hint := 0
         desktop_monitor_hint_tick := 0
 
+        reason := "launch-pointer"
         return queued_monitor
     }
 
     ; Special case: clicking empty desktop space explicitly selects that monitor
     ; when no newer launch snapshot is available.
     if desktop_monitor_hint {
-        hint_age_ms := A_TickCount - desktop_monitor_hint_tick
+        hint_age_ms := (A_TickCount - desktop_monitor_hint_tick) & 0xFFFFFFFF
 
         if hint_age_ms <= desktop_monitor_hint_max_age_ms {
             monitor_index := desktop_monitor_hint
@@ -492,6 +494,7 @@ GetTargetMonitor(hwnd, source_hwnd, queued_monitor := 0)
             ; Consume the hint so one desktop click affects only the next launch.
             desktop_monitor_hint := 0
             desktop_monitor_hint_tick := 0
+            reason := "desktop-click"
 
             return monitor_index
         }
@@ -506,6 +509,7 @@ GetTargetMonitor(hwnd, source_hwnd, queued_monitor := 0)
     monitor_index := GetMonitorForPoint(mouse_x, mouse_y)
 
     if monitor_index {
+        reason := "live-pointer"
         return monitor_index
     }
 
@@ -513,12 +517,60 @@ GetTargetMonitor(hwnd, source_hwnd, queued_monitor := 0)
     monitor_index := GetMonitorForWindow(hwnd)
 
     if monitor_index {
+        reason := "initial-window"
         return monitor_index
     }
 
+    reason := "primary-monitor"
     monitor_index := MonitorGetPrimary()
 
     return monitor_index
+}
+
+GetCascadeSourceMonitor(hwnd)
+{
+    ; Windows uses the largest intersection and the restored rectangle for a
+    ; minimized source. A window center can lie in a gap between displays.
+    monitor_handle := DllCall("MonitorFromWindow", "ptr", hwnd, "uint", 2, "ptr")
+    info := Buffer(104, 0) ; MONITORINFOEXW
+    NumPut("uint", info.Size, info)
+    if monitor_handle && DllCall("GetMonitorInfoW", "ptr", monitor_handle, "ptr", info, "int") {
+        monitor := FindCascadeMonitorDevice(StrGet(info.Ptr + 40, 32, "UTF-16"))
+        if monitor
+            return monitor
+    }
+    return GetMonitorForWindow(hwnd)
+}
+
+TakeCascadeTaskbarMonitor(hwnd, context)
+{
+    global cascade_launch_hint, new_window_focus_timeout_ms
+    if !IsObject(context) || !IsObject(context.hint)
+        return 0
+    hint := context.hint
+    if hint != cascade_launch_hint
+        || ((A_TickCount - hint.tick) & 0xFFFFFFFF) > new_window_focus_timeout_ms
+        || hint.HasOwnProp("placement_hwnd") || hint.HasOwnProp("reshow_hwnd")
+        || hint.HasOwnProp("placement_cancelled")
+        return 0
+    monitor := FindCascadeMonitorDevice(hint.monitor_device)
+    if !monitor
+        return 0
+    ; A taskbar click is more specific than the app that happened to retain
+    ; foreground. Bind it once so it cannot redirect subsequent new windows.
+    hint.placement_hwnd := hwnd
+    StopCascadeLaunchObserver(hint)
+    return monitor
+}
+
+ResolveCascadePlacementMonitor(request, fallback_monitor)
+{
+    if request.HasOwnProp("monitor_device") && request.monitor_device != "" {
+        monitor := FindCascadeMonitorDevice(request.monitor_device)
+        ; Never reuse a removed display's old index or re-sample a later mouse.
+        return monitor ? monitor : MonitorGetPrimary()
+    }
+    return fallback_monitor ? fallback_monitor : MonitorGetPrimary()
 }
 
 GetMonitorForWindow(hwnd)
