@@ -38,11 +38,11 @@ class SuiteLog {
     ReadRecent(maximumBytes := 24576) {
         if !FileExist(this.path)
             return ""
-        file := FileOpen(this.path, "r", "UTF-8")
+        logFile := FileOpen(this.path, "r", "UTF-8")
         try {
-            offset := Max(0, file.Length - maximumBytes)
-            file.Pos := offset
-            recent := file.Read()
+            offset := Max(0, logFile.Length - maximumBytes)
+            logFile.Pos := offset
+            recent := logFile.Read()
             if !offset
                 return recent
 
@@ -52,7 +52,7 @@ class SuiteLog {
                 recent := SubStr(recent, newline + 1)
             return "[Showing recent entries. Copy or Open file for the full log.]`r`n`r`n" recent
         }
-        finally file.Close()
+        finally logFile.Close()
     }
 
     Clear(*) {
