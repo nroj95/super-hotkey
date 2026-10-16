@@ -207,6 +207,10 @@ cascade_restore_batches := Map()
 cascade_restore_request_depth := 0
 cascade_close_batches := Map()
 cascade_auto_placement_paused := IniRead(settings_path, "Controls", "AutoPlacementPaused", "0") = "1"
+cascade_hold_to_skip_key := IniRead(settings_path, "Controls", "HoldToSkipKey", "CapsLock")
+if cascade_hold_to_skip_key != "CapsLock" && cascade_hold_to_skip_key != "Pause"
+    && cascade_hold_to_skip_key != "Disabled"
+    cascade_hold_to_skip_key := "CapsLock"
 cascade_auto_placement_toggle_in_progress := false
 cascade_minimize_toggle_in_progress := false
 cascade_minimized_windows := []

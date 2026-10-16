@@ -19,8 +19,10 @@ class ModuleHelp {
                     . "Switching the exposed window with a focus tab doesn't adopt or move "
                     . "other windows in that slot."
                     . "`r`n`r`nAUTOMATIC VS. MANUAL PLACEMENT"
-                    . "`r`nPause automatic placement in Settings when you want new windows left alone; "
-                    . "the existing cascade hotkeys keep working. Windows deliberately positioned "
+                    . "`r`nHold CapsLock when opening a window to skip automatic placement. "
+                    . "Settings can change this to Pause or Disabled. You can also pause automatic "
+                    . "placement entirely; existing cascade hotkeys keep working. "
+                    . "Windows deliberately positioned "
                     . "by Wonder Windows stay manual until you explicitly adopt them again."
                     . "`r`n`r`nSettings also controls focus-tab visibility and colors."
             case "win-key-overhaul":

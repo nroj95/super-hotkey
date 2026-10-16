@@ -604,28 +604,33 @@ class SuiteInterface {
         key := "settings:window-cascade"
         if this.Existing(key)
             return
-        global cascade_auto_placement_paused, focus_corner_visible, focus_tab_color_presets
+        global cascade_auto_placement_paused, cascade_hold_to_skip_key
+        global focus_corner_visible, focus_tab_color_presets
         global focus_corner_active_slot_color_name, focus_corner_inactive_slot_color_name
         window := this.NewWindow(key, "Cascade Kingdom - Settings", true)
         window.AddCheckbox("x20 y25 w550 vpaused", "Pause automatic placement of new windows").Value := cascade_auto_placement_paused
-        window.AddCheckbox("x20 y65 w550 vtabs", "Show focus tabs").Value := focus_corner_visible
+        window.AddText("x20 y75 w290", "Hold to skip automatic placement")
+        skipKey := window.AddDropDownList("x330 y70 w170 vholdToSkipKey", ["CapsLock", "Pause", "Disabled"])
+        skipKey.Choose(cascade_hold_to_skip_key)
+        window.AddCheckbox("x20 y115 w550 vtabs", "Show focus tabs").Value := focus_corner_visible
         colors := []
         for name in focus_tab_color_presets
             colors.Push(name)
-        window.AddText("x20 y115 w200", "Active-slot tab color")
-        active := window.AddDropDownList("x240 y110 w210 vactiveColor", colors)
+        window.AddText("x20 y165 w200", "Active-slot tab color")
+        active := window.AddDropDownList("x240 y160 w210 vactiveColor", colors)
         active.Choose(focus_corner_active_slot_color_name)
-        window.AddText("x20 y160 w200", "Inactive-slot tab color")
-        inactive := window.AddDropDownList("x240 y155 w210 vinactiveColor", colors)
+        window.AddText("x20 y210 w200", "Inactive-slot tab color")
+        inactive := window.AddDropDownList("x240 y205 w210 vinactiveColor", colors)
         inactive.Choose(focus_corner_inactive_slot_color_name)
-        window.AddText("x20 y215 w550", "Changes apply immediately. Existing cascades stay intact.")
+        window.AddText("x20 y265 w550", "Changes apply immediately. Existing cascades stay intact.")
         this.Footer(window, [["Apply", ObjBindMethod(this, "SaveCascade"), 120],
-            ["Back", ObjBindMethod(this, "BackToHelp", "window-cascade"), 100]], 290, 600)
-        this.ShowPage(key, 600, 340, 560, 310)
+            ["Back", ObjBindMethod(this, "BackToHelp", "window-cascade"), 100]], 335, 600)
+        this.ShowPage(key, 600, 385, 560, 350)
     }
 
     SaveCascade(*) {
-        global cascade_auto_placement_paused, focus_corner_visible, focus_tab_color_presets
+        global cascade_auto_placement_paused, cascade_hold_to_skip_key
+        global focus_corner_visible, focus_tab_color_presets
         global focus_corner_active_slot_color_name, focus_corner_inactive_slot_color_name
         global focus_corner_active_slot_color, focus_corner_inactive_slot_color
 
@@ -633,6 +638,9 @@ class SuiteInterface {
         window := this.windows[key]
         try {
             paused := window["paused"].Value != 0
+            holdToSkipKey := window["holdToSkipKey"].Text
+            if holdToSkipKey != "CapsLock" && holdToSkipKey != "Pause" && holdToSkipKey != "Disabled"
+                throw ValueError("Select a valid hold-to-skip key.")
             visible := window["tabs"].Value != 0
             activeName := window["activeColor"].Text
             inactiveName := window["inactiveColor"].Text
@@ -641,7 +649,8 @@ class SuiteInterface {
 
             ; Persist first. No running state changes if the write fails.
             this.app.Settings.WritePreferences("window-cascade", Map(
-                "Controls", Map("AutoPlacementPaused", paused ? 1 : 0),
+                "Controls", Map("AutoPlacementPaused", paused ? 1 : 0,
+                    "HoldToSkipKey", holdToSkipKey),
                 "FocusTabs", Map("Visible", visible ? 1 : 0,
                     "ActiveSlotColor", activeName, "InactiveSlotColor", inactiveName)))
 
@@ -651,6 +660,7 @@ class SuiteInterface {
                 ToggleCascadeAutoPlacement()
             if cascade_auto_placement_paused != paused
                 throw Error("Automatic placement could not change mode. See the debug log.")
+            cascade_hold_to_skip_key := holdToSkipKey
 
             if focus_corner_visible != visible
                 ToggleFocusCornerVisibility()

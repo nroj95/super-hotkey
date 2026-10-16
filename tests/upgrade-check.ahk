@@ -429,7 +429,8 @@ class SuiteUpgradeChecks {
     }
 
     static LiveCascadeSettings() {
-        global cascade_auto_placement_paused, focus_corner_visible, focus_tab_color_presets
+        global cascade_auto_placement_paused, cascade_hold_to_skip_key
+        global focus_corner_visible, focus_tab_color_presets
         global focus_corner_active_slot_color_name, focus_corner_inactive_slot_color_name
         global focus_corner_active_slot_color, focus_corner_inactive_slot_color
         global cascade_history
@@ -437,7 +438,8 @@ class SuiteUpgradeChecks {
         app := SuiteApplication(true, SuiteChecks.directory "\live-cascade-settings")
         app.InitializeCatalog()
         manager := app.manager
-        previous := {paused: cascade_auto_placement_paused, visible: focus_corner_visible,
+        previous := {paused: cascade_auto_placement_paused, holdToSkipKey: cascade_hold_to_skip_key,
+            visible: focus_corner_visible,
             activeName: focus_corner_active_slot_color_name,
             inactiveName: focus_corner_inactive_slot_color_name,
             activeColor: focus_corner_active_slot_color,
@@ -453,6 +455,8 @@ class SuiteUpgradeChecks {
             activeName := previous.activeName = "Pink" ? "Green" : "Pink"
             inactiveName := previous.inactiveName = "Blue" ? "Grey" : "Blue"
             settings["paused"].Value := expectedPaused
+            selectedSkipKey := previous.holdToSkipKey = "Pause" ? "Disabled" : "Pause"
+            settings["holdToSkipKey"].Choose(selectedSkipKey)
             settings["tabs"].Value := expectedVisible
             settings["activeColor"].Choose(activeName)
             settings["inactiveColor"].Choose(inactiveName)
@@ -464,21 +468,24 @@ class SuiteUpgradeChecks {
             this.Assert(!app.ui.windows.Has("settings:window-cascade")
                 && cascade_auto_placement_paused = expectedPaused
                 && focus_corner_visible = expectedVisible
+                && cascade_hold_to_skip_key = selectedSkipKey
                 && focus_corner_active_slot_color_name = activeName
                 && focus_corner_inactive_slot_color_name = inactiveName
                 && focus_corner_active_slot_color = focus_tab_color_presets[activeName]
                 && focus_corner_inactive_slot_color = focus_tab_color_presets[inactiveName],
                 "Cascade Kingdom applies placement, visibility and colors without reload")
             this.Assert(IniRead(path, "Controls", "AutoPlacementPaused") = (expectedPaused ? "1" : "0")
+                && IniRead(path, "Controls", "HoldToSkipKey") = selectedSkipKey
                 && IniRead(path, "FocusTabs", "Visible") = (expectedVisible ? "1" : "0")
                 && IniRead(path, "FocusTabs", "ActiveSlotColor") = activeName
                 && IniRead(path, "FocusTabs", "InactiveSlotColor") = inactiveName,
-                "Cascade Kingdom live settings persist all four choices")
+                "Cascade Kingdom live settings persist all five choices")
             this.Assert(cascade_history.Count = existingHistorySize,
                 "applying Cascade Kingdom preferences preserves in-memory cascade history")
         }
         finally {
             cascade_auto_placement_paused := previous.paused
+            cascade_hold_to_skip_key := previous.holdToSkipKey
             focus_corner_visible := previous.visible
             focus_corner_active_slot_color_name := previous.activeName
             focus_corner_inactive_slot_color_name := previous.inactiveName

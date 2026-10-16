@@ -18,6 +18,14 @@ IsCascadeAutoPlacementEnabled()
 {
     global cascade_auto_placement_paused, cascade_auto_placement_toggle_in_progress
     return !cascade_auto_placement_paused && !cascade_auto_placement_toggle_in_progress
+        && !IsCascadeHoldToSkipActive()
+}
+
+IsCascadeHoldToSkipActive()
+{
+    global cascade_hold_to_skip_key
+    return cascade_hold_to_skip_key != "Disabled"
+        && GetKeyState(cascade_hold_to_skip_key, "P")
 }
 
 ToggleCascadeAutoPlacement(*)
