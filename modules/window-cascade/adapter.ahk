@@ -29,12 +29,13 @@ class WindowCascadeModule {
         global pending_windows, cascade_compaction_pending, cascade_compaction_timer_pending
         global placement_stabilization_generations, cascade_mouse_press
         global focus_corner_overlays, focus_corner_update_pending
-        global cascade_opt_in_intent, cascade_titlebar_click
+        global cascade_opt_in_intent, cascade_titlebar_click, cascade_close_focus_request
 
         ; Invalidate queued work so it cannot replay when the app resumes.
         CancelNewWindowFocus()
         cascade_opt_in_intent := 0
         cascade_titlebar_click := 0
+        cascade_close_focus_request := 0
         pending_windows.Clear()
         cascade_compaction_pending.Clear()
         cascade_compaction_timer_pending := false

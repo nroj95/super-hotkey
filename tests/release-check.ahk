@@ -230,6 +230,16 @@ class SuiteReleaseChecks {
                 && !CascadeWasMaximizeRestore(0, -1)
                 && !CascadeWasMaximizeRestore(-1, 0),
                 "custom title-bar adoption requires a genuine maximize/restore transition")
+            this.Assert(CascadeCloseFocusDecision(true, false) = "preserve"
+                && CascadeCloseFocusDecision(true, true) = "preserve"
+                && CascadeCloseFocusDecision(false, true) = "wait"
+                && CascadeCloseFocusDecision(false, false) = "recover",
+                "Caps+Delete preserves genuine focus and recovers only after closing")
+            this.Assert(CascadeShouldHighlightCloseFocus("preserve", false)
+                && !CascadeShouldHighlightCloseFocus("preserve", true)
+                && !CascadeShouldHighlightCloseFocus("wait", true)
+                && !CascadeShouldHighlightCloseFocus("recover", false),
+                "Caps+Delete highlights native focus only after the close completes")
             hwnd := 987654321
             RememberUnmanagedCascadeWindow(hwnd)
             this.Assert(known_windows.Has(hwnd) && startup_windows.Has(hwnd)
