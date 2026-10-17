@@ -39,6 +39,8 @@ class SuiteLog {
         if !FileExist(this.path)
             return ""
         logFile := FileOpen(this.path, "r", "UTF-8")
+        if !IsObject(logFile)
+            return ""
         try {
             offset := Max(0, logFile.Length - maximumBytes)
             logFile.Pos := offset
