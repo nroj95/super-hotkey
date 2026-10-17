@@ -128,17 +128,6 @@ WW_GetWindowControlTarget(restore_minimized := true)
         return 0
 }
 
-; Keep the built-in F11 state authoritative for suite GUIs.
-WW_RestoreSuiteFullscreen(hwnd)
-{
-    if !SuiteFullscreen.placements.Has(hwnd)
-        return true
-    try WinActivate("ahk_id " hwnd)
-    if !WinActive("ahk_id " hwnd)
-        return false
-    SuiteFullscreen.Toggle()
-    return !SuiteFullscreen.placements.Has(hwnd)
-}
 
 WW_ForgetLastMinimizedWindow()
 {
@@ -152,44 +141,29 @@ WW_ForgetLastMinimizedWindow()
 
 WW_MaximizeWindowTarget()
 {
-    global WW_borderless_windows
-
-    ; Leave a just-minimized window minimized until this command decides its
-    ; next state. WinMaximize can promote it directly to maximized.
     hwnd := WW_GetWindowControlTarget(false)
-
     if !hwnd
         return
-    if SuiteFullscreen.placements.Has(hwnd) {
-        WW_RestoreSuiteFullscreen(hwnd)
-        return
-    }
-    SuiteWindowOwnership.Claim(hwnd)
-
-    WW_ForgetHorizontalStretch(hwnd)
-    WW_ForgetVerticalStretch(hwnd)
-    WW_ForgetFullStretch(hwnd)
 
     window := "ahk_id " hwnd
-
     try {
-        if WW_borderless_windows.Has(hwnd) {
-            WW_RestoreBorderlessWindow(hwnd, true)
-            WinActivate(window)
+        was_fullscreen := WW_IsNativeFullscreen(hwnd)
+        if was_fullscreen && !WW_SetNativeFullscreen(hwnd, false)
             return
-        }
 
-        if WinGetMinMax(window) = 1 {
-            if DllCall("GetPropW", "ptr", hwnd, "str", SuiteFullscreen.marker, "ptr") {
-                WinActivate(window)
-                SuiteFullscreen.Toggle()
-            } else
-                WW_EnterBorderlessFullscreen(hwnd)
-            return
-        }
-
-        WinMaximize(window)
+        SuiteWindowOwnership.Claim(hwnd)
+        WW_ForgetHorizontalStretch(hwnd)
+        WW_ForgetVerticalStretch(hwnd)
+        WW_ForgetFullStretch(hwnd)
+        if was_fullscreen
+            WinMaximize(window)
+        else if WinGetMinMax(window) = 1
+            WW_SetNativeFullscreen(hwnd, true)
+        else
+            WinMaximize(window)
     }
+    catch Error as err
+        WW_DebugError("Maximize / native fullscreen", err)
 }
 
 WW_MinimizeActiveWindow()
@@ -197,7 +171,6 @@ WW_MinimizeActiveWindow()
     Critical "On"
 
     global WW_last_minimized_hwnd
-    global WW_borderless_windows
 
     hwnd := WinExist("A")
 
@@ -230,9 +203,6 @@ WW_MinimizeActiveWindow()
     }
 
     try {
-        if WW_borderless_windows.Has(hwnd)
-            WW_RestoreBorderlessWindow(hwnd, false, true)
-
         WinMinimize(hwnd)
         WW_last_minimized_hwnd := hwnd
 
@@ -247,36 +217,25 @@ WW_MinimizeActiveWindow()
 WW_RestoreWindowTarget()
 {
     Critical "On"
-
-    global WW_borderless_windows
-
     hwnd := WW_GetWindowControlTarget()
-
-    if !hwnd || !WW_RestoreSuiteFullscreen(hwnd)
+    if !hwnd || !WW_SetNativeFullscreen(hwnd, false)
         return
+
     SuiteWindowOwnership.Claim(hwnd)
-
     try {
-        if WW_borderless_windows.Has(hwnd)
-            WW_RestoreBorderlessWindow(hwnd, false, true)
-
         if !WW_RestoreNormalWindowPlacement(hwnd) {
             WinRestore(hwnd)
-
-            ; A minimized maximized window may first restore maximized.
             if WinGetMinMax(hwnd) = 1
                 WinRestore(hwnd)
         }
-
         WW_ForgetHorizontalStretch(hwnd)
         WW_ForgetVerticalStretch(hwnd)
         WW_ForgetFullStretch(hwnd)
         WW_ForgetWindowLayoutCycle(hwnd)
         WinActivate(hwnd)
     }
-    catch Error as err {
+    catch Error as err
         WW_DebugError("Restore normal window", err)
-    }
 }
 
 ; =============================================================================
@@ -285,7 +244,7 @@ WW_RestoreWindowTarget()
 
 WW_RememberNormalWindowPlacement(hwnd)
 {
-    global WW_normal_window_placements, WW_borderless_windows
+    global WW_normal_window_placements
 
     process_id := WinGetPID(hwnd)
     work_area := WW_GetLayoutWorkArea(hwnd)
@@ -302,10 +261,7 @@ WW_RememberNormalWindowPlacement(hwnd)
         WW_normal_window_placements.Delete(hwnd)
     }
 
-    ; A borderless window's live rectangle is fullscreen, not its normal one.
-    placement := WW_borderless_windows.Has(hwnd)
-        ? WW_borderless_windows[hwnd]["placement"]
-        : WW_CaptureWindowPlacement(hwnd)
+    placement := WW_CaptureWindowPlacement(hwnd)
 
     WW_normal_window_placements[hwnd] := Map(
         "pid", process_id,

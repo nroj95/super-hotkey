@@ -17,7 +17,6 @@ WW_RunWindowCommand(command, arguments*)
         ; for the whole operation, including WINDOWPLACEMENT capture/restore.
         ; Scope this per entry point: a tray/menu thread can start in another context.
         try previous_dpi_context := DllCall("SetThreadDpiAwarenessContext", "ptr", -4, "ptr")
-        WW_PruneBorderlessWindows()
         return command(arguments*)
     }
     finally {

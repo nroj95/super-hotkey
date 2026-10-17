@@ -10,7 +10,7 @@ class WonderWindowsModule {
         this.drainCallback := ObjBindMethod(this, "Drain")
         this.pollCallback := ObjBindMethod(this, "PollCompatibility")
         this.optionalAvailability := "0000"
-        this.Add("maximize", "maximize / toggle borderless fullscreen", WW_MaximizeWindowTarget, ["Win + Up"])
+        this.Add("maximize", "maximize / toggle native F11 fullscreen", WW_MaximizeWindowTarget, ["Win + Up"])
         this.Add("restore", "restore normal window size / position", WW_RestoreWindowTarget, ["Win + Down"])
         for side in ["left", "right"] {
             this.Add("layout-" side, "cycle " side " layouts", WW_CycleWindowSnap, ["Win + " side], [side])
@@ -198,12 +198,7 @@ class WonderWindowsModule {
         this.CancelWork()
         SetTimer(this.pollCallback, 0)
         SetTimer(WW_ReassertFancyZonesKeyboardHook, 0)
-        SetTimer(WW_WatchDemotedBorderlessSwitcherWindows, 0)
         WW_ClearFocusHighlight(true)
         WW_RunWindowCommand(WW_ClearSwapZones)
-        WW_RunWindowCommand(WW_RestoreAllFullStretches)
-        WW_RunWindowCommand(WW_RestoreAllVerticalStretches)
-        WW_RunWindowCommand(WW_RestoreAllHorizontalStretches)
-        WW_RunWindowCommand(WW_RestoreAllBorderlessWindows, reason, code)
     }
 }

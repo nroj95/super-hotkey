@@ -915,6 +915,8 @@ class SuiteUpgradeChecks {
                 this.Assert(SuiteWindowOwnership.AllowsWonderWindows(guiProbe.Hwnd)
                     && WW_IsWindowToggleCandidate(guiProbe.Hwnd),
                     "normal suite GUIs are Wonder Windows candidates")
+                this.Assert(!WW_IsNativeFullscreen(guiProbe.Hwnd),
+                    "ordinary suite GUI is not mistaken for native fullscreen")
                 ; A large window may occupy a smaller logical swap zone.
                 guiActual := WW_GetWindowLayoutRectangle(guiProbe.Hwnd)
                 guiZone := [guiActual[1], guiActual[2],

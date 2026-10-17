@@ -151,12 +151,10 @@ WW_GetClockwiseAngleFromTop(delta_x, delta_y)
 
 WW_IsWindowSwapCandidate(hwnd, monitor_handle)
 {
-    global WW_borderless_windows
-
     if !SuiteWindowOwnership.AllowsWonderWindows(hwnd)
         return false
 
-    if WW_borderless_windows.Has(hwnd)
+    if WW_IsNativeFullscreen(hwnd)
         return false
 
     if !DllCall("IsWindowVisible", "ptr", hwnd, "int")

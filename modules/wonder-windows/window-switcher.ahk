@@ -2,7 +2,7 @@
 ; Included into the same script; functions share the existing global state.
 
 ; =============================================================================
-; maximized / fullscreen / borderless switcher
+; maximized / native fullscreen switcher
 ; =============================================================================
 
 WW_CycleMaximizedFullscreenWindows()
@@ -60,7 +60,7 @@ WW_CycleMaximizedFullscreenWindows()
         . " | to=" WW_DebugDescribeWindow(target_hwnd)
     )
 
-    if WW_ActivateMaximizedFullscreenWindow(target_hwnd, active_hwnd)
+    if WW_ActivateMaximizedFullscreenWindow(target_hwnd)
         WW_last_maximized_fullscreen_hwnd := target_hwnd
 }
 
@@ -111,28 +111,11 @@ WW_GetMaximizedFullscreenWindows()
 
 WW_IsMaximizedFullscreenSwitcherWindow(hwnd)
 {
-    global WW_borderless_windows
-
     if !WW_IsWindowToggleCandidate(hwnd)
         return false
-
-    ; Win Key Overhaul's own borderless mode is authoritative even if an
-    ; application's style/geometry changes slightly after entry.
-    if WW_borderless_windows.Has(hwnd)
-        && WW_WindowStateMatchesProcess(hwnd, WW_borderless_windows[hwnd])
-    {
-        return true
-    }
-
-    try {
-        if WinGetMinMax("ahk_id " hwnd) = 1
-            return true
-    }
-    catch {
+    try return WinGetMinMax(hwnd) = 1 || WW_IsNativeFullscreen(hwnd)
+    catch
         return false
-    }
-
-    return WW_WindowFillsPhysicalMonitor(hwnd)
 }
 
 WW_WindowFillsPhysicalMonitor(hwnd, tolerance := 2)
@@ -174,31 +157,9 @@ WW_WindowFillsPhysicalMonitor(hwnd, tolerance := 2)
     )
 }
 
-WW_ActivateMaximizedFullscreenWindow(target_hwnd, source_hwnd := 0)
+WW_ActivateMaximizedFullscreenWindow(target_hwnd)
 {
     if !WW_IsMaximizedFullscreenSwitcherWindow(target_hwnd)
         return false
-
-    ; A Win Key Overhaul borderless source is topmost. Lower it before trying
-    ; to activate another window, otherwise the target can remain hidden behind it.
-    if source_hwnd && source_hwnd != target_hwnd
-        WW_DemoteBorderlessSwitcherSource(source_hwnd)
-
-    ; A previously lowered borderless target must re-enter the topmost band
-    ; before activation so it behaves like normal borderless fullscreen again.
-    promoted_target := WW_PromoteBorderlessSwitcherTarget(target_hwnd)
-
-    activation_succeeded := WW_ActivateWindowReliably(target_hwnd)
-
-    if activation_succeeded
-        return true
-
-    ; Roll both sides back if activation failed.
-    if promoted_target
-        WW_DemoteBorderlessSwitcherSource(target_hwnd)
-
-    if source_hwnd && source_hwnd != target_hwnd
-        WW_PromoteBorderlessSwitcherTarget(source_hwnd)
-
-    return false
+    return WW_ActivateWindowReliably(target_hwnd)
 }

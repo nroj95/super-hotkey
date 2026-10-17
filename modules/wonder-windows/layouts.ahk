@@ -9,7 +9,6 @@ WW_StretchWindowVertically()
 {
     Critical "On"
 
-    global WW_borderless_windows
     global WW_vertical_stretch_windows
 
     hwnd := WW_GetWindowControlTarget()
@@ -20,17 +19,12 @@ WW_StretchWindowVertically()
     window := "ahk_id " hwnd
 
     try {
-        if !WW_RestoreSuiteFullscreen(hwnd)
+        if !WW_SetNativeFullscreen(hwnd, false)
             return
         WW_RememberNormalWindowPlacement(hwnd)
         WW_PruneVerticalStretchWindows()
 
-        ; Special states do not have reliable ordinary-window geometry.
-        if WW_borderless_windows.Has(hwnd) {
-            WW_ForgetHorizontalStretch(hwnd)
-            WW_ForgetVerticalStretch(hwnd)
-            WW_RestoreBorderlessWindow(hwnd, false, true)
-        } else if WinGetMinMax(window) != 0 {
+        if WinGetMinMax(window) != 0 {
             WW_ForgetHorizontalStretch(hwnd)
             WW_ForgetVerticalStretch(hwnd)
             WinRestore(window)
@@ -96,19 +90,17 @@ WW_StretchWindowVertically()
 WW_CycleFullStretch()
 {
     Critical "On"
-    global WW_full_stretch_windows, WW_borderless_windows
+    global WW_full_stretch_windows
 
     hwnd := WW_GetWindowControlTarget()
     if !hwnd
         return
 
     try {
-        if !WW_RestoreSuiteFullscreen(hwnd)
+        if !WW_SetNativeFullscreen(hwnd, false)
             return
         WW_RememberNormalWindowPlacement(hwnd)
-        if WW_borderless_windows.Has(hwnd)
-            WW_RestoreBorderlessWindow(hwnd, false, true)
-        else if WinGetMinMax(hwnd) != 0
+        if WinGetMinMax(hwnd) != 0
             WinRestore(hwnd)
 
         WW_PruneFullStretchWindows()
@@ -285,7 +277,6 @@ WW_ToggleHorizontalStretch(side)
 {
     Critical "On"
 
-    global WW_borderless_windows
     global WW_horizontal_stretch_windows
 
     if side != "left" && side != "right"
@@ -299,18 +290,12 @@ WW_ToggleHorizontalStretch(side)
     window := "ahk_id " hwnd
 
     try {
-        if !WW_RestoreSuiteFullscreen(hwnd)
+        if !WW_SetNativeFullscreen(hwnd, false)
             return
         WW_RememberNormalWindowPlacement(hwnd)
         WW_PruneHorizontalStretchWindows()
 
-        ; Special window states do not have reliable normal geometry for a
-        ; horizontal toggle. Restore them first and begin a fresh stretch state.
-        if WW_borderless_windows.Has(hwnd) {
-            WW_ForgetHorizontalStretch(hwnd)
-            WW_ForgetVerticalStretch(hwnd)
-            WW_RestoreBorderlessWindow(hwnd, false, true)
-        } else if WinGetMinMax(window) != 0 {
+        if WinGetMinMax(window) != 0 {
             WW_ForgetHorizontalStretch(hwnd)
             WW_ForgetVerticalStretch(hwnd)
             WinRestore(window)
@@ -925,7 +910,7 @@ WW_PlaceCenterTile(vertical_position)
 
 WW_GetPlacementTarget(&fresh_entry)
 {
-    global WW_last_minimized_hwnd, WW_borderless_windows
+    global WW_last_minimized_hwnd
     fresh_entry := !!WW_last_minimized_hwnd
     hwnd := WW_GetWindowControlTarget()
     if !hwnd
@@ -934,7 +919,7 @@ WW_GetPlacementTarget(&fresh_entry)
     try {
         if !WW_IsWindowToggleCandidate(hwnd)
             return 0
-        if WW_borderless_windows.Has(hwnd) || WinGetMinMax(hwnd) != 0
+        if WW_IsNativeFullscreen(hwnd) || WinGetMinMax(hwnd) != 0
             fresh_entry := true
         WW_PruneLayoutStates()
         WW_PrepareWindowForPlacement(hwnd)
@@ -1055,19 +1040,14 @@ WW_PruneLayoutStates()
 
 WW_PrepareWindowForPlacement(hwnd)
 {
-    if !WW_RestoreSuiteFullscreen(hwnd)
-        throw Error("Could not exit Super Hotkey fullscreen before placement.")
+    ; A failed F11 exit must never leave a fullscreen interface tiled.
+    if !WW_SetNativeFullscreen(hwnd, false)
+        throw Error("Could not exit native fullscreen before placement.")
     SuiteWindowOwnership.Claim(hwnd)
-    global WW_borderless_windows
     WW_RememberNormalWindowPlacement(hwnd)
     WW_ForgetHorizontalStretch(hwnd)
     WW_ForgetVerticalStretch(hwnd)
     WW_ForgetFullStretch(hwnd)
-
-    if WW_borderless_windows.Has(hwnd) {
-        WW_RestoreBorderlessWindow(hwnd, false, true)
-        return
-    }
     if WinGetMinMax(hwnd) != 0
         WinRestore(hwnd)
 }

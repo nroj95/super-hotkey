@@ -1239,38 +1239,6 @@ class ScratchpadController
         }
     }
 
-    IsWinKeyBorderlessWindow(hwnd)
-    {
-        static marker := "nroj.WinKeyOverhaul.Borderless"
-
-        return hwnd
-            && DllCall("IsWindow", "ptr", hwnd, "int")
-            && DllCall("GetPropW", "ptr", hwnd, "str", marker, "ptr")
-    }
-
-    RaiseDrawerAboveBorderlessWindow()
-    {
-        if !this.window_hwnd
-            || !DllCall("IsWindow", "ptr", this.window_hwnd, "int")
-        {
-            return
-        }
-
-        ; Move Scratchpad to the front of the topmost band without activating it.
-        ; The borderless application keeps focus and remains topmost over the taskbar.
-        DllCall(
-            "SetWindowPos",
-            "ptr", this.window_hwnd,
-            "ptr", -1, ; HWND_TOPMOST
-            "int", 0,
-            "int", 0,
-            "int", 0,
-            "int", 0,
-            "uint", 0x0013, ; SWP_NOSIZE | SWP_NOMOVE | SWP_NOACTIVATE
-            "int"
-        )
-    }
-
     SetDrawerTopmost(enabled)
     {
         if !this.window_hwnd || !DllCall("IsWindow", "ptr", this.window_hwnd, "int")
@@ -1307,14 +1275,6 @@ class ScratchpadController
 
         this.SetDrawerTopmost(true)
 
-        ; A clicked Win Key Overhaul borderless window can move ahead inside the
-        ; topmost band. Restore Scratchpad above it without stealing focus.
-        if foreground
-            && foreground != this.window_hwnd
-            && this.IsWinKeyBorderlessWindow(foreground)
-        {
-            this.RaiseDrawerAboveBorderlessWindow()
-        }
     }
 
     FindYieldDialog(foreground)

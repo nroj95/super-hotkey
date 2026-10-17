@@ -6,7 +6,7 @@
 #Include "%A_ScriptDir%\modules\wonder-windows\swapping.ahk"
 #Include "%A_ScriptDir%\modules\wonder-windows\focus.ahk"
 #Include "%A_ScriptDir%\modules\wonder-windows\window-switcher.ahk"
-#Include "%A_ScriptDir%\modules\wonder-windows\borderless.ahk"
+#Include "%A_ScriptDir%\modules\wonder-windows\native-fullscreen.ahk"
 #Include "%A_ScriptDir%\modules\wonder-windows\fancyzones.ahk"
 #Include "%A_ScriptDir%\modules\wonder-windows\windows.ahk"
 #Include "%A_ScriptDir%\modules\wonder-windows\startup.ahk"

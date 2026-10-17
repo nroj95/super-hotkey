@@ -288,13 +288,12 @@ class SuiteWindowOwnership {
         if !this.IsManual(hwnd)
             return false
         if forAdoption {
-            global WW_borderless_windows, WW_horizontal_stretch_windows, WW_vertical_stretch_windows
+            global WW_horizontal_stretch_windows, WW_vertical_stretch_windows
             global WW_layout_cycle_windows, WW_center_tile_next_sides, WW_normal_window_placements
             global WW_full_stretch_windows
-            ; Restore the native frame before handing geometry to the cascade.
-            ; A refused restoration leaves manual ownership and recovery state intact.
-            if WW_borderless_windows.Has(hwnd)
-                WW_RunWindowCommand(WW_RestoreBorderlessWindow, hwnd, false, true)
+            ; Never hand a fullscreen window to automatic placement if F11 cannot exit it.
+            if !WW_SetNativeFullscreen(hwnd, false)
+                return false
             WW_ForgetSwapZone(hwnd)
             for states in [WW_horizontal_stretch_windows, WW_vertical_stretch_windows,
                 WW_layout_cycle_windows, WW_center_tile_next_sides, WW_normal_window_placements,
