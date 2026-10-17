@@ -69,6 +69,7 @@ class SuiteUpgradeChecks {
         this.IndependentLayers()
         this.CapsLockDoubleTap()
         this.LayerDoubleTapGestures()
+        this.LayerChordReleaseOrder()
         this.LayerRecordingGestures()
         this.LayerIndicatorDelay()
         this.ApplicationSuspension()
@@ -304,6 +305,46 @@ class SuiteUpgradeChecks {
                 "rejected double-tap conflict preserves the saved configuration")
         }
         finally manager.Stop()
+    }
+
+    static LayerChordReleaseOrder() {
+        global CPL
+
+        for layerName in ["caps", "pause"] {
+            for suffixFirst in [true, false] {
+                CPL_Initialize()
+                CPL.enabled := true
+                CPL.showIndicator := false
+                CPL.selected := layerName
+
+                layer := CPL.layers[layerName]
+                layer.down := true
+                layer.used := true
+                layer.started := CPL_Now()
+                layer.physicalKey := layerName = "caps" ? "CapsLock" : "Pause"
+
+                phases := []
+                press := {
+                    route: {layer: layerName, callback: (event) => phases.Push(event.phase)},
+                    oneShot: false, finished: false, foreground: 0
+                }
+                CPL.pressed["sc02E"] := press
+                CPL_SendEvent(press, 1)
+
+                if suffixFirst {
+                    CPL_KeyUp("sc02E")
+                    CPL_FinishPrefix(layerName, true)
+                } else {
+                    CPL_FinishPrefix(layerName, true)
+                    CPL_KeyUp("sc02E")
+                }
+
+                this.Assert(phases.Length = 2 && phases[1] = "down"
+                    && phases[2] = "up" && press.finished,
+                    layerName " chord completes once regardless of release order: "
+                    (suffixFirst ? "suffix first" : "prefix first"))
+            }
+        }
     }
 
     static LayerRecordingGestures() {

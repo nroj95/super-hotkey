@@ -69,7 +69,10 @@ CPL_FinishPrefix(layerName, allowTap) {
     layer.physicalKey := ""
     if selected
         CPL.selected := ""
-    CPL_CancelLayerPresses(layerName)
+    ; Complete claimed chords when the prefix is released first.
+    for keyId, press in CPL.pressed
+        if press.route.layer = layerName && !press.oneShot
+            CPL_FinishPress(press, 3)
     if shouldArm {
         CPL.armed := layerName
         CPL.armedUntil := CPL_Now() + CPL.oneShotMs
