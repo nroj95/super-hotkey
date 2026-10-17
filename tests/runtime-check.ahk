@@ -112,6 +112,13 @@ class SuiteChecks {
             this.Assert(!manager.actions.Has("win-key-overhaul.swap-next")
                 && !manager.actions.Has("win-key-overhaul.swap-previous"),
                 "old clockwise swap actions are removed")
+            this.Assert(configuration["win-key-overhaul.move-monitor"].bindings[1]
+                    = Keybindings.Parse("Caps + Win + Backspace").signature,
+                "Wonder Windows defaults to one monitor-cycle shortcut")
+            this.Assert(!manager.actions.Has("window-cascade.rotate-previous")
+                    && !manager.actions.Has("window-cascade.move-left")
+                    && !manager.actions.Has("window-cascade.move-right"),
+                "backward all-slot rotation and old Cascade monitor hotkeys are removed")
             this.Assert(HasMethod(manager.actions["scratchpad.save"].context, "Call"), "Scratchpad save has an explicit editor context")
             this.Assert(!manager.ContextActive(manager.actions["scratchpad.save"]), "Scratchpad commands are inactive outside its editor")
             manager.ShowSettings()

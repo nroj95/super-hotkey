@@ -260,7 +260,7 @@ cascade_command_rotate_slot_next := 4
 cascade_command_swap_window_up := 5
 cascade_command_swap_window_down := 6
 cascade_command_adopt_active := 7
-; Rotation parameter: 0/1 = next (including one-shot Caps), -1 = previous.
+; Rotation is forward-only in Keybindings.
 cascade_command_rotate_layers := 8
 cascade_command_toggle_minimize := 9
 cascade_command_bring_forward := 10
@@ -268,8 +268,6 @@ cascade_command_close_active := 11
 cascade_command_close_scope := 12
 cascade_command_gather_to_monitor := 13
 cascade_command_show_help := 14
-cascade_command_move_monitor_left := 15
-cascade_command_move_monitor_right := 16
 cascade_command_toggle_auto_placement := 17
 
 }

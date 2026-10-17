@@ -893,6 +893,21 @@ class SuiteUpgradeChecks {
                 && bottom[2] + bottom[4] = 500, "odd negative-coordinate layouts retain exact shared boundaries")
             this.Assert(WW_GetNextCycleIndex(4, 4) = 1 && WW_GetNextCycleIndex(1, 4, true) = 4,
                 "layout cycling wraps in both directions")
+            this.Assert(WW_NextMonitorIndex(1, 2) = 2 && WW_NextMonitorIndex(2, 2) = 1
+                && WW_NextMonitorIndex(3, 3) = 1 && WW_NextMonitorIndex(1, 1) = 0,
+                "monitor cycling wraps and does nothing with one monitor")
+            this.Assert(WW_RectanglesMatch(
+                WW_RelocateWindowRectangle([150, 130, 500, 300], [0, 0, 1000, 800],
+                    [-1920, 0, 0, 1040]), [-1770, 130, 500, 300], 0),
+                "cross-monitor movement retains size and relative position")
+            this.Assert(WW_RectanglesMatch(
+                WW_RelocateWindowRectangle([800, 650, 500, 300], [0, 0, 1000, 800],
+                    [1000, 0, 1800, 600]), [1300, 300, 500, 300], 0),
+                "cross-monitor movement clamps oversized position to new work area")
+            this.Assert(WW_RectanglesMatch(
+                WW_RelocateWindowRectangle([0, 0, 1200, 900], [0, 0, 1200, 900],
+                    [0, 0, 800, 600]), [0, 0, 800, 600], 0),
+                "cross-monitor movement constrains windows that exceed the destination")
             this.Assert(WW_WindowsSubstantiallyOverlap([0, 0, 200, 200], [20, 10, 200, 200])
                 && WW_WindowsSubstantiallyOverlap([0, 0, 200, 200], [0, 0, 200, 200])
                 && !WW_WindowsSubstantiallyOverlap([0, 0, 200, 200], [120, 0, 200, 200])
@@ -1330,10 +1345,9 @@ class SuiteUpgradeChecks {
             "window-cascade.help", "window-cascade.focus-previous", "window-cascade.focus-next",
             "window-cascade.slot-previous", "window-cascade.slot-next",
             "window-cascade.swap-up", "window-cascade.swap-down",
-            "window-cascade.rotate-next", "window-cascade.rotate-previous",
+            "window-cascade.rotate-next",
             "window-cascade.adopt", "window-cascade.bring-forward", "window-cascade.minimize",
             "window-cascade.auto-placement", "window-cascade.gather",
-            "window-cascade.move-left", "window-cascade.move-right",
             "window-cascade.close-active", "window-cascade.close-monitor"],
             "Cascade Kingdom groups navigation, rotation and management")
         this.AssertDisplaySequence(rows, [
@@ -1342,6 +1356,7 @@ class SuiteUpgradeChecks {
             "win-key-overhaul.focus-right", "win-key-overhaul.cycle-stacked",
             "win-key-overhaul.cycle-expanded",
             "win-key-overhaul.maximize", "win-key-overhaul.restore", "win-key-overhaul.minimize",
+            "win-key-overhaul.move-monitor",
             "win-key-overhaul.layout-left", "win-key-overhaul.layout-right",
             "win-key-overhaul.tile-top-left", "win-key-overhaul.tile-top",
             "win-key-overhaul.tile-top-right", "win-key-overhaul.tile-bottom-left",

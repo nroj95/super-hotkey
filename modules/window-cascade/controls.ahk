@@ -188,7 +188,6 @@ DispatchCascadeCommand(command)
     global cascade_command_toggle_minimize, cascade_command_bring_forward
     global cascade_command_close_active, cascade_command_close_scope
     global cascade_command_gather_to_monitor, cascade_command_show_help
-    global cascade_command_move_monitor_left, cascade_command_move_monitor_right
     global cascade_command_toggle_auto_placement
     global cascade_auto_placement_toggle_in_progress
     global cascade_minimize_toggle_in_progress
@@ -298,11 +297,6 @@ DispatchCascadeCommand(command)
         case cascade_command_gather_to_monitor:
             GatherCascadesToCommandMonitor()
 
-        case cascade_command_move_monitor_left:
-            MoveCascadeWindowAcrossMonitor(parameter, "Left")
-
-        case cascade_command_move_monitor_right:
-            MoveCascadeWindowAcrossMonitor(parameter, "Right")
     }
 }
 

@@ -21,6 +21,7 @@ class WonderWindowsModule {
         this.Add("stretch-full-cycle", "cycle full-height / full-width stretch", WW_CycleFullStretch, ["Shift + Win + Enter"])
         this.Add("reset-stretch", "undo window stretch", WW_ResetWindowStretch, ["Win + Shift + Down"])
         this.Add("minimize", "minimize / restore last minimized window", WW_MinimizeActiveWindow, ["Win + Backspace"])
+        this.Add("move-monitor", "cycle active window to next monitor", WW_CycleWindowMonitor, ["Caps + Win + Backspace"])
         this.Add("isolate", "isolate active window / restore", WW_ToggleOtherWindows, ["Win + Shift + Home"])
         this.Add("minimize-all", "minimize / restore all windows", WW_ToggleAllWindows, ["Win + M"])
         for corner, key in Map("top-left", "Insert", "bottom-left", "Delete", "top-right", "PgUp", "bottom-right", "PgDn")

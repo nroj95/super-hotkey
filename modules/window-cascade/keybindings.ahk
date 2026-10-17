@@ -13,7 +13,6 @@ InitializeCascadeKeybindings(manager)
     global cascade_command_toggle_minimize, cascade_command_bring_forward
     global cascade_command_close_active, cascade_command_close_scope
     global cascade_command_gather_to_monitor, cascade_command_show_help
-    global cascade_command_move_monitor_left, cascade_command_move_monitor_right
     global cascade_command_toggle_auto_placement
 
     ; Preserve the user's previous Space/Tab selection as the first-run default.
@@ -34,12 +33,6 @@ InitializeCascadeKeybindings(manager)
         cascade_command_focus_next, "Caps + PgDn")
     CascadeAddAction(manager, "rotate-next", "rotate all slots forward",
         cascade_command_rotate_layers, "Caps + " rotationKey)
-    CascadeAddAction(manager, "rotate-previous", "rotate all slots backward",
-        cascade_command_rotate_layers, "Caps + Alt + " rotationKey, -1)
-    CascadeAddAction(manager, "move-left", "move window to left monitor",
-        cascade_command_move_monitor_left, "Caps + Alt + Left", "foreground")
-    CascadeAddAction(manager, "move-right", "move window to right monitor",
-        cascade_command_move_monitor_right, "Caps + Alt + Right", "foreground")
 
     CascadeAddAction(manager, "adopt", "adopt or re-slot active window",
         cascade_command_adopt_active, "Caps + Insert")
