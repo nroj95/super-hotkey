@@ -132,8 +132,8 @@ CascadeTakeOptInMonitor(hwnd, &reason := "")
     return 0
 }
 
-; A real caption hit uses the OS non-client hit test. Do not infer a title bar
-; from a Y coordinate: tabs, browser toolbars and custom clients are not captions.
+; Prefer a real OS caption hit. Custom title bars can report client-area hits,
+; so for those we verify that the double-click caused native maximize/restore.
 CascadeIsCaptionPoint(hwnd, x, y)
 {
     if !hwnd
@@ -158,6 +158,32 @@ CascadeIsSecondCaptionClick(previous, hwnd, pid, x, y, now, limit, tolerance_x, 
         && Abs(previous.y - y) <= tolerance_y
 }
 
+; Do not mistake an ordinary double-click in client content for a title-bar
+; action: the OS/application must actually maximize or restore the window.
+CascadeWasMaximizeRestore(before, after)
+{
+    return (before = 0 && after = 1) || (before = 1 && after = 0)
+}
+
+CascadeVerifyCustomCaptionDoubleClick(hwnd, pid, monitor, before)
+{
+    if !IsCascadeEnabled() || GetManagedCascadeMonitor(hwnd)
+        return
+    try {
+        if !WinExist("ahk_id " hwnd) || WinGetPID("ahk_id " hwnd) != pid
+            || IsShellSurfaceWindow(hwnd) || !SuiteWindowOwnership.AllowsWonderWindows(hwnd)
+            return
+        after := WinGetMinMax("ahk_id " hwnd)
+        if !CascadeWasMaximizeRestore(before, after)
+            return
+        DebugLog("Custom title-bar double-click confirmed by maximize/restore."
+            . " | " DebugDescribeWindow(hwnd))
+        CascadeAdoptCaptionWindow(hwnd, pid, monitor)
+    }
+    catch Error as err
+        DebugError("Verify custom title-bar double-click", err)
+}
+
 CascadeObserveCapsMouseClick(hwnd, x, y)
 {
     global cascade_titlebar_click
@@ -170,22 +196,40 @@ CascadeObserveCapsMouseClick(hwnd, x, y)
     monitor := GetMonitorForPoint(x, y)
     if !monitor
         return
-    if CascadeIsCaptionPoint(hwnd, x, y) && SuiteWindowOwnership.AllowsWonderWindows(hwnd) {
-        try pid := WinGetPID("ahk_id " hwnd)
+    if !IsShellSurfaceWindow(hwnd) && SuiteWindowOwnership.AllowsWonderWindows(hwnd) {
+        try {
+            pid := WinGetPID("ahk_id " hwnd)
+            state := WinGetMinMax("ahk_id " hwnd)
+        }
         catch
             return
-        now := A_TickCount
-        if CascadeIsSecondCaptionClick(cascade_titlebar_click, hwnd, pid, x, y,
-            now, DllCall("GetDoubleClickTime", "uint"),
-            DllCall("GetSystemMetrics", "int", 36, "int"),
-            DllCall("GetSystemMetrics", "int", 37, "int")) {
-            cascade_titlebar_click := 0
-            ; Let the native second click (including maximize/restore) complete.
-            SetTimer(CascadeAdoptCaptionWindow.Bind(hwnd, pid, monitor), -80)
-        } else {
-            cascade_titlebar_click := {hwnd: hwnd, pid: pid, x: x, y: y, tick: now}
+        if state = 0 || state = 1 {
+            now := A_TickCount
+            if CascadeIsSecondCaptionClick(cascade_titlebar_click, hwnd, pid, x, y,
+                now, DllCall("GetDoubleClickTime", "uint"),
+                DllCall("GetSystemMetrics", "int", 36, "int"),
+                DllCall("GetSystemMetrics", "int", 37, "int")) {
+                first := cascade_titlebar_click
+                cascade_titlebar_click := 0
+                if first.native_caption && CascadeIsCaptionPoint(hwnd, x, y) {
+                    ; Preserve native title-bar adoption behavior.
+                    SetTimer(CascadeAdoptCaptionWindow.Bind(hwnd, pid, monitor), -80)
+                } else {
+                    ; No geometry guesses for custom title bars or client content.
+                    ; Wait for the native double-click to change maximize state.
+                    SetTimer(CascadeVerifyCustomCaptionDoubleClick.Bind(
+                        hwnd, pid, monitor, first.window_state), -120)
+                }
+                return
+            }
+            native_caption := CascadeIsCaptionPoint(hwnd, x, y)
+            cascade_titlebar_click := {hwnd: hwnd, pid: pid, x: x, y: y,
+                tick: now, window_state: state, native_caption: native_caption}
+            ; File Explorer's client area may launch apps under CapsLock.
+            if !native_caption && CascadeIsLaunchSurface(hwnd)
+                CascadeRememberLaunchIntent(monitor, hwnd)
+            return
         }
-        return
     }
     cascade_titlebar_click := 0
     if CascadeIsLaunchSurface(hwnd)

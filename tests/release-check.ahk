@@ -223,6 +223,13 @@ class SuiteReleaseChecks {
                     {hwnd: 42, pid: 8, x: 100, y: 150, tick: 200},
                     42, 8, 102, 151, 801, 500, 4, 4),
                 "title-bar adoption requires two timely clicks on the same window")
+            this.Assert(CascadeWasMaximizeRestore(0, 1)
+                && CascadeWasMaximizeRestore(1, 0)
+                && !CascadeWasMaximizeRestore(0, 0)
+                && !CascadeWasMaximizeRestore(1, 1)
+                && !CascadeWasMaximizeRestore(0, -1)
+                && !CascadeWasMaximizeRestore(-1, 0),
+                "custom title-bar adoption requires a genuine maximize/restore transition")
             hwnd := 987654321
             RememberUnmanagedCascadeWindow(hwnd)
             this.Assert(known_windows.Has(hwnd) && startup_windows.Has(hwnd)
