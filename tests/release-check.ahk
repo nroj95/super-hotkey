@@ -101,8 +101,9 @@ class SuiteReleaseChecks {
                 "a later keyboard launch cancels an unused taskbar monitor hint")
             newerObserver := InputHook("V L0")
             cascade_launch_hint := {tick: A_TickCount, monitor_device: "right", key_observer: newerObserver}
+            newerObserver.Start()
             CancelCascadeTaskbarPlacementIntent(observer)
-            this.Assert(!cascade_launch_hint.HasOwnProp("placement_cancelled"),
+            this.Assert(newerObserver.InProgress && !cascade_launch_hint.HasOwnProp("placement_cancelled"),
                 "a stale key observer cannot cancel a newer taskbar click")
             CancelNewWindowFocus()
             this.Assert(!IsObject(cascade_launch_hint) && !newerObserver.InProgress,
