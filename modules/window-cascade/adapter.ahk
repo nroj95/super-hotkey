@@ -30,6 +30,7 @@ class WindowCascadeModule {
         global focus_corner_overlays, focus_corner_update_pending
 
         ; Invalidate queued work so it cannot replay when the app resumes.
+        CancelNewWindowFocus()
         pending_windows.Clear()
         cascade_compaction_pending.Clear()
         cascade_compaction_timer_pending := false

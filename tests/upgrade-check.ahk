@@ -65,6 +65,7 @@ class SuiteUpgradeChecks {
 
     static Run() {
         this.Preferences()
+        this.SettingsCheckboxes()
         this.IndependentLayers()
         this.CapsLockDoubleTap()
         this.LayerDoubleTapGestures()
@@ -84,8 +85,9 @@ class SuiteUpgradeChecks {
         settings := SuiteSettings(SuiteChecks.directory "\upgrade-preferences")
         this.Assert(settings.layers["caps"] && settings.layers["pause"] && !settings.verbose,
             "both Secret Keys layers default on; verbose debugging defaults off")
-        this.Assert(settings.capsToggleModifier = "Shift",
-            "Shift is the default Caps Lock double-tap modifier")
+        this.Assert(settings.capsToggleModifier = "Shift"
+            && settings.capsToggleModifierChoice = "Shift",
+            "Shift is the default enabled Caps Lock double-tap modifier")
         settings.Save(settings.modules, Map("caps", false, "pause", true), true)
         loaded := SuiteSettings(settings.directory)
         this.Assert(!loaded.layers["caps"] && loaded.layers["pause"] && loaded.verbose,
@@ -93,6 +95,14 @@ class SuiteUpgradeChecks {
         settings.Save(settings.modules, settings.layers, settings.verbose, "Alt")
         this.Assert(SuiteSettings(settings.directory).capsToggleModifier = "Alt",
             "selected Caps Lock modifier survives restart")
+        settings.Save(settings.modules, settings.layers, settings.verbose, "Disabled", "Alt")
+        disabled := SuiteSettings(settings.directory)
+        this.Assert(disabled.capsToggleModifier = "Disabled"
+            && disabled.capsToggleModifierChoice = "Alt",
+            "disabling Caps Lock double-tap remembers its selected modifier")
+        settings.Save(settings.modules, settings.layers, settings.verbose, "Alt")
+        this.Assert(SuiteSettings(settings.directory).capsToggleModifier = "Alt",
+            "re-enabling Caps Lock double-tap restores its selected modifier")
         settings.Save(settings.modules, settings.layers, settings.verbose, "Shift")
         document := KB_Manifest.Read(settings.path)
         document["layers"]["pause"] := "invalid"
@@ -115,6 +125,45 @@ class SuiteUpgradeChecks {
         logger.verbose := true
         logger.Debug("Wonder Windows", "visible diagnostic")
         this.Assert(InStr(logger.Read(), "visible diagnostic"), "global verbose mode enables module diagnostics")
+    }
+
+    static SettingsCheckboxes() {
+        app := SuiteApplication(true, SuiteChecks.directory "\checkbox-settings")
+        app.InitializeCatalog()
+        app.Settings.Save(app.Settings.modules, app.Settings.layers, false, "Disabled", "Alt")
+        manager := app.manager
+        try {
+            manager.SetPaused(true)
+            manager.Start()
+            app.ui := SuiteInterface(app)
+            app.ui.ShowLayerSettings()
+            window := app.ui.windows["settings:keyboard-layers"]
+            this.Assert(!window["capsToggleEnabled"].Value
+                && !window["capsToggleModifier"].Enabled
+                && window["capsToggleModifier"].Text = "Alt",
+                "disabled Caps Lock double-tap keeps its saved dropdown selection")
+            window["capsToggleEnabled"].Value := true
+            app.ui.UpdateSelectorEnabled(window["capsToggleModifier"], window["capsToggleEnabled"])
+            this.Assert(window["capsToggleModifier"].Enabled,
+                "Caps Lock double-tap checkbox enables the modifier dropdown")
+            app.ui.CloseWindow("settings:keyboard-layers")
+            app.ui.ShowCascadeSettings()
+            window := app.ui.windows["settings:window-cascade"]
+            this.Assert(window["holdToSkipEnabled"].Value
+                && window["holdToSkipKey"].Enabled
+                && window["holdToSkipKey"].Text = "CapsLock",
+                "Cascade Kingdom hold-to-skip defaults to an enabled CapsLock selector")
+            window["holdToSkipEnabled"].Value := false
+            app.ui.UpdateSelectorEnabled(window["holdToSkipKey"], window["holdToSkipEnabled"])
+            this.Assert(!window["holdToSkipKey"].Enabled
+                && window["holdToSkipKey"].Text = "CapsLock",
+                "hold-to-skip checkbox disables the dropdown without clearing its selection")
+        }
+        finally {
+            if IsObject(app.ui)
+                app.ui.CloseAll()
+            manager.Stop()
+        }
     }
 
     static IndependentLayers() {
@@ -429,7 +478,7 @@ class SuiteUpgradeChecks {
     }
 
     static LiveCascadeSettings() {
-        global cascade_auto_placement_paused, cascade_hold_to_skip_key
+        global cascade_auto_placement_paused, cascade_hold_to_skip_key, cascade_hold_to_skip_choice
         global focus_corner_visible, focus_tab_color_presets
         global focus_corner_active_slot_color_name, focus_corner_inactive_slot_color_name
         global focus_corner_active_slot_color, focus_corner_inactive_slot_color
@@ -439,7 +488,7 @@ class SuiteUpgradeChecks {
         app.InitializeCatalog()
         manager := app.manager
         previous := {paused: cascade_auto_placement_paused, holdToSkipKey: cascade_hold_to_skip_key,
-            visible: focus_corner_visible,
+            holdToSkipChoice: cascade_hold_to_skip_choice, visible: focus_corner_visible,
             activeName: focus_corner_active_slot_color_name,
             inactiveName: focus_corner_inactive_slot_color_name,
             activeColor: focus_corner_active_slot_color,
@@ -455,8 +504,12 @@ class SuiteUpgradeChecks {
             activeName := previous.activeName = "Pink" ? "Green" : "Pink"
             inactiveName := previous.inactiveName = "Blue" ? "Grey" : "Blue"
             settings["paused"].Value := expectedPaused
-            selectedSkipKey := previous.holdToSkipKey = "Pause" ? "Disabled" : "Pause"
+            selectedSkipKey := previous.holdToSkipChoice = "Pause" ? "CapsLock" : "Pause"
             settings["holdToSkipKey"].Choose(selectedSkipKey)
+            settings["holdToSkipEnabled"].Value := false
+            app.ui.UpdateSelectorEnabled(settings["holdToSkipKey"], settings["holdToSkipEnabled"])
+            this.Assert(!settings["holdToSkipKey"].Enabled,
+                "Cascade Kingdom checkbox disables hold-to-skip without forgetting the key")
             settings["tabs"].Value := expectedVisible
             settings["activeColor"].Choose(activeName)
             settings["inactiveColor"].Choose(inactiveName)
@@ -468,24 +521,40 @@ class SuiteUpgradeChecks {
             this.Assert(!app.ui.windows.Has("settings:window-cascade")
                 && cascade_auto_placement_paused = expectedPaused
                 && focus_corner_visible = expectedVisible
-                && cascade_hold_to_skip_key = selectedSkipKey
+                && cascade_hold_to_skip_key = "Disabled"
+                && cascade_hold_to_skip_choice = selectedSkipKey
                 && focus_corner_active_slot_color_name = activeName
                 && focus_corner_inactive_slot_color_name = inactiveName
                 && focus_corner_active_slot_color = focus_tab_color_presets[activeName]
                 && focus_corner_inactive_slot_color = focus_tab_color_presets[inactiveName],
                 "Cascade Kingdom applies placement, visibility and colors without reload")
             this.Assert(IniRead(path, "Controls", "AutoPlacementPaused") = (expectedPaused ? "1" : "0")
-                && IniRead(path, "Controls", "HoldToSkipKey") = selectedSkipKey
+                && IniRead(path, "Controls", "HoldToSkipKey") = "Disabled"
+                && IniRead(path, "Controls", "HoldToSkipChoice") = selectedSkipKey
                 && IniRead(path, "FocusTabs", "Visible") = (expectedVisible ? "1" : "0")
                 && IniRead(path, "FocusTabs", "ActiveSlotColor") = activeName
                 && IniRead(path, "FocusTabs", "InactiveSlotColor") = inactiveName,
                 "Cascade Kingdom live settings persist all five choices")
             this.Assert(cascade_history.Count = existingHistorySize,
                 "applying Cascade Kingdom preferences preserves in-memory cascade history")
+            app.ui.ShowCascadeSettings()
+            settings := app.ui.windows["settings:window-cascade"]
+            this.Assert(!settings["holdToSkipEnabled"].Value
+                && !settings["holdToSkipKey"].Enabled
+                && settings["holdToSkipKey"].Text = selectedSkipKey,
+                "disabled hold-to-skip remembers the selected key after reopening")
+            settings["holdToSkipEnabled"].Value := true
+            app.ui.UpdateSelectorEnabled(settings["holdToSkipKey"], settings["holdToSkipEnabled"])
+            app.ui.SaveCascade()
+            this.Assert(cascade_hold_to_skip_key = selectedSkipKey
+                && cascade_hold_to_skip_choice = selectedSkipKey
+                && IniRead(path, "Controls", "HoldToSkipKey") = selectedSkipKey,
+                "re-enabling hold-to-skip restores the saved key")
         }
         finally {
             cascade_auto_placement_paused := previous.paused
             cascade_hold_to_skip_key := previous.holdToSkipKey
+            cascade_hold_to_skip_choice := previous.holdToSkipChoice
             focus_corner_visible := previous.visible
             focus_corner_active_slot_color_name := previous.activeName
             focus_corner_inactive_slot_color_name := previous.inactiveName

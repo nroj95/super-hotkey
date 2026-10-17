@@ -561,6 +561,10 @@ class SuiteInterface {
     ; Secret Keys: persistent, independent layer choices; restart-based hooks
     ; =========================================================================
 
+    UpdateSelectorEnabled(selector, checkbox, *) {
+        selector.Enabled := checkbox.Value != 0
+    }
+
     ShowLayerSettings(*) {
         key := "settings:keyboard-layers"
         if this.Existing(key)
@@ -569,12 +573,13 @@ class SuiteInterface {
         window.AddText("x20 y20 w560", "Modules is the master switch. These choices control each layer independently.")
         window.AddCheckbox("x20 y70 w540 vcaps", "Enable CapsLock Layer").Value := this.app.Settings.layers["caps"]
         window.AddCheckbox("x20 y115 w540 vpause", "Enable Pause Layer").Value := this.app.Settings.layers["pause"]
-        window.AddText("x20 y160 w560", "Double-tap a modifier to toggle Caps Lock:")
-        modifiers := ["Shift", "Ctrl", "Alt", "Disabled"]
-        selector := window.AddDropDownList("x20 y190 w220 vcapsToggleModifier", modifiers)
-        for index, modifier in modifiers
-            if modifier = this.app.Settings.capsToggleModifier
-                selector.Choose(index)
+        toggle := window.AddCheckbox("x20 y160 w415 vcapsToggleEnabled",
+            "Double-tap a modifier to toggle Caps Lock")
+        toggle.Value := this.app.Settings.capsToggleModifier != "Disabled"
+        selector := window.AddDropDownList("x445 y158 w135 vcapsToggleModifier", ["Shift", "Ctrl", "Alt"])
+        selector.Choose(this.app.Settings.capsToggleModifierChoice)
+        toggle.OnEvent("Click", ObjBindMethod(this, "UpdateSelectorEnabled", selector))
+        this.UpdateSelectorEnabled(selector, toggle)
         window.AddText("x20 y235 w560", "Only works while the CapsLock layer is enabled."
             . "`nAn optional shortcut is available in Keybindings.")
         this.Footer(window, [["Apply and restart", ObjBindMethod(this, "SaveLayers"), 160],
@@ -588,7 +593,9 @@ class SuiteInterface {
         try {
             this.app.Settings.Save(this.app.Settings.modules,
                 Map("caps", window["caps"].Value != 0, "pause", window["pause"].Value != 0),
-                this.app.Settings.verbose, window["capsToggleModifier"].Text)
+                this.app.Settings.verbose,
+                window["capsToggleEnabled"].Value != 0 ? window["capsToggleModifier"].Text : "Disabled",
+                window["capsToggleModifier"].Text)
             this.CloseWindow(key)
             Reload()
         }
@@ -604,14 +611,18 @@ class SuiteInterface {
         key := "settings:window-cascade"
         if this.Existing(key)
             return
-        global cascade_auto_placement_paused, cascade_hold_to_skip_key
+        global cascade_auto_placement_paused, cascade_hold_to_skip_key, cascade_hold_to_skip_choice
         global focus_corner_visible, focus_tab_color_presets
         global focus_corner_active_slot_color_name, focus_corner_inactive_slot_color_name
         window := this.NewWindow(key, "Cascade Kingdom - Settings", true)
         window.AddCheckbox("x20 y25 w550 vpaused", "Pause automatic placement of new windows").Value := cascade_auto_placement_paused
-        window.AddText("x20 y75 w290", "Hold to skip automatic placement")
-        skipKey := window.AddDropDownList("x330 y70 w170 vholdToSkipKey", ["CapsLock", "Pause", "Disabled"])
-        skipKey.Choose(cascade_hold_to_skip_key)
+        skipToggle := window.AddCheckbox("x20 y72 w300 vholdToSkipEnabled",
+            "Hold to skip automatic placement")
+        skipToggle.Value := cascade_hold_to_skip_key != "Disabled"
+        skipKey := window.AddDropDownList("x330 y70 w170 vholdToSkipKey", ["CapsLock", "Pause"])
+        skipKey.Choose(cascade_hold_to_skip_choice)
+        skipToggle.OnEvent("Click", ObjBindMethod(this, "UpdateSelectorEnabled", skipKey))
+        this.UpdateSelectorEnabled(skipKey, skipToggle)
         window.AddCheckbox("x20 y115 w550 vtabs", "Show focus tabs").Value := focus_corner_visible
         colors := []
         for name in focus_tab_color_presets
@@ -629,7 +640,7 @@ class SuiteInterface {
     }
 
     SaveCascade(*) {
-        global cascade_auto_placement_paused, cascade_hold_to_skip_key
+        global cascade_auto_placement_paused, cascade_hold_to_skip_key, cascade_hold_to_skip_choice
         global focus_corner_visible, focus_tab_color_presets
         global focus_corner_active_slot_color_name, focus_corner_inactive_slot_color_name
         global focus_corner_active_slot_color, focus_corner_inactive_slot_color
@@ -638,9 +649,10 @@ class SuiteInterface {
         window := this.windows[key]
         try {
             paused := window["paused"].Value != 0
-            holdToSkipKey := window["holdToSkipKey"].Text
-            if holdToSkipKey != "CapsLock" && holdToSkipKey != "Pause" && holdToSkipKey != "Disabled"
+            holdToSkipChoice := window["holdToSkipKey"].Text
+            if holdToSkipChoice != "CapsLock" && holdToSkipChoice != "Pause"
                 throw ValueError("Select a valid hold-to-skip key.")
+            holdToSkipKey := window["holdToSkipEnabled"].Value != 0 ? holdToSkipChoice : "Disabled"
             visible := window["tabs"].Value != 0
             activeName := window["activeColor"].Text
             inactiveName := window["inactiveColor"].Text
@@ -650,7 +662,7 @@ class SuiteInterface {
             ; Persist first. No running state changes if the write fails.
             this.app.Settings.WritePreferences("window-cascade", Map(
                 "Controls", Map("AutoPlacementPaused", paused ? 1 : 0,
-                    "HoldToSkipKey", holdToSkipKey),
+                    "HoldToSkipKey", holdToSkipKey, "HoldToSkipChoice", holdToSkipChoice),
                 "FocusTabs", Map("Visible", visible ? 1 : 0,
                     "ActiveSlotColor", activeName, "InactiveSlotColor", inactiveName)))
 
@@ -661,6 +673,7 @@ class SuiteInterface {
             if cascade_auto_placement_paused != paused
                 throw Error("Automatic placement could not change mode. See the debug log.")
             cascade_hold_to_skip_key := holdToSkipKey
+            cascade_hold_to_skip_choice := holdToSkipChoice
 
             if focus_corner_visible != visible
                 ToggleFocusCornerVisibility()
@@ -864,8 +877,8 @@ class SuiteInterface {
         verbose := window.AddCheckbox("x20 y18 w750 vverbose", "Verbose debugging for the whole application")
         verbose.Value := SuiteState.Log.verbose
         verbose.OnEvent("Click", ObjBindMethod(this, "SetVerbose"))
-        window.AddText("x20 y50 w760", "Errors are always logged. Verbose diagnostics may include window titles and paths, not note or clipboard contents.")
-        window.AddEdit("x20 y85 w760 h335 ReadOnly +VScroll vlog", SuiteState.Log.Read())
+        window.AddText("x20 y50 w760", "Showing recent entries only. Copy or Open file accesses the full log; verbose mode may include window titles and paths.")
+        window.AddEdit("x20 y85 w760 h335 ReadOnly +VScroll vlog", SuiteState.Log.ReadRecent())
         footer := this.Footer(window, [["Copy", ObjBindMethod(this, "CopyLog"), 100],
             ["Clear...", ObjBindMethod(this, "ClearLog"), 100],
             ["Open file", ObjBindMethod(this, "OpenLogFile"), 115],
@@ -914,7 +927,7 @@ class SuiteInterface {
 
     RefreshLog(*) {
         if this.windows.Has("log")
-            this.windows["log"]["log"].Value := SuiteState.Log.Read()
+            this.windows["log"]["log"].Value := SuiteState.Log.ReadRecent()
     }
 
     CopyLog(*) {

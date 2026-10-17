@@ -57,6 +57,8 @@ placement_settle_delay_ms := 300
 
 ; Keep one late safety check in case an application changes geometry again.
 placement_stabilize_delays_ms := [500]
+; One final check after a new window first matches; no extra idle polling.
+placement_startup_confirmation_ms := 1500
 placement_stabilize_tolerance := 6
 
 ; A busy window may not process an asynchronous placement immediately.
@@ -211,6 +213,10 @@ cascade_hold_to_skip_key := IniRead(settings_path, "Controls", "HoldToSkipKey", 
 if cascade_hold_to_skip_key != "CapsLock" && cascade_hold_to_skip_key != "Pause"
     && cascade_hold_to_skip_key != "Disabled"
     cascade_hold_to_skip_key := "CapsLock"
+cascade_hold_to_skip_choice := IniRead(settings_path, "Controls", "HoldToSkipChoice",
+    cascade_hold_to_skip_key = "Disabled" ? "CapsLock" : cascade_hold_to_skip_key)
+if cascade_hold_to_skip_choice != "CapsLock" && cascade_hold_to_skip_choice != "Pause"
+    cascade_hold_to_skip_choice := "CapsLock"
 cascade_auto_placement_toggle_in_progress := false
 cascade_minimize_toggle_in_progress := false
 cascade_minimized_windows := []

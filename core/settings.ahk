@@ -22,6 +22,10 @@ class SuiteSettings {
             "pause", this.ReadFlag("layers", "pause", true))
         this.capsToggleModifier := KB_Manifest.Get(this.document, "layers", "capsToggleModifier", "Shift")
         SuiteSettings.ValidateCapsToggleModifier(this.capsToggleModifier)
+        this.capsToggleModifierChoice := KB_Manifest.Get(this.document, "layers",
+            "capsToggleModifierChoice",
+            this.capsToggleModifier = "Disabled" ? "Shift" : this.capsToggleModifier)
+        SuiteSettings.ValidateCapsToggleChoice(this.capsToggleModifierChoice)
         this.verbose := this.ReadFlag("logging", "verbose", false)
     }
 
@@ -37,7 +41,14 @@ class SuiteSettings {
             throw ValueError("Invalid Caps Lock double-tap modifier: " modifier)
     }
 
-    Save(modules, layers := unset, verbose := unset, capsToggleModifier := unset) {
+    static ValidateCapsToggleChoice(modifier) {
+        SuiteSettings.ValidateCapsToggleModifier(modifier)
+        if modifier = "Disabled"
+            throw ValueError("Select a Caps Lock double-tap modifier.")
+    }
+
+    Save(modules, layers := unset, verbose := unset, capsToggleModifier := unset,
+        capsToggleModifierChoice := unset) {
         if !IsSet(layers)
             layers := this.layers
         if !IsSet(verbose)
@@ -45,6 +56,10 @@ class SuiteSettings {
         if !IsSet(capsToggleModifier)
             capsToggleModifier := this.capsToggleModifier
         SuiteSettings.ValidateCapsToggleModifier(capsToggleModifier)
+        if !IsSet(capsToggleModifierChoice)
+            capsToggleModifierChoice := capsToggleModifier = "Disabled"
+                ? this.capsToggleModifierChoice : capsToggleModifier
+        SuiteSettings.ValidateCapsToggleChoice(capsToggleModifierChoice)
         document := Map()
         for section, values in this.document
             document[section] := values.Clone()
@@ -62,6 +77,7 @@ class SuiteSettings {
             document["layers"][id] := layers[id] ? "1" : "0"
         }
         document["layers"]["capsToggleModifier"] := capsToggleModifier
+        document["layers"]["capsToggleModifierChoice"] := capsToggleModifierChoice
         if verbose != 0 && verbose != 1
             throw ValueError("Invalid verbose logging preference.")
         document["logging"] := Map("verbose", verbose ? "1" : "0")
@@ -71,6 +87,7 @@ class SuiteSettings {
         this.modules := modules.Clone()
         this.layers := layers.Clone()
         this.capsToggleModifier := capsToggleModifier
+        this.capsToggleModifierChoice := capsToggleModifierChoice
         this.verbose := !!verbose
     }
 
