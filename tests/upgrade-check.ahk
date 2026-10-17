@@ -893,6 +893,16 @@ class SuiteUpgradeChecks {
                 && bottom[2] + bottom[4] = 500, "odd negative-coordinate layouts retain exact shared boundaries")
             this.Assert(WW_GetNextCycleIndex(4, 4) = 1 && WW_GetNextCycleIndex(1, 4, true) = 4,
                 "layout cycling wraps in both directions")
+            this.Assert(WW_NextMaximizeCycleIndex(false, false, 0) = 0,
+                "Win + Up maximizes a normal window first")
+            this.Assert(WW_NextMaximizeCycleIndex(false, true, 0) = 1,
+                "Win + Up advances maximized to upper half")
+            this.Assert(WW_NextMaximizeCycleIndex(false, false, 1) = 2,
+                "Win + Up advances upper half to lower half")
+            this.Assert(WW_NextMaximizeCycleIndex(false, false, 2) = 0,
+                "Win + Up advances lower half to maximized")
+            this.Assert(WW_NextMaximizeCycleIndex(true, true, 0) = 0,
+                "Win + Up exits native fullscreen to maximized")
             vertical := WW_GetCollisionLimitedVerticalBounds([100, 200, 300, 200],
                 [[100, 0, 300, 150], [100, 550, 300, 100], [600, 300, 200, 100]], 0, 900)
             this.Assert(vertical[1] = 150 && vertical[2] = 550,

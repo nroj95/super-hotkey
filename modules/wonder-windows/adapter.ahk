@@ -10,7 +10,7 @@ class WonderWindowsModule {
         this.drainCallback := ObjBindMethod(this, "Drain")
         this.pollCallback := ObjBindMethod(this, "PollCompatibility")
         this.optionalAvailability := "0000"
-        this.Add("maximize", "maximize / toggle native F11 fullscreen", WW_MaximizeWindowTarget, ["Win + Up"])
+        this.Add("maximize", "cycle maximized / upper half / lower half", WW_MaximizeWindowTarget, ["Win + Up"])
         this.Add("restore", "restore normal window size / position", WW_RestoreWindowTarget, ["Win + Down"])
         for side in ["left", "right"] {
             this.Add("layout-" side, "cycle " side " layouts", WW_CycleWindowSnap, ["Win + " side], [side])

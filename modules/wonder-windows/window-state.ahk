@@ -148,22 +148,44 @@ WW_MaximizeWindowTarget()
     window := "ahk_id " hwnd
     try {
         was_fullscreen := WW_IsNativeFullscreen(hwnd)
-        if was_fullscreen && !WW_SetNativeFullscreen(hwnd, false)
+        if !WW_SetNativeFullscreen(hwnd, false)
             return
 
-        SuiteWindowOwnership.Claim(hwnd)
-        WW_ForgetHorizontalStretch(hwnd)
-        WW_ForgetVerticalStretch(hwnd)
-        WW_ForgetFullStretch(hwnd)
-        if was_fullscreen
+        work_area := WW_GetLayoutWorkArea(hwnd)
+        layouts := [
+            WW_BuildRatioLayout(work_area, [0, 1, 0], "top"),
+            WW_BuildRatioLayout(work_area, [0, 1, 0], "bottom")
+        ]
+
+        maximized := WinGetMinMax(window) = 1
+        tile_index := !maximized && !was_fullscreen
+            ? WW_FindCurrentLayoutIndex(hwnd, "vertical-half", work_area, layouts)
+            : 0
+        next_index := WW_NextMaximizeCycleIndex(was_fullscreen, maximized, tile_index)
+
+        if next_index = 0 {
+            SuiteWindowOwnership.Claim(hwnd)
+            WW_ForgetHorizontalStretch(hwnd)
+            WW_ForgetVerticalStretch(hwnd)
+            WW_ForgetFullStretch(hwnd)
+            WW_ForgetWindowLayoutCycle(hwnd)
             WinMaximize(window)
-        else if WinGetMinMax(window) = 1
-            WW_SetNativeFullscreen(hwnd, true)
-        else
-            WinMaximize(window)
+        } else {
+            WW_PrepareWindowForPlacement(hwnd)
+            WW_ApplyTrackedLayout(hwnd, "vertical-half", work_area, layouts, next_index)
+        }
     }
     catch Error as err
-        WW_DebugError("Maximize / native fullscreen", err)
+        WW_DebugError("Maximize / vertical half", err)
+}
+
+WW_NextMaximizeCycleIndex(was_fullscreen, maximized, tile_index)
+{
+    if was_fullscreen
+        return 0
+    if maximized
+        return 1
+    return tile_index = 1 ? 2 : 0
 }
 
 WW_MinimizeActiveWindow()
