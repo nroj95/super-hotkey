@@ -18,8 +18,8 @@ class WonderWindowsModule {
                 ["Win + Shift + " side], [side])
         }
         this.Add("stretch-height", "stretch vertically until obstacles", WW_StretchWindowVertically, ["Win + Shift + Up"])
-        this.Add("stretch-full-cycle", "cycle full-height / full-width stretch", WW_CycleFullStretch, ["Caps + Win + Enter"])
-        this.Add("reset-stretch", "undo window stretch", WW_ResetWindowStretch, ["Win + Shift + Down", "Caps + Win + Backspace"])
+        this.Add("stretch-full-cycle", "cycle full-height / full-width stretch", WW_CycleFullStretch, ["Shift + Win + Enter"])
+        this.Add("reset-stretch", "undo window stretch", WW_ResetWindowStretch, ["Win + Shift + Down"])
         this.Add("minimize", "minimize / restore last minimized window", WW_MinimizeActiveWindow, ["Win + Backspace"])
         this.Add("isolate", "isolate active window / restore", WW_ToggleOtherWindows, ["Win + Shift + Home"])
         this.Add("minimize-all", "minimize / restore all windows", WW_ToggleAllWindows, ["Win + M"])
@@ -27,9 +27,7 @@ class WonderWindowsModule {
             this.Add("tile-" corner, "place " corner " tile", WW_PlaceCornerTile, ["Win + " key], [corner])
         this.Add("tile-top", "cycle top-center tiles", WW_PlaceCenterTile, ["Win + Home"], ["top"])
         this.Add("tile-bottom", "cycle bottom-center tiles", WW_PlaceCenterTile, ["Win + End"], ["bottom"])
-        this.Add("swap-next", "swap with clockwise neighbor", WW_SwapWindow, ["Win + Enter"], ["clockwise"])
-        this.Add("swap-previous", "swap with counterclockwise neighbor", WW_SwapWindow,
-            ["Win + Shift + Enter"], ["counter-clockwise"])
+        this.Add("cycle-stacked", "cycle overlapping windows", WW_CycleStackedWindows, ["Win + Enter"])
         focusLabels := Map(
             "left", "focus nearest window to the left",
             "right", "focus nearest window to the right",
@@ -37,12 +35,14 @@ class WonderWindowsModule {
             "down", "focus nearest window below")
         for direction in ["left", "right", "up", "down"] {
             this.Add("focus-" direction, focusLabels[direction], WW_FocusNearestWindow,
-                ["Caps + Win + " direction], [direction])
+                ["Win + Alt + " direction], [direction])
+            this.Add("swap-" direction, "swap with nearest window to the " direction,
+                WW_SwapWindow, ["Caps + Win + " direction], [direction])
             this.Add("zone-" direction, "FancyZones: move " direction, WW_MoveWindowThroughFancyZones,
                 ["Ctrl + Alt + " direction], [direction], true)
         }
         this.Add("cycle-expanded", "cycle maximized / fullscreen windows", WW_CycleMaximizedFullscreenWindows,
-            ["Win + Shift + Tab"])
+            ["Caps + Win + Enter"])
         this.manager.AddAction("win-key-overhaul.help", "show Wonder Windows help",
             ObjBindMethod(this, "HelpEvent"), ["Caps + Win + H"],
             {category: "Wonder Windows", help: true,
@@ -200,5 +200,27 @@ class WonderWindowsModule {
         SetTimer(WW_ReassertFancyZonesKeyboardHook, 0)
         WW_ClearFocusHighlight(true)
         WW_RunWindowCommand(WW_ClearSwapZones)
+    }
+}
+
+; Shift legacy Wonder Windows defaults in memory without rewriting custom keys.
+WW_MigrateKeybindingDefaults(configuration)
+{
+    changes := [
+        ["win-key-overhaul.stretch-full-cycle", 1, "Caps + Win + Enter", "Shift + Win + Enter"],
+        ["win-key-overhaul.reset-stretch", 2, "Caps + Win + Backspace", ""],
+        ["win-key-overhaul.cycle-expanded", 1, "Win + Shift + Tab", "Caps + Win + Enter"]
+    ]
+    for direction in ["left", "right", "up", "down"]
+        changes.Push(["win-key-overhaul.focus-" direction, 1,
+            "Caps + Win + " direction, "Win + Alt + " direction])
+    for change in changes {
+        actionId := change[1]
+        if !configuration.Has(actionId)
+            continue
+        slot := change[2]
+        if configuration[actionId].bindings[slot] = Keybindings.Parse(change[3]).signature
+            configuration[actionId].bindings[slot] := change[4] = ""
+                ? "" : Keybindings.Parse(change[4]).signature
     }
 }

@@ -893,6 +893,35 @@ class SuiteUpgradeChecks {
                 && bottom[2] + bottom[4] = 500, "odd negative-coordinate layouts retain exact shared boundaries")
             this.Assert(WW_GetNextCycleIndex(4, 4) = 1 && WW_GetNextCycleIndex(1, 4, true) = 4,
                 "layout cycling wraps in both directions")
+            this.Assert(WW_WindowsSubstantiallyOverlap([0, 0, 200, 200], [20, 10, 200, 200])
+                && WW_WindowsSubstantiallyOverlap([0, 0, 200, 200], [0, 0, 200, 200])
+                && !WW_WindowsSubstantiallyOverlap([0, 0, 200, 200], [120, 0, 200, 200])
+                && !WW_WindowsSubstantiallyOverlap([0, 0, 200, 200], [400, 0, 200, 200])
+                && !WW_WindowsSubstantiallyOverlap([0, 0, 200, 200], [0, 0, 40, 40]),
+                "stack cycling selects substantially overlapping windows, not unrelated windows")
+            this.Assert(WW_DirectionalSwapScore(-80, 0, "left") = 80
+                && WW_DirectionalSwapScore(80, 0, "left") = -1
+                && WW_DirectionalSwapScore(80, 30, "right") = 140
+                && WW_DirectionalSwapScore(0, -60, "up") = 60
+                && WW_DirectionalSwapScore(0, 60, "down") = 60,
+                "directional swapping selects only windows on the requested side")
+            oldDefaults := app.manager._DefaultConfiguration()
+            oldDefaults["win-key-overhaul.focus-up"].bindings[1] := Keybindings.Parse("Caps + Win + Up").signature
+            oldDefaults["win-key-overhaul.stretch-full-cycle"].bindings[1] := Keybindings.Parse("Caps + Win + Enter").signature
+            oldDefaults["win-key-overhaul.reset-stretch"].bindings[2] := Keybindings.Parse("Caps + Win + Backspace").signature
+            oldDefaults["win-key-overhaul.cycle-expanded"].bindings[1] := Keybindings.Parse("Win + Shift + Tab").signature
+            oldDefaults["win-key-overhaul.focus-left"].bindings[1] := Keybindings.Parse("Pause + Z").signature
+            WW_MigrateKeybindingDefaults(oldDefaults)
+            this.Assert(oldDefaults["win-key-overhaul.focus-up"].bindings[1]
+                    = Keybindings.Parse("Win + Alt + Up").signature
+                && oldDefaults["win-key-overhaul.stretch-full-cycle"].bindings[1]
+                    = Keybindings.Parse("Shift + Win + Enter").signature
+                && oldDefaults["win-key-overhaul.reset-stretch"].bindings[2] = ""
+                && oldDefaults["win-key-overhaul.cycle-expanded"].bindings[1]
+                    = Keybindings.Parse("Caps + Win + Enter").signature
+                && oldDefaults["win-key-overhaul.focus-left"].bindings[1]
+                    = Keybindings.Parse("Pause + Z").signature,
+                "legacy default shortcuts migrate without changing customized bindings")
             this.Assert(WW_NextMaximizeCycleIndex(false, false, 0) = 0,
                 "Win + Up maximizes a normal window first")
             this.Assert(WW_NextMaximizeCycleIndex(false, true, 0) = 1,
@@ -1310,7 +1339,8 @@ class SuiteUpgradeChecks {
         this.AssertDisplaySequence(rows, [
             "win-key-overhaul.help", "win-key-overhaul.focus-up",
             "win-key-overhaul.focus-down", "win-key-overhaul.focus-left",
-            "win-key-overhaul.focus-right", "win-key-overhaul.cycle-expanded",
+            "win-key-overhaul.focus-right", "win-key-overhaul.cycle-stacked",
+            "win-key-overhaul.cycle-expanded",
             "win-key-overhaul.maximize", "win-key-overhaul.restore", "win-key-overhaul.minimize",
             "win-key-overhaul.layout-left", "win-key-overhaul.layout-right",
             "win-key-overhaul.tile-top-left", "win-key-overhaul.tile-top",
@@ -1319,7 +1349,8 @@ class SuiteUpgradeChecks {
             "win-key-overhaul.stretch-left", "win-key-overhaul.stretch-right",
             "win-key-overhaul.stretch-height", "win-key-overhaul.stretch-full-cycle",
             "win-key-overhaul.reset-stretch",
-            "win-key-overhaul.swap-next", "win-key-overhaul.swap-previous",
+            "win-key-overhaul.swap-up", "win-key-overhaul.swap-down",
+            "win-key-overhaul.swap-left", "win-key-overhaul.swap-right",
             "win-key-overhaul.isolate", "win-key-overhaul.minimize-all"],
             "Wonder Windows groups focus, positioning, stretching and grouping")
         this.AssertDisplaySequence(rows, [

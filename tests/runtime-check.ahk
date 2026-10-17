@@ -92,16 +92,26 @@ class SuiteChecks {
             this.Assert(configuration["power-hotkey.terminal.copy"].bindings[1] = Keybindings.Parse("Caps + C").signature, "Terminal copy defaults to Caps + C")
             this.Assert(configuration["power-hotkey.terminal.clear"].bindings[1] = Keybindings.Parse("Caps + K").signature, "Terminal clear defaults to Caps + K")
             this.Assert(configuration["power-hotkey.system.wake-speakers"].bindings[1] = Keybindings.Parse("Pause + Pause").signature, "speaker wake defaults to Pause double-tap")
-            this.Assert(configuration["win-key-overhaul.focus-up"].bindings[1]
-                = Keybindings.Parse("Caps + Win + Up").signature
-                && configuration["win-key-overhaul.focus-left"].bindings[1]
-                = Keybindings.Parse("Caps + Win + Left").signature,
-                "directional focus defaults to Caps + Win arrows")
+            for direction in ["left", "right", "up", "down"] {
+                this.Assert(configuration["win-key-overhaul.focus-" direction].bindings[1]
+                    = Keybindings.Parse("Win + Alt + " direction).signature,
+                    "directional focus defaults to Win + Alt + " direction)
+                this.Assert(configuration["win-key-overhaul.swap-" direction].bindings[1]
+                    = Keybindings.Parse("Caps + Win + " direction).signature,
+                    "directional swap defaults to Caps + Win + " direction)
+            }
             this.Assert(configuration["win-key-overhaul.stretch-full-cycle"].bindings[1]
+                = Keybindings.Parse("Shift + Win + Enter").signature
+                && configuration["win-key-overhaul.reset-stretch"].bindings[2] = "",
+                "full stretch cycling and undo have revised defaults")
+            this.Assert(configuration["win-key-overhaul.cycle-expanded"].bindings[1]
                 = Keybindings.Parse("Caps + Win + Enter").signature
-                && configuration["win-key-overhaul.reset-stretch"].bindings[2]
-                = Keybindings.Parse("Caps + Win + Backspace").signature,
-                "full stretch cycling and secondary restore have defaults")
+                && configuration["win-key-overhaul.cycle-stacked"].bindings[1]
+                    = Keybindings.Parse("Win + Enter").signature,
+                "expanded and stacked window cycling use separate default shortcuts")
+            this.Assert(!manager.actions.Has("win-key-overhaul.swap-next")
+                && !manager.actions.Has("win-key-overhaul.swap-previous"),
+                "old clockwise swap actions are removed")
             this.Assert(HasMethod(manager.actions["scratchpad.save"].context, "Call"), "Scratchpad save has an explicit editor context")
             this.Assert(!manager.ContextActive(manager.actions["scratchpad.save"]), "Scratchpad commands are inactive outside its editor")
             manager.ShowSettings()

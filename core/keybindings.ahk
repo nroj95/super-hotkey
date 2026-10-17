@@ -287,7 +287,7 @@ class Keybindings {
                 "win-key-overhaul.help",
                 "win-key-overhaul.focus-up", "win-key-overhaul.focus-down",
                 "win-key-overhaul.focus-left", "win-key-overhaul.focus-right",
-                "win-key-overhaul.cycle-expanded",
+                "win-key-overhaul.cycle-stacked", "win-key-overhaul.cycle-expanded",
                 "win-key-overhaul.maximize", "win-key-overhaul.restore", "win-key-overhaul.minimize",
                 "win-key-overhaul.layout-left", "win-key-overhaul.layout-right",
                 "win-key-overhaul.tile-top-left", "win-key-overhaul.tile-top",
@@ -296,7 +296,8 @@ class Keybindings {
                 "win-key-overhaul.stretch-left", "win-key-overhaul.stretch-right",
                 "win-key-overhaul.stretch-height", "win-key-overhaul.stretch-full-cycle",
                 "win-key-overhaul.reset-stretch",
-                "win-key-overhaul.swap-next", "win-key-overhaul.swap-previous",
+                "win-key-overhaul.swap-up", "win-key-overhaul.swap-down",
+                "win-key-overhaul.swap-left", "win-key-overhaul.swap-right",
                 "win-key-overhaul.isolate", "win-key-overhaul.minimize-all"],
             "Wonder Windows / FancyZones", [
                 "win-key-overhaul.zone-up", "win-key-overhaul.zone-down",
@@ -636,6 +637,8 @@ class Keybindings {
             this.configuration[actionId] := {enabled: fields[1] = "1",
                 bindings: this._NormalizeSlots([fields[2], fields[3]])}
         }
+        if this.document.Count
+            WW_MigrateKeybindingDefaults(this.configuration)
     }
 
 

@@ -2,151 +2,82 @@
 ; Included into the same script; functions share the existing global state.
 
 ; =============================================================================
-; clockwise / counter-clockwise window swapping
+; nearest directional window swapping
 ; =============================================================================
 
-WW_SwapWindow(direction := "clockwise")
+WW_SwapWindow(direction)
 {
     Critical "On"
-    if direction != "clockwise" && direction != "counter-clockwise"
+    if direction != "left" && direction != "right"
+        && direction != "up" && direction != "down"
         return
-    hwnd := WW_GetWindowControlTarget()
 
+    hwnd := WW_GetWindowControlTarget()
     if !hwnd
         return
 
-    window := "ahk_id " hwnd
-
     try {
         WW_PrepareWindowForPlacement(hwnd)
-
-        monitor_handle := DllCall(
-            "MonitorFromWindow",
-            "ptr", hwnd,
-            "uint", 2, ; MONITOR_DEFAULTTONEAREST
-            "ptr"
-        )
-
-        WW_GetWindowMonitorWorkArea(
-            hwnd,
-            &work_left,
-            &work_top,
-            &work_right,
-            &work_bottom
-        )
-
-        monitor_center_x :=
-            work_left + (work_right - work_left) / 2
-
-        monitor_center_y :=
-            work_top + (work_bottom - work_top) / 2
-
+        monitor := DllCall("MonitorFromWindow", "ptr", hwnd, "uint", 2, "ptr")
         WW_PruneSwapZones()
-        windows := WW_GetClockwiseWindowOrder(
-            monitor_handle,
-            monitor_center_x,
-            monitor_center_y
-        )
-
-        if windows.Length < 2
+        target := WW_FindDirectionalSwapTarget(hwnd, monitor, direction)
+        if !target
             return
 
-        active_index := 0
-
-        for index, item in windows {
-            if item["hwnd"] = hwnd {
-                active_index := index
-                break
-            }
-        }
-
-        if !active_index
+        WW_RememberNormalWindowPlacement(target)
+        if !WW_SwapWindowRectangles(hwnd, target)
             return
-
-        next_index := WW_GetNextCycleIndex(
-            active_index, windows.Length, direction = "counter-clockwise"
-        )
-
-        target_hwnd := windows[next_index]["hwnd"]
-
-        WW_RememberNormalWindowPlacement(target_hwnd)
-        if !WW_SwapWindowRectangles(hwnd, target_hwnd)
-            return
-        WW_ForgetHorizontalStretch(target_hwnd)
-        WW_ForgetVerticalStretch(target_hwnd)
-        WW_ForgetFullStretch(target_hwnd)
+        WW_ForgetHorizontalStretch(target)
+        WW_ForgetVerticalStretch(target)
+        WW_ForgetFullStretch(target)
         WW_ForgetWindowLayoutCycle(hwnd)
-        WW_ForgetWindowLayoutCycle(target_hwnd)
-
-        WinActivate(window)
+        WW_ForgetWindowLayoutCycle(target)
+        WinActivate("ahk_id " hwnd)
     }
+    catch Error as err
+        WW_DebugError("Directional window swap", err)
 }
 
-WW_GetClockwiseWindowOrder(
-    monitor_handle,
-    monitor_center_x,
-    monitor_center_y
-)
+WW_FindDirectionalSwapTarget(hwnd, monitor, direction)
 {
-    items := []
+    source := WW_GetSwapZone(hwnd, monitor)
+    sourceX := source[1] + source[3] / 2
+    sourceY := source[2] + source[4] / 2
+    bestHwnd := 0
+    bestScore := 0
 
-    for hwnd in WinGetList() {
-        if !WW_IsWindowSwapCandidate(hwnd, monitor_handle)
+    for candidate in WinGetList() {
+        if candidate = hwnd || !WW_IsWindowSwapCandidate(candidate, monitor)
             continue
-
         try {
-            zone := WW_GetSwapZone(hwnd, monitor_handle)
-        }
-        catch {
-            continue
-        }
-
-        center_x := zone[1] + zone[3] / 2
-        center_y := zone[2] + zone[4] / 2
-
-        angle := WW_GetClockwiseAngleFromTop(
-            center_x - monitor_center_x,
-            center_y - monitor_center_y
-        )
-
-        item := Map(
-            "hwnd", hwnd,
-            "angle", angle
-        )
-
-        insert_index := items.Length + 1
-
-        Loop items.Length {
-            if angle < items[A_Index]["angle"]
-                || (angle = items[A_Index]["angle"] && hwnd < items[A_Index]["hwnd"])
-            {
-                insert_index := A_Index
-                break
+            zone := WW_GetSwapZone(candidate, monitor)
+            deltaX := zone[1] + zone[3] / 2 - sourceX
+            deltaY := zone[2] + zone[4] / 2 - sourceY
+            score := WW_DirectionalSwapScore(deltaX, deltaY, direction)
+            if score < 0
+                continue
+            if !bestHwnd || score < bestScore {
+                bestHwnd := candidate
+                bestScore := score
             }
         }
-
-        items.InsertAt(insert_index, item)
     }
-
-    return items
+    return bestHwnd
 }
 
-WW_GetClockwiseAngleFromTop(delta_x, delta_y)
+WW_DirectionalSwapScore(deltaX, deltaY, direction)
 {
-    static two_pi := 6.283185307179586
-
-    ; atan2(dx, -dy) makes 0 point upward and increases clockwise.
-    angle := DllCall(
-        "msvcrt\atan2",
-        "double", delta_x,
-        "double", -delta_y,
-        "cdecl double"
-    )
-
-    if angle < 0
-        angle += two_pi
-
-    return angle
+    switch direction {
+        case "left":
+            return deltaX < 0 ? -deltaX + Abs(deltaY) * 2 : -1
+        case "right":
+            return deltaX > 0 ? deltaX + Abs(deltaY) * 2 : -1
+        case "up":
+            return deltaY < 0 ? -deltaY + Abs(deltaX) * 2 : -1
+        case "down":
+            return deltaY > 0 ? deltaY + Abs(deltaX) * 2 : -1
+    }
+    return -1
 }
 
 WW_IsWindowSwapCandidate(hwnd, monitor_handle)
