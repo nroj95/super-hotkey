@@ -329,6 +329,7 @@ class SuiteApplication {
             this.Cleanup("Cascade Kingdom", (*) => WindowCascadeModule.Stop())
         if this.scratchpadStarted && IsSet(scratchpad)
             this.Cleanup("Paper Pad", (*) => scratchpad.OnScriptExit(reason, code))
+        this.Cleanup("Core / focus border", (*) => SuiteFocusBorder.Hide("", true))
         SuiteWindowOwnership.Clear()
         OnMessage(0x0218, this.powerCallback, 0)
         OnMessage(0x02B1, this.sessionCallback, 0)

@@ -197,168 +197,27 @@ WW_BeginSpatialFocus(hwnd)
 
 WW_HighlightFocusedWindow(hwnd)
 {
-    global WW_focus_highlight_guis
-    global WW_focus_highlight_duration_ms
-    global WW_focus_highlight_thickness
-    global WW_focus_highlight_overlap
-
-    ; Refresh the session without destroying/recreating four HWNDs on every key.
-    SetTimer WW_EndFocusNavigationSession, 0
-
-    if !hwnd || !WinExist("ahk_id " hwnd) {
+    ; The border belongs to core. Wonder Windows owns only its navigation session.
+    if SuiteFocusBorder.Show(hwnd, "wonder-windows")
+        SetTimer WW_EndFocusNavigationSession, -SuiteFocusBorder.durationMs
+    else
         WW_EndFocusNavigationSession()
-        return
-    }
-
-    if !WW_GetVisibleWindowBounds(
-        hwnd,
-        &window_x,
-        &window_y,
-        &window_width,
-        &window_height
-    ) {
-        WW_EndFocusNavigationSession()
-        return
-    }
-
-    thickness := WW_focus_highlight_thickness
-    overlap := WW_focus_highlight_overlap
-    outside := thickness - overlap
-
-    if window_width <= thickness * 2
-        || window_height <= thickness * 2
-    {
-        WW_EndFocusNavigationSession()
-        return
-    }
-
-    accent_color := WW_GetWindowsAccentHexColor()
-
-    ; Keep most of the highlight outside the visible frame, but overlap the
-    ; window slightly so Windows' frame/shadow boundary cannot leave a gap.
-    border_rects := [
-        [
-            window_x - outside,
-            window_y - outside,
-            window_width + outside * 2,
-            thickness
-        ],
-        [
-            window_x - outside,
-            window_y + window_height - overlap,
-            window_width + outside * 2,
-            thickness
-        ],
-        [
-            window_x - outside,
-            window_y,
-            thickness,
-            window_height
-        ],
-        [
-            window_x + window_width - overlap,
-            window_y,
-            thickness,
-            window_height
-        ]
-    ]
-
-    try {
-        if WW_focus_highlight_guis.Length != 4 {
-            WW_ClearFocusHighlight(true)
-            Loop 4 {
-                highlight_gui := SuiteGui(
-                    "+AlwaysOnTop -Caption +ToolWindow -DPIScale +E0x20 +E0x08000000"
-                )
-                WW_focus_highlight_guis.Push(highlight_gui)
-            }
-        }
-
-        for index, rect in border_rects {
-            highlight_gui := WW_focus_highlight_guis[index]
-            if highlight_gui.BackColor != accent_color
-                highlight_gui.BackColor := accent_color
-            highlight_gui.Show(
-                "NA x" rect[1] " y" rect[2] " w" rect[3] " h" rect[4]
-            )
-        }
-    }
-    catch Error as err {
-        ; A partial outline must not remain topmost after a GUI failure.
-        WW_ClearFocusHighlight(true)
-        WW_EndFocusNavigationSession()
-        WW_DebugError("Show focus highlight", err)
-        return
-    }
-
-    SetTimer(
-        WW_EndFocusNavigationSession,
-        -WW_focus_highlight_duration_ms
-    )
 }
 
 WW_EndFocusNavigationSession()
 {
     global WW_focus_navigation_active, WW_focus_navigation_hwnd
 
-    ; An expiring timer must not resume halfway through hiding a newly reused
-    ; outline after a directional hotkey refreshes the session.
     previous_critical := A_IsCritical
     Critical "On"
     try {
         SetTimer WW_EndFocusNavigationSession, 0
         WW_focus_navigation_active := false
         WW_focus_navigation_hwnd := 0
-        WW_ClearFocusHighlight()
+        ; A late Wonder Windows timer cannot erase a newer Cascade Kingdom border.
+        SuiteFocusBorder.Hide("wonder-windows")
     }
     finally {
         Critical previous_critical
     }
-}
-
-WW_ClearFocusHighlight(destroy := false)
-{
-    global WW_focus_highlight_guis
-
-    for highlight_gui in WW_focus_highlight_guis {
-        if destroy {
-            try highlight_gui.Destroy()
-        } else {
-            try highlight_gui.Hide()
-        }
-    }
-
-    if destroy
-        WW_focus_highlight_guis := []
-}
-
-; =============================================================================
-; Windows accent color
-; =============================================================================
-
-WW_GetWindowsAccentHexColor()
-{
-    colorization_color := 0
-    opaque_blend := 0
-
-    result := DllCall(
-        "dwmapi\DwmGetColorizationColor",
-        "uint*", &colorization_color,
-        "int*", &opaque_blend,
-        "int"
-    )
-
-    if result != 0
-        return "0078D4"
-
-    red := (colorization_color >> 16) & 0xFF
-    green := (colorization_color >> 8) & 0xFF
-    blue := colorization_color & 0xFF
-
-    return Format(
-        "{:02X}{:02X}{:02X}",
-        red,
-        green,
-        blue
-    )
 }

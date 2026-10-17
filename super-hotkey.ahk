@@ -7,6 +7,7 @@
 #Include "%A_ScriptDir%\core\logging.ahk"
 #Include "%A_ScriptDir%\core\settings.ahk"
 #Include "%A_ScriptDir%\core\windows.ahk"
+#Include "%A_ScriptDir%\core\focus-border.ahk"
 #Include "%A_ScriptDir%\core\help.ahk"
 #Include "%A_ScriptDir%\core\application.ahk"
 #Include "%A_ScriptDir%\core\tray.ahk"

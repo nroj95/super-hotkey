@@ -408,7 +408,7 @@ CascadeWatchCloseFocus(request)
         ; current foreground, never an earlier snapshot.
         foreground := DllCall("GetForegroundWindow", "ptr")
         if CascadeHasUsableCloseForeground(foreground, request.hwnd, request.pid) {
-            WW_BeginSpatialFocus(foreground)
+            SuiteFocusBorder.Show(foreground, "cascade-close")
             DebugLog("Caps+Delete native focus highlighted. | target="
                 . DebugDescribeWindow(foreground))
         }
@@ -451,7 +451,7 @@ CascadeWatchCloseFocus(request)
                 ; Match Win+Backspace: show the accent border on the window
                 ; actually focused by the fallback, including other monitors.
                 if DllCall("GetForegroundWindow", "ptr") = target.hwnd
-                    WW_BeginSpatialFocus(target.hwnd)
+                    SuiteFocusBorder.Show(target.hwnd, "cascade-close")
                 DebugLog("Caps+Delete focus fallback. | target="
                     . DebugDescribeWindow(target.hwnd))
                 return

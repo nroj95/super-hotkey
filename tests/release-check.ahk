@@ -240,6 +240,13 @@ class SuiteReleaseChecks {
                 && !CascadeShouldHighlightCloseFocus("wait", true)
                 && !CascadeShouldHighlightCloseFocus("recover", false),
                 "Caps+Delete highlights native focus only after the close completes")
+            this.Assert(SuiteFocusBorder.durationMs = 1500
+                && SuiteFocusBorder.thickness = 12
+                && SuiteFocusBorder.overlap = 2
+                && SuiteFocusBorder.CanHide("wonder-windows", "wonder-windows")
+                && !SuiteFocusBorder.CanHide("wonder-windows", "cascade-close")
+                && SuiteFocusBorder.CanHide("", "cascade-close"),
+                "shared core border preserves appearance and respects module ownership")
             hwnd := 987654321
             RememberUnmanagedCascadeWindow(hwnd)
             this.Assert(known_windows.Has(hwnd) && startup_windows.Has(hwnd)

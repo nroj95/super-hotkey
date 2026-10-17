@@ -23,10 +23,6 @@ WW_normal_window_placements := Map()
 WW_maximized_fullscreen_cycle := []
 WW_last_maximized_fullscreen_hwnd := 0
 
-WW_focus_highlight_guis := []
-WW_focus_highlight_duration_ms := 1500
-WW_focus_highlight_thickness := 12
-WW_focus_highlight_overlap := 2
 WW_focus_navigation_active := false
 WW_focus_navigation_hwnd := 0
 

@@ -199,7 +199,6 @@ class WonderWindowsModule {
         this.CancelWork()
         SetTimer(this.pollCallback, 0)
         SetTimer(WW_ReassertFancyZonesKeyboardHook, 0)
-        WW_ClearFocusHighlight(true)
         WW_RunWindowCommand(WW_ClearSwapZones)
     }
 }
