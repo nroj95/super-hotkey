@@ -5,7 +5,7 @@ class SuiteReleaseChecks {
     static Run() {
         this.PowerCancellation()
         this.LargeDebugLog()
-        this.HoldToSkipPlacement()
+        this.CascadeOptInLaunch()
         this.CascadeLaunchMonitors()
         this.DeferredInputsAndSessions()
         this.WindowSizingAndCloaking()
@@ -43,7 +43,7 @@ class SuiteReleaseChecks {
 
     static CascadeLaunchMonitors() {
         global cascade_displays, cascade_launch_hint, new_window_focus_timeout_ms
-        global cascade_hold_to_skip_key, pending_windows, handled_windows
+        global cascade_opt_in_intent, pending_windows, handled_windows
         global placement_reservations, placement_stabilization_generations
         global placement_startup_confirmation_ms, placement_stabilize_retry_ms
         app := SuiteApplication(true, SuiteChecks.directory "\release-launch-monitors")
@@ -56,10 +56,10 @@ class SuiteReleaseChecks {
             SuiteShowCentered(target, 340, 260)
             sourceMonitor := GetMonitorForWindow(source.Hwnd)
             cascade_displays[sourceMonitor] := {device: MonitorGetName(sourceMonitor)}
-            this.Assert(GetTargetMonitor(target.Hwnd, source.Hwnd, 987, &reason) = sourceMonitor
-                && reason = "source-window", "a real source takes priority over the launch pointer")
+            this.Assert(GetTargetMonitor(target.Hwnd, source.Hwnd, 987, &reason) = 987
+                && reason = "launch-pointer", "the pointer wins over the active source")
             this.Assert(GetTargetMonitor(target.Hwnd, target.Hwnd, 987, &reason) = 987
-                && reason = "launch-pointer", "a new window cannot select its own remembered monitor as its source")
+                && reason = "launch-pointer", "pointer targeting ignores the new window's remembered monitor")
             WinMinimize(source.Hwnd)
             this.Assert(GetCascadeSourceMonitor(source.Hwnd) = sourceMonitor,
                 "a minimized source retains its restored monitor")
@@ -140,13 +140,14 @@ class SuiteReleaseChecks {
             ; to move anything. Only these test-owned windows can enter the queue.
             cascade_displays := Map(sourceMonitor, {device: MonitorGetName(sourceMonitor)})
             cascade_launch_hint := 0
-            cascade_hold_to_skip_key := "Disabled"
+            cascade_opt_in_intent := {tick: A_TickCount,
+                monitor_device: MonitorGetName(sourceMonitor), source_hwnd: source.Hwnd}
             app.dryRun := false
             QueueWindowPlacement(target.Hwnd, source.Hwnd)
             captured := pending_windows[target.Hwnd]
             this.Assert(captured.monitor_device = MonitorGetName(sourceMonitor)
-                && captured.monitor_reason = "source-window",
-                "discovery snapshots the source display before delayed placement")
+                && captured.monitor_reason = "caps-launch" && !IsObject(cascade_opt_in_intent),
+                "discovery consumes a one-shot opt-in and snapshots its display")
             SuiteSizeGrip.Detach(source)
             source.Destroy()
             this.Assert(ResolveCascadePlacementMonitor(captured, 987) = sourceMonitor,
@@ -176,6 +177,7 @@ class SuiteReleaseChecks {
             app.stopping := true
             app.dryRun := true
             pending_windows.Clear()
+            cascade_opt_in_intent := 0
             CancelNewWindowFocus()
             try SuiteSizeGrip.Detach(source)
             try source.Destroy()
@@ -186,52 +188,52 @@ class SuiteReleaseChecks {
         }
     }
 
-    static HoldToSkipPlacement() {
-        global cascade_hold_to_skip_key, cascade_hold_to_skip_choice
+    static CascadeOptInLaunch() {
+        global cascade_opt_in_intent, cascade_auto_placement_enabled
         global pending_windows, known_windows, startup_windows
-        previousKey := cascade_hold_to_skip_key
-        previousChoice := cascade_hold_to_skip_choice
-        app := SuiteApplication(true, SuiteChecks.directory "\release-hold-skip")
+        app := SuiteApplication(true, SuiteChecks.directory "\release-opt-in")
         try {
             InitializeCascadeState()
-            this.Assert(cascade_hold_to_skip_key = "CapsLock",
-                "CapsLock is the default hold-to-skip placement key")
-            app.Settings.WritePreferences("window-cascade", Map(
-                "Controls", Map("HoldToSkipKey", "Pause")))
-            InitializeCascadeState()
-            this.Assert(cascade_hold_to_skip_key = "Pause",
-                "Pause hold-to-skip choice survives settings reload")
-            app.Settings.WritePreferences("window-cascade", Map(
-                "Controls", Map("HoldToSkipKey", "Disabled", "HoldToSkipChoice", "Pause")))
-            InitializeCascadeState()
-            this.Assert(cascade_hold_to_skip_key = "Disabled"
-                && cascade_hold_to_skip_choice = "Pause"
-                && !IsCascadeHoldToSkipActive(),
-                "disabled hold-to-skip preserves the previous Pause selection")
-
+            this.Assert(!CascadeIsOptInIntentFresh(0) && !cascade_auto_placement_enabled,
+                "normal launches default to no cascading")
+            cascade_auto_placement_enabled := true
+            MouseGetPosPixels(&mouse_x, &mouse_y)
+            expectedMonitor := GetMonitorForPoint(mouse_x, mouse_y)
+            this.Assert(CascadeTakeOptInMonitor(987654321, &reason) = expectedMonitor
+                && reason = "automatic-pointer",
+                "optional automatic cascading targets the pointer monitor")
+            cascade_auto_placement_enabled := false
+            intent := {tick: A_TickCount, monitor_device: "unused", source_hwnd: 98765}
+            this.Assert(CascadeIsOptInIntentFresh(intent)
+                && !CascadeIsOptInIntentFresh({tick: A_TickCount - 8001}),
+                "Caps launch intents expire without being reused")
+            this.Assert(CascadeShouldAdoptHiddenExplorer(true, true, true, false)
+                && CascadeShouldAdoptHiddenExplorer(true, true, false, true)
+                && !CascadeShouldAdoptHiddenExplorer(true, true, false, false)
+                && !CascadeShouldAdoptHiddenExplorer(false, true, true, false)
+                && !CascadeShouldAdoptHiddenExplorer(true, false, true, false),
+                "a startup-hidden Explorer reveal requires foreground and cascade intent")
+            this.Assert(CascadeIsSecondCaptionClick(
+                {hwnd: 42, pid: 8, x: 100, y: 150, tick: 200},
+                42, 8, 102, 151, 260, 500, 4, 4)
+                && !CascadeIsSecondCaptionClick(
+                    {hwnd: 42, pid: 8, x: 100, y: 150, tick: 200},
+                    43, 8, 102, 151, 260, 500, 4, 4)
+                && !CascadeIsSecondCaptionClick(
+                    {hwnd: 42, pid: 8, x: 100, y: 150, tick: 200},
+                    42, 8, 102, 151, 801, 500, 4, 4),
+                "title-bar adoption requires two timely clicks on the same window")
             hwnd := 987654321
-            request := {pid: 0}
-            pending_windows[hwnd] := request
-            this.Assert(!SkipPendingCascadePlacement(hwnd, request, false)
-                && pending_windows.Has(hwnd),
-                "an unheld skip key leaves queued placement available")
-            this.Assert(!SkipPendingCascadePlacement(hwnd, {pid: 0}, true)
-                && pending_windows.Has(hwnd),
-                "a stale placement request cannot claim a new window")
-            this.Assert(SkipPendingCascadePlacement(hwnd, request, true)
-                && !pending_windows.Has(hwnd)
-                && known_windows.Has(hwnd) && startup_windows.Has(hwnd),
-                "a held skip key permanently excludes the queued window")
+            RememberUnmanagedCascadeWindow(hwnd)
+            this.Assert(known_windows.Has(hwnd) && startup_windows.Has(hwnd)
+                && !pending_windows.Has(hwnd),
+                "normal windows stay outside the cascade")
         }
         finally {
-            cascade_hold_to_skip_key := previousKey
-            cascade_hold_to_skip_choice := previousChoice
-            if pending_windows.Has(987654321)
-                pending_windows.Delete(987654321)
-            if known_windows.Has(987654321)
-                known_windows.Delete(987654321)
-            if startup_windows.Has(987654321)
-                startup_windows.Delete(987654321)
+            cascade_opt_in_intent := 0
+            cascade_auto_placement_enabled := false
+            known_windows.Delete(987654321)
+            startup_windows.Delete(987654321)
         }
     }
 

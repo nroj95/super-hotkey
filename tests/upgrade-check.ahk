@@ -150,15 +150,10 @@ class SuiteUpgradeChecks {
             app.ui.CloseWindow("settings:keyboard-layers")
             app.ui.ShowCascadeSettings()
             window := app.ui.windows["settings:window-cascade"]
-            this.Assert(window["holdToSkipEnabled"].Value
-                && window["holdToSkipKey"].Enabled
-                && window["holdToSkipKey"].Text = "CapsLock",
-                "Cascade Kingdom hold-to-skip defaults to an enabled CapsLock selector")
-            window["holdToSkipEnabled"].Value := false
-            app.ui.UpdateSelectorEnabled(window["holdToSkipKey"], window["holdToSkipEnabled"])
-            this.Assert(!window["holdToSkipKey"].Enabled
-                && window["holdToSkipKey"].Text = "CapsLock",
-                "hold-to-skip checkbox disables the dropdown without clearing its selection")
+            this.Assert(window["autoCascade"].Enabled && !window["autoCascade"].Value
+                && window["tabs"].Enabled && window["activeColor"].Enabled
+                && window["inactiveColor"].Enabled,
+                "Cascade Kingdom defaults automatic cascading off while retaining focus-tab controls")
         }
         finally {
             if IsObject(app.ui)
@@ -519,17 +514,16 @@ class SuiteUpgradeChecks {
     }
 
     static LiveCascadeSettings() {
-        global cascade_auto_placement_paused, cascade_hold_to_skip_key, cascade_hold_to_skip_choice
+        global cascade_auto_placement_enabled
         global focus_corner_visible, focus_tab_color_presets
         global focus_corner_active_slot_color_name, focus_corner_inactive_slot_color_name
         global focus_corner_active_slot_color, focus_corner_inactive_slot_color
         global cascade_history
-
         app := SuiteApplication(true, SuiteChecks.directory "\live-cascade-settings")
         app.InitializeCatalog()
         manager := app.manager
-        previous := {paused: cascade_auto_placement_paused, holdToSkipKey: cascade_hold_to_skip_key,
-            holdToSkipChoice: cascade_hold_to_skip_choice, visible: focus_corner_visible,
+        previous := {autoCascade: cascade_auto_placement_enabled,
+            visible: focus_corner_visible,
             activeName: focus_corner_active_slot_color_name,
             inactiveName: focus_corner_inactive_slot_color_name,
             activeColor: focus_corner_active_slot_color,
@@ -540,17 +534,11 @@ class SuiteUpgradeChecks {
             app.ui := SuiteInterface(app)
             app.ui.ShowCascadeSettings()
             settings := app.ui.windows["settings:window-cascade"]
-            expectedPaused := !previous.paused
+            expectedAuto := !previous.autoCascade
+            settings["autoCascade"].Value := expectedAuto
             expectedVisible := !previous.visible
             activeName := previous.activeName = "Pink" ? "Green" : "Pink"
             inactiveName := previous.inactiveName = "Blue" ? "Grey" : "Blue"
-            settings["paused"].Value := expectedPaused
-            selectedSkipKey := previous.holdToSkipChoice = "Pause" ? "CapsLock" : "Pause"
-            settings["holdToSkipKey"].Choose(selectedSkipKey)
-            settings["holdToSkipEnabled"].Value := false
-            app.ui.UpdateSelectorEnabled(settings["holdToSkipKey"], settings["holdToSkipEnabled"])
-            this.Assert(!settings["holdToSkipKey"].Enabled,
-                "Cascade Kingdom checkbox disables hold-to-skip without forgetting the key")
             settings["tabs"].Value := expectedVisible
             settings["activeColor"].Choose(activeName)
             settings["inactiveColor"].Choose(inactiveName)
@@ -560,42 +548,23 @@ class SuiteUpgradeChecks {
             app.ui.SaveCascade()
             path := app.Settings.directory "\window-cascade\settings.ini"
             this.Assert(!app.ui.windows.Has("settings:window-cascade")
-                && cascade_auto_placement_paused = expectedPaused
+                && cascade_auto_placement_enabled = expectedAuto
                 && focus_corner_visible = expectedVisible
-                && cascade_hold_to_skip_key = "Disabled"
-                && cascade_hold_to_skip_choice = selectedSkipKey
                 && focus_corner_active_slot_color_name = activeName
                 && focus_corner_inactive_slot_color_name = inactiveName
                 && focus_corner_active_slot_color = focus_tab_color_presets[activeName]
                 && focus_corner_inactive_slot_color = focus_tab_color_presets[inactiveName],
-                "Cascade Kingdom applies placement, visibility and colors without reload")
-            this.Assert(IniRead(path, "Controls", "AutoPlacementPaused") = (expectedPaused ? "1" : "0")
-                && IniRead(path, "Controls", "HoldToSkipKey") = "Disabled"
-                && IniRead(path, "Controls", "HoldToSkipChoice") = selectedSkipKey
+                "Cascade Kingdom applies automatic-cascade and focus-tab preferences without reload")
+            this.Assert(IniRead(path, "Controls", "AutoCascadeNewWindows") = (expectedAuto ? "1" : "0")
                 && IniRead(path, "FocusTabs", "Visible") = (expectedVisible ? "1" : "0")
                 && IniRead(path, "FocusTabs", "ActiveSlotColor") = activeName
                 && IniRead(path, "FocusTabs", "InactiveSlotColor") = inactiveName,
-                "Cascade Kingdom live settings persist all five choices")
+                "Cascade Kingdom persists its automatic-cascade toggle and focus-tab preferences")
             this.Assert(cascade_history.Count = existingHistorySize,
                 "applying Cascade Kingdom preferences preserves in-memory cascade history")
-            app.ui.ShowCascadeSettings()
-            settings := app.ui.windows["settings:window-cascade"]
-            this.Assert(!settings["holdToSkipEnabled"].Value
-                && !settings["holdToSkipKey"].Enabled
-                && settings["holdToSkipKey"].Text = selectedSkipKey,
-                "disabled hold-to-skip remembers the selected key after reopening")
-            settings["holdToSkipEnabled"].Value := true
-            app.ui.UpdateSelectorEnabled(settings["holdToSkipKey"], settings["holdToSkipEnabled"])
-            app.ui.SaveCascade()
-            this.Assert(cascade_hold_to_skip_key = selectedSkipKey
-                && cascade_hold_to_skip_choice = selectedSkipKey
-                && IniRead(path, "Controls", "HoldToSkipKey") = selectedSkipKey,
-                "re-enabling hold-to-skip restores the saved key")
         }
         finally {
-            cascade_auto_placement_paused := previous.paused
-            cascade_hold_to_skip_key := previous.holdToSkipKey
-            cascade_hold_to_skip_choice := previous.holdToSkipChoice
+            cascade_auto_placement_enabled := previous.autoCascade
             focus_corner_visible := previous.visible
             focus_corner_active_slot_color_name := previous.activeName
             focus_corner_inactive_slot_color_name := previous.inactiveName
@@ -1347,7 +1316,7 @@ class SuiteUpgradeChecks {
             "window-cascade.swap-up", "window-cascade.swap-down",
             "window-cascade.rotate-next",
             "window-cascade.adopt", "window-cascade.bring-forward", "window-cascade.minimize",
-            "window-cascade.auto-placement", "window-cascade.gather",
+            "window-cascade.gather",
             "window-cascade.close-active", "window-cascade.close-monitor"],
             "Cascade Kingdom groups navigation, rotation and management")
         this.AssertDisplaySequence(rows, [
@@ -1678,7 +1647,7 @@ class SuiteUpgradeChecks {
                 guide := window["helpText"].Value
                 this.Assert(StrLen(guide) > 300 && !InStr(guide, "CURRENT SAVED SHORTCUTS"),
                     "help explains usage without listing every keybinding: " id)
-                firstHeading := Map("window-cascade", "AUTOMATIC CASCADES",
+                firstHeading := Map("window-cascade", "CASCADE ONLY WHEN YOU ASK",
                     "win-key-overhaul", "ARRANGE YOUR WINDOWS",
                     "power-hotkey", "MORE KEYS WITHOUT A NEW KEYBOARD",
                     "scratchpad", "YOUR OWN QUICK-NOTES DRAWER",
@@ -1689,7 +1658,8 @@ class SuiteUpgradeChecks {
                     "each module starts with a personal introduction: " id)
                 this.Assert(StrLen(guide) >= 600,
                     "each Help guide provides substantial practical usage details: " id)
-                this.Assert(InStr(guide, "until you") > 0 || id != "window-cascade",
+                this.Assert(InStr(guide, "before the application finishes opening") > 0
+                    || id != "window-cascade",
                     "Help sentences aren't split by fixed hard line breaks")
                 window.GetClientPos(, , &helpWidth, &helpHeight)
                 expectedHelpHeight := Max(480, 145 + app.ui.HelpTextHeight(id, 820) + 12)

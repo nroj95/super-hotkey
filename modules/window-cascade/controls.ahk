@@ -188,21 +188,13 @@ DispatchCascadeCommand(command)
     global cascade_command_toggle_minimize, cascade_command_bring_forward
     global cascade_command_close_active, cascade_command_close_scope
     global cascade_command_gather_to_monitor, cascade_command_show_help
-    global cascade_command_toggle_auto_placement
-    global cascade_auto_placement_toggle_in_progress
     global cascade_minimize_toggle_in_progress
 
     command_id := command.id
     parameter := command.parameter
 
-    if cascade_auto_placement_toggle_in_progress || cascade_minimize_toggle_in_progress
+    if cascade_minimize_toggle_in_progress
         return
-
-    ; Auto-placement pause/resume is a script-level control and never disables existing cascades.
-    if command_id = cascade_command_toggle_auto_placement {
-        ToggleCascadeAutoPlacement()
-        return
-    }
 
     if command_id = cascade_command_toggle_minimize {
         ToggleCascadeMinimize()

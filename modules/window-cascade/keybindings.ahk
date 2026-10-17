@@ -13,7 +13,6 @@ InitializeCascadeKeybindings(manager)
     global cascade_command_toggle_minimize, cascade_command_bring_forward
     global cascade_command_close_active, cascade_command_close_scope
     global cascade_command_gather_to_monitor, cascade_command_show_help
-    global cascade_command_toggle_auto_placement
 
     ; Preserve the user's previous Space/Tab selection as the first-run default.
     ; After migration these two actions are fully configurable in Keybindings.
@@ -40,8 +39,6 @@ InitializeCascadeKeybindings(manager)
         cascade_command_bring_forward, "Caps + Home")
     CascadeAddAction(manager, "minimize", "minimize / restore managed windows",
         cascade_command_toggle_minimize, "Caps + M")
-    CascadeAddAction(manager, "auto-placement", "pause / resume automatic cascading",
-        cascade_command_toggle_auto_placement, "Caps + P")
     CascadeAddAction(manager, "gather", "gather cascades onto this monitor",
         cascade_command_gather_to_monitor, "Caps + F7")
     CascadeAddAction(manager, "close-active", "close active window",

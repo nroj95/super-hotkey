@@ -453,78 +453,25 @@ GetCommandMonitor()
 
 GetTargetMonitor(hwnd, source_hwnd, queued_monitor := 0, &reason := "")
 {
-    global desktop_monitor_hint, desktop_monitor_hint_tick
-    global desktop_monitor_hint_max_age_ms
-
-    ; Normal case: follow the real application window the user was working in.
-    if source_hwnd && source_hwnd != hwnd
-        && WinExist("ahk_id " source_hwnd)
-        && !IsShellSurfaceWindow(source_hwnd)
-    {
-        monitor_index := GetCascadeSourceMonitor(source_hwnd)
-
-        if monitor_index {
-            ; A real app interaction supersedes any older desktop-click hint.
-            desktop_monitor_hint := 0
-            desktop_monitor_hint_tick := 0
-            reason := "source-window"
-
-            return monitor_index
-        }
-    }
-
-    ; Preserve the monitor where the launch was detected. This is newer than
-    ; any earlier desktop-click hint and survives delayed application startup.
     if queued_monitor {
-        desktop_monitor_hint := 0
-        desktop_monitor_hint_tick := 0
-
         reason := "launch-pointer"
         return queued_monitor
     }
-
-    ; Special case: clicking empty desktop space explicitly selects that monitor
-    ; when no newer launch snapshot is available.
-    if desktop_monitor_hint {
-        hint_age_ms := (A_TickCount - desktop_monitor_hint_tick) & 0xFFFFFFFF
-
-        if hint_age_ms <= desktop_monitor_hint_max_age_ms {
-            monitor_index := desktop_monitor_hint
-
-            ; Consume the hint so one desktop click affects only the next launch.
-            desktop_monitor_hint := 0
-            desktop_monitor_hint_tick := 0
-            reason := "desktop-click"
-
-            return monitor_index
-        }
-
-
-        desktop_monitor_hint := 0
-        desktop_monitor_hint_tick := 0
-    }
-
-    ; Final live-input fallback when no launch snapshot was available.
-    MouseGetPosPixels(&mouse_x, &mouse_y)
-    monitor_index := GetMonitorForPoint(mouse_x, mouse_y)
-
-    if monitor_index {
+    MouseGetPosPixels(&x, &y)
+    monitor := GetMonitorForPoint(x, y)
+    if monitor {
         reason := "live-pointer"
-        return monitor_index
+        return monitor
     }
-
-    ; Final fallback: wherever the application initially created the window.
-    monitor_index := GetMonitorForWindow(hwnd)
-
-    if monitor_index {
-        reason := "initial-window"
-        return monitor_index
+    if source_hwnd && source_hwnd != hwnd && WinExist("ahk_id " source_hwnd) {
+        monitor := GetCascadeSourceMonitor(source_hwnd)
+        if monitor {
+            reason := "source-fallback"
+            return monitor
+        }
     }
-
     reason := "primary-monitor"
-    monitor_index := MonitorGetPrimary()
-
-    return monitor_index
+    return MonitorGetPrimary()
 }
 
 GetCascadeSourceMonitor(hwnd)

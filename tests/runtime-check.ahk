@@ -115,6 +115,8 @@ class SuiteChecks {
             this.Assert(configuration["win-key-overhaul.move-monitor"].bindings[1]
                     = Keybindings.Parse("Caps + Win + Backspace").signature,
                 "Wonder Windows defaults to one monitor-cycle shortcut")
+            this.Assert(!manager.actions.Has("window-cascade.auto-placement"),
+                "old pause-cascading keybinding is removed")
             this.Assert(!manager.actions.Has("window-cascade.rotate-previous")
                     && !manager.actions.Has("window-cascade.move-left")
                     && !manager.actions.Has("window-cascade.move-right"),

@@ -29,6 +29,7 @@ CaptureCascadeMousePress(*)
     MouseGetPosPixels(&mouse_x, &mouse_y, &hover_hwnd)
     hwnd := DllCall("GetAncestor", "ptr", hover_hwnd, "uint", 2, "ptr") ; GA_ROOT
     CaptureCascadeLaunchIntent(hwnd)
+    CascadeObserveCapsMouseClick(hwnd, mouse_x, mouse_y)
     cascade_mouse_press := GetCascadeMousePressSnapshot(hwnd)
 }
 
@@ -76,7 +77,6 @@ CaptureCascadeMouseRelease(*)
     if HasCascadeWindowDrag()
         SetTimer(WatchCascadeWindowDrag, -1)
 
-    CaptureDesktopMonitorHint()
 }
 
 HasCascadeWindowDrag()

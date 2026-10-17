@@ -17,6 +17,7 @@ class WindowCascadeModule {
         for key in ["RButton", "MButton", "XButton1", "XButton2"]
             manager.Observe("~*" key, IsCascadeEnabled, (*) => CancelCascadePendingMouseActions())
         manager.Observe("~*LButton Up", IsCascadeEnabled, (*) => CaptureCascadeMouseRelease())
+        manager.Observe("~*Enter", IsCascadeEnabled, (*) => CascadeCaptureKeyboardLaunch())
         manager.Observe("~*Escape", HasCascadeWindowDrag, (*) => CancelCascadeWindowDrop())
         manager.Observe("~*Space", IsExplorerSpaceReshowIntentContext,
             (*) => CaptureExplorerSpaceReshowIntent())
@@ -28,9 +29,12 @@ class WindowCascadeModule {
         global pending_windows, cascade_compaction_pending, cascade_compaction_timer_pending
         global placement_stabilization_generations, cascade_mouse_press
         global focus_corner_overlays, focus_corner_update_pending
+        global cascade_opt_in_intent, cascade_titlebar_click
 
         ; Invalidate queued work so it cannot replay when the app resumes.
         CancelNewWindowFocus()
+        cascade_opt_in_intent := 0
+        cascade_titlebar_click := 0
         pending_windows.Clear()
         cascade_compaction_pending.Clear()
         cascade_compaction_timer_pending := false
@@ -48,8 +52,8 @@ class WindowCascadeModule {
     }
 
     static Resume() {
-        ; These windows stay unmanaged instead of cascading after the pause.
-        RememberWindowsOpenedWhileAutoPlacementPaused()
+        ; Windows opened during suspension must not be adopted later.
+        RememberWindowsSinceLastResume()
         SetTimer(QueueFocusCornerUpdate, -1)
     }
 

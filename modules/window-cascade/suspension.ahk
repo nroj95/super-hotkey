@@ -1,12 +1,7 @@
 ; Internal Window Cascade module. Launch ..\window-cascade.ahk instead.
 ; Included into the same script; functions share the existing global state.
 ;
-; Caps + M owns only its saved minimize/restore set. Caps + P pauses/resumes
-; automatic placement of newly opened windows without disabling existing cascades.
-
-; =============================================================================
-; automatic new-window placement pause / resume
-; =============================================================================
+; New windows are unmanaged unless explicitly launched with CapsLock.
 
 IsCascadeEnabled() {
     app := SuiteState.App
@@ -14,80 +9,11 @@ IsCascadeEnabled() {
         && !app.suspended && !app.systemSuspended && !app.sessionLocked
 }
 
-IsCascadeAutoPlacementEnabled()
-{
-    global cascade_auto_placement_paused, cascade_auto_placement_toggle_in_progress
-    return !cascade_auto_placement_paused && !cascade_auto_placement_toggle_in_progress
-        && !IsCascadeHoldToSkipActive()
-}
-
-IsCascadeHoldToSkipActive()
-{
-    global cascade_hold_to_skip_key
-    return cascade_hold_to_skip_key != "Disabled"
-        && GetKeyState(cascade_hold_to_skip_key, "P")
-}
-
-ToggleCascadeAutoPlacement(*)
-{
-    global cascade_auto_placement_paused, cascade_auto_placement_toggle_in_progress
-
-    if cascade_auto_placement_toggle_in_progress
-        return
-
-    previous_critical := Critical("On")
-    cascade_auto_placement_toggle_in_progress := true
-    toggle_succeeded := false
-    try {
-        if cascade_auto_placement_paused
-            ResumeCascadeAutoPlacement()
-        else
-            PauseCascadeAutoPlacement()
-        toggle_succeeded := true
-    }
-    catch Error as err {
-        DebugError("Toggle cascade auto placement", err)
-    }
-    finally {
-        cascade_auto_placement_toggle_in_progress := false
-        UpdateTrayMenu()
-        if toggle_succeeded {
-            ShowCascadeStatusTip(
-                cascade_auto_placement_paused
-                ? "auto cascading paused"
-                : "auto cascading resumed"
-            )
-        }
-        Critical(previous_critical)
-    }
-}
-
-PauseCascadeAutoPlacement()
-{
-    global cascade_auto_placement_paused
-
-    cascade_auto_placement_paused := true
-    DebugLog("Cascade auto placement paused.")
-}
-
-ResumeCascadeAutoPlacement()
-{
-    global cascade_auto_placement_paused
-
-    ; Snapshot everything that appeared during the pause before reopening
-    ; automatic discovery. Those windows stay unmanaged until explicitly adopted.
-    RememberWindowsOpenedWhileAutoPlacementPaused()
-    cascade_auto_placement_paused := false
-    DebugLog("Cascade auto placement resumed.")
-}
-
-RememberWindowDuringAutoPlacementPause(hwnd)
+RememberUnmanagedCascadeWindow(hwnd)
 {
     global startup_windows, known_windows
-
     if !hwnd
         return
-
     startup_windows[hwnd] := true
     known_windows[hwnd] := true
 }
@@ -302,12 +228,11 @@ StartCascadeActivity()
     QueueFocusCornerUpdate()
 }
 
-RememberWindowsOpenedWhileAutoPlacementPaused()
+RememberWindowsSinceLastResume()
 {
     global startup_windows, known_windows
 
-    ; Include hidden top-level windows too, so showing an auto-paused app later
-    ; does not make it look like a fresh launch. Do not adopt any of this snapshot.
+    ; Suspended new windows should remain unmanaged after resuming.
     previous_hidden := DetectHiddenWindows(true)
     try {
         for hwnd in WinGetList() {

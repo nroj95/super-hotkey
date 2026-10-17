@@ -66,8 +66,7 @@ CheckCompatibilitySettings(*)
 }
 
 UpdateTrayMenu() {
-    global cascade_auto_placement_paused
-    SuiteState.CascadeStatus := cascade_auto_placement_paused ? "Cascade Kingdom (placement paused)" : "Cascade Kingdom"
+    SuiteState.CascadeStatus := "Cascade Kingdom"
 }
 
 ToggleWindowCascadeHelp(*) {

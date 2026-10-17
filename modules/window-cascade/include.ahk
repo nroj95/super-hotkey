@@ -10,6 +10,7 @@
 #Include "%A_ScriptDir%\modules\window-cascade\keybindings.ahk"
 #Include "%A_ScriptDir%\modules\window-cascade\layout.ahk"
 #Include "%A_ScriptDir%\modules\window-cascade\navigation.ahk"
+#Include "%A_ScriptDir%\modules\window-cascade\opt-in.ahk"
 #Include "%A_ScriptDir%\modules\window-cascade\placement.ahk"
 #Include "%A_ScriptDir%\modules\window-cascade\settings.ahk"
 #Include "%A_ScriptDir%\modules\window-cascade\suspension.ahk"

@@ -2,69 +2,37 @@
 ; Included into the same script; functions share the existing global state.
 
 ; =============================================================================
-; desktop monitor selection
-; =============================================================================
-
-CaptureDesktopMonitorHint()
-{
-    if !IsCascadeEnabled()
-        return
-
-    global desktop_monitor_hint, desktop_monitor_hint_tick
-
-    MouseGetPosPixels(&mouse_x, &mouse_y, &hover_hwnd)
-
-    if !hover_hwnd
-        return
-
-    root_hwnd := DllCall(
-        "GetAncestor",
-        "ptr", hover_hwnd,
-        "uint", 2, ; GA_ROOT
-        "ptr"
-    )
-
-    if !IsDesktopSurfaceWindow(hover_hwnd)
-        && !IsDesktopSurfaceWindow(root_hwnd)
-        return
-
-    monitor_index := GetMonitorForPoint(mouse_x, mouse_y)
-
-    if !monitor_index
-        return
-
-    desktop_monitor_hint := monitor_index
-    desktop_monitor_hint_tick := A_TickCount
-
-}
-
-
-; =============================================================================
 ; window discovery and placement queue
 ; =============================================================================
 
 SeedStartupWindows()
 {
-    global startup_windows, known_windows
+    global startup_windows, known_windows, cascade_hidden_startup_explorers
 
     startup_windows := Map()
     known_windows := Map()
+    cascade_hidden_startup_explorers := Map()
 
     for hwnd in WinGetList() {
         startup_windows[hwnd] := true
         known_windows[hwnd] := true
+        if DllCall("IsWindowVisible", "ptr", hwnd, "int")
+            continue
+        try {
+            if WinGetClass("ahk_id " hwnd) = "CabinetWClass"
+                && StrLower(WinGetProcessName("ahk_id " hwnd)) = "explorer.exe"
+                cascade_hidden_startup_explorers[hwnd] := WinGetPID("ahk_id " hwnd)
+        }
+        catch
+            continue
     }
 
 }
 
-QueueWindowPlacement(hwnd, source_hwnd)
+QueueWindowPlacement(hwnd, source_hwnd, explicit_monitor := 0)
 {
     if !IsCascadeEnabled()
         return
-    if !IsCascadeAutoPlacementEnabled() {
-        RememberWindowDuringAutoPlacementPause(hwnd)
-        return
-    }
 
     global pending_windows, known_windows, placement_delay_ms
 
@@ -75,19 +43,22 @@ QueueWindowPlacement(hwnd, source_hwnd)
 
     if pending_windows.Has(hwnd)
         return
+    if explicit_monitor {
+        queued_monitor := explicit_monitor
+        monitor_reason := "startup-hidden-explorer"
+    } else
+        queued_monitor := CascadeTakeOptInMonitor(hwnd, &monitor_reason)
+    if !queued_monitor {
+        RememberUnmanagedCascadeWindow(hwnd)
+        return
+    }
     try pid := WinGetPID(hwnd)
     catch
         return
     request := {pid: pid, focus: CaptureNewWindowFocusContext(hwnd)}
     ConsumeExplorerSpaceIntentForNewWindow(hwnd, source_hwnd, pid)
-    ; Choose the destination now, before focus or the source window can move.
-    ; Readiness retries and settling keep this choice, not just the mouse position.
+    ; Capture the chosen display at discovery; never follow later focus changes.
     MouseGetPosPixels(&queue_mouse_x, &queue_mouse_y)
-    pointer_monitor := GetMonitorForPoint(queue_mouse_x, queue_mouse_y)
-    queued_monitor := TakeCascadeTaskbarMonitor(hwnd, request.focus)
-    monitor_reason := "taskbar-click"
-    if !queued_monitor
-        queued_monitor := GetTargetMonitor(hwnd, source_hwnd, pointer_monitor, &monitor_reason)
     ; The device name survives an index reorder while a new window is settling.
     request.monitor_device := GetCascadeMonitorDevice(queued_monitor)
     request.monitor_reason := monitor_reason
@@ -731,9 +702,6 @@ HandleWinEvent(
     global current_foreground_hwnd, previous_foreground_hwnd
     global pending_windows, handled_windows
     global startup_windows
-    global desktop_monitor_hint, desktop_monitor_hint_tick
-
-
     try {
         EVENT_SYSTEM_FOREGROUND := 0x0003
         EVENT_OBJECT_DESTROY := 0x8001
@@ -760,16 +728,6 @@ HandleWinEvent(
                     . DebugDescribeWindow(previous_foreground_hwnd)
                 )
 
-                if IsDesktopSurfaceWindow(hwnd) {
-                    MouseGetPosPixels(&mouse_x, &mouse_y)
-                    monitor_index := GetMonitorForPoint(mouse_x, mouse_y)
-
-                    if monitor_index {
-                        desktop_monitor_hint := monitor_index
-                        desktop_monitor_hint_tick := A_TickCount
-
-                    }
-                }
             }
 
             ; Some reusable managed windows become foreground without emitting a
@@ -862,16 +820,23 @@ HandleWinEvent(
         if handled_windows.Has(hwnd) && TryQueueHandledWindowReshow(hwnd, "show")
             return
 
-        ; EVENT_OBJECT_SHOW also fires when some existing minimized windows are
-        ; restored. Only windows absent from the startup snapshot are new.
+        ; A startup-hidden Explorer window can be its first visible window.
+        ; Other startup HWNDs remain protected from implicit adoption.
+        explicit_monitor := 0
         if startup_windows.Has(hwnd) {
-            if SuiteState.Log.verbose && SuiteState.Log.verbose {
-                DebugLog(
-                    "Show event skipped: window existed at script startup."
-                    . " | " DebugDescribeWindow(hwnd)
-                )
+            explicit_monitor := CascadeTakeHiddenStartupExplorerReveal(hwnd)
+            if !explicit_monitor {
+                if SuiteState.Log.verbose && SuiteState.Log.verbose {
+                    DebugLog(
+                        "Show event skipped: window existed at script startup."
+                        . " | " DebugDescribeWindow(hwnd)
+                    )
+                }
+                return
             }
-            return
+            startup_windows.Delete(hwnd)
+            DebugLog("First reveal of cached Explorer window accepted."
+                . " | " DebugDescribeWindow(hwnd))
         }
 
         ; Cheap filtering here prevents Explorer controls, ribbon pieces,
@@ -900,7 +865,7 @@ HandleWinEvent(
             . " | source=" DebugDescribeWindow(source_hwnd)
         )
 
-        QueueWindowPlacement(hwnd, source_hwnd)
+        QueueWindowPlacement(hwnd, source_hwnd, explicit_monitor)
     }
     catch Error as err {
         DebugError("HandleWinEvent", err)

@@ -280,7 +280,7 @@ class Keybindings {
                 "window-cascade.swap-up", "window-cascade.swap-down",
                 "window-cascade.rotate-next",
                 "window-cascade.adopt", "window-cascade.bring-forward",
-                "window-cascade.minimize", "window-cascade.auto-placement",
+                "window-cascade.minimize",
                 "window-cascade.gather",
                 "window-cascade.close-active", "window-cascade.close-monitor"],
             "Wonder Windows", [

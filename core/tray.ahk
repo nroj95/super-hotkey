@@ -571,8 +571,8 @@ class SuiteInterface {
             return
         window := this.NewWindow(key, "Secret Keys - Settings", true)
         window.AddText("x20 y20 w560", "Modules is the master switch. These choices control each layer independently.")
-        window.AddCheckbox("x20 y70 w540 vcaps", "Enable CapsLock Layer").Value := this.app.Settings.layers["caps"]
-        window.AddCheckbox("x20 y115 w540 vpause", "Enable Pause Layer").Value := this.app.Settings.layers["pause"]
+        window.AddCheckbox("x20 y70 w540 vpause", "Enable Pause Layer").Value := this.app.Settings.layers["pause"]
+        window.AddCheckbox("x20 y115 w540 vcaps", "Enable CapsLock Layer").Value := this.app.Settings.layers["caps"]
         toggle := window.AddCheckbox("x20 y160 w415 vcapsToggleEnabled",
             "Double-tap a modifier to toggle Caps Lock")
         toggle.Value := this.app.Settings.capsToggleModifier != "Disabled"
@@ -611,18 +611,14 @@ class SuiteInterface {
         key := "settings:window-cascade"
         if this.Existing(key)
             return
-        global cascade_auto_placement_paused, cascade_hold_to_skip_key, cascade_hold_to_skip_choice
+        global cascade_auto_placement_enabled
         global focus_corner_visible, focus_tab_color_presets
         global focus_corner_active_slot_color_name, focus_corner_inactive_slot_color_name
         window := this.NewWindow(key, "Cascade Kingdom - Settings", true)
-        window.AddCheckbox("x20 y25 w550 vpaused", "Pause automatic placement of new windows").Value := cascade_auto_placement_paused
-        skipToggle := window.AddCheckbox("x20 y72 w300 vholdToSkipEnabled",
-            "Hold to skip automatic placement")
-        skipToggle.Value := cascade_hold_to_skip_key != "Disabled"
-        skipKey := window.AddDropDownList("x330 y70 w170 vholdToSkipKey", ["CapsLock", "Pause"])
-        skipKey.Choose(cascade_hold_to_skip_choice)
-        skipToggle.OnEvent("Click", ObjBindMethod(this, "UpdateSelectorEnabled", skipKey))
-        this.UpdateSelectorEnabled(skipKey, skipToggle)
+        window.AddText("x20 y18 w560", "Hold CapsLock while launching a program to cascade it."
+            . "`nCapsLock + double-click a title bar adopts an existing window.")
+        window.AddCheckbox("x20 y77 w550 vautoCascade",
+            "Automatically cascade newly opened windows").Value := cascade_auto_placement_enabled
         window.AddCheckbox("x20 y115 w550 vtabs", "Show focus tabs").Value := focus_corner_visible
         colors := []
         for name in focus_tab_color_presets
@@ -640,41 +636,24 @@ class SuiteInterface {
     }
 
     SaveCascade(*) {
-        global cascade_auto_placement_paused, cascade_hold_to_skip_key, cascade_hold_to_skip_choice
+        global cascade_auto_placement_enabled
         global focus_corner_visible, focus_tab_color_presets
         global focus_corner_active_slot_color_name, focus_corner_inactive_slot_color_name
         global focus_corner_active_slot_color, focus_corner_inactive_slot_color
-
         key := "settings:window-cascade"
         window := this.windows[key]
         try {
-            paused := window["paused"].Value != 0
-            holdToSkipChoice := window["holdToSkipKey"].Text
-            if holdToSkipChoice != "CapsLock" && holdToSkipChoice != "Pause"
-                throw ValueError("Select a valid hold-to-skip key.")
-            holdToSkipKey := window["holdToSkipEnabled"].Value != 0 ? holdToSkipChoice : "Disabled"
+            autoCascade := window["autoCascade"].Value != 0
             visible := window["tabs"].Value != 0
             activeName := window["activeColor"].Text
             inactiveName := window["inactiveColor"].Text
             if !focus_tab_color_presets.Has(activeName) || !focus_tab_color_presets.Has(inactiveName)
                 throw ValueError("Select valid focus-tab colors.")
-
-            ; Persist first. No running state changes if the write fails.
             this.app.Settings.WritePreferences("window-cascade", Map(
-                "Controls", Map("AutoPlacementPaused", paused ? 1 : 0,
-                    "HoldToSkipKey", holdToSkipKey, "HoldToSkipChoice", holdToSkipChoice),
+                "Controls", Map("AutoCascadeNewWindows", autoCascade ? 1 : 0),
                 "FocusTabs", Map("Visible", visible ? 1 : 0,
                     "ActiveSlotColor", activeName, "InactiveSlotColor", inactiveName)))
-
-            ; Reuse the same pause/resume transition as Caps + P, preserving
-            ; the rule that windows opened while paused remain unmanaged.
-            if cascade_auto_placement_paused != paused
-                ToggleCascadeAutoPlacement()
-            if cascade_auto_placement_paused != paused
-                throw Error("Automatic placement could not change mode. See the debug log.")
-            cascade_hold_to_skip_key := holdToSkipKey
-            cascade_hold_to_skip_choice := holdToSkipChoice
-
+            cascade_auto_placement_enabled := autoCascade
             if focus_corner_visible != visible
                 ToggleFocusCornerVisibility()
             focus_corner_active_slot_color_name := activeName

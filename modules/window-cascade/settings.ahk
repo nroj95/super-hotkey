@@ -208,16 +208,10 @@ cascade_compaction_timer_pending := false
 cascade_restore_batches := Map()
 cascade_restore_request_depth := 0
 cascade_close_batches := Map()
-cascade_auto_placement_paused := IniRead(settings_path, "Controls", "AutoPlacementPaused", "0") = "1"
-cascade_hold_to_skip_key := IniRead(settings_path, "Controls", "HoldToSkipKey", "CapsLock")
-if cascade_hold_to_skip_key != "CapsLock" && cascade_hold_to_skip_key != "Pause"
-    && cascade_hold_to_skip_key != "Disabled"
-    cascade_hold_to_skip_key := "CapsLock"
-cascade_hold_to_skip_choice := IniRead(settings_path, "Controls", "HoldToSkipChoice",
-    cascade_hold_to_skip_key = "Disabled" ? "CapsLock" : cascade_hold_to_skip_key)
-if cascade_hold_to_skip_choice != "CapsLock" && cascade_hold_to_skip_choice != "Pause"
-    cascade_hold_to_skip_choice := "CapsLock"
-cascade_auto_placement_toggle_in_progress := false
+cascade_auto_placement_enabled := IniRead(settings_path, "Controls", "AutoCascadeNewWindows", "0") = "1"
+cascade_opt_in_intent := 0
+cascade_hidden_startup_explorers := Map()
+cascade_titlebar_click := 0
 cascade_minimize_toggle_in_progress := false
 cascade_minimized_windows := []
 
@@ -230,12 +224,6 @@ focus_tab_click_generation := 0
 
 current_foreground_hwnd := WinExist("A")
 previous_foreground_hwnd := 0
-
-; Clicking empty desktop space can explicitly select a monitor for the next
-; window without changing how normal app-to-app placement works.
-desktop_monitor_hint := 0
-desktop_monitor_hint_tick := 0
-desktop_monitor_hint_max_age_ms := 5000
 
 startup_shortcut_path := A_Startup "\Window Cascade.lnk"
 
@@ -268,6 +256,5 @@ cascade_command_close_active := 11
 cascade_command_close_scope := 12
 cascade_command_gather_to_monitor := 13
 cascade_command_show_help := 14
-cascade_command_toggle_auto_placement := 17
 
 }
