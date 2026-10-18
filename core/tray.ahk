@@ -910,16 +910,32 @@ class SuiteInterface {
     }
 
     CopyLog(*) {
-        try A_Clipboard := SuiteState.Log.Read()
-        catch Error as failure
+        try {
+            A_Clipboard := SuiteState.Log.Read()
+            return true
+        }
+        catch Error as failure {
             this.Report(failure, "Core / copy log")
+            return false
+        }
     }
 
     ClearLog(*) {
         if MsgBox("Clear the current log? Its previous contents will be retained in debug.log.old.",
-            SuiteApplication.Name, "YesNo Default2 Icon?") = "Yes" {
+            SuiteApplication.Name, "YesNo Default2 Icon?") = "Yes"
+            this.ClearLogNow()
+    }
+
+    ; The debug hotkey skips the confirmation used by the GUI Clear button.
+    ClearLogNow(*) {
+        try {
             SuiteState.Log.Clear()
             this.RefreshLog()
+            return true
+        }
+        catch Error as failure {
+            this.Report(failure, "Core / clear log")
+            return false
         }
     }
 

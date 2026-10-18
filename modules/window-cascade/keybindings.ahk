@@ -51,9 +51,9 @@ InitializeCascadeKeybindings(manager)
 
     ; Local diagnostics (not the legacy broadcast message interface).
     CascadeAddAction(manager, "reset-log", "clear debug log",
-        -1, "Caps + F5")
+        -1, "Pause + F1")
     CascadeAddAction(manager, "copy-log", "copy debug log",
-        -2, "Caps + F6")
+        -2, "Pause + F2")
 
     ; Store the instance before Start(), since startup reports are synchronous.
     cascade_keybindings := manager
@@ -99,9 +99,41 @@ CascadeBindingEvent(commandId, parameter, event)
     QueueCascadeCommand(commandId, parameter, event.foregroundHwnd)
 }
 
-CascadeResetLogFromBinding(*) => SuiteState.App.ui.ClearLog()
+CascadeResetLogFromBinding(*)
+{
+    ShowCascadeStatusTip(SuiteState.App.ui.ClearLogNow() ? "debug log cleared" : "debug log clear failed")
+}
 
-CascadeCopyLogFromBinding(*) => SuiteState.App.ui.CopyLog()
+CascadeCopyLogFromBinding(*)
+{
+    ShowCascadeStatusTip(SuiteState.App.ui.CopyLog() ? "debug log copied" : "debug log copy failed")
+}
+
+; Replace only the previous stock bindings; preserve user-chosen shortcuts.
+CascadeMigrateDebugKeybindingDefaults(configuration)
+{
+    for change in [
+        ["window-cascade.reset-log", "Caps + F5", "Pause + F1"],
+        ["window-cascade.copy-log", "Caps + F6", "Pause + F2"]
+    ] {
+        actionId := change[1]
+        if !configuration.Has(actionId)
+            || configuration[actionId].bindings[1] != Keybindings.Parse(change[2]).signature
+            continue
+        target := Keybindings.Parse(change[3]).signature
+        occupied := false
+        ; Existing custom assignments take precedence over a migrated default.
+        for otherId, setting in configuration {
+            if otherId = actionId
+                continue
+            for binding in setting.bindings
+                if binding = target
+                    occupied := true
+        }
+        if !occupied
+            configuration[actionId].bindings[1] := target
+    }
+}
 
 CascadeKeybindingStatus(message)
 {

@@ -38,6 +38,9 @@ class SuiteReleaseChecks {
                 "refreshing a large log remains bounded and shows newest entries")
             this.Assert(StrLen(SuiteState.Log.Read()) > 1000000,
                 "preview does not truncate the full log on disk")
+            this.Assert(app.ui.ClearLogNow() && FileExist(SuiteState.Log.path ".old")
+                && InStr(SuiteState.Log.Read(), "log cleared; previous log retained"),
+                "debug hotkey clears a disposable log without a confirmation dialog")
         }
         finally app.ui.CloseAll()
     }
