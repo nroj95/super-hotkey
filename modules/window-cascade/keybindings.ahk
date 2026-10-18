@@ -40,7 +40,7 @@ InitializeCascadeKeybindings(manager)
     CascadeAddAction(manager, "minimize", "minimize / restore managed windows",
         cascade_command_toggle_minimize, "Caps + M")
     CascadeAddAction(manager, "gather", "gather cascades onto this monitor",
-        cascade_command_gather_to_monitor, "Caps + F7")
+        cascade_command_gather_to_monitor, "Caps + Alt + Enter")
     CascadeAddAction(manager, "close-active", "close active window",
         cascade_command_close_active, "Caps + Delete")
     CascadeAddAction(manager, "close-monitor", "close this monitor's cascade",
