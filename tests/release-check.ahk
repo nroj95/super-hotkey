@@ -10,6 +10,7 @@ class SuiteReleaseChecks {
         this.DeferredInputsAndSessions()
         this.WindowSizingAndCloaking()
         this.FocusTabDpi()
+        SuiteHardeningChecks.Run()
     }
 
     static Assert(condition, label) => SuiteChecks.Assert(condition, label)

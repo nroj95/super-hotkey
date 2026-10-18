@@ -52,9 +52,14 @@ def run(arguments: list[str], timeout: int = 45) -> str:
         try:
             stdout, stderr = process.communicate(timeout=timeout)
         except subprocess.TimeoutExpired:
-            print('Test process windows:', *window_diagnostics(process.pid), sep='\n')
-            # Only terminate the test process this runner created.
-            process.kill()
+            try:
+                if sys.platform == 'win32':
+                    print('Test process windows:', *window_diagnostics(process.pid), sep='\n')
+            except Exception as error:
+                print(f'Test window diagnostics failed: {error}')
+            finally:
+                # Diagnostics must never prevent cleanup of our timed-out process.
+                process.kill()
             stdout, stderr = process.communicate()
             print(stdout + stderr)
             raise RuntimeError(f'Check timed out after {timeout} seconds.')
@@ -93,7 +98,9 @@ def main() -> None:
         raise RuntimeError('Native checks require Windows; portable structural checks can run elsewhere.')
     executable = find_autohotkey(args.autohotkey)
     run([sys.executable, '-m', 'unittest', 'discover', '-s', 'tests', '-p', 'test_*.py'])
-    parsed = run([str(executable), '/ErrorStdOut=UTF-8', str(ROOT / 'super-hotkey.ahk'), '--check'])
+    # /force means SingleInstance Off, not replacement of the running suite.
+    parsed = run([str(executable), '/force', '/ErrorStdOut=UTF-8',
+                  str(ROOT / 'super-hotkey.ahk'), '--check'])
     if 'PASS: Super Hotkey and every module parsed.' not in parsed:
         raise RuntimeError('The launcher did not report a successful parse.')
     # A_ScriptDir stays at the repository root, matching the real launcher includes.
@@ -103,6 +110,7 @@ def main() -> None:
         stream.write('#Include "super-hotkey.ahk"\n')
         stream.write('#Include "%A_ScriptDir%\\tests\\upgrade-check.ahk"\n')
         stream.write('#Include "%A_ScriptDir%\\tests\\release-check.ahk"\n')
+        stream.write('#Include "%A_ScriptDir%\\tests\\hardening-check.ahk"\n')
         stream.write('#Include "%A_ScriptDir%\\tests\\runtime-check.ahk"\n#Warn All, StdOut\n')
     try:
         result = run([str(executable), '/ErrorStdOut=UTF-8', str(harness)])

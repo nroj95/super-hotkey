@@ -35,6 +35,7 @@ class Keybindings {
         this.queue := []
         this.delivered := Map()
         this.nextToken := 0
+        this.cancelledThroughToken := 0
         this.dispatching := false
         this.running := false
         this.applying := false
@@ -742,6 +743,8 @@ class Keybindings {
     ; =========================================================================
 
     _CancelPendingInput() {
+        ; Reopening a gate or rolling back an edit must not revive queued input.
+        this.cancelledThroughToken := this.nextToken
         if IsObject(SuiteState.App) && SuiteState.App.manager = this
             SuiteState.App.CancelInputs()
     }
@@ -996,13 +999,17 @@ class Keybindings {
                 item := this.queue.RemoveAt(1)
                 phase := item.event.phase
                 if phase = "down" {
-                    if this.gated || this.applying || !item.route.enabled
+                    if item.token <= this.cancelledThroughToken
+                        || this.gated || this.applying || !item.route.enabled
                         || ((A_TickCount - item.tick) & 0xFFFFFFFF) > 500
                         continue
                     this.delivered[item.token] := item
                 } else {
                     if !this.delivered.Has(item.token)
                         continue
+                    ; Release held output without firing a cancelled release action.
+                    if item.token <= this.cancelledThroughToken
+                        item.event.phase := phase := "cancel"
                     if phase = "up" || phase = "cancel"
                         this.delivered.Delete(item.token)
                 }
