@@ -311,7 +311,7 @@ class SuiteInterface {
             ModuleHelp.Text(id, this.app.manager))
         buttons := []
         if id = "scratchpad"
-            buttons.Push(["Open Pad", ObjBindMethod(this, "OpenPad"), 110])
+            buttons.Push(["Open pad", ObjBindMethod(this, "OpenPad"), 110])
         if id != "power-hotkey"
             buttons.Push(["Settings...", ObjBindMethod(this, "OpenSettingsFromHelp", id), 120])
         buttons.Push(["Keybindings...", ObjBindMethod(this, "OpenKeybindingsFromHelp", id), 135])
@@ -571,8 +571,8 @@ class SuiteInterface {
             return
         window := this.NewWindow(key, "Secret Keys - Settings", true)
         window.AddText("x20 y20 w560", "Modules is the master switch. These choices control each layer independently.")
-        window.AddCheckbox("x20 y70 w540 vpause", "Enable Pause Layer").Value := this.app.Settings.layers["pause"]
-        window.AddCheckbox("x20 y115 w540 vcaps", "Enable CapsLock Layer").Value := this.app.Settings.layers["caps"]
+        window.AddCheckbox("x20 y70 w540 vpause", "Enable Pause layer").Value := this.app.Settings.layers["pause"]
+        window.AddCheckbox("x20 y115 w540 vcaps", "Enable CapsLock layer").Value := this.app.Settings.layers["caps"]
         toggle := window.AddCheckbox("x20 y160 w415 vcapsToggleEnabled",
             "Double-tap a modifier to toggle Caps Lock")
         toggle.Value := this.app.Settings.capsToggleModifier != "Disabled"

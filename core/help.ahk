@@ -4,7 +4,7 @@ class ModuleHelp {
         switch id {
             case "window-cascade":
                 return "WHY I MADE THIS"
-                    . "`r`ni wanted a window layout i could summon when needed, without taking "
+                    . "`r`nI wanted a window layout I could summon when needed, without taking "
                     . "over how other applications normally open."
                     . "`r`n`r`nCASCADE ONLY WHEN YOU ASK"
                     . "`r`nOpen programs normally to leave Windows in control. Hold CapsLock while "
@@ -23,8 +23,8 @@ class ModuleHelp {
                     . "Settings controls focus-tab visibility and colors."
             case "win-key-overhaul":
                 return "WHY I MADE THIS"
-                    . "`r`nWindows already has window-management shortcuts, but i found many of them "
-                    . "frustrating or incomplete. i wanted something more powerful, consistent "
+                    . "`r`nWindows already has window-management shortcuts, but I found many of them "
+                    . "frustrating or incomplete. I wanted something more powerful, consistent "
                     . "and predictable, without constantly reaching for the mouse."
                     . "`r`n`r`nARRANGE YOUR WINDOWS"
                     . "`r`nUse the left and right layout actions to cycle through positions such as "
@@ -48,8 +48,8 @@ class ModuleHelp {
                     . "nothing changes those Windows settings without your confirmation."
             case "power-hotkey":
                 return "WHY I MADE THIS"
-                    . "`r`nsometimes it's the smallest missing conveniences that become the most "
-                    . "annoying. i wanted one place for useful keyboard functions, text shortcuts "
+                    . "`r`nSometimes it's the smallest missing conveniences that become the most "
+                    . "annoying. I wanted one place for useful keyboard functions, text shortcuts "
                     . "and system utilities instead of maintaining separate scripts for everything."
                     . "`r`n`r`nMORE KEYS WITHOUT A NEW KEYBOARD"
                     . "`r`nSend F13-F24 or virtual Numpad 0-9 through hotkeys you choose in "
@@ -67,12 +67,12 @@ class ModuleHelp {
                     . "Power-Up Utilities has no separate Settings page."
             case "scratchpad":
                 return "WHY I MADE THIS"
-                    . "`r`ni wanted a quick place to write notes, ideas and snippets without "
-                    . "interrupting my normal editor. something lightweight that i could open, "
-                    . "hide and return to whenever i needed it."
+                    . "`r`nI wanted a quick place to write notes, ideas and snippets without "
+                    . "interrupting my normal editor. Something lightweight that I could open, "
+                    . "hide and return to whenever I needed it."
                     . "`r`n`r`nYOUR OWN QUICK-NOTES DRAWER"
                     . "`r`nPaper Pad opens a dedicated Notepad3 window without taking over your "
-                    . "ordinary editor sessions. Use Open Pad below or the configurable toggle "
+                    . "ordinary editor sessions. Use Open pad below or the configurable toggle "
                     . "hotkey. Create pages as you need them and navigate between them inside "
                     . "the editor; those page hotkeys don't affect other applications."
                     . "`r`n`r`nPAGES ARE REAL FILES"
@@ -87,7 +87,7 @@ class ModuleHelp {
                     . "display and autosave interval; changing paths never moves existing notes."
             case "keyboard-layers":
                 return "WHY I MADE THIS"
-                    . "`r`ni wanted to get more out of my existing keyboard. CapsLock and Pause seemed "
+                    . "`r`nI wanted to get more out of my existing keyboard. CapsLock and Pause seemed "
                     . "like perfect candidates for unlocking an entirely new set of shortcuts "
                     . "without adding more keys."
                     . "`r`n`r`nHOLD A KEY FOR MORE HOTKEYS"

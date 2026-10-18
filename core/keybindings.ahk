@@ -1124,7 +1124,7 @@ class Keybindings {
         window.SetFont("s10 w400", "Cascadia Mono")
         this.settingsSearch := window.AddEdit("x210 y13 w400 vsearch")
         DllCall("SendMessageW", "ptr", this.settingsSearch.Hwnd, "uint", 0x1501,
-            "uptr", 1, "str", "search… (LMB to record, RMB to type)", "ptr")
+            "uptr", 1, "str", "Search… (LMB to record, RMB to type)", "ptr")
         this.settingsSearch.OnEvent("Change", ObjBindMethod(this, "_SearchChanged"))
         this.settingsRowPool := []
         this.visibleRows := []
@@ -1215,9 +1215,9 @@ class Keybindings {
         categoryTitle := window.AddText("Hidden x22 y48 w752 h25 Center", "")
         contextTag := window.AddText("Hidden x22 y48 w80 h16 Border Center c777777", "")
         contextTag.SetFont("s7.25 c777777", "Cascadia Mono")
-        primary := window.AddButton("Hidden x358 y48 w167 h29", "unbound")
-        secondary := window.AddButton("Hidden x535 y48 w153 h29", "unbound")
-        reset := window.AddButton("Hidden x698 y48 w76 h29", "reset")
+        primary := window.AddButton("Hidden x358 y48 w167 h29", "Unbound")
+        secondary := window.AddButton("Hidden x535 y48 w153 h29", "Unbound")
+        reset := window.AddButton("Hidden x698 y48 w76 h29", "Reset")
         this.settingsDrawButtons[primary.Hwnd] := "binding"
         this.settingsDrawButtons[secondary.Hwnd] := "binding"
         this.settingsDrawButtons[reset.Hwnd] := "reset"
@@ -1510,7 +1510,7 @@ class Keybindings {
             for slot, control in [row.primary, row.secondary] {
                 parsed := Keybindings.Parse(setting.bindings[slot])
                 if !IsObject(parsed) {
-                    Keybindings._SetSettingsText(control, "+ add")
+                    Keybindings._SetSettingsText(control, "+ Add")
                     continue
                 }
                 inactiveLayer := parsed.layer != "normal" && this.BindingUnavailable(parsed) != ""
@@ -1753,7 +1753,7 @@ class Keybindings {
             this.externalCapture := true
             this._RefreshGate()
             record.button := slot = 1 ? this.visibleRows[index].primary : this.visibleRows[index].secondary
-            record.button.Text := "press keys..."
+            record.button.Text := "Press keys..."
             hook := InputHook("L0 I101")
             hook.KeyOpt("{All}", "SN")
             hook.OnKeyDown := ObjBindMethod(this, "_RecordKey")
@@ -1860,9 +1860,9 @@ class Keybindings {
             key := layer = "caps" ? "CapsLock" : "vk13"
             this._StageRecordedBinding(layer, 0, key, "")
         } else if result = "armed"
-            record.button.Text := "press next key..."
+            record.button.Text := "Press next key..."
         else
-            record.button.Text := "press keys..."
+            record.button.Text := "Press keys..."
     }
 
     _RecordKeyUp(hook, vk, sc) {
@@ -1894,7 +1894,7 @@ class Keybindings {
             this.recording.pending := "CLEAR"
             this.recording.pendingKey := key
             this.recording.clearing := true
-            this.recording.button.Text := "unbound ..."
+            this.recording.button.Text := "Unbound ..."
             return
         }
         if vk = 0x10 || vk = 0x11 || vk = 0x12 || (vk >= 0xA0 && vk <= 0xA5)
@@ -1904,7 +1904,7 @@ class Keybindings {
         if prefix != "" {
             if record.pending = "" && Keybindings.RecordingPrefixDown(record,
                 prefix, A_TickCount)
-                record.button.Text := "press next key..."
+                record.button.Text := "Press next key..."
             return
         }
         if record.pending != ""
