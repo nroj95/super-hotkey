@@ -208,6 +208,7 @@ class SuiteApplication {
             this.wonder.CancelWork()
         if IsObject(this.power)
             this.power.CancelWork()
+        SuiteFocusBorder.Hide()
         if this.cascadeStarted {
             global cascade_command_queue
             cascade_command_queue := []

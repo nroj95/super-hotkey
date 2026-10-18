@@ -9,6 +9,13 @@ class SuiteFocusBorder {
     static overlap := 2
 
     static Show(hwnd, owner := "") {
+        ; Expiry cannot resume halfway through updating a reused outline.
+        previousCritical := Critical("On")
+        try return this._Show(hwnd, owner)
+        finally Critical(previousCritical)
+    }
+
+    static _Show(hwnd, owner) {
         if this.timerCallback
             try SetTimer(this.timerCallback, 0)
         if !hwnd || !WinExist("ahk_id " hwnd) {
@@ -67,6 +74,12 @@ class SuiteFocusBorder {
 
     ; An owner-specific cleanup may not remove another module's border.
     static Hide(expectedOwner := "", destroy := false) {
+        previousCritical := Critical("On")
+        try return this._Hide(expectedOwner, destroy)
+        finally Critical(previousCritical)
+    }
+
+    static _Hide(expectedOwner, destroy) {
         if !this.CanHide(expectedOwner, this.owner)
             return false
         if this.timerCallback

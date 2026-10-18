@@ -280,12 +280,18 @@ WW_SwapWindowRectangles(first_hwnd, second_hwnd)
 WW_RestoreSwapRectangles(first_hwnd, second_hwnd,
     first_raw, second_raw, first_visible, second_visible)
 {
+    ; A failed first rollback must not prevent restoring the second window.
+    first_restored := WW_RestoreSwapRectangle(first_hwnd, first_raw, first_visible)
+    second_restored := WW_RestoreSwapRectangle(second_hwnd, second_raw, second_visible)
+    return first_restored && second_restored
+}
+
+WW_RestoreSwapRectangle(hwnd, raw, visible)
+{
     try {
         ; Use HWND rectangles here, including invisible resize borders.
-        WinMove(first_raw[1], first_raw[2], first_raw[3], first_raw[4], first_hwnd)
-        WinMove(second_raw[1], second_raw[2], second_raw[3], second_raw[4], second_hwnd)
-        return WW_WindowMatchesVisibleRectangle(first_hwnd, first_visible)
-            && WW_WindowMatchesVisibleRectangle(second_hwnd, second_visible)
+        WinMove(raw[1], raw[2], raw[3], raw[4], hwnd)
+        return WW_WindowMatchesVisibleRectangle(hwnd, visible)
     }
     catch {
         return false
