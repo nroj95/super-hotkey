@@ -920,6 +920,12 @@ class SuiteUpgradeChecks {
             this.Assert(oldDefaults["window-cascade.copy-log"].bindings[1]
                     = Keybindings.Parse("Caps + F6").signature,
                 "migration preserves an existing assignment of the desired hotkey")
+            oldDefaults["window-cascade.reset-log"].bindings[1] := Keybindings.Parse("Caps + F5").signature
+            oldDefaults["window-cascade.reset-log"].bindings[2] := Keybindings.Parse("Pause + F1").signature
+            CascadeMigrateDebugKeybindingDefaults(oldDefaults)
+            this.Assert(oldDefaults["window-cascade.reset-log"].bindings[1]
+                    = Keybindings.Parse("Caps + F5").signature,
+                "migration preserves a secondary binding on the same action")
             this.Assert(WW_NextMaximizeCycleIndex(false, false, 0) = 0,
                 "Win + Up maximizes a normal window first")
             this.Assert(WW_NextMaximizeCycleIndex(false, true, 0) = 1,

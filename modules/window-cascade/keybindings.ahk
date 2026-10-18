@@ -123,13 +123,10 @@ CascadeMigrateDebugKeybindingDefaults(configuration)
         target := Keybindings.Parse(change[3]).signature
         occupied := false
         ; Existing custom assignments take precedence over a migrated default.
-        for otherId, setting in configuration {
-            if otherId = actionId
-                continue
-            for binding in setting.bindings
-                if binding = target
+        for otherId, setting in configuration
+            for slot, binding in setting.bindings
+                if binding = target && (otherId != actionId || slot != 1)
                     occupied := true
-        }
         if !occupied
             configuration[actionId].bindings[1] := target
     }
