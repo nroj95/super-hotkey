@@ -906,6 +906,26 @@ class SuiteUpgradeChecks {
                 && oldDefaults["win-key-overhaul.focus-left"].bindings[1]
                     = Keybindings.Parse("Pause + Z").signature,
                 "legacy default shortcuts migrate without changing customized bindings")
+            oldDefaults["window-cascade.reset-log"].bindings[1] := Keybindings.Parse("Caps + F5").signature
+            oldDefaults["window-cascade.copy-log"].bindings[1] := Keybindings.Parse("Pause + F9").signature
+            CascadeMigrateDebugKeybindingDefaults(oldDefaults)
+            this.Assert(oldDefaults["window-cascade.reset-log"].bindings[1]
+                    = Keybindings.Parse("Pause + F1").signature
+                && oldDefaults["window-cascade.copy-log"].bindings[1]
+                    = Keybindings.Parse("Pause + F9").signature,
+                "old clear-log defaults migrate without replacing customized log shortcuts")
+            oldDefaults["window-cascade.copy-log"].bindings[1] := Keybindings.Parse("Caps + F6").signature
+            oldDefaults["scratchpad.help"].bindings[2] := Keybindings.Parse("Pause + F2").signature
+            CascadeMigrateDebugKeybindingDefaults(oldDefaults)
+            this.Assert(oldDefaults["window-cascade.copy-log"].bindings[1]
+                    = Keybindings.Parse("Caps + F6").signature,
+                "migration preserves an existing assignment of the desired hotkey")
+            oldDefaults["window-cascade.reset-log"].bindings[1] := Keybindings.Parse("Caps + F5").signature
+            oldDefaults["window-cascade.reset-log"].bindings[2] := Keybindings.Parse("Pause + F1").signature
+            CascadeMigrateDebugKeybindingDefaults(oldDefaults)
+            this.Assert(oldDefaults["window-cascade.reset-log"].bindings[1]
+                    = Keybindings.Parse("Caps + F5").signature,
+                "migration preserves a secondary binding on the same action")
             this.Assert(WW_NextMaximizeCycleIndex(false, false, 0) = 0,
                 "Win + Up maximizes a normal window first")
             this.Assert(WW_NextMaximizeCycleIndex(false, true, 0) = 1,
@@ -1142,6 +1162,11 @@ class SuiteUpgradeChecks {
                     row.label " displays its Help shortcut first")
             }
             saved := manager.GetConfiguration()
+            this.Assert(saved["window-cascade.reset-log"].bindings[1]
+                    = Keybindings.Parse("Pause + F1").signature
+                && saved["window-cascade.copy-log"].bindings[1]
+                    = Keybindings.Parse("Pause + F2").signature,
+                "debug log hotkeys default to Pause + F1/F2")
             this.Assert(saved["scratchpad.help"].bindings[1]
                 = Keybindings.Parse("Pause + F12").signature
                 && saved["scratchpad.help"].bindings[2] = "",
