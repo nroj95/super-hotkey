@@ -60,6 +60,7 @@ class PaperPadController
         this.persisted_stamp := ""
         this.previous_window := 0
         this.last_external_window := 0
+        this.z_order_snapshot := ""
         this.system_text_input_escape_pending := false
         this.last_bounds := 0
         this.page_lock_handle := 0
@@ -1261,6 +1262,7 @@ class PaperPadController
         bounds.h := actual_height
 
         ; PaperPad is a drawer, so it remains topmost whenever it is visible.
+        this.z_order_snapshot := ""
         this.SetDrawerTopmost(true)
         this.AnimateWindow(true, bounds, animate)
         this.FocusEditor()
@@ -1309,22 +1311,61 @@ class PaperPadController
             return
 
         foreground := DllCall("GetForegroundWindow", "ptr")
-
         if foreground && foreground != this.window_hwnd
             && !PaperPadIsDialogWindow(foreground)
-        {
             this.last_external_window := foreground
+
+        verbose := SuiteState.Log.verbose
+        try {
+            if verbose
+                before_topmost := !!(WinGetExStyle("ahk_id " this.window_hwnd) & 0x8)
+
+            dialog := this.FindYieldDialog(foreground)
+            if dialog
+                this.YieldDrawerTo(dialog)
+            else
+                this.SetDrawerTopmost(true)
+        }
+        catch Error as failure {
+            SuiteState.Log.Error("Paper Pad / Z-order", failure)
+            throw
         }
 
-        ; Important dialogs and prompts are still allowed above the drawer.
-        dialog := this.FindYieldDialog(foreground)
-        if dialog {
-            this.YieldDrawerTo(dialog)
+        if !verbose {
+            this.z_order_snapshot := ""
             return
         }
 
-        this.SetDrawerTopmost(true)
+        ; Diagnostics must never interfere with the drawer's normal behavior.
+        try this.TraceZOrder(foreground, dialog, before_topmost)
+        catch Error as failure
+            SuiteState.Log.Error("Paper Pad / Z-order diagnostics", failure)
+    }
 
+    TraceZOrder(foreground, dialog, before_topmost)
+    {
+        after_topmost := !!(WinGetExStyle("ahk_id " this.window_hwnd) & 0x8)
+        above := DllCall("GetWindow", "ptr", this.window_hwnd, "uint", 3, "ptr")
+        snapshot := foreground "|" dialog "|" before_topmost "|" after_topmost "|" above
+        if snapshot = this.z_order_snapshot
+            return
+        this.z_order_snapshot := snapshot
+
+        action := dialog ? "yield" : (before_topmost ? "maintain" : "restore")
+        details := "Z-order | action=" action
+            . " | topmost=" before_topmost "->" after_topmost
+        for item in [["foreground", foreground], ["yield", dialog], ["above", above]] {
+            hwnd := item[2]
+            process_name := ""
+            if hwnd {
+                try process_name := WinGetProcessName("ahk_id " hwnd)
+            }
+            details .= " | " item[1] "=" hwnd ":" process_name
+        }
+        if dialog {
+            try details .= " | dialog-class=" WinGetClass("ahk_id " dialog)
+        }
+        SuiteState.Log.Debug("Paper Pad", details)
     }
 
     FindYieldDialog(foreground)
@@ -2047,22 +2088,22 @@ PaperPadIsDialogWindow(hwnd)
         || DllCall("IsIconic", "ptr", hwnd, "int") || IsWindowCloaked(hwnd)
         return false
 
-    try {
-        window_class := WinGetClass("ahk_id " hwnd)
-        if window_class = "#32770" || window_class = "OperationStatusWindow"
-            return true
-    }
-    catch {
+    try window_class := WinGetClass("ahk_id " hwnd)
+    catch
         return false
-    }
 
     ex_style := DllCall("GetWindowLongPtrW", "ptr", hwnd, "int", -20, "ptr")
-    if ex_style & 0x1 ; WS_EX_DLGMODALFRAME
-        return true
+    owner := DllCall("GetWindow", "ptr", hwnd, "uint", 4, "ptr") ; GW_OWNER
+    return PaperPadIsDialogCandidate(window_class, ex_style, owner)
+}
 
-    ; Owned top-level windows are commonly prompts, property sheets and other
-    ; transient UI that should not be hidden under an explicitly topmost drawer.
-    return DllCall("GetWindow", "ptr", hwnd, "uint", 4, "ptr") != 0 ; GW_OWNER
+PaperPadIsDialogCandidate(window_class, ex_style, owner)
+{
+    ; ConPTY helper windows may be owned, but they are not user-facing dialogs.
+    if window_class = "PseudoConsoleWindow"
+        return false
+    return window_class = "#32770" || window_class = "OperationStatusWindow"
+        || !!(ex_style & 0x1) || !!owner ; WS_EX_DLGMODALFRAME / GW_OWNER
 }
 
 PaperPadFullPath(path)

@@ -416,6 +416,16 @@ class SuiteReleaseChecks {
             this.Assert(smaller.width = 100 && smaller.height = 100,
                 "fitting preserves deliberately small windows")
             this.Assert(PaperPadIsDialogWindow(window.Hwnd), "a visible test dialog can yield Paper Pad")
+            this.Assert(!PaperPadIsDialogCandidate("PseudoConsoleWindow", 0x1, 123),
+                "owned pseudoconsole helpers never count as dialogs")
+            this.Assert(PaperPadIsDialogCandidate("#32770", 0, 0)
+                && PaperPadIsDialogCandidate("OperationStatusWindow", 0, 0),
+                "standard and operation-status dialogs remain eligible")
+            this.Assert(PaperPadIsDialogCandidate("OtherWindow", 0x1, 0)
+                && PaperPadIsDialogCandidate("OtherWindow", 0, 123),
+                "modal and owned windows remain eligible")
+            this.Assert(!PaperPadIsDialogCandidate("OtherWindow", 0, 0),
+                "ordinary unowned windows do not count as dialogs")
             cloaked := Buffer(4, 0)
             NumPut("uint", 1, cloaked)
             result := DllCall("dwmapi\DwmSetWindowAttribute", "ptr", window.Hwnd,
