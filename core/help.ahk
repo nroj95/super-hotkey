@@ -54,6 +54,8 @@ class ModuleHelp {
                     . "`r`n`r`nTEXT AND TERMINAL ACTIONS"
                     . "`r`nInsert punctuation, special spaces or a yyyyMMdd-HHmmss timestamp. "
                     . "Terminal copy and clear operate only in Windows Terminal. "
+                    . "Required Terminal shortcuts are checked before keys are sent; "
+                    . "incompatible settings are reported without being changed. "
                     . "Text commands wait for your triggering keys to be released before typing."
                     . "`r`n`r`nSYSTEM UTILITIES"
                     . "`r`nWake speakers that automatically enter standby, or put your computer "
