@@ -261,6 +261,8 @@ class SuiteApplication {
     PowerEvent(event, *) {
         if event != 4 && event != 7 && event != 0x12
             return
+        if IsObject(this.power) && !this.dryRun
+            this.power.utilities.sleepPolicy.OnPowerEvent(event)
         SetTimer(this.resumeCallback, 0)
         this.systemSuspended := true
         this.RefreshInputGate()

@@ -40,6 +40,14 @@ class PowerHotkeys {
 
     Start(*) {
         this.SyncEnabledActions()
+        if !this.dryRun {
+            try this.utilities.sleepPolicy.Recover()
+            catch Error as failure {
+                SuiteState.Log.Error("Power-Up Utilities / sleep recovery", failure)
+                TrayTip("Could not restore the previous Away Mode settings: " failure.Message,
+                    this.name, 2)
+            }
+        }
     }
 
     Stop(*) {
@@ -47,6 +55,8 @@ class PowerHotkeys {
             return
         this.stopping := true
         this.CancelWork()
+        if !this.dryRun
+            this.utilities.sleepPolicy.Restore()
     }
 
     SyncEnabledActions() {
