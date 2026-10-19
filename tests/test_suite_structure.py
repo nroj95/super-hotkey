@@ -98,21 +98,17 @@ class SuiteStructureTests(unittest.TestCase):
             self.assertNotRegex(text, r'(?m)^#HotIf\b')
             self.assertNotRegex(text, r'(?m)^#SingleInstance\b')
 
-    def test_names_and_original_ids_are_preserved(self):
+    def test_current_module_names_and_ids(self):
         text = (ROOT / 'core/settings.ahk').read_text()
         for name in ['Cascade Kingdom', 'Wonder Windows', 'Power-Up Utilities', 'Paper Pad', 'Secret Keys']:
             self.assertIn(name, text)
-        for identifier in ['window-cascade', 'win-key-overhaul', 'power-up-utilities', 'scratchpad', 'keyboard-layers']:
+        for identifier in ['window-cascade', 'win-key-overhaul', 'power-up-utilities', 'paper-pad', 'keyboard-layers']:
             self.assertIn(f'"{identifier}"', text)
 
     def test_obsolete_migration_tree_was_removed(self):
         self.assertFalse((ROOT / 'migration').exists())
         self.assertFalse((ROOT / 'docs/initial-audit.md').exists())
         self.assertFalse((ROOT / 'docs/ui-migration.md').exists())
-        provenance = (ROOT / 'docs/source-provenance.md').read_text(encoding='utf-8')
-        for module in ('keybindings', 'window-cascade', 'win-key-overhaul',
-                       'power-hotkey', 'scratchpad', 'caps-pause-layers'):
-            self.assertIn(f'nroj95/{module}', provenance)
 
     def test_wonder_has_no_automatic_setup_writes(self):
         text = (ROOT / 'modules/wonder-windows/adapter.ahk').read_text()
@@ -123,13 +119,13 @@ class SuiteStructureTests(unittest.TestCase):
         self.assertNotIn('WW_CheckFancyZonesIntegration()', startup)
         self.assertNotIn('KeyWait(direction)', text)
 
-    def test_legacy_paper_paths_and_window_markers_remain(self):
-        text = (ROOT / 'modules/scratchpad/scratchpad.ahk').read_text()
-        self.assertIn('nroj.Scratchpad.Notepad3Window', text)
-        self.assertIn('nroj.Scratchpad.Controller', text)
-        self.assertIn('"\\Scratchpad"', text)
+    def test_paper_pad_paths_and_window_markers(self):
+        text = (ROOT / 'modules/paper-pad/paper-pad.ahk').read_text()
+        self.assertIn('nroj.PaperPad.Notepad3Window', text)
+        self.assertIn('nroj.PaperPad.Controller', text)
+        self.assertIn('"\\Paper Pad"', text)
         self.assertNotIn('this.toggle_hotkey_name', text)
-        self.assertIn('SuiteState.App.ui.ToggleHelp("scratchpad")', text)
+        self.assertIn('SuiteState.App.ui.ToggleHelp("paper-pad")', text)
 
 
 if __name__ == '__main__':

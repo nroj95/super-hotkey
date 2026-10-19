@@ -62,7 +62,7 @@ class ModuleHelp {
                     . "`r`n`r`nSYSTEM UTILITIES"
                     . "`r`nWake speakers that automatically enter standby, or put your computer "
                     . "to sleep."
-            case "scratchpad":
+            case "paper-pad":
                 return "WHY I MADE THIS"
                     . "`r`nI wanted a place to quickly jot down anything, anytime, without "
                     . "worrying about saving files or finding notes buried in windows and tabs. "

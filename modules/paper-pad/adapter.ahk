@@ -1,10 +1,10 @@
 ; Global toggle and editor-only commands share the suite's configurable bindings.
-class ScratchpadModule {
+class PaperPadModule {
     static Register(manager) {
-        manager.AddAction("scratchpad.help", "show Paper Pad help",
-            ObjBindMethod(SuiteState.App, "HelpShortcutEvent", "scratchpad"), ["Pause + F12"],
+        manager.AddAction("paper-pad.help", "show Paper Pad help",
+            ObjBindMethod(SuiteState.App, "HelpShortcutEvent", "paper-pad"), ["Pause + F12"],
             {category: "Paper Pad", help: true, available: ObjBindMethod(this, "Available")})
-        manager.AddAction("scratchpad.toggle", "show / hide Paper Pad", ObjBindMethod(this, "Event", "toggle"),
+        manager.AddAction("paper-pad.toggle", "show / hide Paper Pad", ObjBindMethod(this, "Event", "toggle"),
             ["Win + F12"], {category: "Paper Pad", available: ObjBindMethod(this, "Available")})
         actions := [
             ["hide", "hide Paper Pad / dismiss completion", ["Escape"]],
@@ -15,21 +15,21 @@ class ScratchpadModule {
             ["next", "next page", ["Win + Right", "Win + PgUp"]]
         ]
         for item in actions
-            manager.AddAction("scratchpad." item[1], item[2], ObjBindMethod(this, "Event", item[1]), item[3],
+            manager.AddAction("paper-pad." item[1], item[2], ObjBindMethod(this, "Event", item[1]), item[3],
                 {category: "Paper Pad / Inside the editor", available: ObjBindMethod(this, "Available"),
-                    scope: "paper-pad", context: ScratchpadEditorFocused})
+                    scope: "paper-pad", context: PaperPadEditorFocused})
     }
 
-    static Available(*) => SuiteState.App.ModuleActive("scratchpad")
+    static Available(*) => SuiteState.App.ModuleActive("paper-pad")
 
     static Start(manager) {
-        global scratchpad
-        scratchpad := ScratchpadController(SuiteState.App.Settings.directory "\scratchpad")
-        manager.Observe("~#.", ScratchpadEditorFocused,
-            (*) => scratchpad.NoteSystemTextInputInvocation())
-        pending := (*) => IsSet(scratchpad) && scratchpad.SystemTextInputEscapePending()
+        global paperPad
+        paperPad := PaperPadController(SuiteState.App.Settings.directory "\paper-pad")
+        manager.Observe("~#.", PaperPadEditorFocused,
+            (*) => paperPad.NoteSystemTextInputInvocation())
+        pending := (*) => IsSet(paperPad) && paperPad.SystemTextInputEscapePending()
         for key in ["LButton", "RButton", "MButton", "XButton1", "XButton2"]
-            manager.Observe("~" key " Up", pending, (*) => scratchpad.HandleSystemTextInputClick())
+            manager.Observe("~" key " Up", pending, (*) => paperPad.HandleSystemTextInputClick())
     }
 
     static Event(command, event) {
@@ -43,18 +43,18 @@ class ScratchpadModule {
     }
 
     static Execute(command, foreground, *) {
-        global scratchpad
-        if !this.Available() || !IsSet(scratchpad) || SuiteState.App.stopping
+        global paperPad
+        if !this.Available() || !IsSet(paperPad) || SuiteState.App.stopping
             return
-        if command != "toggle" && (!ScratchpadEditorFocused() || foreground != scratchpad.window_hwnd)
+        if command != "toggle" && (!PaperPadEditorFocused() || foreground != paperPad.window_hwnd)
             return
         if command = "hide" {
-            if scratchpad.SystemTextInputEscapePending() {
-                scratchpad.ConsumeSystemTextInputEscape()
+            if paperPad.SystemTextInputEscapePending() {
+                paperPad.ConsumeSystemTextInputEscape()
                 Send "{Escape}"
             } else
-                scratchpad.HandleEscape(SuiteState.App.inputGeneration)
+                paperPad.HandleEscape(SuiteState.App.inputGeneration)
         } else
-            scratchpad.QueueCommand(command, SuiteState.App.inputGeneration)
+            paperPad.QueueCommand(command, SuiteState.App.inputGeneration)
     }
 }

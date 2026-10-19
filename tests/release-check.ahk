@@ -415,13 +415,13 @@ class SuiteReleaseChecks {
             smaller := SuiteFitClientSize(window, 100, 100, right - left, bottom - top)
             this.Assert(smaller.width = 100 && smaller.height = 100,
                 "fitting preserves deliberately small windows")
-            this.Assert(ScratchpadIsDialogWindow(window.Hwnd), "a visible test dialog can yield Paper Pad")
+            this.Assert(PaperPadIsDialogWindow(window.Hwnd), "a visible test dialog can yield Paper Pad")
             cloaked := Buffer(4, 0)
             NumPut("uint", 1, cloaked)
             result := DllCall("dwmapi\DwmSetWindowAttribute", "ptr", window.Hwnd,
                 "uint", 13, "ptr", cloaked, "uint", 4, "int") ; DWMWA_CLOAK
             this.Assert(result = 0 && IsWindowCloaked(window.Hwnd), "the test owns its cloaked dialog")
-            this.Assert(!ScratchpadIsDialogWindow(window.Hwnd),
+            this.Assert(!PaperPadIsDialogWindow(window.Hwnd),
                 "a cloaked dialog on another desktop does not lower Paper Pad")
             NumPut("uint", 0, cloaked)
             DllCall("dwmapi\DwmSetWindowAttribute", "ptr", window.Hwnd,
@@ -472,7 +472,7 @@ class SuiteReleaseInputGate {
     SetPaused(paused) => this.gated := paused
 }
 
-class SuiteReleasePad extends ScratchpadController {
+class SuiteReleasePad extends PaperPadController {
     __New() {
         this.busy := false
         this.command_queue := []

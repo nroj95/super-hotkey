@@ -1,14 +1,14 @@
 ; Preserved Notepad3 controller; shared shortcuts, logging and save-aware suite lifecycle.
 
-ScratchpadEditorFocused()
+PaperPadEditorFocused()
 {
-    global scratchpad
+    global paperPad
 
-    if !IsSet(scratchpad) || !IsObject(scratchpad) || !scratchpad.HasWindow()
+    if !IsSet(paperPad) || !IsObject(paperPad) || !paperPad.HasWindow()
         return false
-    if !WinActive("ahk_id " scratchpad.window_hwnd)
+    if !WinActive("ahk_id " paperPad.window_hwnd)
         return false
-    if !scratchpad.bridge || scratchpad.bridge.tainted
+    if !paperPad.bridge || paperPad.bridge.tainted
         return false
 
     ; Read the actual focused HWND instead of relying on a ClassNN string.
@@ -23,11 +23,11 @@ ScratchpadEditorFocused()
         return false
 
     focused_hwnd := NumGet(thread_info, 16, "ptr")
-    return focused_hwnd = scratchpad.bridge.editor_hwnd
+    return focused_hwnd = paperPad.bridge.editor_hwnd
 }
 
 
-class ScratchpadController
+class PaperPadController
 {
     ; =========================================================================
     ; configuration and serialized commands
@@ -57,9 +57,9 @@ class ScratchpadController
         this.last_bounds := 0
         this.page_lock_handle := 0
         this.page_lock_path := ""
-        this.window_marker := "nroj.Scratchpad.Notepad3Window"
+        this.window_marker := "nroj.PaperPad.Notepad3Window"
         this.cascade_ignore_marker := "nroj.WindowCascade.Ignore"
-        this.controller_title := "nroj.Scratchpad.Controller"
+        this.controller_title := "nroj.PaperPad.Controller"
         this.data_directory := dataDirectory
         this.settings_path := this.data_directory "\settings.ini"
         this.state_path := this.data_directory "\state.ini"
@@ -68,7 +68,7 @@ class ScratchpadController
         this.mutex_handle := 0
 
         this.mutex_handle := DllCall("CreateMutexW", "ptr", 0, "int", false,
-            "str", "Local\nroj.Scratchpad.Controller", "ptr")
+            "str", "Local\nroj.PaperPad.Controller", "ptr")
         mutex_error := A_LastError
         if !this.mutex_handle
             throw OSError(mutex_error, "CreateMutexW")
@@ -79,15 +79,15 @@ class ScratchpadController
         }
 
         DirCreate this.data_directory
-        default_scratch_directory := EnvGet("USERPROFILE") "\Scratchpad"
-        this.CreateDefaultSettings(default_scratch_directory)
-        this.scratch_directory := RTrim(IniRead(this.settings_path, "Paths",
-            "ScratchDirectory", default_scratch_directory), "\/")
-        if !RegExMatch(this.scratch_directory, "i)^(?:[a-z]:\\|\\\\)")
-            throw Error("ScratchDirectory must be an absolute Windows path.")
-        DirCreate this.scratch_directory
+        default_notes_directory := EnvGet("USERPROFILE") "\Paper Pad"
+        this.CreateDefaultSettings(default_notes_directory)
+        this.notes_directory := RTrim(IniRead(this.settings_path, "Paths",
+            "NotesDirectory", default_notes_directory), "\/")
+        if !RegExMatch(this.notes_directory, "i)^(?:[a-z]:\\|\\\\)")
+            throw Error("NotesDirectory must be an absolute Windows path.")
+        DirCreate this.notes_directory
         ; Resolve . and .. before enforcing the direct-child page boundary.
-        this.scratch_directory := RTrim(ScratchpadFullPath(this.scratch_directory), "\/")
+        this.notes_directory := RTrim(PaperPadFullPath(this.notes_directory), "\/")
         this.monitor_target := this.ReadMonitorTarget()
         this.width_percent := this.ReadNumber("Window", "WidthPercent", 45, 30, 100)
         this.height_percent := this.ReadNumber("Window", "HeightPercent", 35, 20, 100)
@@ -112,7 +112,7 @@ class ScratchpadController
         try this.AttachExistingWindow()
         catch as failure {
             this.autosave_paused := true
-            SuiteState.ScratchpadStatus := "Paper Pad - autosave paused"
+            SuiteState.PaperPadStatus := "Paper Pad - autosave paused"
             this.ReportError(failure, true)
         }
         SetTimer this.autosave_callback, this.autosave_ms
@@ -135,10 +135,10 @@ class ScratchpadController
         }
     }
 
-    CreateDefaultSettings(default_scratch_directory)
+    CreateDefaultSettings(default_notes_directory)
     {
         if !FileExist(this.settings_path) {
-            settings := "[Paths]`nScratchDirectory=" default_scratch_directory
+            settings := "[Paths]`nNotesDirectory=" default_notes_directory
                 . "`nNotepad3Executable=`n"
                 . "`n[Window]`nMonitor=Primary`nWidthPercent=45`nHeightPercent=35`nAnimationDurationMs=180`n"
                 . "`n[Saving]`nAutosaveIntervalMs=10000`n"
@@ -260,7 +260,7 @@ class ScratchpadController
     QueueCommand(command, inputGeneration := -1, *)
     {
         ; Hiding or toggling the drawer ends any outstanding Windows text-input
-        ; session so it cannot affect Escape after Scratchpad is reopened.
+        ; session so it cannot affect Escape after PaperPad is reopened.
         if command = "hide" || command = "toggle"
             this.ConsumeSystemTextInputEscape()
 
@@ -295,7 +295,7 @@ class ScratchpadController
                 catch as failure {
                     this.command_queue := []
                     this.autosave_paused := true
-                    SuiteState.ScratchpadStatus := "Paper Pad - autosave paused"
+                    SuiteState.PaperPadStatus := "Paper Pad - autosave paused"
                     this.RevealAfterError(request.source_window)
                     this.ReportError(failure)
                 }
@@ -313,7 +313,7 @@ class ScratchpadController
     ExecuteCommand(request)
     {
         if request.name = "exit" {
-            this.ExitScratchpad()
+            this.ExitPaperPad()
             return
         }
         if request.name = "reload" {
@@ -434,7 +434,7 @@ class ScratchpadController
                 ? IniRead(this.state_path, "CurrentPage", "DiskStamp", "") : ""
 
             attributes := FileExist(path)
-            if this.IsScratchPath(path) && attributes && !InStr(attributes, "D")
+            if this.IsNotePath(path) && attributes && !InStr(attributes, "D")
                 this.ProtectPage(path)
 
             this.bridge.PrepareDrawer()
@@ -469,7 +469,7 @@ class ScratchpadController
         ) = "1"
 
         initial_attributes := initial_path != "" ? FileExist(initial_path) : ""
-        if !this.IsScratchPath(initial_path) || !initial_attributes || InStr(initial_attributes, "D") {
+        if !this.IsNotePath(initial_path) || !initial_attributes || InStr(initial_attributes, "D") {
             pages := this.ListPages()
 
             if pages.Length
@@ -487,13 +487,13 @@ class ScratchpadController
         ; Welcome is a first-install opportunity, not a recurring empty-folder state.
         if welcome_pending
             IniWrite 0, this.settings_path, "Setup", "WelcomePending"
-        initial_path := ScratchpadFullPath(initial_path)
-        before_load_stamp := ScratchpadFileStamp(initial_path)
+        initial_path := PaperPadFullPath(initial_path)
+        before_load_stamp := PaperPadFileStamp(initial_path)
         ; /n requests a new process/window, /f isolates its INI, /l0 prompts on
         ; external changes. No /i tray mode or copied executable.
         command_line := '"' executable '" /n /f "' this.editor_profile
             . '" /l0 "' initial_path '"'
-        Run command_line, this.scratch_directory, "Hide", &editor_pid
+        Run command_line, this.notes_directory, "Hide", &editor_pid
         this.editor_pid := editor_pid
         deadline := A_TickCount + 12000
         loop {
@@ -531,7 +531,7 @@ class ScratchpadController
         ; A newly launched editor starts a new save session. A failure in a
         ; previously closed editor must not leave this one silently paused.
         this.autosave_paused := false
-        SuiteState.ScratchpadStatus := "Paper Pad"
+        SuiteState.PaperPadStatus := "Paper Pad"
         return new_page
     }
 
@@ -673,7 +673,7 @@ class ScratchpadController
             if known_windows.Has(hwnd)
                 continue
 
-            ; Never touch a Scratchpad-owned editor if this helper is reused later.
+            ; Never touch a PaperPad-owned editor if this helper is reused later.
             if DllCall(
                 "GetPropW",
                 "ptr", hwnd,
@@ -722,40 +722,40 @@ class ScratchpadController
     ; persistent pages, checked saves and in-place switching
     ; =========================================================================
 
-    IsScratchPath(path)
+    IsNotePath(path)
     {
         if path = ""
             return false
-        try path := ScratchpadFullPath(path)
+        try path := PaperPadFullPath(path)
         catch
             return false
         SplitPath path, , &directory, &extension
-        return RTrim(directory, "\/") = this.scratch_directory
+        return RTrim(directory, "\/") = this.notes_directory
             && InStr(this.allowed_extensions, "|" StrLower(extension) "|")
     }
 
     ListPages()
     {
         sortable_pages := ""
-        Loop Files this.scratch_directory "\*", "F" {
-            if this.IsScratchPath(A_LoopFileFullPath)
+        Loop Files this.notes_directory "\*", "F" {
+            if this.IsNotePath(A_LoopFileFullPath)
                 sortable_pages .= A_LoopFileTimeCreated "`t" A_LoopFileName "`n"
         }
         pages := []
         ; Creation time is stable when a page is renamed; names break time ties.
         Loop Parse Sort(sortable_pages), "`n", "`r" {
             if A_LoopField != ""
-                pages.Push(this.scratch_directory "\" SubStr(A_LoopField, 16))
+                pages.Push(this.notes_directory "\" SubStr(A_LoopField, 16))
         }
         return pages
     }
 
     CreatePage()
     {
-        base_name := "scratch-" FormatTime(, "yyyyMMdd-HHmmss")
+        base_name := "paper-pad-" FormatTime(, "yyyyMMdd-HHmmss")
         loop {
             suffix := A_Index = 1 ? "" : "-" Format("{:02}", A_Index)
-            path := this.scratch_directory "\" base_name suffix ".md"
+            path := this.notes_directory "\" base_name suffix ".md"
             ; CREATE_NEW is atomic: even rapid presses cannot overwrite a page.
             file_handle := DllCall("CreateFileW", "str", path, "uint", 0x40000000,
                 "uint", 7, "ptr", 0, "uint", 1, "uint", 0x80, "ptr", 0, "ptr")
@@ -771,7 +771,7 @@ class ScratchpadController
 
     ProtectPage(path)
     {
-        path := ScratchpadFullPath(path)
+        path := PaperPadFullPath(path)
 
         if this.page_lock_handle && path = this.page_lock_path
             return
@@ -829,11 +829,11 @@ class ScratchpadController
             ; Reuse this watcher for Z-order without another permanent timer.
             try this.SyncZOrder()
 
-            ; Native Save As happens outside Scratchpad's command path. Watch its
+            ; Native Save As happens outside PaperPad's command path. Watch its
             ; filename so the delete-denying handle follows it before autosave.
             if !this.bridge || this.bridge.tainted
                 return
-            if !ScratchpadWindowIdle(this.window_hwnd)
+            if !PaperPadWindowIdle(this.window_hwnd)
                 return
 
             path := this.bridge.CurrentPath()
@@ -841,14 +841,14 @@ class ScratchpadController
                 return
 
             attributes := path != "" ? FileExist(path) : ""
-            if this.IsScratchPath(path) && attributes && !InStr(attributes, "D")
+            if this.IsNotePath(path) && attributes && !InStr(attributes, "D")
                 this.ProtectPage(path)
             else
                 this.ReleasePageLock()
         }
         catch {
             ; Native dialogs and transient filename changes are retried on the
-            ; next tick. Normal Scratchpad commands still report real failures.
+            ; next tick. Normal PaperPad commands still report real failures.
         }
         finally {
             this.busy := false
@@ -872,9 +872,9 @@ class ScratchpadController
             this.ConnectBridge()
         this.bridge.CheckReady()
         path := this.bridge.CurrentPath()
-        if !this.IsScratchPath(path)
+        if !this.IsNotePath(path)
             throw Error("The editor is not showing a supported file directly inside:`n"
-                . this.scratch_directory "`n`nReturn to a scratch page or use File > Save As. Unrelated files will not be saved or closed automatically.")
+                . this.notes_directory "`n`nReturn to a scratch page or use File > Save As. Unrelated files will not be saved or closed automatically.")
         attributes := FileExist(path)
         if !attributes
             throw Error("The active scratch page unexpectedly disappeared from disk:`n" path)
@@ -888,7 +888,7 @@ class ScratchpadController
             ; Accept the user's explicit document change; subsequent disk changes
             ; are checked against this new baseline.
             this.current_path := path
-            this.disk_stamp := ScratchpadFileStamp(path)
+            this.disk_stamp := PaperPadFileStamp(path)
         }
         return path
     }
@@ -906,7 +906,7 @@ class ScratchpadController
     SaveCurrentPage(require_clean := true)
     {
         path := this.CheckCurrentPage()
-        current_stamp := ScratchpadFileStamp(path)
+        current_stamp := PaperPadFileStamp(path)
         if this.disk_stamp = "" || current_stamp != this.disk_stamp {
             ; A native save/reload is harmless only when disk and editor agree.
             ; Never auto-reload here: the user may have kept a different version.
@@ -914,7 +914,7 @@ class ScratchpadController
                 throw Error("The page changed on disk, or its previous save state is unknown.`n`n"
                     . "Use Notepad3 File > Save As to preserve the editor version under a new scratch name,"
                     . " or File > Revert to keep the disk version. No automatic overwrite was attempted.")
-            if ScratchpadFileStamp(path) != current_stamp
+            if PaperPadFileStamp(path) != current_stamp
                 throw Error("The file changed again while being checked. Retry after the other writer has finished.")
             this.disk_stamp := current_stamp
         }
@@ -923,12 +923,12 @@ class ScratchpadController
         ; require a clean editor after verification, with bounded save retries.
         save_passes := require_clean ? 3 : 1
         loop save_passes {
-            before_save_stamp := ScratchpadFileStamp(path)
+            before_save_stamp := PaperPadFileStamp(path)
             if before_save_stamp != this.disk_stamp
                 throw Error("The page changed on disk before saving. No automatic overwrite was attempted.")
 
             try save_snapshot := this.bridge.DocumentText()
-            catch ScratchpadTextChangedError as failure {
+            catch PaperPadTextChangedError as failure {
                 ; No Save has been sent on this autosave pass. Ordinary typing
                 ; can safely defer it to the next interval without pausing saves.
                 ; Never suppress a timeout, embedded NUL or post-save failure.
@@ -940,7 +940,7 @@ class ScratchpadController
             ; Recheck after the cross-process text read, and on every retry.
             if this.bridge.CurrentPath() != path
                 throw Error("The active page changed before saving. Inspect Notepad3 before retrying.")
-            if ScratchpadFileStamp(path) != before_save_stamp
+            if PaperPadFileStamp(path) != before_save_stamp
                 throw Error("The page changed on disk while preparing to save. No automatic overwrite was attempted.")
 
             ; Always ask the native editor to save: encoding-only changes may not
@@ -949,7 +949,7 @@ class ScratchpadController
             if this.bridge.CurrentPath() != path || !FileExist(path)
                 throw Error("The save target changed or disappeared. Inspect the editor before retrying.")
 
-            after_save_stamp := ScratchpadFileStamp(path)
+            after_save_stamp := PaperPadFileStamp(path)
             if !this.bridge.MatchesDiskText(path, save_snapshot) {
                 ; Notepad3 may trim trailing blanks during Save, or typing may
                 ; reach it between our snapshot and its native Save handler.
@@ -961,7 +961,7 @@ class ScratchpadController
                     throw Error("The completed save could not be verified against either the submitted snapshot or the clean editor. No new save baseline was accepted. Stop editing briefly and retry, or preserve the editor text with File > Save As.")
                 }
             }
-            if ScratchpadFileStamp(path) != after_save_stamp
+            if PaperPadFileStamp(path) != after_save_stamp
                 throw Error("The file changed again while the completed save was being verified.")
 
             this.AcceptSave(path, after_save_stamp)
@@ -983,12 +983,12 @@ class ScratchpadController
         this.bridge.CheckReady()
         if this.bridge.CurrentPath() != path
             throw Error("The active page changed while the completed save was being verified.")
-        if ScratchpadFileStamp(path) != stamp
+        if PaperPadFileStamp(path) != stamp
             throw Error("The file changed again before the verified save could be recorded.")
         this.disk_stamp := stamp
         this.PersistCurrentState()
         this.autosave_paused := false
-        SuiteState.ScratchpadStatus := "Paper Pad"
+        SuiteState.PaperPadStatus := "Paper Pad"
     }
 
     ConfigureNewPage()
@@ -1010,12 +1010,12 @@ class ScratchpadController
             next_path := this.CreatePage()
         else if next_path = this.current_path
             return
-        next_path := ScratchpadFullPath(next_path)
+        next_path := PaperPadFullPath(next_path)
         attributes := FileExist(next_path)
-        if !this.IsScratchPath(next_path) || !attributes || InStr(attributes, "D")
+        if !this.IsNotePath(next_path) || !attributes || InStr(attributes, "D")
             throw Error("The next scratch page is no longer available:`n" next_path)
         this.RememberPageView(this.current_path)
-        before_load_stamp := ScratchpadFileStamp(next_path)
+        before_load_stamp := PaperPadFileStamp(next_path)
         this.bridge.OpenPage(next_path, this.controller_window.Hwnd)
         if this.bridge.CurrentPath() != next_path
             throw Error("Notepad3 did not load the requested page. Inspect its dialog and retry.")
@@ -1104,13 +1104,13 @@ class ScratchpadController
         if this.busy || this.autosave_paused || !this.IsVisible()
             return
         ; Never interact with an open native menu, file dialog or move/size loop.
-        if !ScratchpadWindowIdle(this.window_hwnd)
+        if !PaperPadWindowIdle(this.window_hwnd)
             return
         this.busy := true
         try this.SaveCurrentPage(false)
         catch as failure {
             this.autosave_paused := true
-            SuiteState.ScratchpadStatus := "Paper Pad - autosave paused"
+            SuiteState.PaperPadStatus := "Paper Pad - autosave paused"
             this.ReportError(failure, true)
         }
         finally {
@@ -1210,7 +1210,7 @@ class ScratchpadController
         bounds.w := actual_width
         bounds.h := actual_height
 
-        ; Scratchpad is a drawer, so it remains topmost whenever it is visible.
+        ; PaperPad is a drawer, so it remains topmost whenever it is visible.
         this.SetDrawerTopmost(true)
         this.AnimateWindow(true, bounds, animate)
         this.FocusEditor()
@@ -1261,7 +1261,7 @@ class ScratchpadController
         foreground := DllCall("GetForegroundWindow", "ptr")
 
         if foreground && foreground != this.window_hwnd
-            && !ScratchpadIsDialogWindow(foreground)
+            && !PaperPadIsDialogWindow(foreground)
         {
             this.last_external_window := foreground
         }
@@ -1280,20 +1280,20 @@ class ScratchpadController
     FindYieldDialog(foreground)
     {
         if foreground && foreground != this.window_hwnd
-            && ScratchpadIsDialogWindow(foreground)
+            && PaperPadIsDialogWindow(foreground)
             return foreground
 
         context := 0
         if foreground && foreground != this.window_hwnd
-            && ScratchpadUsableWindow(foreground)
-            && !ScratchpadIsDialogWindow(foreground)
+            && PaperPadUsableWindow(foreground)
+            && !PaperPadIsDialogWindow(foreground)
         {
             context := foreground
-        } else if ScratchpadUsableWindow(this.last_external_window) {
+        } else if PaperPadUsableWindow(this.last_external_window) {
             context := this.last_external_window
         }
 
-        context_pid := context ? ScratchpadWindowProcessId(context) : 0
+        context_pid := context ? PaperPadWindowProcessId(context) : 0
 
         ; Keep hidden-window detection enabled elsewhere for the retained editor,
         ; but exclude hidden/cloaked windows from this frequent dialog scan.
@@ -1305,7 +1305,7 @@ class ScratchpadController
         ; The list follows top-level Z-order. OperationStatusWindow is specific
         ; enough to yield globally; broader dialogs need the current context.
         for candidate in candidates {
-            if candidate = this.window_hwnd || !ScratchpadIsDialogWindow(candidate)
+            if candidate = this.window_hwnd || !PaperPadIsDialogWindow(candidate)
                 continue
 
             try candidate_class := WinGetClass("ahk_id " candidate)
@@ -1334,7 +1334,7 @@ class ScratchpadController
                 if owner = context
                     return candidate
 
-                candidate_pid := ScratchpadWindowProcessId(candidate)
+                candidate_pid := PaperPadWindowProcessId(candidate)
                 if context_pid && candidate_pid = context_pid
                     return candidate
             }
@@ -1345,7 +1345,7 @@ class ScratchpadController
 
     YieldDrawerTo(dialog)
     {
-        if !ScratchpadUsableWindow(dialog)
+        if !PaperPadUsableWindow(dialog)
             return
 
         this.SetDrawerTopmost(false)
@@ -1373,10 +1373,10 @@ class ScratchpadController
                 this.PlaceAnimationFrame(bounds, start_y)
                 DllCall("ShowWindow", "ptr", this.window_hwnd, "int", 4) ; SW_SHOWNOACTIVATE
             }
-            started := ScratchpadClockMs()
+            started := PaperPadClockMs()
             last_frame_y := start_y
             loop {
-                progress := duration ? Min(1, (ScratchpadClockMs() - started) / duration) : 1
+                progress := duration ? Min(1, (PaperPadClockMs() - started) / duration) : 1
                 eased := 1 - (1 - progress) ** 3
                 current_y := Round(start_y + (end_y - start_y) * eased)
                 ; Easing often rounds several final frames to the same pixel.
@@ -1389,10 +1389,10 @@ class ScratchpadController
                     break
                 ; Frame pacing follows desktop composition, without a permanent
                 ; high-resolution timer request or a CPU-spinning wait loop.
-                frame_wait_started := ScratchpadClockMs()
+                frame_wait_started := PaperPadClockMs()
                 if DllCall("dwmapi\DwmFlush", "int") != 0
                     Sleep 8
-                else if ScratchpadClockMs() - frame_wait_started < 1
+                else if PaperPadClockMs() - frame_wait_started < 1
                     Sleep 1
                 Sleep -1
             }
@@ -1467,7 +1467,7 @@ class ScratchpadController
                 SetTimer this.process_commands_callback, -1
         }
         if inputGeneration >= 0 && (!SuiteState.App.InputIsCurrent(inputGeneration)
-            || !ScratchpadEditorFocused())
+            || !PaperPadEditorFocused())
             return
         if pass_escape
             Send "{Escape}" ; Completion/calltip gets Escape before the drawer.
@@ -1605,9 +1605,9 @@ class ScratchpadController
 
 
 
-    ShowHelp(*) => SuiteState.App.ui.ToggleHelp("scratchpad")
+    ShowHelp(*) => SuiteState.App.ui.ToggleHelp("paper-pad")
 
-    ExitScratchpad()
+    ExitPaperPad()
     {
         ; Also find a retained editor when Exit is used directly after Reload.
         if this.HasWindow() || this.AttachExistingWindow() {
@@ -1691,7 +1691,7 @@ class ScratchpadController
 
 ; A changing text length is retryable before Save; corrupt/unsupported text and
 ; failed message transport remain ordinary hard errors.
-class ScratchpadTextChangedError extends Error
+class PaperPadTextChangedError extends Error
 {
 }
 
@@ -1730,7 +1730,7 @@ class Notepad3Bridge
         if !DllCall("IsWindow", "ptr", this.hwnd, "int")
             || WinGetPID("ahk_id " this.hwnd) != this.pid
             throw Error("The owned Notepad3 window is no longer available.")
-        if !ScratchpadWindowIdle(this.hwnd)
+        if !PaperPadWindowIdle(this.hwnd)
             throw Error("Finish or cancel the Notepad3 menu/dialog before using a scratch command.")
     }
 
@@ -1765,7 +1765,7 @@ class Notepad3Bridge
         ; The visible watcher reads this four times per second. Avoid two path
         ; normalization calls whenever the actual filename has not changed.
         if !(path == this.cached_filename) {
-            full_path := path = "" ? "" : ScratchpadFullPath(path)
+            full_path := path = "" ? "" : PaperPadFullPath(path)
             this.cached_filename := path
             this.cached_full_path := full_path
         }
@@ -1790,7 +1790,7 @@ class Notepad3Bridge
             if this.Send(0x000E, 0, 0, hwnd) = length && copied = length
                 return text
         }
-        throw ScratchpadTextChangedError("The editor kept changing while its text was being read. Retry after editing stops.")
+        throw PaperPadTextChangedError("The editor kept changing while its text was being read. Retry after editing stops.")
     }
 
     Scintilla(message, w_param := 0, l_param := 0)
@@ -1958,7 +1958,7 @@ class Notepad3Bridge
 ; small native helpers
 ; =============================================================================
 
-ScratchpadWindowIdle(hwnd)
+PaperPadWindowIdle(hwnd)
 {
     if !DllCall("IsWindowEnabled", "ptr", hwnd, "int")
         return false
@@ -1973,7 +1973,7 @@ ScratchpadWindowIdle(hwnd)
     return !popup || popup = hwnd || !DllCall("IsWindowVisible", "ptr", popup, "int")
 }
 
-ScratchpadUsableWindow(hwnd)
+PaperPadUsableWindow(hwnd)
 {
     return hwnd
         && DllCall("IsWindow", "ptr", hwnd, "int")
@@ -1981,7 +1981,7 @@ ScratchpadUsableWindow(hwnd)
         && !DllCall("IsIconic", "ptr", hwnd, "int")
 }
 
-ScratchpadWindowProcessId(hwnd)
+PaperPadWindowProcessId(hwnd)
 {
     if !hwnd
         return 0
@@ -1990,7 +1990,7 @@ ScratchpadWindowProcessId(hwnd)
     return NumGet(process_id, 0, "uint")
 }
 
-ScratchpadIsDialogWindow(hwnd)
+PaperPadIsDialogWindow(hwnd)
 {
     if !hwnd || !DllCall("IsWindow", "ptr", hwnd, "int")
         || !DllCall("IsWindowVisible", "ptr", hwnd, "int")
@@ -2015,7 +2015,7 @@ ScratchpadIsDialogWindow(hwnd)
     return DllCall("GetWindow", "ptr", hwnd, "uint", 4, "ptr") != 0 ; GW_OWNER
 }
 
-ScratchpadFullPath(path)
+PaperPadFullPath(path)
 {
     required := DllCall("GetFullPathNameW", "str", path, "uint", 0, "ptr", 0, "ptr", 0, "uint")
     if !required
@@ -2027,55 +2027,7 @@ ScratchpadFullPath(path)
     return StrGet(path_buffer, "UTF-16")
 }
 
-SetScratchpadHelpIcons(help_gui)
-{
-    icon_handles := []
-    icon_path := A_ScriptDir "\assets\scratchpad.ico"
-
-    if !FileExist(icon_path)
-        return icon_handles
-
-    try {
-        for icon_index, size in [16, 32] {
-            image_type := 0
-            icon_handle := LoadPicture(
-                icon_path,
-                "Icon1 w" size " h" size,
-                &image_type
-            )
-
-            if !icon_handle
-                continue
-
-            if image_type != 1 {
-                DllCall(
-                    image_type = 2 ? "DestroyCursor" : "DeleteObject",
-                    "ptr",
-                    icon_handle,
-                    "int"
-                )
-                continue
-            }
-
-            icon_handles.Push(icon_handle)
-
-            SendMessage(
-                0x0080,
-                icon_index - 1,
-                icon_handle,
-                ,
-                help_gui.Hwnd
-            )
-        }
-    }
-    catch {
-    }
-
-    return icon_handles
-}
-
-
-ScratchpadFileStamp(path)
+PaperPadFileStamp(path)
 {
     attributes := Buffer(36, 0) ; WIN32_FILE_ATTRIBUTE_DATA
     if !DllCall("GetFileAttributesExW", "str", path, "int", 0, "ptr", attributes, "int")
@@ -2085,7 +2037,7 @@ ScratchpadFileStamp(path)
         NumGet(attributes, 28, "uint"), NumGet(attributes, 32, "uint"))
 }
 
-ScratchpadClockMs()
+PaperPadClockMs()
 {
     static frequency := 0
     if !frequency

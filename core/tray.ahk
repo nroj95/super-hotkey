@@ -310,7 +310,7 @@ class SuiteInterface {
         content := window.AddText("x20 y55 w860 h455 vhelpText",
             ModuleHelp.Text(id, this.app.manager))
         buttons := []
-        if id = "scratchpad"
+        if id = "paper-pad"
             buttons.Push(["Open pad", ObjBindMethod(this, "OpenPad"), 110])
         if id != "power-up-utilities"
             buttons.Push(["Settings...", ObjBindMethod(this, "OpenSettingsFromHelp", id), 120])
@@ -552,7 +552,7 @@ class SuiteInterface {
         switch id {
             case "keyboard-layers": this.ShowLayerSettings()
             case "window-cascade": this.ShowCascadeSettings()
-            case "scratchpad": this.ShowPaperSettings()
+            case "paper-pad": this.ShowPaperSettings()
             case "win-key-overhaul": this.ShowWonderSettings()
         }
     }
@@ -672,14 +672,14 @@ class SuiteInterface {
     ; =========================================================================
 
     ShowPaperSettings(*) {
-        key := "settings:scratchpad"
+        key := "settings:paper-pad"
         if this.Existing(key)
             return
-        path := this.app.Settings.directory "\scratchpad\settings.ini"
+        path := this.app.Settings.directory "\paper-pad\settings.ini"
         window := this.NewWindow(key, "Paper Pad - Settings", true)
         window.AddText("x20 y18 w740", "Changing the notes folder does not move or delete existing notes.")
         window.AddText("x20 y60 w150", "Notes folder")
-        window.AddEdit("x180 y55 w590 vfolder", IniRead(path, "Paths", "ScratchDirectory", EnvGet("USERPROFILE") "\Scratchpad"))
+        window.AddEdit("x180 y55 w590 vfolder", IniRead(path, "Paths", "NotesDirectory", EnvGet("USERPROFILE") "\Paper Pad"))
         window.AddText("x20 y105 w150", "Notepad3 executable")
         window.AddEdit("x180 y100 w590 veditor", IniRead(path, "Paths", "Notepad3Executable", ""))
         window.AddText("x180 y132 w590", "Leave the executable blank for automatic detection.")
@@ -717,7 +717,7 @@ class SuiteInterface {
         }
         this.Footer(window, [["Open notes folder", ObjBindMethod(this, "OpenNotesFolder"), 165],
             ["Apply and restart", ObjBindMethod(this, "SavePaper"), 160],
-            ["Back", ObjBindMethod(this, "BackToHelp", "scratchpad"), 100]], 435)
+            ["Back", ObjBindMethod(this, "BackToHelp", "paper-pad"), 100]], 435)
         this.ShowPage(key, 800, 485, 760, 460)
     }
 
@@ -729,10 +729,10 @@ class SuiteInterface {
     }
 
     SavePaper(*) {
-        global scratchpad
-        key := "settings:scratchpad"
+        global paperPad
+        key := "settings:paper-pad"
         window := this.windows[key]
-        path := this.app.Settings.directory "\scratchpad\settings.ini"
+        path := this.app.Settings.directory "\paper-pad\settings.ini"
         try {
             folder := Trim(window["folder"].Value)
             editor := Trim(window["editor"].Value)
@@ -740,22 +740,22 @@ class SuiteInterface {
                 throw ValueError("Use an absolute Windows path for the notes folder.")
             if editor != "" && (!RegExMatch(editor, "i)^(?:[a-z]:\\|\\\\)") || !FileExist(editor))
                 throw ValueError("Select an existing Notepad3 executable, or leave the field blank.")
-            changes := Map("Paths", Map("ScratchDirectory", folder, "Notepad3Executable", editor),
+            changes := Map("Paths", Map("NotesDirectory", folder, "Notepad3Executable", editor),
                 "Window", Map("Monitor", this.padMonitors[window["display"].Value],
                     "WidthPercent", this.NumberField(window, "width", 30, 100),
                     "HeightPercent", this.NumberField(window, "height", 20, 100),
                     "AnimationDurationMs", this.NumberField(window, "animation", 0, 1000)),
                 "Saving", Map("AutosaveIntervalMs", this.NumberField(window, "autosave", 500, 60000)))
-            pathsChanged := folder != IniRead(path, "Paths", "ScratchDirectory", EnvGet("USERPROFILE") "\Scratchpad")
+            pathsChanged := folder != IniRead(path, "Paths", "NotesDirectory", EnvGet("USERPROFILE") "\Paper Pad")
                 || editor != IniRead(path, "Paths", "Notepad3Executable", "")
-            if pathsChanged && this.app.scratchpadStarted && IsSet(scratchpad) {
+            if pathsChanged && this.app.paperPadStarted && IsSet(paperPad) {
                 if MsgBox("Save and close the owned Notepad3 window before changing these paths?"
                     . "`nExisting notes remain where they are; no files will be moved or deleted.",
                     "Paper Pad", "YesNo Default2 Icon?") != "Yes"
                     return
-                scratchpad.PrepareSuiteExit("Exit")
+                paperPad.PrepareSuiteExit("Exit")
             }
-            this.app.Settings.WritePreferences("scratchpad", changes)
+            this.app.Settings.WritePreferences("paper-pad", changes)
             this.CloseWindow(key)
             Reload()
         }
@@ -764,8 +764,8 @@ class SuiteInterface {
     }
 
     OpenNotesFolder(*) {
-        path := this.app.Settings.directory "\scratchpad\settings.ini"
-        folder := IniRead(path, "Paths", "ScratchDirectory", EnvGet("USERPROFILE") "\Scratchpad")
+        path := this.app.Settings.directory "\paper-pad\settings.ini"
+        folder := IniRead(path, "Paths", "NotesDirectory", EnvGet("USERPROFILE") "\Paper Pad")
         if DirExist(folder)
             Run('explorer.exe "' folder '"')
         else
@@ -773,13 +773,13 @@ class SuiteInterface {
     }
 
     OpenPad(*) {
-        global scratchpad
-        if this.app.dryRun || !this.app.scratchpadStarted || !IsSet(scratchpad) {
+        global paperPad
+        if this.app.dryRun || !this.app.paperPadStarted || !IsSet(paperPad) {
             MsgBox("Enable Paper Pad and use a normal launch to open the editor.", SuiteApplication.Name, "Iconi")
             return
         }
-        this.CloseWindow("help:scratchpad")
-        scratchpad.QueueCommand("show")
+        this.CloseWindow("help:paper-pad")
+        paperPad.QueueCommand("show")
     }
 
     ; =========================================================================
@@ -992,7 +992,7 @@ class SuiteInterface {
         backup := ""
         try {
             backup := app.Settings.Backup([app.Settings.path, app.manager.path,
-                root "\window-cascade\settings.ini", root "\scratchpad\settings.ini"])
+                root "\window-cascade\settings.ini", root "\paper-pad\settings.ini"])
             app.manager.Apply(app.manager._DefaultConfiguration())
             choices := Map()
             for id in SuiteSettings.ModuleOrder

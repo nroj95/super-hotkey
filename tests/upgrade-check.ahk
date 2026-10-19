@@ -112,12 +112,12 @@ class SuiteUpgradeChecks {
         SuiteChecks.Rejects((*) => SuiteSettings(settings.directory), "invalid independent-layer preference is rejected")
         this.Assert(FileRead(settings.path) = before, "bad layer preferences are not silently rewritten")
         settings.Save(settings.modules)
-        settings.WritePreferences("scratchpad", Map("Paths", Map("ScratchDirectory", "sentinel-folder"),
+        settings.WritePreferences("paper-pad", Map("Paths", Map("NotesDirectory", "sentinel-folder"),
             "Window", Map("WidthPercent", 45)))
-        settings.WritePreferences("scratchpad", Map("Window", Map("WidthPercent", 55)))
-        path := settings.directory "\scratchpad\settings.ini"
+        settings.WritePreferences("paper-pad", Map("Window", Map("WidthPercent", 55)))
+        path := settings.directory "\paper-pad\settings.ini"
         this.Assert(IniRead(path, "Window", "WidthPercent") = "55", "module preferences save through an atomic replacement")
-        this.Assert(IniRead(path, "Paths", "ScratchDirectory") = "sentinel-folder", "preference edits preserve unrelated note paths")
+        this.Assert(IniRead(path, "Paths", "NotesDirectory") = "sentinel-folder", "preference edits preserve unrelated note paths")
         logger := SuiteLog(settings.directory "\log")
         logger.Debug("Paper Pad", "hidden diagnostic")
         logger.Error("Paper Pad", Error("always recorded"))
@@ -212,9 +212,9 @@ class SuiteUpgradeChecks {
                 manager._CloseSettings()
                 if !flags[1] {
                     configuration := manager.GetConfiguration()
-                    configuration["scratchpad.toggle"].bindings[1] := "CapsLock"
+                    configuration["paper-pad.toggle"].bindings[1] := "CapsLock"
                     manager.Apply(configuration)
-                    this.Assert(this.Route(manager, "scratchpad.toggle").enabled,
+                    this.Assert(this.Route(manager, "paper-pad.toggle").enabled,
                         "disabled Caps prefix may be explicitly reassigned: " label)
                 }
                 if IsObject(manager.client) {
@@ -283,20 +283,20 @@ class SuiteUpgradeChecks {
             manager.Start()
             config := manager.GetConfiguration()
             config["power-up-utilities.system.wake-speakers"].bindings[1] := ""
-            config["scratchpad.toggle"].bindings[1] := "Caps + Caps"
-            config["scratchpad.help"].bindings[2] := "Pause + Pause"
+            config["paper-pad.toggle"].bindings[1] := "Caps + Caps"
+            config["paper-pad.help"].bindings[2] := "Pause + Pause"
             manager.Apply(config)
-            this.Assert(manager.GetConfiguration()["scratchpad.toggle"].bindings[1] = caps.signature
-                && manager.GetConfiguration()["scratchpad.help"].bindings[2] = pauseBinding.signature,
+            this.Assert(manager.GetConfiguration()["paper-pad.toggle"].bindings[1] = caps.signature
+                && manager.GetConfiguration()["paper-pad.help"].bindings[2] = pauseBinding.signature,
                 "manual self-prefix assignments save through normal Keybindings")
             this.Assert(CPL.doubleTapKeys.Has("caps") && CPL.doubleTapKeys.Has("pause")
                 && !CPL.keyGroups.Has(caps.key) && !CPL.keyGroups.Has(pauseBinding.key),
                 "double-tap shortcuts never register native activation-key suffix hooks")
             conflicting := manager.GetConfiguration()
-            conflicting["scratchpad.help"].bindings[1] := "Caps + Caps"
+            conflicting["paper-pad.help"].bindings[1] := "Caps + Caps"
             SuiteChecks.Rejects((*) => manager.Apply(conflicting),
                 "two double-tap actions in the same context still conflict")
-            this.Assert(manager.GetConfiguration()["scratchpad.toggle"].bindings[1] = caps.signature,
+            this.Assert(manager.GetConfiguration()["paper-pad.toggle"].bindings[1] = caps.signature,
                 "rejected double-tap conflict preserves the saved configuration")
         }
         finally manager.Stop()
@@ -731,7 +731,7 @@ class SuiteUpgradeChecks {
                 "disabled Secret Keys marks the saved Pause Help binding as reassignable")
             this.Assert(manager.warningButtons.Has(paper.Hwnd),
                 "disabled Pause bindings also receive the amber warning background")
-            before := manager.GetConfiguration()["scratchpad.help"].bindings[1]
+            before := manager.GetConfiguration()["paper-pad.help"].bindings[1]
             this.Assert(before = Keybindings.Parse("Pause + F12").signature,
                 "warning presentation never modifies the saved shortcut")
             manager._CloseSettings()
@@ -915,7 +915,7 @@ class SuiteUpgradeChecks {
                     = Keybindings.Parse("Pause + F9").signature,
                 "old clear-log defaults migrate without replacing customized log shortcuts")
             oldDefaults["window-cascade.copy-log"].bindings[1] := Keybindings.Parse("Caps + F6").signature
-            oldDefaults["scratchpad.help"].bindings[2] := Keybindings.Parse("Pause + F2").signature
+            oldDefaults["paper-pad.help"].bindings[2] := Keybindings.Parse("Pause + F2").signature
             CascadeMigrateDebugKeybindingDefaults(oldDefaults)
             this.Assert(oldDefaults["window-cascade.copy-log"].bindings[1]
                     = Keybindings.Parse("Caps + F6").signature,
@@ -1033,7 +1033,7 @@ class SuiteUpgradeChecks {
                     "manual GUI resize invalidates its remembered swap zone")
                 this.Assert(IsIgnoredByWindowCascade(guiProbe.Hwnd),
                     "Cascade Kingdom continues to ignore normal suite GUIs")
-                DllCall("SetPropW", "ptr", guiProbe.Hwnd, "str", "nroj.Scratchpad.Notepad3Window", "ptr", 1, "int")
+                DllCall("SetPropW", "ptr", guiProbe.Hwnd, "str", "nroj.PaperPad.Notepad3Window", "ptr", 1, "int")
                 this.Assert(SuiteWindowOwnership.AllowsWonderWindows(guiProbe.Hwnd),
                     "marked Paper Pad editor windows remain eligible")
             }
@@ -1102,7 +1102,7 @@ class SuiteUpgradeChecks {
                 } else
                     actionScopes[row.id] := row.scope
             }
-            this.Assert(cleanHeadings && actionScopes["scratchpad.save"] = "paper-pad"
+            this.Assert(cleanHeadings && actionScopes["paper-pad.save"] = "paper-pad"
                 && actionScopes["power-up-utilities.terminal.copy"] = "windows-terminal",
                 "scopes belong to action descriptions rather than category headings")
             this.Assert(actionScopes["core.keybindings"] = ""
@@ -1111,7 +1111,7 @@ class SuiteUpgradeChecks {
                 && Keybindings.ContextTagText("windows-terminal") = "terminal only",
                 "only application-specific shortcuts receive readable context tags")
             this.Assert(manager.actions["win-key-overhaul.layout-left"].scope = ""
-                && manager.actions["scratchpad.previous"].scope = "paper-pad",
+                && manager.actions["paper-pad.previous"].scope = "paper-pad",
                 "Wonder Windows is a global fallback for Paper Pad editor shortcuts")
             this.Assert(manager.actions["power-up-utilities.terminal.clear"].scope = "windows-terminal"
                 && manager.actions["power-up-utilities.terminal.copy"].scope = "windows-terminal",
@@ -1146,11 +1146,11 @@ class SuiteUpgradeChecks {
                     paperSection := index
                     break
                 }
-            this.Assert(paperSection > 0 && rows[paperSection + 1].id = "scratchpad.help"
-                && rows[paperSection + 2].id = "scratchpad.toggle"
+            this.Assert(paperSection > 0 && rows[paperSection + 1].id = "paper-pad.help"
+                && rows[paperSection + 2].id = "paper-pad.toggle"
                 && rows[paperSection + 3].label = "Paper Pad / Inside the editor",
                 "Paper Pad puts Help first, followed by its toggle and editor subcategory")
-            expectedHelp := Map("Paper Pad", "scratchpad.help",
+            expectedHelp := Map("Paper Pad", "paper-pad.help",
                 "Cascade Kingdom", "window-cascade.help",
                 "Wonder Windows", "win-key-overhaul.help",
                 "Power-Up Utilities", "power-up-utilities.interface.open",
@@ -1167,9 +1167,9 @@ class SuiteUpgradeChecks {
                 && saved["window-cascade.copy-log"].bindings[1]
                     = Keybindings.Parse("Pause + F2").signature,
                 "debug log hotkeys default to Pause + F1/F2")
-            this.Assert(saved["scratchpad.help"].bindings[1]
+            this.Assert(saved["paper-pad.help"].bindings[1]
                 = Keybindings.Parse("Pause + F12").signature
-                && saved["scratchpad.help"].bindings[2] = "",
+                && saved["paper-pad.help"].bindings[2] = "",
                 "Paper Pad Help defaults to Pause + F12")
             this.Assert(saved["keyboard-layers.help"].bindings[1] = ""
                 && saved["keyboard-layers.help"].bindings[2] = "",
@@ -1184,7 +1184,7 @@ class SuiteUpgradeChecks {
                 && saved["power-up-utilities.interface.open"].bindings[1]
                     = Keybindings.Parse("Pause + H").signature,
                 "existing module Help shortcuts retain their original defaults")
-            this.Assert(this.RouteExists(manager, "scratchpad.help"),
+            this.Assert(this.RouteExists(manager, "paper-pad.help"),
                 "Paper Pad Help registers its default Pause + F12 shortcut")
             this.Assert(!this.RouteExists(manager, "keyboard-layers.help"),
                 "unassigned Secret Keys Help installs no shortcut")
@@ -1239,16 +1239,16 @@ class SuiteUpgradeChecks {
             this.Assert(!seenFancy, "FancyZones actions are hidden while integration is inactive")
             this.Assert(!this.RouteExists(manager, "win-key-overhaul.zone-left"),
                 "inactive FancyZones actions reserve no shortcuts")
-            app.activeModules["scratchpad"] := false
+            app.activeModules["paper-pad"] := false
             manager.Apply(manager.GetConfiguration())
             rows := Keybindings.DisplayRows(manager.DiscoverParticipants())
             paperFound := false
             for row in rows
-                if InStr(row.id, "scratchpad.") = 1
+                if InStr(row.id, "paper-pad.") = 1
                     paperFound := true
             this.Assert(!paperFound, "disabled Paper Pad entries disappear completely")
             configuration := manager.GetConfiguration()
-            this.Assert(configuration["scratchpad.toggle"].bindings[1] != "",
+            this.Assert(configuration["paper-pad.toggle"].bindings[1] != "",
                 "hidden module assignments remain safely stored")
 
             changed := manager.GetConfiguration()
@@ -1331,9 +1331,9 @@ class SuiteUpgradeChecks {
             "core.keybindings", "window-cascade.copy-log", "window-cascade.reset-log"],
             "Global shortcuts group application first and logs together")
         this.AssertDisplaySequence(rows, [
-            "scratchpad.help", "scratchpad.toggle", "scratchpad.new",
-            "scratchpad.save", "scratchpad.delete", "scratchpad.previous",
-            "scratchpad.next", "scratchpad.hide"],
+            "paper-pad.help", "paper-pad.toggle", "paper-pad.new",
+            "paper-pad.save", "paper-pad.delete", "paper-pad.previous",
+            "paper-pad.next", "paper-pad.hide"],
             "Paper Pad groups document operations and page navigation")
         this.AssertDisplaySequence(rows, [
             "window-cascade.help", "window-cascade.focus-previous", "window-cascade.focus-next",
@@ -1675,7 +1675,7 @@ class SuiteUpgradeChecks {
                 firstHeading := Map("window-cascade", "CASCADE ONLY WHEN YOU ASK",
                     "win-key-overhaul", "ARRANGE YOUR WINDOWS",
                     "power-up-utilities", "MORE KEYS WITHOUT A NEW KEYBOARD",
-                    "scratchpad", "YOUR OWN QUICK-NOTES DRAWER",
+                    "paper-pad", "YOUR OWN QUICK-NOTES DRAWER",
                     "keyboard-layers", "HOLD A KEY FOR MORE HOTKEYS")
                 this.Assert(InStr(guide, "WHY I MADE THIS`r`n") = 1
                     && InStr(guide, "`r`n`r`n" firstHeading[id]) > 0
@@ -1927,33 +1927,33 @@ class SuiteUpgradeChecks {
                     "Back from module Keybindings restores the Help page: " id)
                 app.ui.CloseWindow(key)
             }
-            app.ui.ShowHelp("scratchpad")
-            this.Assert(!!WinActive("ahk_id " app.ui.windows["help:scratchpad"].Hwnd),
+            app.ui.ShowHelp("paper-pad")
+            this.Assert(!!WinActive("ahk_id " app.ui.windows["help:paper-pad"].Hwnd),
                 "the Help page becomes active for its keyboard shortcut")
-            app.ui.ToggleHelp("scratchpad")
-            this.Assert(!app.ui.windows.Has("help:scratchpad"),
+            app.ui.ToggleHelp("paper-pad")
+            this.Assert(!app.ui.windows.Has("help:paper-pad"),
                 "the same Help shortcut closes its active page")
-            app.ui.ToggleHelp("scratchpad")
-            this.Assert(app.ui.windows.Has("help:scratchpad"),
+            app.ui.ToggleHelp("paper-pad")
+            this.Assert(app.ui.windows.Has("help:paper-pad"),
                 "the Help shortcut opens the page again")
-            app.ui.windows["help:scratchpad"].GetClientPos(, , &lastHelpW, &lastHelpH)
-            expectedHelpHeight := Max(480, 145 + app.ui.HelpTextHeight("scratchpad", 820) + 12)
+            app.ui.windows["help:paper-pad"].GetClientPos(, , &lastHelpW, &lastHelpH)
+            expectedHelpHeight := Max(480, 145 + app.ui.HelpTextHeight("paper-pad", 820) + 12)
             this.Assert(lastHelpW = 820 && lastHelpH = expectedHelpHeight,
                 "Help reopens at its content-based default regardless of prior resizing")
-            this.AssertCentered(app.ui.windows["help:scratchpad"], "reopened Paper Pad Help")
-            app.ui.CloseWindow("help:scratchpad")
+            this.AssertCentered(app.ui.windows["help:paper-pad"], "reopened Paper Pad Help")
+            app.ui.CloseWindow("help:paper-pad")
             this.Assert(IniRead(app.Settings.directory "\help-window.ini",
                 "Window", "Width") = "1600",
                 "Help ignores existing saved window size history")
-            app.activeModules["scratchpad"] := false
-            app.ui.ShowHelp("scratchpad")
-            this.Assert(IsObject(app.ui.windows["help:scratchpad"]),
+            app.activeModules["paper-pad"] := false
+            app.ui.ShowHelp("paper-pad")
+            this.Assert(IsObject(app.ui.windows["help:paper-pad"]),
                 "disabled modules still expose their How to use page")
-            this.Assert(app.ui.helpLayouts["scratchpad"].header.Text = "Paper Pad - "
-                && app.ui.helpLayouts["scratchpad"].status.Text = "disabled"
-                && app.ui.helpLayouts["scratchpad"].statusColor = "B02020",
+            this.Assert(app.ui.helpLayouts["paper-pad"].header.Text = "Paper Pad - "
+                && app.ui.helpLayouts["paper-pad"].status.Text = "disabled"
+                && app.ui.helpLayouts["paper-pad"].statusColor = "B02020",
                 "disabled Help pages show a centered red status")
-            app.ui.CloseWindow("help:scratchpad")
+            app.ui.CloseWindow("help:paper-pad")
             for page in ["log", "modules"] {
                 switch page {
                     case "log": app.ui.OpenLog()

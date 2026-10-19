@@ -1,12 +1,12 @@
 ; Saved preferences are independent of the currently running module/layer choices.
 class SuiteSettings {
-    static ModuleOrder := ["window-cascade", "win-key-overhaul", "power-up-utilities", "scratchpad", "keyboard-layers"]
+    static ModuleOrder := ["window-cascade", "win-key-overhaul", "power-up-utilities", "paper-pad", "keyboard-layers"]
     static ModuleNames := Map("window-cascade", "Cascade Kingdom", "win-key-overhaul", "Wonder Windows",
-        "power-up-utilities", "Power-Up Utilities", "scratchpad", "Paper Pad", "keyboard-layers", "Secret Keys")
+        "power-up-utilities", "Power-Up Utilities", "paper-pad", "Paper Pad", "keyboard-layers", "Secret Keys")
     static ModuleDescriptions := Map("window-cascade", "Automatic window placement and cascades.",
         "win-key-overhaul", "Window hotkeys, layouts, stretching and navigation.",
         "power-up-utilities", "Extra keyboard, text and system actions.",
-        "scratchpad", "A persistent Notepad3 drawer for quick notes.",
+        "paper-pad", "A persistent Notepad3 drawer for quick notes.",
         "keyboard-layers", "Independent CapsLock and Pause hotkey layers.")
 
     __New(directory) {
@@ -119,7 +119,7 @@ class SuiteSettings {
     ResetModulePreferences() {
         ; Paths, editor profile, page state and notes are outside this whitelist.
         for id, sections in Map("window-cascade", ["FocusTabs", "Controls", "Standalone"],
-            "scratchpad", ["Window", "Saving", "Controls"]) {
+            "paper-pad", ["Window", "Saving", "Controls"]) {
             path := this.directory "\" id "\settings.ini"
             if FileExist(path)
                 for section in sections

@@ -210,7 +210,7 @@ class Keybindings {
                     }
                 }
                 for moduleId in SuiteSettings.ModuleOrder {
-                    if moduleId = "scratchpad"
+                    if moduleId = "paper-pad"
                         continue
                     moduleName := SuiteSettings.ModuleNames[moduleId]
                     if modules.Has(moduleName) && !placed.Has(moduleName) {
@@ -270,10 +270,10 @@ class Keybindings {
             "Global", [
                 "core.keybindings", "window-cascade.copy-log", "window-cascade.reset-log"],
             "Paper Pad", [
-                "scratchpad.help", "scratchpad.toggle"],
+                "paper-pad.help", "paper-pad.toggle"],
             "Paper Pad / Inside the editor", [
-                "scratchpad.new", "scratchpad.save", "scratchpad.delete",
-                "scratchpad.previous", "scratchpad.next", "scratchpad.hide"],
+                "paper-pad.new", "paper-pad.save", "paper-pad.delete",
+                "paper-pad.previous", "paper-pad.next", "paper-pad.hide"],
             "Cascade Kingdom", [
                 "window-cascade.help",
                 "window-cascade.focus-previous", "window-cascade.focus-next",

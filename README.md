@@ -18,6 +18,6 @@ right-click the tray icon for module guides and settings. open **Keybindings** w
 
 settings and logs live in `%LOCALAPPDATA%\nroj\SuperHotkey`; notes are stored separately. the tray's **Suspend** releases hotkeys without discarding your settings.
 
-[release checks](docs/integration-status.md) · [implementation](docs/implementation.md) · [source history](docs/source-provenance.md)
+[release checks](docs/integration-status.md) · [implementation](docs/implementation.md)
 
 code: [MIT](LICENSE). icon: [FatCow attribution](assets/ATTRIBUTION.md).

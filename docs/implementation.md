@@ -6,7 +6,7 @@
 
 `SuiteGui` supplies the shared icon and excludes suite windows from automatic cascading. Wonder Windows can arrange normal suite GUIs and the marked Paper Pad editor; private overlays remain excluded. Keybindings fits its opening viewport to the current monitor's work area, accounting for DPI and the native frame.
 
-module IDs retain their legacy names to preserve saved assignments and layout ownership. settings use `%LOCALAPPDATA%\nroj\SuperHotkey`; startup does not import older suite or standalone settings. Paper Pad notes default to `%USERPROFILE%\Scratchpad`, separate from preferences.
+module IDs use their current feature names. settings use `%LOCALAPPDATA%\nroj\SuperHotkey`; startup does not import older suite or standalone settings. Paper Pad notes default to `%USERPROFILE%\Paper Pad`, separate from preferences.
 
 ## input and modules
 
@@ -29,5 +29,3 @@ Paper Pad controls a dedicated Notepad3 instance and saves before hiding, switch
 ## testing and history
 
 see [release checks](integration-status.md) for automated checks and desktop acceptance. CI tests the committed source without regeneration. the live implementation is in `core/` and `modules/`; historical migration scripts and source snapshots are not runtime dependencies.
-
-original repositories, pinned commits and licensing are listed in [source provenance](source-provenance.md).

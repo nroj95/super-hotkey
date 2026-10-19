@@ -232,7 +232,7 @@ class SuiteWindowOwnership {
 
     static IsSuiteSurface(hwnd) {
         return hwnd && (this.ProcessId(hwnd) = DllCall("GetCurrentProcessId", "uint")
-            || DllCall("GetPropW", "ptr", hwnd, "str", "nroj.Scratchpad.Notepad3Window", "ptr"))
+            || DllCall("GetPropW", "ptr", hwnd, "str", "nroj.PaperPad.Notepad3Window", "ptr"))
     }
 
     ; Ordinary suite GUIs and the marked Paper Pad editor may be arranged by
@@ -243,7 +243,7 @@ class SuiteWindowOwnership {
         if !this.IsSuiteSurface(hwnd)
             return true
         return !!DllCall("GetPropW", "ptr", hwnd, "str", SuiteFullscreen.marker, "ptr")
-            || !!DllCall("GetPropW", "ptr", hwnd, "str", "nroj.Scratchpad.Notepad3Window", "ptr")
+            || !!DllCall("GetPropW", "ptr", hwnd, "str", "nroj.PaperPad.Notepad3Window", "ptr")
     }
 
     static IsManual(hwnd) {
@@ -319,7 +319,7 @@ class SuiteWindowOwnership {
 
 PaperPadWindowActive(*) {
     hwnd := DllCall("GetForegroundWindow", "ptr")
-    return hwnd && !!DllCall("GetPropW", "ptr", hwnd, "str", "nroj.Scratchpad.Notepad3Window", "ptr")
+    return hwnd && !!DllCall("GetPropW", "ptr", hwnd, "str", "nroj.PaperPad.Notepad3Window", "ptr")
 }
 
 #HotIf SuiteFullscreen.Active()

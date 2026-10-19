@@ -21,8 +21,8 @@
 #Include "%A_ScriptDir%\modules\power-up-utilities\utilities.ahk"
 #Include "%A_ScriptDir%\modules\window-cascade\include.ahk"
 #Include "%A_ScriptDir%\modules\window-cascade\adapter.ahk"
-#Include "%A_ScriptDir%\modules\scratchpad\scratchpad.ahk"
-#Include "%A_ScriptDir%\modules\scratchpad\adapter.ahk"
+#Include "%A_ScriptDir%\modules\paper-pad\paper-pad.ahk"
+#Include "%A_ScriptDir%\modules\paper-pad\adapter.ahk"
 #Include "%A_ScriptDir%\modules\wonder-windows\include.ahk"
 #Include "%A_ScriptDir%\modules\wonder-windows\adapter.ahk"
 

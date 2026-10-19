@@ -6,7 +6,7 @@ class SuiteState {
     static App := 0
     static Log := 0
     static CascadeStatus := ""
-    static ScratchpadStatus := ""
+    static PaperPadStatus := ""
 }
 
 class SuiteApplication {
@@ -34,7 +34,7 @@ class SuiteApplication {
         this.inputGeneration := 0
         this.cascadeInitialized := false
         this.cascadeStarted := false
-        this.scratchpadStarted := false
+        this.paperPadStarted := false
         this.mutex := 0
         this.sessionNotifications := false
         this.bindingFailure := ""
@@ -88,9 +88,9 @@ class SuiteApplication {
                 this.wonderStarted := true
                 this.wonder.Start()
             }
-            if this.ModuleActive("scratchpad") {
-                ScratchpadModule.Start(this.manager)
-                this.scratchpadStarted := true
+            if this.ModuleActive("paper-pad") {
+                PaperPadModule.Start(this.manager)
+                this.paperPadStarted := true
             }
         }
         this.ui := SuiteInterface(this)
@@ -131,7 +131,7 @@ class SuiteApplication {
             ["Caps + Alt + K", "Ctrl + Alt + K"], {category: "Global"})
         this.power := PowerUpUtilities(this.manager, this.dryRun)
         WindowCascadeModule.Register(this.manager)
-        ScratchpadModule.Register(this.manager)
+        PaperPadModule.Register(this.manager)
         this.wonder := WonderWindowsModule(this.manager, this.dryRun)
         this.manager.AddAction("keyboard-layers.help", "show Secret Keys help",
             ObjBindMethod(this, "HelpShortcutEvent", "keyboard-layers"), [],
@@ -300,14 +300,14 @@ class SuiteApplication {
     }
 
     Stop(reason := "Exit", code := 0) {
-        global scratchpad
+        global paperPad
         if this.stopping
             return 0
         if IsObject(this.manager)
             this.manager.SetPaused(true)
         ; Save/close refusal must happen before dismantling the rest of the suite.
-        if this.scratchpadStarted && IsSet(scratchpad) {
-            try scratchpad.PrepareSuiteExit(reason)
+        if this.paperPadStarted && IsSet(paperPad) {
+            try paperPad.PrepareSuiteExit(reason)
             catch Error as failure {
                 SuiteState.Log.Error("Paper Pad / exit refused", failure)
                 this.RefreshInputGate()
@@ -330,8 +330,8 @@ class SuiteApplication {
             this.Cleanup("Wonder Windows", (*) => this.wonder.Stop(reason, code))
         if this.cascadeStarted
             this.Cleanup("Cascade Kingdom", (*) => WindowCascadeModule.Stop())
-        if this.scratchpadStarted && IsSet(scratchpad)
-            this.Cleanup("Paper Pad", (*) => scratchpad.OnScriptExit(reason, code))
+        if this.paperPadStarted && IsSet(paperPad)
+            this.Cleanup("Paper Pad", (*) => paperPad.OnScriptExit(reason, code))
         this.Cleanup("Core / focus border", (*) => SuiteFocusBorder.Hide("", true))
         SuiteWindowOwnership.Clear()
         OnMessage(0x0218, this.powerCallback, 0)
@@ -371,7 +371,7 @@ class SuiteApplication {
                 try title := WinGetTitle(hwnd)
                 catch
                     continue
-                if RegExMatch(title, "i)\\(?:window-cascade|win-key-overhaul|windows-key-overhaul|window-hotkeys|power-hotkey|power-up-utilities|scratchpad|caps-pause-layers|capslock-layer|pause-command-mode)(?:\([^\\]*\))?\.ahk - AutoHotkey")
+                if RegExMatch(title, "i)\\(?:window-cascade|win-key-overhaul|windows-key-overhaul|window-hotkeys|power-hotkey|power-up-utilities|scratchpad|paper-pad|caps-pause-layers|capslock-layer|pause-command-mode)(?:\([^\\]*\))?\.ahk - AutoHotkey")
                     throw Error("Close the original AutoHotkey utilities before starting the suite."
                         . "`nNo process was stopped automatically.`n`nDetected: " title)
             }

@@ -49,16 +49,16 @@ class SuiteChecks {
         loaded := SuiteSettings(settings.directory)
         this.Assert(!loaded.modules["keyboard-layers"], "disabled module choice survives reload")
         document := KB_Manifest.Read(settings.path)
-        document["modules"]["scratchpad"] := "invalid"
+        document["modules"]["paper-pad"] := "invalid"
         KB_Manifest.WriteAtomic(settings.path, document)
         before := FileRead(settings.path, "UTF-8")
         this.Rejects((*) => SuiteSettings(settings.directory), "invalid module configuration is rejected")
         this.Assert(before = FileRead(settings.path, "UTF-8"), "invalid configuration is not rewritten")
         settings.Save(choices)
-        folder := settings.directory "\scratchpad"
+        folder := settings.directory "\paper-pad"
         DirCreate folder
         path := folder "\settings.ini"
-        IniWrite("sentinel-notes-folder", path, "Paths", "ScratchDirectory")
+        IniWrite("sentinel-notes-folder", path, "Paths", "NotesDirectory")
         IniWrite("sentinel-editor.exe", path, "Paths", "Notepad3Executable")
         IniWrite("55", path, "Window", "WidthPercent")
         FileAppend("personal note", folder "\note.md", "UTF-8-RAW")
@@ -67,11 +67,11 @@ class SuiteChecks {
         backup := settings.Backup([path])
         settings.ResetModulePreferences()
         this.Assert(IniRead(path, "Window", "WidthPercent", "missing") = "missing", "factory reset removes only whitelisted preferences")
-        this.Assert(IniRead(path, "Paths", "ScratchDirectory") = "sentinel-notes-folder", "factory reset retains the notes folder")
+        this.Assert(IniRead(path, "Paths", "NotesDirectory") = "sentinel-notes-folder", "factory reset retains the notes folder")
         this.Assert(IniRead(path, "Paths", "Notepad3Executable") = "sentinel-editor.exe", "factory reset retains the editor path")
         this.Assert(FileRead(folder "\note.md") = "personal note", "factory reset preserves notes")
         this.Assert(FileRead(folder "\Notepad3.ini") = "editor preference" && FileRead(folder "\state.ini") = "page state", "factory reset preserves editor preferences and page state")
-        this.Assert(FileExist(backup "\scratchpad-settings.ini"), "resettable settings have a backup")
+        this.Assert(FileExist(backup "\paper-pad-settings.ini"), "resettable settings have a backup")
     }
 
     static CheckCatalog() {
@@ -121,8 +121,8 @@ class SuiteChecks {
                     && !manager.actions.Has("window-cascade.move-left")
                     && !manager.actions.Has("window-cascade.move-right"),
                 "backward all-slot rotation and old Cascade monitor hotkeys are removed")
-            this.Assert(HasMethod(manager.actions["scratchpad.save"].context, "Call"), "Scratchpad save has an explicit editor context")
-            this.Assert(!manager.ContextActive(manager.actions["scratchpad.save"]), "Scratchpad commands are inactive outside its editor")
+            this.Assert(HasMethod(manager.actions["paper-pad.save"].context, "Call"), "Paper Pad save has an explicit editor context")
+            this.Assert(!manager.ContextActive(manager.actions["paper-pad.save"]), "Paper Pad commands are inactive outside its editor")
             manager.ShowSettings()
             this.Assert(IsObject(manager.settings) && manager.rows.Length > 50, "shared editor renders the complete catalog")
             manager._CloseSettings()
@@ -144,9 +144,9 @@ class SuiteChecks {
             this.Assert(!found, "disabled modules are hidden from the active Keybindings view")
             this.Assert(manager.GetConfiguration()["power-up-utilities.keyboard.f13"].bindings[1] = configuration["power-up-utilities.keyboard.f13"].bindings[1], "disabling a module preserves its assignments")
             changed := manager.GetConfiguration()
-            changed["scratchpad.toggle"].bindings[1] := "Caps + Q"
+            changed["paper-pad.toggle"].bindings[1] := "Caps + Q"
             manager.Apply(changed)
-            this.Assert(manager.GetConfiguration()["scratchpad.toggle"].bindings[1] = Keybindings.Parse("Caps + Q").signature, "a disabled module's key can be reused")
+            this.Assert(manager.GetConfiguration()["paper-pad.toggle"].bindings[1] = Keybindings.Parse("Caps + Q").signature, "a disabled module's key can be reused")
             before := FileRead(manager.path, "UTF-8")
             app.activeModules["power-up-utilities"] := true
             this.Rejects((*) => manager.Apply(manager.GetConfiguration()), "re-enabling a conflicting module is rejected")
@@ -154,16 +154,16 @@ class SuiteChecks {
             this.Assert(!this.HasRoute(manager, "power-up-utilities.keyboard.f13"), "conflict rejection retains the prior runtime")
             manager.Apply(configuration)
             this.Assert(this.HasRoute(manager, "power-up-utilities.keyboard.f13"), "restoring a valid configuration restores the module routes")
-            manager.actions["scratchpad.toggle"].available := false
+            manager.actions["paper-pad.toggle"].available := false
             defaults := manager._DefaultConfiguration()
-            this.Assert(defaults["scratchpad.toggle"].bindings[1] = Keybindings.Parse("Win + F12").signature, "shortcut defaults include disabled actions")
-            manager.actions["scratchpad.toggle"].available := true
+            this.Assert(defaults["paper-pad.toggle"].bindings[1] = Keybindings.Parse("Win + F12").signature, "shortcut defaults include disabled actions")
+            manager.actions["paper-pad.toggle"].available := true
 
             ; Direct callbacks exercise dry-run guards without emitting any input.
             event := {phase: "down", actionId: "window-cascade.minimize", slot: 1,
                 key: "sc032", modifiers: 0, layer: "caps", foregroundHwnd: 0, oneShot: false}
             manager.actions[event.actionId].callback.Call(event)
-            event.actionId := "scratchpad.toggle"
+            event.actionId := "paper-pad.toggle"
             manager.actions[event.actionId].callback.Call(event)
             app.power.keyboard.SendOutput("F13", " down")
             app.power.keyboard.SendOutput("F13", " up")
@@ -208,15 +208,15 @@ class SuiteChecks {
                 if InStr(status.state, "unavailable:")
                     unavailable += 1
             this.Assert(unavailable > 20, "layer bindings are explicitly unavailable without the module")
-            configuration["scratchpad.toggle"].bindings[1] := "CapsLock"
+            configuration["paper-pad.toggle"].bindings[1] := "CapsLock"
             manager.Apply(configuration)
-            this.Assert(this.HasRoute(manager, "scratchpad.toggle"), "CapsLock can be explicitly rebound without layers")
-            configuration["scratchpad.toggle"].bindings[1] := "Pause"
+            this.Assert(this.HasRoute(manager, "paper-pad.toggle"), "CapsLock can be explicitly rebound without layers")
+            configuration["paper-pad.toggle"].bindings[1] := "Pause"
             manager.Apply(configuration)
-            this.Assert(manager.GetConfiguration()["scratchpad.toggle"].bindings[1] = Keybindings.Parse("Pause").signature, "Pause can be explicitly rebound without layers")
-            configuration["scratchpad.toggle"].bindings[1] := "Ctrl + Alt + J"
+            this.Assert(manager.GetConfiguration()["paper-pad.toggle"].bindings[1] = Keybindings.Parse("Pause").signature, "Pause can be explicitly rebound without layers")
+            configuration["paper-pad.toggle"].bindings[1] := "Ctrl + Alt + J"
             manager.Apply(configuration)
-            this.Assert(manager.GetConfiguration()["scratchpad.toggle"].bindings[1] = Keybindings.Parse("Ctrl + Alt + J").signature, "ordinary replacements work without layers")
+            this.Assert(manager.GetConfiguration()["paper-pad.toggle"].bindings[1] = Keybindings.Parse("Ctrl + Alt + J").signature, "ordinary replacements work without layers")
             this.Assert(!manager.ContextActive(manager.actions["test.context"]), "false context disables the action")
             flag.active := true
             this.Assert(manager.ContextActive(manager.actions["test.context"]), "true context enables the action")
@@ -231,7 +231,7 @@ class SuiteChecks {
     static CheckLogging() {
         diagnosticLog := SuiteLog(this.directory "\logging", 100)
         diagnosticLog.Write("Core", "first " StrReplace(Format("{:120}", "x"), " ", "x"))
-        diagnosticLog.Write("Scratchpad", "second")
+        diagnosticLog.Write("Paper Pad", "second")
         this.Assert(FileExist(diagnosticLog.path ".old"), "central log rotates at the size limit")
         diagnosticLog.Error("Power-Up Utilities", Error("diagnostic marker", "native checks"))
         this.Assert(InStr(FileRead(diagnosticLog.path, "UTF-8"), "diagnostic marker"), "errors retain their details and module attribution")
@@ -244,7 +244,7 @@ class SuiteChecks {
         try {
             app.Start()
             this.Assert(app.manager.running && app.manager.paused, "dry-run startup keeps every shortcut inactive")
-            this.Assert(!app.cascadeStarted && !app.scratchpadStarted, "dry-run startup does not start native feature modules")
+            this.Assert(!app.cascadeStarted && !app.paperPadStarted, "dry-run startup does not start native feature modules")
             this.Assert(IsObject(app.ui) && IsObject(app.manager.settings), "dry-run startup creates the shared tray and editor")
             app.ui.ShowModules()
             this.Assert(IsObject(app.ui.modulesWindow), "module settings window opens")
@@ -262,8 +262,8 @@ class SuiteChecks {
 
     static CheckExitVeto() {
         busyController := {busy: true, command_queue: []}
-        this.Rejects((*) => ScratchpadController.Prototype.PrepareSuiteExit.Call(busyController, "Reload"),
-            "Scratchpad can refuse a restart while a command is active")
+        this.Rejects((*) => PaperPadController.Prototype.PrepareSuiteExit.Call(busyController, "Reload"),
+            "Paper Pad can refuse a restart while a command is active")
     }
 }
 

@@ -13,6 +13,6 @@
 - Windows Snap and FancyZones configuration require explicit consent. never change other applications' settings automatically.
 - the default suite settings path is `%LOCALAPPDATA%\nroj\SuperHotkey`. old configuration directories are not imported; never delete user data automatically. internal mutex and ownership identifiers may retain legacy names to preserve compatibility.
 - edit committed source in `core/` and `modules/` directly. historical generators and snapshots remain available through Git history, not in the working source tree.
-- preserve root MIT license and icon attribution. original source commits and repositories are recorded in `docs/source-provenance.md`.
+- preserve root MIT license and icon attribution.
 - tests use disposable preferences and dry-run inputs; never perform real system sleep, speaker actions or personal note operations in automated checks.
 - retain LF line endings. run portable tests and `python tests/check.py` on Windows.
