@@ -47,6 +47,8 @@ class PaperPadController
         this.bridge := 0
         this.busy := false
         this.autosave_paused := false
+        this.untitled_notice_shown := false
+        this.native_save_candidate := 0
         this.last_verified_save_tick := A_TickCount
         this.last_autosave_attempt_tick := A_TickCount - PaperPadController.AutosaveIdleMs
         this.autosave_tracking := {sampled: false, text: "", last_change: 0}
@@ -333,11 +335,6 @@ class PaperPadController
                 this.HideWindow()
             return
         }
-        if request.name = "save" {
-            if this.HasWindow()
-                this.SaveCurrentPage()
-            return
-        }
         if request.name = "delete" {
             if this.HasWindow()
                 this.DeleteCurrentPage()
@@ -349,17 +346,13 @@ class PaperPadController
         }
 
         was_visible := this.IsVisible()
-        page_was_created := this.EnsureWindow(request.source_window)
-        ; A freshly launched editor must open, not immediately toggle closed.
+        this.EnsureWindow(request.source_window)
         if request.name = "toggle" && was_visible {
             this.HideWindow()
             return
         }
         this.ShowWindow(request.source_window)
         switch request.name {
-            case "new":
-                if !page_was_created
-                    this.SwitchPage("", true)
             case "previous", "next":
                 ; Resolve native Save As/Open before finding our place in the
                 ; list. SwitchPage owns the one checked save before loading.
@@ -495,10 +488,10 @@ class PaperPadController
             IniWrite 0, this.settings_path, "Setup", "WelcomePending"
         initial_path := PaperPadFullPath(initial_path)
         before_load_stamp := PaperPadFileStamp(initial_path)
-        ; /n requests a new process/window, /f isolates its INI, /l0 prompts on
-        ; external changes. No /i tray mode or copied executable.
+        ; /n isolates the editor process; /f isolates settings; /l auto-reloads
+        ; clean external changes instead of overriding the preference with /l0.
         command_line := '"' executable '" /n /f "' this.editor_profile
-            . '" /l0 "' initial_path '"'
+            . '" /l "' initial_path '"'
         Run command_line, this.notes_directory, "Hide", &editor_pid
         this.editor_pid := editor_pid
         deadline := A_TickCount + 12000
@@ -835,18 +828,26 @@ class PaperPadController
             ; Reuse this watcher for Z-order without another permanent timer.
             try this.SyncZOrder()
 
-            ; Native Save As happens outside PaperPad's command path. Watch its
-            ; filename so the delete-denying handle follows it before autosave.
+            ; Reconcile native File > New and File > Save As without another timer.
             if !this.bridge || this.bridge.tainted
                 return
             if !PaperPadWindowIdle(this.window_hwnd)
                 return
 
             path := this.bridge.CurrentPath()
+            if path = "" {
+                this.ReleasePageLock()
+                this.AdoptNativeNew()
+                return
+            }
+            this.untitled_notice_shown := false
+            ; Catch native File > Save (and ordinary Ctrl+S) while the editor
+            ; is clean, before another edit can make its contents diverge.
+            this.ReconcileCleanNativeSave(path)
             if path = this.page_lock_path
                 return
 
-            attributes := path != "" ? FileExist(path) : ""
+            attributes := FileExist(path)
             if this.IsNotePath(path) && attributes && !InStr(attributes, "D")
                 this.ProtectPage(path)
             else
@@ -861,6 +862,43 @@ class PaperPadController
             if this.command_queue.Length
                 SetTimer this.process_commands_callback, -1
         }
+    }
+
+    static UntitledHasEdits(dirty, text) => !!dirty || text != ""
+
+    AdoptNativeNew()
+    {
+        if this.bridge.CurrentPath() != ""
+            return false
+
+        ; Never replace a native untitled buffer that already contains user text.
+        if PaperPadController.UntitledHasEdits(this.bridge.IsDirty(), this.bridge.DocumentText()) {
+            if !this.untitled_notice_shown {
+                this.untitled_notice_shown := true
+                TrayTip "Save this untitled document using File > Save As inside:`n"
+                    . this.notes_directory, "Paper Pad - unsaved page", 2
+            }
+            return false
+        }
+
+        path := this.CreatePage()
+        try this.bridge.OpenPage(path, this.controller_window.Hwnd)
+        catch as failure {
+            ; A failed native open must not create another orphan on every tick.
+            try {
+                if this.bridge.CurrentPath() != path && FileGetSize(path) = 0
+                    FileDelete path
+            }
+            throw failure
+        }
+        this.ProtectPage(path)
+        this.current_path := path
+        this.disk_stamp := PaperPadFileStamp(path)
+        this.PersistCurrentState()
+        this.ConfigureNewPage()
+        this.untitled_notice_shown := false
+        SuiteState.Log.Debug("Paper Pad", "adopted native New as " path)
+        return true
     }
 
     WelcomeText() {
@@ -878,6 +916,10 @@ class PaperPadController
             this.ConnectBridge()
         this.bridge.CheckReady()
         path := this.bridge.CurrentPath()
+        if path = ""
+            throw Error("An untitled document is not yet a saved Paper Pad page. "
+                . "Use File > Save As inside:`n" this.notes_directory
+                . "`n`nUnsaved text has been preserved.")
         if !this.IsNotePath(path)
             throw Error("The editor is not showing a supported file directly inside:`n"
                 . this.notes_directory "`n`nReturn to a scratch page or use File > Save As. Unrelated files will not be saved or closed automatically.")
@@ -895,6 +937,7 @@ class PaperPadController
             ; are checked against this new baseline.
             this.current_path := path
             this.disk_stamp := PaperPadFileStamp(path)
+            this.native_save_candidate := 0
         }
         return path
     }
@@ -909,17 +952,77 @@ class PaperPadController
         this.persisted_stamp := this.disk_stamp
     }
 
+    NoteNativeSave()
+    {
+        if !this.bridge || this.bridge.tainted || !this.IsVisible()
+            return
+        try {
+            path := this.bridge.CurrentPath()
+            if this.IsNotePath(path) {
+                ; Capture the version being saved, not whatever is edited later.
+                this.native_save_candidate := {path: path,
+                    text: this.bridge.DocumentText(), tick: A_TickCount}
+            }
+        }
+        catch {
+            ; Native Save must remain usable if observation is unavailable.
+        }
+    }
+
+    NativeSaveMatchesDisk(path)
+    {
+        candidate := this.native_save_candidate
+        if !IsObject(candidate) || candidate.path != path
+            return false
+        ; Matching bytes are still safe after five seconds; time is not proof
+        ; of an external conflict, and a false expiry blocks later edits.
+        return this.bridge.MatchesDiskText(path, candidate.text)
+    }
+
+    ReconcileCleanNativeSave(path)
+    {
+        if path != this.current_path || !FileExist(path)
+            return false
+        stamp := PaperPadFileStamp(path)
+        if stamp = this.disk_stamp && !this.autosave_paused
+            return false
+        ; A clean editor identical to disk is sufficient evidence of a native
+        ; Save or reload, including File > Save without a keyboard observer.
+        if this.bridge.IsDirty() || !this.bridge.MatchesDisk(path)
+            return false
+        if this.bridge.IsDirty() || PaperPadFileStamp(path) != stamp
+            return false
+        this.disk_stamp := stamp
+        this.native_save_candidate := 0
+        this.PersistCurrentState()
+        this.last_verified_save_tick := A_TickCount
+        this.autosave_tracking.sampled := false
+        this.autosave_tracking.text := ""
+        this.autosave_tracking.last_change := 0
+        this.autosave_paused := false
+        SuiteState.PaperPadStatus := "Paper Pad"
+        SuiteState.Log.Debug("Paper Pad", "Reconciled a clean native save or reload.")
+        return true
+    }
+
     SaveCurrentPage(require_clean := true)
     {
+        ; Handle an immediate toggle before the normal 250 ms watcher fires.
+        if this.bridge && !this.bridge.tainted && this.bridge.CurrentPath() = ""
+            this.AdoptNativeNew()
         path := this.CheckCurrentPage()
         current_stamp := PaperPadFileStamp(path)
         if this.disk_stamp = "" || current_stamp != this.disk_stamp {
-            ; A native save/reload is harmless only when disk and editor agree.
-            ; Never auto-reload here: the user may have kept a different version.
-            if !this.bridge.MatchesDisk(path)
+            ; A native reload can match the editor; native Save can precede more edits.
+            if !this.bridge.MatchesDisk(path) && !this.NativeSaveMatchesDisk(path) {
+                SuiteState.Log.Debug("Paper Pad", "Save rejected: unknown disk version."
+                    . " | old_stamp=" this.disk_stamp " | disk_stamp=" current_stamp
+                    . " | dirty=" this.bridge.IsDirty()
+                    . " | observed_save=" IsObject(this.native_save_candidate))
                 throw Error("The page changed on disk, or its previous save state is unknown.`n`n"
                     . "Use Notepad3 File > Save As to preserve the editor version under a new scratch name,"
                     . " or File > Revert to keep the disk version. No automatic overwrite was attempted.")
+            }
             if PaperPadFileStamp(path) != current_stamp
                 throw Error("The file changed again while being checked. Retry after the other writer has finished.")
             this.disk_stamp := current_stamp
@@ -992,6 +1095,7 @@ class PaperPadController
         if PaperPadFileStamp(path) != stamp
             throw Error("The file changed again before the verified save could be recorded.")
         this.disk_stamp := stamp
+        this.native_save_candidate := 0
         this.PersistCurrentState()
         this.last_verified_save_tick := A_TickCount
         this.autosave_tracking.sampled := false
@@ -1141,6 +1245,10 @@ class PaperPadController
         try {
             if !this.bridge || this.bridge.tainted
                 this.ConnectBridge()
+            ; Clean untitled pages are adopted by the watcher; never autosave
+            ; an untitled buffer with user text to an invented path.
+            if this.bridge.CurrentPath() = ""
+                return
             dirty := this.bridge.IsDirty()
             ; Compare actual text so paste, undo and mouse edits reset the idle delay.
             document_text := dirty ? this.bridge.DocumentText() : ""
@@ -1302,7 +1410,14 @@ class PaperPadController
         if is_topmost = enabled
             return
 
-        WinSetAlwaysOnTop enabled, "ahk_id " this.window_hwnd
+        ; Use explicit HWND_TOPMOST/HWND_NOTOPMOST placement; report failed restoration.
+        if !DllCall("SetWindowPos", "ptr", this.window_hwnd, "ptr", enabled ? -1 : -2,
+            "int", 0, "int", 0, "int", 0, "int", 0,
+            "uint", 0x213, "int") ; NOSIZE | NOMOVE | NOACTIVATE | NOOWNERZORDER
+            throw OSError(A_LastError, "SetWindowPos", "Paper Pad topmost")
+        updated_style := DllCall("GetWindowLongPtrW", "ptr", this.window_hwnd, "int", -20, "ptr")
+        if !!(updated_style & 0x8) != enabled
+            throw Error("Paper Pad could not " (enabled ? "restore" : "lower") " its topmost status.")
     }
 
     SyncZOrder()
@@ -1363,12 +1478,18 @@ class PaperPadController
             details .= " | " item[1] "=" hwnd ":" process_name
         }
         if dialog {
-            try details .= " | dialog-class=" WinGetClass("ahk_id " dialog)
+            try {
+                owner := DllCall("GetWindow", "ptr", dialog, "uint", 4, "ptr") ; GW_OWNER
+                details .= " | dialog-class=" WinGetClass("ahk_id " dialog)
+                    . " | dialog-owner=" owner
+                    . " | owner-enabled=" (owner ? DllCall("IsWindowEnabled", "ptr", owner, "int") : -1)
+                    . " | dialog-exstyle=" Format("0x{:X}", WinGetExStyle("ahk_id " dialog))
+            }
         }
         SuiteState.Log.Debug("Paper Pad", details)
     }
 
-    FindYieldDialog(foreground)
+    FindYieldDialog(foreground, candidates := unset)
     {
         if foreground && foreground != this.window_hwnd
             && PaperPadIsDialogWindow(foreground)
@@ -1384,14 +1505,12 @@ class PaperPadController
             context := this.last_external_window
         }
 
-        context_pid := context ? PaperPadWindowProcessId(context) : 0
-
-        ; Keep hidden-window detection enabled elsewhere for the retained editor,
-        ; but exclude hidden/cloaked windows from this frequent dialog scan.
-        ; Cloaked dialogs on another virtual desktop must not lower this drawer.
-        previous_hidden := DetectHiddenWindows(false)
-        try candidates := WinGetList()
-        finally DetectHiddenWindows previous_hidden
+        ; Tests supply only their own windows; production scans visible top-level windows.
+        if !IsSet(candidates) {
+            previous_hidden := DetectHiddenWindows(false)
+            try candidates := WinGetList()
+            finally DetectHiddenWindows previous_hidden
+        }
 
         ; The list follows top-level Z-order. OperationStatusWindow is specific
         ; enough to yield globally; broader dialogs need the current context.
@@ -1417,18 +1536,10 @@ class PaperPadController
                     return candidate
             }
 
-            owner := DllCall("GetWindow", "ptr", candidate, "uint", 4, "ptr") ; GW_OWNER
-            if owner = this.window_hwnd
+            ; A process can own many unrelated windows. Require the actual owner chain.
+            if PaperPadIsOwnedBy(candidate, this.window_hwnd)
+                || (context && PaperPadIsOwnedBy(candidate, context))
                 return candidate
-
-            if context {
-                if owner = context
-                    return candidate
-
-                candidate_pid := PaperPadWindowProcessId(candidate)
-                if context_pid && candidate_pid = context_pid
-                    return candidate
-            }
         }
 
         return 0
@@ -1441,12 +1552,16 @@ class PaperPadController
 
         this.SetDrawerTopmost(false)
 
-        ; HWND_NOTOPMOST can leave the drawer at the top of the normal band. Put
-        ; it explicitly behind the prompt so the prompt becomes visible without
-        ; activating, moving, resizing or otherwise modifying that foreign window.
-        DllCall("SetWindowPos", "ptr", this.window_hwnd, "ptr", dialog,
+        ; Placing the drawer after a topmost popup promotes it to topmost again.
+        ; A topmost menu/dialog already stays above a normal window.
+        if WinGetExStyle("ahk_id " dialog) & 0x8 ; WS_EX_TOPMOST
+            return
+
+        ; Non-topmost dialogs still need explicit ordering within the normal band.
+        if !DllCall("SetWindowPos", "ptr", this.window_hwnd, "ptr", dialog,
             "int", 0, "int", 0, "int", 0, "int", 0,
             "uint", 0x213, "int") ; NOSIZE | NOMOVE | NOACTIVATE | NOOWNERZORDER
+            SuiteState.Log.Error("Paper Pad / dialog Z-order", OSError(A_LastError, "SetWindowPos"))
     }
 
     AnimateWindow(showing, bounds, animate := true)
@@ -2086,6 +2201,8 @@ PaperPadIsDialogWindow(hwnd)
     if !hwnd || !DllCall("IsWindow", "ptr", hwnd, "int")
         || !DllCall("IsWindowVisible", "ptr", hwnd, "int")
         || DllCall("IsIconic", "ptr", hwnd, "int") || IsWindowCloaked(hwnd)
+        || !DllCall("IsWindowEnabled", "ptr", hwnd, "int")
+        || DllCall("GetAncestor", "ptr", hwnd, "uint", 2, "ptr") != hwnd ; GA_ROOT
         return false
 
     try window_class := WinGetClass("ahk_id " hwnd)
@@ -2094,16 +2211,37 @@ PaperPadIsDialogWindow(hwnd)
 
     ex_style := DllCall("GetWindowLongPtrW", "ptr", hwnd, "int", -20, "ptr")
     owner := DllCall("GetWindow", "ptr", hwnd, "uint", 4, "ptr") ; GW_OWNER
-    return PaperPadIsDialogCandidate(window_class, ex_style, owner)
+    owner_enabled := !owner || !DllCall("IsWindow", "ptr", owner, "int")
+        || DllCall("IsWindowEnabled", "ptr", owner, "int")
+    return PaperPadIsDialogCandidate(window_class, ex_style, owner, owner_enabled)
 }
 
-PaperPadIsDialogCandidate(window_class, ex_style, owner)
+PaperPadIsDialogCandidate(window_class, ex_style, owner, owner_enabled := true)
 {
-    ; ConPTY helper windows may be owned, but they are not user-facing dialogs.
-    if window_class = "PseudoConsoleWindow"
+    ; Native popup menus and shell chrome are not modal dialogs.
+    if window_class = "PseudoConsoleWindow" || window_class = "Button"
+        || window_class = "#32768" || window_class = "Desktop User Picture"
         return false
-    return window_class = "#32770" || window_class = "OperationStatusWindow"
-        || !!(ex_style & 0x1) || !!owner ; WS_EX_DLGMODALFRAME / GW_OWNER
+    if window_class = "#32770" || window_class = "OperationStatusWindow"
+        return true
+    ; Ownership and WS_EX_DLGMODALFRAME (a border style) do not prove modality.
+    ; Custom dialogs must block their owner and accept activation themselves.
+    return !!owner && !owner_enabled && !(ex_style & 0x08000000) ; WS_EX_NOACTIVATE
+}
+
+PaperPadIsOwnedBy(hwnd, expected_owner)
+{
+    if !hwnd || !expected_owner
+        return false
+    ; Bound traversal because foreign windows can close or change owners mid-scan.
+    loop 16 {
+        hwnd := DllCall("GetWindow", "ptr", hwnd, "uint", 4, "ptr") ; GW_OWNER
+        if !hwnd
+            return false
+        if hwnd = expected_owner
+            return true
+    }
+    return false
 }
 
 PaperPadFullPath(path)

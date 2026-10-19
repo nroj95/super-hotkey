@@ -1102,7 +1102,7 @@ class SuiteUpgradeChecks {
                 } else
                     actionScopes[row.id] := row.scope
             }
-            this.Assert(cleanHeadings && actionScopes["paper-pad.save"] = "paper-pad"
+            this.Assert(cleanHeadings && actionScopes["paper-pad.delete"] = "paper-pad"
                 && actionScopes["power-up-utilities.terminal.copy"] = "windows-terminal",
                 "scopes belong to action descriptions rather than category headings")
             this.Assert(actionScopes["core.keybindings"] = ""
@@ -1331,9 +1331,8 @@ class SuiteUpgradeChecks {
             "core.keybindings", "cascade-kingdom.copy-log", "cascade-kingdom.reset-log"],
             "Global shortcuts group application first and logs together")
         this.AssertDisplaySequence(rows, [
-            "paper-pad.help", "paper-pad.toggle", "paper-pad.new",
-            "paper-pad.save", "paper-pad.delete", "paper-pad.previous",
-            "paper-pad.next", "paper-pad.hide"],
+            "paper-pad.help", "paper-pad.toggle", "paper-pad.delete",
+            "paper-pad.previous", "paper-pad.next", "paper-pad.hide"],
             "Paper Pad groups document operations and page navigation")
         this.AssertDisplaySequence(rows, [
             "cascade-kingdom.help", "cascade-kingdom.focus-previous", "cascade-kingdom.focus-next",

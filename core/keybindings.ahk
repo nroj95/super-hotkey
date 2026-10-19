@@ -272,8 +272,7 @@ class Keybindings {
             "Paper Pad", [
                 "paper-pad.help", "paper-pad.toggle"],
             "Paper Pad / Inside the editor", [
-                "paper-pad.new", "paper-pad.save", "paper-pad.delete",
-                "paper-pad.previous", "paper-pad.next", "paper-pad.hide"],
+                "paper-pad.delete", "paper-pad.previous", "paper-pad.next", "paper-pad.hide"],
             "Cascade Kingdom", [
                 "cascade-kingdom.help",
                 "cascade-kingdom.focus-previous", "cascade-kingdom.focus-next",

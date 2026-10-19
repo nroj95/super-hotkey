@@ -4,16 +4,81 @@ class SuiteReleaseChecks {
 
     static Run() {
         this.PowerCancellation()
+        this.NativeNewPolicy()
+        this.NativeSaveReconciliation()
         this.LargeDebugLog()
         this.CascadeOptInLaunch()
         this.CascadeLaunchMonitors()
         this.DeferredInputsAndSessions()
         this.WindowSizingAndCloaking()
+        this.PaperPadTopmostRestoration()
+        this.PaperPadDialogOwnership()
         this.FocusTabDpi()
         SuiteHardeningChecks.Run()
     }
 
     static Assert(condition, label) => SuiteChecks.Assert(condition, label)
+
+    static NativeNewPolicy() {
+        this.Assert(!PaperPadController.UntitledHasEdits(false, ""),
+            "clean native New can be converted into a managed page")
+        this.Assert(PaperPadController.UntitledHasEdits(true, "")
+            && PaperPadController.UntitledHasEdits(false, "typed text"),
+            "native New never replaces an edited untitled document")
+    }
+
+    static NativeSaveReconciliation() {
+        path := SuiteChecks.directory "\release-native-save.md"
+        FileAppend "original", path, "UTF-8-RAW"
+        pad := SuiteReleaseNativeSavePad(path)
+        try {
+            ; Native Save completes, then the user edits again before autosave.
+            pad.native_save_candidate := {path: path, text: "native version", tick: A_TickCount}
+            FileDelete path
+            FileAppend "native version", path, "UTF-8-RAW"
+            pad.bridge.text := "native version plus new edits"
+            pad.bridge.dirty := true
+            this.Assert(pad.SaveCurrentPage(false)
+                && FileRead(path, "UTF-8") == pad.bridge.text,
+                "native Save followed by new edits remains eligible for autosave")
+            this.Assert(!IsObject(pad.native_save_candidate),
+                "a verified Paper Pad save consumes the native Save snapshot")
+
+            ; A different external disk version must never be silently replaced.
+            pad.native_save_candidate := {path: path, text: "different version", tick: A_TickCount}
+            FileDelete path
+            FileAppend "external modification", path, "UTF-8-RAW"
+            pad.bridge.text := "local unsaved work"
+            pad.bridge.dirty := true
+            SuiteChecks.Rejects((*) => pad.SaveCurrentPage(false),
+                "a genuine external change still blocks Paper Pad autosave")
+            this.Assert(FileRead(path, "UTF-8") = "external modification",
+                "a rejected external conflict preserves the disk version")
+            pad.native_save_candidate := {path: path, text: "external modification",
+                tick: A_TickCount - 6000}
+            this.Assert(pad.NativeSaveMatchesDisk(path),
+                "exact native Save contents remain recognizable after a delay")
+
+            ; Native File > Save has no keyboard observer. A clean editor and
+            ; identical disk file can still establish the new baseline.
+            FileDelete path
+            FileAppend "menu saved version", path, "UTF-8-RAW"
+            pad.bridge.text := "menu saved version"
+            pad.bridge.dirty := false
+            pad.autosave_paused := true
+            this.Assert(pad.ReconcileCleanNativeSave(path)
+                && pad.disk_stamp = PaperPadFileStamp(path) && !pad.autosave_paused,
+                "native File Save updates the baseline and resumes autosave")
+
+            FileDelete path
+            FileAppend "another external version", path, "UTF-8-RAW"
+            pad.bridge.text := "unsaved local edits"
+            pad.bridge.dirty := true
+            this.Assert(!pad.ReconcileCleanNativeSave(path),
+                "native Save reconciliation refuses to bless a dirty conflicting buffer")
+        }
+        finally FileDelete path
+    }
 
     static LargeDebugLog() {
         app := SuiteApplication(true, SuiteChecks.directory "\release-large-log")
@@ -397,8 +462,80 @@ class SuiteReleaseChecks {
         }
     }
 
+    static PaperPadTopmostRestoration() {
+        window := SuiteGui("+ToolWindow", "Paper Pad topmost regression")
+        pad := SuiteReleaseTopmostPad(window.Hwnd)
+        try {
+            window.Show("NA w160 h100")
+            pad.SetDrawerTopmost(true)
+            this.Assert(!!(WinGetExStyle("ahk_id " window.Hwnd) & 0x8),
+                "Paper Pad can become topmost")
+            pad.SetDrawerTopmost(false)
+            this.Assert(!(WinGetExStyle("ahk_id " window.Hwnd) & 0x8),
+                "Paper Pad can yield to a real dialog")
+            pad.SetDrawerTopmost(true)
+            this.Assert(!!(WinGetExStyle("ahk_id " window.Hwnd) & 0x8),
+                "Paper Pad restores topmost after yielding")
+        }
+        finally window.Destroy()
+    }
+
+    static PaperPadDialogOwnership() {
+        windows := []
+        try {
+            drawer := SuiteGui("+ToolWindow", "Paper Pad ownership test")
+            windows.Push(drawer)
+            owner := SuiteGui("+ToolWindow", "External dialog owner")
+            windows.Push(owner)
+            unrelated := SuiteGui("+ToolWindow", "Unrelated same-process window")
+            windows.Push(unrelated)
+            helper := SuiteGui("+ToolWindow +E0x1 +Owner" owner.Hwnd, "Owned helper")
+            windows.Push(helper)
+            nested := SuiteGui("+ToolWindow +Owner" helper.Hwnd, "Nested modal dialog")
+            windows.Push(nested)
+            padDialog := SuiteGui("+ToolWindow +Owner" drawer.Hwnd, "Paper Pad dialog")
+            windows.Push(padDialog)
+            for window in [drawer, owner, unrelated, helper]
+                window.Show("NA w160 h100")
+            pad := SuiteReleaseTopmostPad(drawer.Hwnd)
+            pad.last_external_window := owner.Hwnd
+
+            ; Explicit candidates keep the test independent of personal windows.
+            this.Assert(!PaperPadIsDialogWindow(helper.Hwnd)
+                && !pad.FindYieldDialog(owner.Hwnd, [helper.Hwnd]),
+                "an owned framed helper cannot lower Paper Pad while its owner is enabled")
+            owner.Opt("+Disabled")
+            this.Assert(PaperPadIsDialogWindow(helper.Hwnd)
+                && pad.FindYieldDialog(owner.Hwnd, [helper.Hwnd]) = helper.Hwnd,
+                "a custom modal dialog is recognized through its disabled owner")
+            this.Assert(!pad.FindYieldDialog(unrelated.Hwnd, [helper.Hwnd]),
+                "sharing a process with the foreground window is not a dialog relationship")
+
+            helper.Opt("+Disabled")
+            nested.Show("NA w160 h100")
+            this.Assert(!PaperPadIsDialogWindow(helper.Hwnd)
+                && pad.FindYieldDialog(owner.Hwnd, [helper.Hwnd, nested.Hwnd]) = nested.Hwnd,
+                "nested owner chains select the enabled modal dialog, not its disabled parent")
+            nested.Hide()
+            helper.Opt("-Disabled")
+            owner.Opt("-Disabled")
+            this.Assert(!pad.FindYieldDialog(owner.Hwnd, [helper.Hwnd, nested.Hwnd]),
+                "reenabling the owner and hiding the nested dialog removes the yield target")
+
+            drawer.Opt("+Disabled")
+            padDialog.Show("NA w160 h100")
+            this.Assert(pad.FindYieldDialog(unrelated.Hwnd, [padDialog.Hwnd]) = padDialog.Hwnd,
+                "Paper Pad's own modal dialog remains eligible when another window is active")
+        }
+        finally {
+            while windows.Length
+                windows.Pop().Destroy()
+        }
+    }
+
     static WindowSizingAndCloaking() {
-        window := SuiteGui("+Resize +E0x1", "Release sizing test")
+        owner := SuiteGui("+Disabled +ToolWindow", "Release dialog owner")
+        window := SuiteGui("+Resize +E0x1 +Owner" owner.Hwnd, "Release sizing test")
         try {
             SuiteShowCentered(window, 1600, 1200, 0, true)
             rect := Buffer(16, 0)
@@ -418,12 +555,25 @@ class SuiteReleaseChecks {
             this.Assert(PaperPadIsDialogWindow(window.Hwnd), "a visible test dialog can yield Paper Pad")
             this.Assert(!PaperPadIsDialogCandidate("PseudoConsoleWindow", 0x1, 123),
                 "owned pseudoconsole helpers never count as dialogs")
+            this.Assert(!PaperPadIsDialogCandidate("Button", 0x1, 123),
+                "Explorer Button controls cannot lower Paper Pad")
+            this.Assert(!PaperPadIsDialogCandidate("#32768", 0x1, 123)
+                && !PaperPadIsDialogCandidate("Desktop User Picture", 0x1, 123),
+                "native popup menus and Start-menu chrome do not lower Paper Pad")
             this.Assert(PaperPadIsDialogCandidate("#32770", 0, 0)
                 && PaperPadIsDialogCandidate("OperationStatusWindow", 0, 0),
                 "standard and operation-status dialogs remain eligible")
-            this.Assert(PaperPadIsDialogCandidate("OtherWindow", 0x1, 0)
-                && PaperPadIsDialogCandidate("OtherWindow", 0, 123),
-                "modal and owned windows remain eligible")
+            this.Assert(!PaperPadIsDialogCandidate("OtherWindow", 0x1, 0)
+                && !PaperPadIsDialogCandidate("OtherWindow", 0, 123),
+                "a dialog border or ownership alone cannot lower Paper Pad")
+            this.Assert(!PaperPadIsDialogCandidate("Chrome_WidgetWin_2", 0, 123)
+                && !PaperPadIsDialogCandidate("Chrome_WidgetWin_2", 0x1, 123),
+                "Edge helper windows with an enabled owner are not dialogs")
+            this.Assert(PaperPadIsDialogCandidate("OtherWindow", 0, 123, false)
+                && PaperPadIsDialogCandidate("Chrome_WidgetWin_2", 0, 123, false),
+                "custom modal dialogs remain eligible without a Chromium blacklist")
+            this.Assert(!PaperPadIsDialogCandidate("OtherWindow", 0x08000000, 123, false),
+                "non-activating helpers do not become dialogs when their owner is disabled")
             this.Assert(!PaperPadIsDialogCandidate("OtherWindow", 0, 0),
                 "ordinary unowned windows do not count as dialogs")
             cloaked := Buffer(4, 0)
@@ -440,6 +590,7 @@ class SuiteReleaseChecks {
         finally {
             SuiteSizeGrip.Detach(window)
             window.Destroy()
+            owner.Destroy()
         }
     }
 
@@ -491,4 +642,49 @@ class SuiteReleasePad extends PaperPadController {
     }
 
     ExecuteCommand(request) => this.executed.Push(request.name)
+}
+
+class SuiteReleaseNativeSavePad extends PaperPadController {
+    __New(path) {
+        this.path := path
+        this.current_path := path
+        this.bridge := SuiteReleaseNativeSaveBridge(path)
+        this.disk_stamp := PaperPadFileStamp(path)
+        this.native_save_candidate := 0
+        this.autosave_paused := false
+        this.autosave_tracking := {sampled: false, text: "", last_change: 0}
+    }
+
+    PersistCurrentState() => 0
+    CheckCurrentPage() => this.path
+
+    AcceptSave(path, stamp) {
+        this.disk_stamp := stamp
+        this.native_save_candidate := 0
+    }
+}
+
+class SuiteReleaseNativeSaveBridge {
+    __New(path) {
+        this.path := path
+        this.text := FileRead(path, "UTF-8")
+        this.dirty := false
+        this.tainted := false
+    }
+
+    CurrentPath() => this.path
+    DocumentText() => this.text
+    MatchesDisk(path) => FileRead(path, "UTF-8") == this.text
+    MatchesDiskText(path, text) => FileRead(path, "UTF-8") == text
+    IsDirty() => this.dirty
+
+    Save() {
+        FileDelete this.path
+        FileAppend this.text, this.path, "UTF-8-RAW"
+        this.dirty := false
+    }
+}
+
+class SuiteReleaseTopmostPad extends PaperPadController {
+    __New(hwnd) => this.window_hwnd := hwnd
 }

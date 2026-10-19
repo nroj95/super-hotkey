@@ -122,8 +122,12 @@ class SuiteChecks {
                     && !manager.actions.Has("cascade-kingdom.move-left")
                     && !manager.actions.Has("cascade-kingdom.move-right"),
                 "backward all-slot rotation and old Cascade monitor hotkeys are removed")
-            this.Assert(HasMethod(manager.actions["paper-pad.save"].context, "Call"), "Paper Pad save has an explicit editor context")
-            this.Assert(!manager.ContextActive(manager.actions["paper-pad.save"]), "Paper Pad commands are inactive outside its editor")
+            this.Assert(!manager.actions.Has("paper-pad.new") && !manager.actions.Has("paper-pad.save"),
+                "native New and Save are not duplicated in Keybindings")
+            this.Assert(HasMethod(manager.actions["paper-pad.delete"].context, "Call"),
+                "Paper Pad delete has an explicit editor context")
+            this.Assert(!manager.ContextActive(manager.actions["paper-pad.delete"]),
+                "Paper Pad commands are inactive outside its editor")
             manager.ShowSettings()
             this.Assert(IsObject(manager.settings) && manager.rows.Length > 50, "shared editor renders the complete catalog")
             manager._CloseSettings()
