@@ -29,6 +29,10 @@ PaperPadEditorFocused()
 
 class PaperPadController
 {
+    static AutosaveIdleMs := 1000
+    static AutosaveMaxMs := 10000
+    static AutosavePollMs := 500
+
     ; =========================================================================
     ; configuration and serialized commands
     ; =========================================================================
@@ -43,6 +47,9 @@ class PaperPadController
         this.bridge := 0
         this.busy := false
         this.autosave_paused := false
+        this.last_verified_save_tick := A_TickCount
+        this.last_autosave_attempt_tick := A_TickCount - PaperPadController.AutosaveIdleMs
+        this.autosave_tracking := {sampled: false, text: "", last_change: 0}
         this.exit_prepared := false
         this.command_queue := []
         this.page_views := Map()
@@ -92,7 +99,6 @@ class PaperPadController
         this.width_percent := this.ReadNumber("Window", "WidthPercent", 45, 30, 100)
         this.height_percent := this.ReadNumber("Window", "HeightPercent", 35, 20, 100)
         this.animation_ms := this.ReadNumber("Window", "AnimationDurationMs", 180, 0, 1000)
-        this.autosave_ms := this.ReadNumber("Saving", "AutosaveIntervalMs", 10000, 500, 60000)
         this.allowed_extensions := "|md|txt|ps1|psm1|psd1|py|pyw|ahk|lua|js|ts|jsx|tsx|"
             . "json|jsonc|yaml|yml|xml|html|htm|css|scss|ini|cfg|conf|toml|log|"
             . "sh|bash|bat|cmd|sql|c|cpp|h|hpp|cs|rs|go|java|rb|php|csv|tsv|"
@@ -115,7 +121,7 @@ class PaperPadController
             SuiteState.PaperPadStatus := "Paper Pad - autosave paused"
             this.ReportError(failure, true)
         }
-        SetTimer this.autosave_callback, this.autosave_ms
+        SetTimer this.autosave_callback, PaperPadController.AutosavePollMs
         SetTimer this.page_lock_sync_callback, 250
     
         }
@@ -141,7 +147,6 @@ class PaperPadController
             settings := "[Paths]`nNotesDirectory=" default_notes_directory
                 . "`nNotepad3Executable=`n"
                 . "`n[Window]`nMonitor=Primary`nWidthPercent=45`nHeightPercent=35`nAnimationDurationMs=180`n"
-                . "`n[Saving]`nAutosaveIntervalMs=10000`n"
                 . "`n[Setup]`nWelcomePending=1`n"
             FileAppend settings, this.settings_path, "UTF-16"
         }
@@ -987,6 +992,10 @@ class PaperPadController
             throw Error("The file changed again before the verified save could be recorded.")
         this.disk_stamp := stamp
         this.PersistCurrentState()
+        this.last_verified_save_tick := A_TickCount
+        this.autosave_tracking.sampled := false
+        this.autosave_tracking.text := ""
+        this.autosave_tracking.last_change := 0
         this.autosave_paused := false
         SuiteState.PaperPadStatus := "Paper Pad"
     }
@@ -1099,6 +1108,27 @@ class PaperPadController
         this.bridge.Scintilla(2397, view.horizontal_scroll)
     }
 
+    static TrackAutosaveChanges(tracking, dirty, document_text, now)
+    {
+        if !dirty {
+            tracking.sampled := false
+            tracking.text := ""
+            tracking.last_change := 0
+        } else if !tracking.sampled || StrCompare(document_text, tracking.text, true) != 0 {
+            tracking.sampled := true
+            tracking.text := document_text
+            tracking.last_change := now
+        }
+    }
+
+    static ShouldAutosave(dirty, idle_ms, save_age_ms, attempt_age_ms)
+    {
+        if attempt_age_ms < this.AutosaveIdleMs
+            return false
+        return save_age_ms >= this.AutosaveMaxMs
+            || (dirty && idle_ms >= this.AutosaveIdleMs)
+    }
+
     Autosave(*)
     {
         if this.busy || this.autosave_paused || !this.IsVisible()
@@ -1107,7 +1137,27 @@ class PaperPadController
         if !PaperPadWindowIdle(this.window_hwnd)
             return
         this.busy := true
-        try this.SaveCurrentPage(false)
+        try {
+            if !this.bridge || this.bridge.tainted
+                this.ConnectBridge()
+            dirty := this.bridge.IsDirty()
+            ; Compare actual text so paste, undo and mouse edits reset the idle delay.
+            document_text := dirty ? this.bridge.DocumentText() : ""
+            now := A_TickCount
+            PaperPadController.TrackAutosaveChanges(this.autosave_tracking, dirty, document_text, now)
+            idle_ms := dirty ? now - this.autosave_tracking.last_change : 0
+            if PaperPadController.ShouldAutosave(dirty, idle_ms,
+                now - this.last_verified_save_tick,
+                now - this.last_autosave_attempt_tick) {
+                ; A changing snapshot can fail safely; do not retry every poll.
+                this.last_autosave_attempt_tick := now
+                this.SaveCurrentPage(false)
+            }
+        }
+        catch PaperPadTextChangedError {
+            ; Ordinary edits can interrupt a snapshot. Wait for another sample.
+            this.autosave_tracking.last_change := A_TickCount
+        }
         catch as failure {
             this.autosave_paused := true
             SuiteState.PaperPadStatus := "Paper Pad - autosave paused"

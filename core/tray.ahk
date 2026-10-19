@@ -707,8 +707,7 @@ class SuiteInterface {
         window.AddDropDownList("x180 y175 w380 vdisplay", names).Choose(selectedIndex)
         fields := [["width", "Width (%)", "Window", "WidthPercent", 45],
             ["height", "Height (%)", "Window", "HeightPercent", 35],
-            ["animation", "Animation (ms)", "Window", "AnimationDurationMs", 180],
-            ["autosave", "Autosave (ms)", "Saving", "AutosaveIntervalMs", 10000]]
+            ["animation", "Animation (ms)", "Window", "AnimationDurationMs", 180]]
         y := 225
         for item in fields {
             window.AddText("x20 y" (y + 5) " w150", item[2])
@@ -717,8 +716,8 @@ class SuiteInterface {
         }
         this.Footer(window, [["Open notes folder", ObjBindMethod(this, "OpenNotesFolder"), 165],
             ["Apply and restart", ObjBindMethod(this, "SavePaper"), 160],
-            ["Back", ObjBindMethod(this, "BackToHelp", "paper-pad"), 100]], 435)
-        this.ShowPage(key, 800, 485, 760, 460)
+            ["Back", ObjBindMethod(this, "BackToHelp", "paper-pad"), 100]], 392)
+        this.ShowPage(key, 800, 442, 760, 417)
     }
 
     NumberField(window, name, minimum, maximum) {
@@ -744,8 +743,7 @@ class SuiteInterface {
                 "Window", Map("Monitor", this.padMonitors[window["display"].Value],
                     "WidthPercent", this.NumberField(window, "width", 30, 100),
                     "HeightPercent", this.NumberField(window, "height", 20, 100),
-                    "AnimationDurationMs", this.NumberField(window, "animation", 0, 1000)),
-                "Saving", Map("AutosaveIntervalMs", this.NumberField(window, "autosave", 500, 60000)))
+                    "AnimationDurationMs", this.NumberField(window, "animation", 0, 1000)))
             pathsChanged := folder != IniRead(path, "Paths", "NotesDirectory", EnvGet("USERPROFILE") "\Paper Pad")
                 || editor != IniRead(path, "Paths", "Notepad3Executable", "")
             if pathsChanged && this.app.paperPadStarted && IsSet(paperPad) {

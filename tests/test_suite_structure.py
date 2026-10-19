@@ -126,6 +126,11 @@ class SuiteStructureTests(unittest.TestCase):
         self.assertIn('"\\Paper Pad"', text)
         self.assertNotIn('this.toggle_hotkey_name', text)
         self.assertIn('SuiteState.App.ui.ToggleHelp("paper-pad")', text)
+        self.assertIn('ShouldAutosave', text)
+        self.assertNotIn('AutosaveIntervalMs', text)
+        tray = (ROOT / 'core/tray.ahk').read_text()
+        self.assertNotIn('Autosave (ms)', tray)
+        self.assertNotIn('AutosaveIntervalMs', tray)
 
 
 if __name__ == '__main__':

@@ -32,6 +32,7 @@ class SuiteChecks {
         this.CheckNoLayers()
         this.CheckLogging()
         this.CheckExitVeto()
+        this.CheckAutosavePolicy()
         this.CheckDryRunLifecycle()
         SuiteUpgradeChecks.Run()
         SuiteReleaseChecks.Run()
@@ -264,6 +265,40 @@ class SuiteChecks {
         busyController := {busy: true, command_queue: []}
         this.Rejects((*) => PaperPadController.Prototype.PrepareSuiteExit.Call(busyController, "Reload"),
             "Paper Pad can refuse a restart while a command is active")
+    }
+
+    static CheckAutosavePolicy() {
+        tracking := {sampled: false, text: "", last_change: 0}
+        PaperPadController.TrackAutosaveChanges(tracking, true, "abc", 1000)
+        this.Assert(tracking.sampled && tracking.last_change = 1000,
+            "first dirty snapshot starts Paper Pad's idle clock")
+        PaperPadController.TrackAutosaveChanges(tracking, true, "abc", 1500)
+        this.Assert(tracking.last_change = 1000,
+            "unchanged document text preserves the idle clock")
+        PaperPadController.TrackAutosaveChanges(tracking, true, "aBc", 1600)
+        this.Assert(tracking.last_change = 1600,
+            "case-only edits reset the idle clock")
+        PaperPadController.TrackAutosaveChanges(tracking, true, "xyz", 1700)
+        this.Assert(tracking.last_change = 1700,
+            "equal-length replacements reset the idle clock")
+        PaperPadController.TrackAutosaveChanges(tracking, true, "", 1800)
+        this.Assert(tracking.last_change = 1800,
+            "deletions reset the idle clock")
+        PaperPadController.TrackAutosaveChanges(tracking, false, "", 1900)
+        this.Assert(!tracking.sampled && tracking.text = "" && tracking.last_change = 0,
+            "clean documents release their retained snapshot")
+        this.Assert(!PaperPadController.ShouldAutosave(false, 2000, 9999, 9999),
+            "clean Paper Pad skips idle autosave")
+        this.Assert(!PaperPadController.ShouldAutosave(true, 999, 5000, 2000),
+            "recent document edits defer autosave")
+        this.Assert(!PaperPadController.ShouldAutosave(true, 1000, 5000, 999),
+            "failed saves cannot trigger a rapid retry loop")
+        this.Assert(PaperPadController.ShouldAutosave(true, 1000, 5000, 2000),
+            "dirty Paper Pad saves one second after the last document change")
+        this.Assert(PaperPadController.ShouldAutosave(true, 0, 10000, 1000),
+            "continuous edits receive a ten-second fallback")
+        this.Assert(PaperPadController.ShouldAutosave(false, 0, 10000, 1000),
+            "encoding-only changes retain periodic save attempts")
     }
 }
 
