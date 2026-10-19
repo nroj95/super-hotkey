@@ -1,11 +1,11 @@
 ; Saved preferences are independent of the currently running module/layer choices.
 class SuiteSettings {
-    static ModuleOrder := ["window-cascade", "win-key-overhaul", "power-hotkey", "scratchpad", "keyboard-layers"]
+    static ModuleOrder := ["window-cascade", "win-key-overhaul", "power-up-utilities", "scratchpad", "keyboard-layers"]
     static ModuleNames := Map("window-cascade", "Cascade Kingdom", "win-key-overhaul", "Wonder Windows",
-        "power-hotkey", "Power-Up Utilities", "scratchpad", "Paper Pad", "keyboard-layers", "Secret Keys")
+        "power-up-utilities", "Power-Up Utilities", "scratchpad", "Paper Pad", "keyboard-layers", "Secret Keys")
     static ModuleDescriptions := Map("window-cascade", "Automatic window placement and cascades.",
         "win-key-overhaul", "Window hotkeys, layouts, stretching and navigation.",
-        "power-hotkey", "Extra keyboard, text and system actions.",
+        "power-up-utilities", "Extra keyboard, text and system actions.",
         "scratchpad", "A persistent Notepad3 drawer for quick notes.",
         "keyboard-layers", "Independent CapsLock and Pause hotkey layers.")
 

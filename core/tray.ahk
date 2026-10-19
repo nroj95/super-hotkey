@@ -312,7 +312,7 @@ class SuiteInterface {
         buttons := []
         if id = "scratchpad"
             buttons.Push(["Open pad", ObjBindMethod(this, "OpenPad"), 110])
-        if id != "power-hotkey"
+        if id != "power-up-utilities"
             buttons.Push(["Settings...", ObjBindMethod(this, "OpenSettingsFromHelp", id), 120])
         buttons.Push(["Keybindings...", ObjBindMethod(this, "OpenKeybindingsFromHelp", id), 135])
         buttons.Push(["Close", ObjBindMethod(this, "CloseWindow", key), 100])
@@ -853,10 +853,10 @@ class SuiteInterface {
             return
         }
         window := this.NewWindow("log", SuiteApplication.Name " - Debug log")
-        verbose := window.AddCheckbox("x20 y18 w750 vverbose", "Verbose debugging for the whole application")
+        verbose := window.AddCheckbox("x20 y18 w750 vverbose", "Verbose debugging")
         verbose.Value := SuiteState.Log.verbose
         verbose.OnEvent("Click", ObjBindMethod(this, "SetVerbose"))
-        window.AddText("x20 y50 w760", "Showing recent entries only. Copy or Open file accesses the full log; verbose mode may include window titles and paths.")
+        window.AddText("x20 y50 w760", "Showing recent entries only. Copy or Open file to access the full log.")
         window.AddEdit("x20 y85 w760 h335 ReadOnly +VScroll vlog", SuiteState.Log.ReadRecent())
         footer := this.Footer(window, [["Copy", ObjBindMethod(this, "CopyLog"), 100],
             ["Clear...", ObjBindMethod(this, "ClearLog"), 100],

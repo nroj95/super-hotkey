@@ -305,29 +305,29 @@ class Keybindings {
                 "win-key-overhaul.zone-up", "win-key-overhaul.zone-down",
                 "win-key-overhaul.zone-left", "win-key-overhaul.zone-right"],
             "Power-Up Utilities", [
-                "power-hotkey.interface.open", "power-hotkey.system.wake-speakers",
-                "power-hotkey.system.sleep"],
+                "power-up-utilities.interface.open", "power-up-utilities.system.wake-speakers",
+                "power-up-utilities.system.sleep"],
             "Power-Up Utilities / Extra function keys", [
-                "power-hotkey.keyboard.f13", "power-hotkey.keyboard.f14",
-                "power-hotkey.keyboard.f15", "power-hotkey.keyboard.f16",
-                "power-hotkey.keyboard.f17", "power-hotkey.keyboard.f18",
-                "power-hotkey.keyboard.f19", "power-hotkey.keyboard.f20",
-                "power-hotkey.keyboard.f21", "power-hotkey.keyboard.f22",
-                "power-hotkey.keyboard.f23", "power-hotkey.keyboard.f24"],
+                "power-up-utilities.keyboard.f13", "power-up-utilities.keyboard.f14",
+                "power-up-utilities.keyboard.f15", "power-up-utilities.keyboard.f16",
+                "power-up-utilities.keyboard.f17", "power-up-utilities.keyboard.f18",
+                "power-up-utilities.keyboard.f19", "power-up-utilities.keyboard.f20",
+                "power-up-utilities.keyboard.f21", "power-up-utilities.keyboard.f22",
+                "power-up-utilities.keyboard.f23", "power-up-utilities.keyboard.f24"],
             "Power-Up Utilities / Virtual number pad", [
-                "power-hotkey.keyboard.numpad0", "power-hotkey.keyboard.numpad1",
-                "power-hotkey.keyboard.numpad2", "power-hotkey.keyboard.numpad3",
-                "power-hotkey.keyboard.numpad4", "power-hotkey.keyboard.numpad5",
-                "power-hotkey.keyboard.numpad6", "power-hotkey.keyboard.numpad7",
-                "power-hotkey.keyboard.numpad8", "power-hotkey.keyboard.numpad9"],
+                "power-up-utilities.keyboard.numpad0", "power-up-utilities.keyboard.numpad1",
+                "power-up-utilities.keyboard.numpad2", "power-up-utilities.keyboard.numpad3",
+                "power-up-utilities.keyboard.numpad4", "power-up-utilities.keyboard.numpad5",
+                "power-up-utilities.keyboard.numpad6", "power-up-utilities.keyboard.numpad7",
+                "power-up-utilities.keyboard.numpad8", "power-up-utilities.keyboard.numpad9"],
             "Power-Up Utilities / Text and symbols", [
-                "power-hotkey.text.apostrophe", "power-hotkey.text.en-dash",
-                "power-hotkey.text.nbsp", "power-hotkey.text.sharp-s",
-                "power-hotkey.text.timestamp"],
+                "power-up-utilities.text.apostrophe", "power-up-utilities.text.en-dash",
+                "power-up-utilities.text.nbsp", "power-up-utilities.text.sharp-s",
+                "power-up-utilities.text.timestamp"],
             "Power-Up Utilities / Windows Terminal", [
-                "power-hotkey.terminal.copy", "power-hotkey.terminal.clear"],
+                "power-up-utilities.terminal.copy", "power-up-utilities.terminal.clear"],
             "Secret Keys", [
-                "keyboard-layers.help", "power-hotkey.keyboard.toggle-caps"])
+                "keyboard-layers.help", "power-up-utilities.keyboard.toggle-caps"])
         if !order.Has(category)
             return entries
         byId := Map()

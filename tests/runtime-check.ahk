@@ -89,9 +89,9 @@ class SuiteChecks {
                 this.Assert(!InStr(status.state, "error:"), "registration: " status.actionId " / " status.slot)
             configuration := manager.GetConfiguration()
             this.Assert(configuration["core.keybindings"].bindings[1] = Keybindings.Parse("Caps + Alt + K").signature, "Caps + Alt + K opens the shared editor")
-            this.Assert(configuration["power-hotkey.terminal.copy"].bindings[1] = Keybindings.Parse("Caps + C").signature, "Terminal copy defaults to Caps + C")
-            this.Assert(configuration["power-hotkey.terminal.clear"].bindings[1] = Keybindings.Parse("Caps + K").signature, "Terminal clear defaults to Caps + K")
-            this.Assert(configuration["power-hotkey.system.wake-speakers"].bindings[1] = Keybindings.Parse("Pause + Pause").signature, "speaker wake defaults to Pause double-tap")
+            this.Assert(configuration["power-up-utilities.terminal.copy"].bindings[1] = Keybindings.Parse("Caps + C").signature, "Terminal copy defaults to Caps + C")
+            this.Assert(configuration["power-up-utilities.terminal.clear"].bindings[1] = Keybindings.Parse("Caps + K").signature, "Terminal clear defaults to Caps + K")
+            this.Assert(configuration["power-up-utilities.system.wake-speakers"].bindings[1] = Keybindings.Parse("Pause + Pause").signature, "speaker wake defaults to Pause double-tap")
             for direction in ["left", "right", "up", "down"] {
                 this.Assert(configuration["win-key-overhaul.focus-" direction].bindings[1]
                     = Keybindings.Parse("Win + Alt + " direction).signature,
@@ -127,33 +127,33 @@ class SuiteChecks {
             this.Assert(IsObject(manager.settings) && manager.rows.Length > 50, "shared editor renders the complete catalog")
             manager._CloseSettings()
 
-            app.activeModules["power-hotkey"] := false
+            app.activeModules["power-up-utilities"] := false
             manager.Apply(configuration)
-            this.Assert(!this.HasRoute(manager, "power-hotkey.keyboard.f13"), "disabled module releases its routes")
+            this.Assert(!this.HasRoute(manager, "power-up-utilities.keyboard.f13"), "disabled module releases its routes")
             capsConfiguration := manager.GetConfiguration()
-            capsConfiguration["power-hotkey.keyboard.toggle-caps"].bindings[1] := "Ctrl + Alt + F10"
+            capsConfiguration["power-up-utilities.keyboard.toggle-caps"].bindings[1] := "Ctrl + Alt + F10"
             manager.Apply(capsConfiguration)
-            this.Assert(this.HasRoute(manager, "power-hotkey.keyboard.toggle-caps"),
+            this.Assert(this.HasRoute(manager, "power-up-utilities.keyboard.toggle-caps"),
                 "Caps Lock shortcut works with Power-Up Utilities disabled")
             manager.Apply(configuration)
             rows := Keybindings.DisplayRows(manager.DiscoverParticipants())
             found := false
             for row in rows
-                if row.id = "power-hotkey.keyboard.f13"
+                if row.id = "power-up-utilities.keyboard.f13"
                     found := true
             this.Assert(!found, "disabled modules are hidden from the active Keybindings view")
-            this.Assert(manager.GetConfiguration()["power-hotkey.keyboard.f13"].bindings[1] = configuration["power-hotkey.keyboard.f13"].bindings[1], "disabling a module preserves its assignments")
+            this.Assert(manager.GetConfiguration()["power-up-utilities.keyboard.f13"].bindings[1] = configuration["power-up-utilities.keyboard.f13"].bindings[1], "disabling a module preserves its assignments")
             changed := manager.GetConfiguration()
             changed["scratchpad.toggle"].bindings[1] := "Caps + Q"
             manager.Apply(changed)
             this.Assert(manager.GetConfiguration()["scratchpad.toggle"].bindings[1] = Keybindings.Parse("Caps + Q").signature, "a disabled module's key can be reused")
             before := FileRead(manager.path, "UTF-8")
-            app.activeModules["power-hotkey"] := true
+            app.activeModules["power-up-utilities"] := true
             this.Rejects((*) => manager.Apply(manager.GetConfiguration()), "re-enabling a conflicting module is rejected")
             this.Assert(FileRead(manager.path, "UTF-8") = before, "conflict rejection preserves the saved configuration")
-            this.Assert(!this.HasRoute(manager, "power-hotkey.keyboard.f13"), "conflict rejection retains the prior runtime")
+            this.Assert(!this.HasRoute(manager, "power-up-utilities.keyboard.f13"), "conflict rejection retains the prior runtime")
             manager.Apply(configuration)
-            this.Assert(this.HasRoute(manager, "power-hotkey.keyboard.f13"), "restoring a valid configuration restores the module routes")
+            this.Assert(this.HasRoute(manager, "power-up-utilities.keyboard.f13"), "restoring a valid configuration restores the module routes")
             manager.actions["scratchpad.toggle"].available := false
             defaults := manager._DefaultConfiguration()
             this.Assert(defaults["scratchpad.toggle"].bindings[1] = Keybindings.Parse("Win + F12").signature, "shortcut defaults include disabled actions")
@@ -233,7 +233,7 @@ class SuiteChecks {
         diagnosticLog.Write("Core", "first " StrReplace(Format("{:120}", "x"), " ", "x"))
         diagnosticLog.Write("Scratchpad", "second")
         this.Assert(FileExist(diagnosticLog.path ".old"), "central log rotates at the size limit")
-        diagnosticLog.Error("Power Hotkey", Error("diagnostic marker", "native checks"))
+        diagnosticLog.Error("Power-Up Utilities", Error("diagnostic marker", "native checks"))
         this.Assert(InStr(FileRead(diagnosticLog.path, "UTF-8"), "diagnostic marker"), "errors retain their details and module attribution")
         diagnosticLog.Clear()
         this.Assert(InStr(FileRead(diagnosticLog.path, "UTF-8"), "previous log retained"), "clearing the log retains one previous segment")

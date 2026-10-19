@@ -1,6 +1,6 @@
 ; Existing command dispatch and safety checks, using the suite-owned manager.
 
-class PowerHotkeys {
+class PowerUpUtilities {
     static Version := "suite-preview.1"
 
     __New(manager, dryRun := false) {
@@ -29,13 +29,13 @@ class PowerHotkeys {
             "timestamp", "Text and symbols")
         category := subcategories.Has(moduleId)
             ? "Power-Up Utilities / " subcategories[moduleId] : "Power-Up Utilities"
-        actionId := "power-hotkey." actionId
+        actionId := "power-up-utilities." actionId
         this.catalog[actionId] := {id: actionId, moduleId: moduleId, kind: kind,
             value: value, needsFocus: needsFocus}
         this.manager.AddAction(actionId, label, ObjBindMethod(this, "Dispatch"),
             [defaultBinding], {category: category, help: moduleId = "interface",
                 scope: moduleId = "terminal" ? "windows-terminal" : "",
-                available: (*) => SuiteState.App.ModuleActive("power-hotkey")})
+                available: (*) => SuiteState.App.ModuleActive("power-up-utilities")})
     }
 
     Start(*) {
@@ -66,7 +66,7 @@ class PowerHotkeys {
     }
 
     Enabled(actionId) {
-        return SuiteState.App.ModuleActive("power-hotkey")
+        return SuiteState.App.ModuleActive("power-up-utilities")
             && this.enabledActions.Has(actionId) && this.enabledActions[actionId]
     }
 
@@ -179,7 +179,7 @@ class PowerHotkeys {
                 case "terminal-clear": this.terminal.Clear(job)
                 case "speaker-wake": this.utilities.WakeSpeakers(job)
                 case "sleep": this.utilities.SleepComputer(job)
-                case "interface": SuiteState.App.ui.ToggleHelp("power-hotkey")
+                case "interface": SuiteState.App.ui.ToggleHelp("power-up-utilities")
                 default: throw Error("Unknown action kind: " job.action.kind)
             }
         }

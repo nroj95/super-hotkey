@@ -282,7 +282,7 @@ class SuiteUpgradeChecks {
             manager.SetPaused(true)
             manager.Start()
             config := manager.GetConfiguration()
-            config["power-hotkey.system.wake-speakers"].bindings[1] := ""
+            config["power-up-utilities.system.wake-speakers"].bindings[1] := ""
             config["scratchpad.toggle"].bindings[1] := "Caps + Caps"
             config["scratchpad.help"].bindings[2] := "Pause + Pause"
             manager.Apply(config)
@@ -1069,8 +1069,8 @@ class SuiteUpgradeChecks {
                 "Power-Up Utilities / Virtual number pad", 0,
                 "Power-Up Utilities / Text and symbols", 0)
             for actionId, action in manager.actions {
-                if InStr(actionId, "power-hotkey.") != 1
-                    || actionId = "power-hotkey.keyboard.toggle-caps"
+                if InStr(actionId, "power-up-utilities.") != 1
+                    || actionId = "power-up-utilities.keyboard.toggle-caps"
                     continue
                 this.Assert(groups.Has(action.category),
                     "Power-Up Utilities keeps only useful subcategories: " actionId)
@@ -1103,7 +1103,7 @@ class SuiteUpgradeChecks {
                     actionScopes[row.id] := row.scope
             }
             this.Assert(cleanHeadings && actionScopes["scratchpad.save"] = "paper-pad"
-                && actionScopes["power-hotkey.terminal.copy"] = "windows-terminal",
+                && actionScopes["power-up-utilities.terminal.copy"] = "windows-terminal",
                 "scopes belong to action descriptions rather than category headings")
             this.Assert(actionScopes["core.keybindings"] = ""
                 && Keybindings.ContextTagText("!paper-pad") = ""
@@ -1113,8 +1113,8 @@ class SuiteUpgradeChecks {
             this.Assert(manager.actions["win-key-overhaul.layout-left"].scope = ""
                 && manager.actions["scratchpad.previous"].scope = "paper-pad",
                 "Wonder Windows is a global fallback for Paper Pad editor shortcuts")
-            this.Assert(manager.actions["power-hotkey.terminal.clear"].scope = "windows-terminal"
-                && manager.actions["power-hotkey.terminal.copy"].scope = "windows-terminal",
+            this.Assert(manager.actions["power-up-utilities.terminal.clear"].scope = "windows-terminal"
+                && manager.actions["power-up-utilities.terminal.copy"].scope = "windows-terminal",
                 "Terminal shortcuts are gated by the actual foreground application")
             mainHeadings := []
             activeParent := ""
@@ -1153,7 +1153,7 @@ class SuiteUpgradeChecks {
             expectedHelp := Map("Paper Pad", "scratchpad.help",
                 "Cascade Kingdom", "window-cascade.help",
                 "Wonder Windows", "win-key-overhaul.help",
-                "Power-Up Utilities", "power-hotkey.interface.open",
+                "Power-Up Utilities", "power-up-utilities.interface.open",
                 "Secret Keys", "keyboard-layers.help")
             for index, row in rows {
                 if row.id != "" || !expectedHelp.Has(row.label)
@@ -1174,14 +1174,14 @@ class SuiteUpgradeChecks {
             this.Assert(saved["keyboard-layers.help"].bindings[1] = ""
                 && saved["keyboard-layers.help"].bindings[2] = "",
                 "Secret Keys Help remains unassigned by default")
-            this.Assert(manager.actions["power-hotkey.keyboard.toggle-caps"].category = "Secret Keys"
-                && saved["power-hotkey.keyboard.toggle-caps"].bindings[1] = "",
+            this.Assert(manager.actions["power-up-utilities.keyboard.toggle-caps"].category = "Secret Keys"
+                && saved["power-up-utilities.keyboard.toggle-caps"].bindings[1] = "",
                 "Caps Lock toggle belongs to Secret Keys and defaults unassigned")
             this.Assert(saved["window-cascade.help"].bindings[1]
                 = Keybindings.Parse("Caps + H").signature
                 && saved["win-key-overhaul.help"].bindings[1]
                     = Keybindings.Parse("Caps + Win + H").signature
-                && saved["power-hotkey.interface.open"].bindings[1]
+                && saved["power-up-utilities.interface.open"].bindings[1]
                     = Keybindings.Parse("Pause + H").signature,
                 "existing module Help shortcuts retain their original defaults")
             this.Assert(this.RouteExists(manager, "scratchpad.help"),
@@ -1252,9 +1252,9 @@ class SuiteUpgradeChecks {
                 "hidden module assignments remain safely stored")
 
             changed := manager.GetConfiguration()
-            changed["power-hotkey.keyboard.f13"].bindings[1] := "Ctrl + Alt + Left"
+            changed["power-up-utilities.keyboard.f13"].bindings[1] := "Ctrl + Alt + Left"
             manager.Apply(changed)
-            this.Assert(this.RouteExists(manager, "power-hotkey.keyboard.f13"),
+            this.Assert(this.RouteExists(manager, "power-up-utilities.keyboard.f13"),
                 "an unused FancyZones shortcut can be reassigned without conflict")
 
             global WW_fancyzones_process_id, WW_fancyzones_integration_state
@@ -1266,12 +1266,12 @@ class SuiteUpgradeChecks {
             app.wonder.RefreshOptionalActions()
             this.Assert(!this.RouteExists(manager, "win-key-overhaul.zone-left"),
                 "a newly enabled conflicting integration does not steal an active shortcut")
-            this.Assert(manager.GetConfiguration()["power-hotkey.keyboard.f13"].bindings[1]
+            this.Assert(manager.GetConfiguration()["power-up-utilities.keyboard.f13"].bindings[1]
                 = Keybindings.Parse("Ctrl + Alt + Left").signature,
                 "optional activation conflicts leave saved bindings untouched")
 
             changed := manager.GetConfiguration()
-            changed["power-hotkey.keyboard.f13"].bindings[1] := "Caps + Q"
+            changed["power-up-utilities.keyboard.f13"].bindings[1] := "Caps + Q"
             manager.Apply(changed)
             this.Assert(this.RouteExists(manager, "win-key-overhaul.zone-left"),
                 "FancyZones shortcuts activate after their conflict is cleared")
@@ -1363,27 +1363,27 @@ class SuiteUpgradeChecks {
             "win-key-overhaul.isolate", "win-key-overhaul.minimize-all"],
             "Wonder Windows groups focus, positioning, stretching and grouping")
         this.AssertDisplaySequence(rows, [
-            "power-hotkey.interface.open", "power-hotkey.system.wake-speakers",
-            "power-hotkey.system.sleep"],
+            "power-up-utilities.interface.open", "power-up-utilities.system.wake-speakers",
+            "power-up-utilities.system.sleep"],
             "Power-Up Utilities groups general system controls")
         this.AssertDisplaySequence(rows, [
-            "power-hotkey.keyboard.f13", "power-hotkey.keyboard.f18",
-            "power-hotkey.keyboard.f24"],
+            "power-up-utilities.keyboard.f13", "power-up-utilities.keyboard.f18",
+            "power-up-utilities.keyboard.f24"],
             "extra function keys follow numeric order")
         this.AssertDisplaySequence(rows, [
-            "power-hotkey.keyboard.numpad0", "power-hotkey.keyboard.numpad5",
-            "power-hotkey.keyboard.numpad9"],
+            "power-up-utilities.keyboard.numpad0", "power-up-utilities.keyboard.numpad5",
+            "power-up-utilities.keyboard.numpad9"],
             "virtual number pad follows numeric order")
         this.AssertDisplaySequence(rows, [
-            "power-hotkey.text.apostrophe", "power-hotkey.text.en-dash",
-            "power-hotkey.text.nbsp", "power-hotkey.text.sharp-s",
-            "power-hotkey.text.timestamp"],
+            "power-up-utilities.text.apostrophe", "power-up-utilities.text.en-dash",
+            "power-up-utilities.text.nbsp", "power-up-utilities.text.sharp-s",
+            "power-up-utilities.text.timestamp"],
             "text utilities keep characters together before timestamp")
         this.AssertDisplaySequence(rows, [
-            "power-hotkey.terminal.copy", "power-hotkey.terminal.clear"],
+            "power-up-utilities.terminal.copy", "power-up-utilities.terminal.clear"],
             "Terminal copy precedes destructive clear")
         this.AssertDisplaySequence(rows, [
-            "keyboard-layers.help", "power-hotkey.keyboard.toggle-caps"],
+            "keyboard-layers.help", "power-up-utilities.keyboard.toggle-caps"],
             "Secret Keys keeps Help first")
         powerHeadings := []
         for row in rows
@@ -1674,7 +1674,7 @@ class SuiteUpgradeChecks {
                     "help explains usage without listing every keybinding: " id)
                 firstHeading := Map("window-cascade", "CASCADE ONLY WHEN YOU ASK",
                     "win-key-overhaul", "ARRANGE YOUR WINDOWS",
-                    "power-hotkey", "MORE KEYS WITHOUT A NEW KEYBOARD",
+                    "power-up-utilities", "MORE KEYS WITHOUT A NEW KEYBOARD",
                     "scratchpad", "YOUR OWN QUICK-NOTES DRAWER",
                     "keyboard-layers", "HOLD A KEY FOR MORE HOTKEYS")
                 this.Assert(InStr(guide, "WHY I MADE THIS`r`n") = 1
@@ -1816,7 +1816,7 @@ class SuiteUpgradeChecks {
                     this.Assert(SendMessage(0x007F, 0, 0, , window.Hwnd)
                         = SuiteIcons.handles[1], "module help uses one application icon: " id)
 
-                if id != "power-hotkey" {
+                if id != "power-up-utilities" {
                     app.ui.OpenSettingsFromHelp(id)
                     this.Assert(!app.ui.windows.Has(key)
                         && app.ui.configurationWindows.Has("settings:" id),
@@ -1937,8 +1937,9 @@ class SuiteUpgradeChecks {
             this.Assert(app.ui.windows.Has("help:scratchpad"),
                 "the Help shortcut opens the page again")
             app.ui.windows["help:scratchpad"].GetClientPos(, , &lastHelpW, &lastHelpH)
-            this.Assert(lastHelpW = 820 && lastHelpH = 480,
-                "Help reopens at the smaller default regardless of prior resizing")
+            expectedHelpHeight := Max(480, 145 + app.ui.HelpTextHeight("scratchpad", 820) + 12)
+            this.Assert(lastHelpW = 820 && lastHelpH = expectedHelpHeight,
+                "Help reopens at its content-based default regardless of prior resizing")
             this.AssertCentered(app.ui.windows["help:scratchpad"], "reopened Paper Pad Help")
             app.ui.CloseWindow("help:scratchpad")
             this.Assert(IniRead(app.Settings.directory "\help-window.ini",

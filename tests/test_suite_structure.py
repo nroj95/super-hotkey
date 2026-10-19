@@ -102,7 +102,7 @@ class SuiteStructureTests(unittest.TestCase):
         text = (ROOT / 'core/settings.ahk').read_text()
         for name in ['Cascade Kingdom', 'Wonder Windows', 'Power-Up Utilities', 'Paper Pad', 'Secret Keys']:
             self.assertIn(name, text)
-        for identifier in ['window-cascade', 'win-key-overhaul', 'power-hotkey', 'scratchpad', 'keyboard-layers']:
+        for identifier in ['window-cascade', 'win-key-overhaul', 'power-up-utilities', 'scratchpad', 'keyboard-layers']:
             self.assertIn(f'"{identifier}"', text)
 
     def test_obsolete_migration_tree_was_removed(self):

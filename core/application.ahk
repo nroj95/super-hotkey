@@ -129,7 +129,7 @@ class SuiteApplication {
         this.manager.RegisterDisjointScopes("paper-pad", "windows-terminal")
         this.manager.AddAction("core.keybindings", "open Keybindings", ObjBindMethod(this, "OpenBindingsEvent"),
             ["Caps + Alt + K", "Ctrl + Alt + K"], {category: "Global"})
-        this.power := PowerHotkeys(this.manager, this.dryRun)
+        this.power := PowerUpUtilities(this.manager, this.dryRun)
         WindowCascadeModule.Register(this.manager)
         ScratchpadModule.Register(this.manager)
         this.wonder := WonderWindowsModule(this.manager, this.dryRun)
@@ -138,7 +138,7 @@ class SuiteApplication {
             {category: "Secret Keys", help: true,
                 available: (*) => this.ModuleActive("keyboard-layers")})
         ; Retain the old ID so saved shortcuts survive the change of module owner.
-        this.manager.AddAction("power-hotkey.keyboard.toggle-caps", "toggle Caps Lock",
+        this.manager.AddAction("power-up-utilities.keyboard.toggle-caps", "toggle Caps Lock",
             ObjBindMethod(this, "ToggleCapsLockEvent"), [],
             {category: "Secret Keys", available: (*) => this.ModuleActive("keyboard-layers")})
         if this.ModuleActive("keyboard-layers") && this.activeLayers["caps"]
@@ -371,7 +371,7 @@ class SuiteApplication {
                 try title := WinGetTitle(hwnd)
                 catch
                     continue
-                if RegExMatch(title, "i)\\(?:window-cascade|win-key-overhaul|windows-key-overhaul|window-hotkeys|power-hotkey|scratchpad|caps-pause-layers|capslock-layer|pause-command-mode)(?:\([^\\]*\))?\.ahk - AutoHotkey")
+                if RegExMatch(title, "i)\\(?:window-cascade|win-key-overhaul|windows-key-overhaul|window-hotkeys|power-hotkey|power-up-utilities|scratchpad|caps-pause-layers|capslock-layer|pause-command-mode)(?:\([^\\]*\))?\.ahk - AutoHotkey")
                     throw Error("Close the original AutoHotkey utilities before starting the suite."
                         . "`nNo process was stopped automatically.`n`nDetected: " title)
             }

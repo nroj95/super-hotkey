@@ -278,7 +278,7 @@ class SuiteReleaseChecks {
             ; Exercise dispatch without registering active input or emitting effects.
             power.DefineProp("CanDispatch", {Call: (self, actionId) => !self.stopping})
             power.DefineProp("InputsReleased", {Call: (self, event) => true})
-            event := {actionId: "power-hotkey.system.sleep", slot: 1,
+            event := {actionId: "power-up-utilities.system.sleep", slot: 1,
                 phase: "down", foregroundHwnd: 0, layer: "normal",
                 key: "F24", binding: "F24", modifiers: 0, oneShot: false}
             token := event.actionId "|1"
