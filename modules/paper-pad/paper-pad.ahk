@@ -365,7 +365,7 @@ class PaperPadController
                     }
                 }
                 if !current_index
-                    throw Error("The current file is no longer in the scratch folder. Resolve its move or rename in Notepad3 first.")
+                    throw Error("The current file is no longer in the notes folder. Resolve its move or rename in Notepad3 first.")
                 direction := request.name = "next" ? 1 : -1
                 next_index := Mod(current_index - 1 + direction + pages.Length, pages.Length) + 1
                 this.SwitchPage(pages[next_index])
@@ -412,7 +412,7 @@ class PaperPadController
         if !DllCall("SetPropW", "ptr", hwnd, "str", this.cascade_ignore_marker, "ptr", 1, "int")
             throw OSError(A_LastError, "SetPropW", "Could not opt out of Cascade Kingdom.")
         if !DllCall("SetPropW", "ptr", hwnd, "str", this.window_marker, "ptr", 1, "int")
-            throw OSError(A_LastError, "SetPropW", "Could not mark the scratch editor.")
+            throw OSError(A_LastError, "SetPropW", "Could not mark the Paper Pad editor.")
     }
 
     AttachExistingWindow()
@@ -776,7 +776,7 @@ class PaperPadController
 
         attributes := FileExist(path)
         if !attributes || InStr(attributes, "D")
-            throw Error("Cannot protect a missing or invalid scratch page:`n" path)
+            throw Error("Cannot protect a missing or invalid page:`n" path)
 
         ; Match the tested PowerShell lock: permit normal reads/writes while
         ; denying delete sharing. This blocks external delete/rename/replace
@@ -909,7 +909,7 @@ class PaperPadController
     CheckCurrentPage()
     {
         if !this.HasWindow()
-            throw Error("The scratch editor has closed.")
+            throw Error("The Paper Pad editor has closed.")
         if !this.bridge || this.bridge.tainted
             this.ConnectBridge()
         this.bridge.CheckReady()
@@ -920,10 +920,10 @@ class PaperPadController
                 . "`n`nUnsaved text has been preserved.")
         if !this.IsNotePath(path)
             throw Error("The editor is not showing a supported file directly inside:`n"
-                . this.notes_directory "`n`nReturn to a scratch page or use File > Save As. Unrelated files will not be saved or closed automatically.")
+                . this.notes_directory "`n`nReturn to a Paper Pad page or use File > Save As. Unrelated files will not be saved or closed automatically.")
         attributes := FileExist(path)
         if !attributes
-            throw Error("The active scratch page unexpectedly disappeared from disk:`n" path)
+            throw Error("The active page unexpectedly disappeared from disk:`n" path)
         if InStr(attributes, "D")
             throw Error("The open page path now refers to a directory:`n" path)
 
@@ -1073,7 +1073,7 @@ class PaperPadController
         next_path := PaperPadFullPath(next_path)
         attributes := FileExist(next_path)
         if !this.IsNotePath(next_path) || !attributes || InStr(attributes, "D")
-            throw Error("The next scratch page is no longer available:`n" next_path)
+            throw Error("The next page is no longer available:`n" next_path)
         this.RememberPageView(this.current_path)
         before_load_stamp := PaperPadFileStamp(next_path)
         this.bridge.OpenPage(next_path, this.controller_window.Hwnd)
@@ -1105,7 +1105,7 @@ class PaperPadController
         }
 
         if !current_index
-            throw Error("The current scratch page could not be found in the page list.")
+            throw Error("The current page could not be found in the page list.")
 
         ; Save and leave the page before recycling it. ProtectPage() acquires the
         ; replacement page's lock before releasing this page's delete-denying lock.
@@ -1128,7 +1128,7 @@ class PaperPadController
             try this.SwitchPage(path)
 
             throw Error(
-                "The scratch page could not be moved to the Recycle Bin:`n"
+                "The page could not be moved to the Recycle Bin:`n"
                     . path "`n`n"
                     . failure.Message
             )
@@ -1883,7 +1883,7 @@ class Notepad3Bridge
             || WinGetPID("ahk_id " this.hwnd) != this.pid
             throw Error("The owned Notepad3 window is no longer available.")
         if !PaperPadWindowIdle(this.hwnd)
-            throw Error("Finish or cancel the Notepad3 menu/dialog before using a scratch command.")
+            throw Error("Finish or cancel the Notepad3 menu/dialog before using a Paper Pad command.")
     }
 
     Send(message, w_param := 0, l_param := 0, target_hwnd := 0)
@@ -2005,7 +2005,7 @@ class Notepad3Bridge
     {
         menu_handle := DllCall("GetMenu", "ptr", this.hwnd, "ptr")
         if !menu_handle
-            throw Error("Show Notepad3's menu bar before retrying the scratch command.")
+            throw Error("Show Notepad3's menu bar before retrying the Paper Pad command.")
         this.Send(0x0116, menu_handle, 0) ; WM_INITMENU refreshes dynamic check states.
         state := DllCall("GetMenuState", "ptr", menu_handle, "uint", command_id, "uint", 0, "uint")
         if state = 0xFFFFFFFF
@@ -2082,7 +2082,7 @@ class Notepad3Bridge
                 return false
         }
         else {
-            ; Strict UTF-8 for the normal scratch format; BOM is not document text.
+            ; Strict UTF-8 for the normal page format; BOM is not document text.
             offset := size >= 3 && NumGet(bytes, 0, "uchar") = 0xEF
                 && NumGet(bytes, 1, "uchar") = 0xBB && NumGet(bytes, 2, "uchar") = 0xBF ? 3 : 0
             if size = offset
@@ -2091,7 +2091,7 @@ class Notepad3Bridge
                 count := DllCall("MultiByteToWideChar", "uint", 65001, "uint", 8,
                     "ptr", bytes.Ptr + offset, "int", size - offset, "ptr", 0, "int", 0, "int")
                 if !count
-                    throw Error("Automatic conflict comparison supports UTF-8 and UTF-16 LE pages. This file uses another encoding. Preserve the editor text with File > Save As to a new UTF-8 scratch page.")
+                    throw Error("Automatic conflict comparison supports UTF-8 and UTF-16 LE pages. This file uses another encoding. Preserve the editor text with File > Save As to a new UTF-8 Paper Pad page.")
                 unicode := Buffer((count + 1) * 2, 0)
                 if !DllCall("MultiByteToWideChar", "uint", 65001, "uint", 8,
                     "ptr", bytes.Ptr + offset, "int", size - offset, "ptr", unicode, "int", count, "int")

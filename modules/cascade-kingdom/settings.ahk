@@ -1,7 +1,7 @@
 InitializeCascadeState()
 {
     global
-; Internal Window Cascade module; initialized once by the launcher.
+; Internal Cascade Kingdom module; initialized once by the launcher.
 ; Keep assignments at top level to preserve the existing global scope.
 
 ; =============================================================================
@@ -62,7 +62,7 @@ placement_startup_confirmation_ms := 1500
 placement_stabilize_tolerance := 6
 
 ; A busy window may not process an asynchronous placement immediately.
-; Keep its slot reserved while retrying without blocking Window Cascade.
+; Keep its slot reserved while retrying without blocking Cascade Kingdom.
 placement_stabilize_retry_ms := 500
 placement_stabilize_retry_limit := 20
 ; A final confirmation is bounded too; never poll a failed placement forever.
@@ -115,7 +115,7 @@ focus_corner_active_slot_alpha := 255
 ; Only watch for a missed mouse-up while a focus-tab click owns the button.
 focus_tab_release_poll_ms := 50
 
-; Caps + Pause Layers is optional; Keybindings handles reconnection.
+; Secret Layers is optional; Keybindings handles reconnection.
 
 
 settings_directory := SuiteState.App.Settings.directory "\cascade-kingdom"
@@ -226,7 +226,6 @@ focus_tab_click_generation := 0
 current_foreground_hwnd := WinExist("A")
 previous_foreground_hwnd := 0
 
-startup_shortcut_path := A_Startup "\Window Cascade.lnk"
 
 win_event_callback := 0
 foreground_hook := 0

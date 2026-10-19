@@ -1,4 +1,4 @@
-; Internal Window Cascade module. Launch ..\cascade-kingdom.ahk instead.
+; Cascade Kingdom implementation; included by the Super Hotkey launcher.
 ; Refresh display geometry in this process; never Reload or reconstruct membership
 ; from whatever windows happen to be visible after a scale change.
 

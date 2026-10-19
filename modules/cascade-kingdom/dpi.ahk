@@ -1,4 +1,4 @@
-; Internal Window Cascade module. Launch ..\cascade-kingdom.ahk instead.
+; Cascade Kingdom implementation; included by the Super Hotkey launcher.
 ; All shared geometry is in physical virtual-screen pixels, never system-DPI units.
 
 ; =============================================================================

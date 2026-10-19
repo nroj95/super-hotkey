@@ -1,4 +1,4 @@
-; Internal Window Cascade module. Launch ..\cascade-kingdom.ahk instead.
+; Cascade Kingdom implementation; included by the Super Hotkey launcher.
 ; Included into the same script; functions share the existing global state.
 ;
 ; Drop contract:

@@ -79,8 +79,8 @@ class ModuleHelp {
                     . "You can still inspect and back up these files in an ordinary file manager."
                     . "`r`n`r`nSAVING AND RELOADING"
                     . "`r`nPaper Pad automatically saves changes when switching pages, hiding or exiting. "
-                    . "Settings lets you choose your editor, notes folder, display and autosave "
-                    . "interval; changing paths never moves existing notes. "
+                    . "Settings lets you choose your Notepad3 executable, notes folder, display "
+                    . "and drawer size. Changing paths never moves existing notes. "
                     . "Notepad3 controls external-file reloads, which may replace unsaved text."
             case "secret-layers":
                 return "WHY I MADE THIS"

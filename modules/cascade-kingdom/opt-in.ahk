@@ -1,4 +1,4 @@
-; Internal Window Cascade input opt-in gestures.
+; Internal Cascade Kingdom input opt-in gestures.
 
 ; Launch intent is deliberately one-shot. Normal new windows are never adopted.
 ; A shell click/Enter is recognized up to eight seconds after the gesture.

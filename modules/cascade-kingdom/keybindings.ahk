@@ -1,7 +1,7 @@
-; Window Cascade input integration.
+; Cascade Kingdom input integration.
 ; The shared Keybindings library owns configuration and registrations.
-; Caps + Pause Layers is optional: normal shortcuts and window management work
-; without its service. Never start or stop the service from Window Cascade.
+; Secret Layers is optional: normal shortcuts and window management work
+; without its service. Never start or stop the service from Cascade Kingdom.
 
 InitializeCascadeKeybindings(manager)
 {
