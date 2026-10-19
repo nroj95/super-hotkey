@@ -1683,9 +1683,9 @@ class SuiteUpgradeChecks {
                     "each module starts with a personal introduction: " id)
                 this.Assert(StrLen(guide) >= 600,
                     "each Help guide provides substantial practical usage details: " id)
-                this.Assert(InStr(guide, "before the application finishes opening") > 0
-                    || id != "cascade-kingdom",
-                    "Help sentences aren't split by fixed hard line breaks")
+                if id = "cascade-kingdom"
+                    this.Assert(InStr(guide, "You can release CapsLock before it finishes opening.") > 0,
+                        "Cascade Kingdom explains when CapsLock can be released")
                 window.GetClientPos(, , &helpWidth, &helpHeight)
                 expectedHelpHeight := Max(480, 145 + app.ui.HelpTextHeight(id, 820) + 12)
                 this.Assert(helpWidth = 820 && helpHeight = expectedHelpHeight,
