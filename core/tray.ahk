@@ -747,9 +747,10 @@ class SuiteInterface {
             pathsChanged := folder != IniRead(path, "Paths", "NotesDirectory", EnvGet("USERPROFILE") "\Paper Pad")
                 || editor != IniRead(path, "Paths", "Notepad3Executable", "")
             if pathsChanged && this.app.paperPadStarted && IsSet(paperPad) {
-                if MsgBox("Save and close the owned Notepad3 window before changing these paths?"
-                    . "`nExisting notes remain where they are; no files will be moved or deleted.",
-                    "Paper Pad", "YesNo Default2 Icon?") != "Yes"
+                editorOpen := paperPad.HasWindow() || paperPad.AttachExistingWindow()
+                if editorOpen && MsgBox("Changing these paths requires saving and closing the Paper Pad editor."
+                    . "`n`nExisting notes will not be moved or deleted.",
+                    "Paper Pad", "OKCancel Default2 Icon?") != "OK"
                     return
                 paperPad.PrepareSuiteExit("Exit")
             }
