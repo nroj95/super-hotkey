@@ -685,12 +685,13 @@ class SuiteInterface {
         window.AddText("x180 y132 w590", "Leave the executable blank for automatic detection.")
         this.padMonitors := ["Primary"]
         names := ["Main display"]
+        models := this.GetDisplayModels()
         loop MonitorGetCount() {
             try {
                 name := MonitorGetName(A_Index)
                 MonitorGetWorkArea(A_Index)
                 this.padMonitors.Push(name)
-                names.Push("Display " A_Index " (" name ")")
+                names.Push("Display " A_Index " - " models.Get(name, name))
             }
         }
         selected := IniRead(path, "Window", "Monitor", "Primary")
@@ -718,6 +719,51 @@ class SuiteInterface {
             ["Apply and restart", ObjBindMethod(this, "SavePaper"), 160],
             ["Back", ObjBindMethod(this, "BackToHelp", "paper-pad"), 100]], 392)
         this.ShowPage(key, 800, 442, 760, 417)
+    }
+
+    GetDisplayModels() {
+        models := Map()
+        pathCount := 0
+        modeCount := 0
+
+        if DllCall("user32\GetDisplayConfigBufferSizes", "UInt", 2,
+            "UInt*", &pathCount, "UInt*", &modeCount, "Int")
+            return models
+
+        paths := Buffer(pathCount * 72, 0)
+        modes := Buffer(modeCount * 64, 0)
+        if DllCall("user32\QueryDisplayConfig", "UInt", 2,
+            "UInt*", &pathCount, "Ptr", paths,
+            "UInt*", &modeCount, "Ptr", modes, "Ptr", 0, "Int")
+            return models
+
+        loop pathCount {
+            offset := (A_Index - 1) * 72
+
+            source := Buffer(84, 0)
+            NumPut("UInt", 1, "UInt", source.Size, source)
+            NumPut("Int64", NumGet(paths, offset, "Int64"), source, 8)
+            NumPut("UInt", NumGet(paths, offset + 8, "UInt"), source, 16)
+
+            if DllCall("user32\DisplayConfigGetDeviceInfo", "Ptr", source, "Int")
+                continue
+
+            display := StrGet(source.Ptr + 20, "UTF-16")
+
+            target := Buffer(420, 0)
+            NumPut("UInt", 2, "UInt", target.Size, target)
+            NumPut("Int64", NumGet(paths, offset + 20, "Int64"), target, 8)
+            NumPut("UInt", NumGet(paths, offset + 28, "UInt"), target, 16)
+
+            if DllCall("user32\DisplayConfigGetDeviceInfo", "Ptr", target, "Int")
+                continue
+
+            model := StrGet(target.Ptr + 36, "UTF-16")
+            if model != ""
+                models[display] := model
+        }
+
+        return models
     }
 
     NumberField(window, name, minimum, maximum) {
