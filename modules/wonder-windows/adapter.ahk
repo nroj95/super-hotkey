@@ -44,13 +44,13 @@ class WonderWindowsModule {
         }
         this.Add("cycle-expanded", "cycle maximized / fullscreen windows", WW_CycleMaximizedFullscreenWindows,
             ["Caps + Win + Enter"])
-        this.manager.AddAction("win-key-overhaul.help", "show Wonder Windows help",
+        this.manager.AddAction("wonder-windows.help", "show Wonder Windows help",
             ObjBindMethod(this, "HelpEvent"), ["Caps + Win + H"],
             {category: "Wonder Windows", help: true,
                 available: ObjBindMethod(this, "Available")})
     }
 
-    Available(*) => SuiteState.App.ModuleActive("win-key-overhaul")
+    Available(*) => SuiteState.App.ModuleActive("wonder-windows")
 
     FancyZonesAvailable(direction, *) {
         global WW_fancyzones_process_id, WW_fancyzones_integration_state
@@ -81,7 +81,7 @@ class WonderWindowsModule {
     }
 
     Add(id, label, command, bindings, arguments := unset, fancyZones := false) {
-        actionId := "win-key-overhaul." id
+        actionId := "wonder-windows." id
         arguments := IsSet(arguments) ? arguments : []
         this.catalog[actionId] := {command: command, arguments: arguments, fancyZones: fancyZones}
         context := fancyZones ? ObjBindMethod(this, "FancyZonesContext", arguments[1])
@@ -127,7 +127,7 @@ class WonderWindowsModule {
             && !SuiteState.App.systemSuspended
     }
 
-    HelpEvent(event) => SuiteState.App.HelpShortcutEvent("win-key-overhaul", event)
+    HelpEvent(event) => SuiteState.App.HelpShortcutEvent("wonder-windows", event)
 
     Event(event) {
         token := event.actionId "|" event.slot
@@ -207,12 +207,12 @@ class WonderWindowsModule {
 WW_MigrateKeybindingDefaults(configuration)
 {
     changes := [
-        ["win-key-overhaul.stretch-full-cycle", 1, "Caps + Win + Enter", "Shift + Win + Enter"],
-        ["win-key-overhaul.reset-stretch", 2, "Caps + Win + Backspace", ""],
-        ["win-key-overhaul.cycle-expanded", 1, "Win + Shift + Tab", "Caps + Win + Enter"]
+        ["wonder-windows.stretch-full-cycle", 1, "Caps + Win + Enter", "Shift + Win + Enter"],
+        ["wonder-windows.reset-stretch", 2, "Caps + Win + Backspace", ""],
+        ["wonder-windows.cycle-expanded", 1, "Win + Shift + Tab", "Caps + Win + Enter"]
     ]
     for direction in ["left", "right", "up", "down"]
-        changes.Push(["win-key-overhaul.focus-" direction, 1,
+        changes.Push(["wonder-windows.focus-" direction, 1,
             "Caps + Win + " direction, "Win + Alt + " direction])
     for change in changes {
         actionId := change[1]

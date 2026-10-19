@@ -1,4 +1,4 @@
-; Internal Window Cascade module. Launch ..\window-cascade.ahk instead.
+; Internal Window Cascade module. Launch ..\cascade-kingdom.ahk instead.
 ; Refresh display geometry in this process; never Reload or reconstruct membership
 ; from whatever windows happen to be visible after a scale change.
 

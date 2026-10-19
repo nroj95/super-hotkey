@@ -44,10 +44,10 @@ class SuiteChecks {
             enabled += value
         this.Assert(enabled = 5, "all five modules default to enabled")
         choices := settings.modules.Clone()
-        choices["keyboard-layers"] := false
+        choices["secret-layers"] := false
         settings.Save(choices)
         loaded := SuiteSettings(settings.directory)
-        this.Assert(!loaded.modules["keyboard-layers"], "disabled module choice survives reload")
+        this.Assert(!loaded.modules["secret-layers"], "disabled module choice survives reload")
         document := KB_Manifest.Read(settings.path)
         document["modules"]["paper-pad"] := "invalid"
         KB_Manifest.WriteAtomic(settings.path, document)
@@ -93,33 +93,33 @@ class SuiteChecks {
             this.Assert(configuration["power-up-utilities.terminal.clear"].bindings[1] = Keybindings.Parse("Caps + K").signature, "Terminal clear defaults to Caps + K")
             this.Assert(configuration["power-up-utilities.system.wake-speakers"].bindings[1] = Keybindings.Parse("Pause + Pause").signature, "speaker wake defaults to Pause double-tap")
             for direction in ["left", "right", "up", "down"] {
-                this.Assert(configuration["win-key-overhaul.focus-" direction].bindings[1]
+                this.Assert(configuration["wonder-windows.focus-" direction].bindings[1]
                     = Keybindings.Parse("Win + Alt + " direction).signature,
                     "directional focus defaults to Win + Alt + " direction)
-                this.Assert(configuration["win-key-overhaul.swap-" direction].bindings[1]
+                this.Assert(configuration["wonder-windows.swap-" direction].bindings[1]
                     = Keybindings.Parse("Caps + Win + " direction).signature,
                     "directional swap defaults to Caps + Win + " direction)
             }
-            this.Assert(configuration["win-key-overhaul.stretch-full-cycle"].bindings[1]
+            this.Assert(configuration["wonder-windows.stretch-full-cycle"].bindings[1]
                 = Keybindings.Parse("Shift + Win + Enter").signature
-                && configuration["win-key-overhaul.reset-stretch"].bindings[2] = "",
+                && configuration["wonder-windows.reset-stretch"].bindings[2] = "",
                 "full stretch cycling and undo have revised defaults")
-            this.Assert(configuration["win-key-overhaul.cycle-expanded"].bindings[1]
+            this.Assert(configuration["wonder-windows.cycle-expanded"].bindings[1]
                 = Keybindings.Parse("Caps + Win + Enter").signature
-                && configuration["win-key-overhaul.cycle-stacked"].bindings[1]
+                && configuration["wonder-windows.cycle-stacked"].bindings[1]
                     = Keybindings.Parse("Win + Enter").signature,
                 "expanded and stacked window cycling use separate default shortcuts")
-            this.Assert(!manager.actions.Has("win-key-overhaul.swap-next")
-                && !manager.actions.Has("win-key-overhaul.swap-previous"),
+            this.Assert(!manager.actions.Has("wonder-windows.swap-next")
+                && !manager.actions.Has("wonder-windows.swap-previous"),
                 "old clockwise swap actions are removed")
-            this.Assert(configuration["win-key-overhaul.move-monitor"].bindings[1]
+            this.Assert(configuration["wonder-windows.move-monitor"].bindings[1]
                     = Keybindings.Parse("Caps + Win + Backspace").signature,
                 "Wonder Windows defaults to one monitor-cycle shortcut")
-            this.Assert(!manager.actions.Has("window-cascade.auto-placement"),
+            this.Assert(!manager.actions.Has("cascade-kingdom.auto-placement"),
                 "old pause-cascading keybinding is removed")
-            this.Assert(!manager.actions.Has("window-cascade.rotate-previous")
-                    && !manager.actions.Has("window-cascade.move-left")
-                    && !manager.actions.Has("window-cascade.move-right"),
+            this.Assert(!manager.actions.Has("cascade-kingdom.rotate-previous")
+                    && !manager.actions.Has("cascade-kingdom.move-left")
+                    && !manager.actions.Has("cascade-kingdom.move-right"),
                 "backward all-slot rotation and old Cascade monitor hotkeys are removed")
             this.Assert(HasMethod(manager.actions["paper-pad.save"].context, "Call"), "Paper Pad save has an explicit editor context")
             this.Assert(!manager.ContextActive(manager.actions["paper-pad.save"]), "Paper Pad commands are inactive outside its editor")
@@ -160,7 +160,7 @@ class SuiteChecks {
             manager.actions["paper-pad.toggle"].available := true
 
             ; Direct callbacks exercise dry-run guards without emitting any input.
-            event := {phase: "down", actionId: "window-cascade.minimize", slot: 1,
+            event := {phase: "down", actionId: "cascade-kingdom.minimize", slot: 1,
                 key: "sc032", modifiers: 0, layer: "caps", foregroundHwnd: 0, oneShot: false}
             manager.actions[event.actionId].callback.Call(event)
             event.actionId := "paper-pad.toggle"
@@ -168,7 +168,7 @@ class SuiteChecks {
             app.power.keyboard.SendOutput("F13", " down")
             app.power.keyboard.SendOutput("F13", " up")
             diagnosticLog := FileRead(SuiteState.Log.path, "UTF-8")
-            this.Assert(InStr(diagnosticLog, "dry run: window-cascade.minimize") && InStr(diagnosticLog, "dry run: toggle") && InStr(diagnosticLog, "dry run: send F13"), "feature callbacks use dry-run guards")
+            this.Assert(InStr(diagnosticLog, "dry run: cascade-kingdom.minimize") && InStr(diagnosticLog, "dry run: toggle") && InStr(diagnosticLog, "dry run: send F13"), "feature callbacks use dry-run guards")
 
             global CPL
             CPL.showIndicator := false
@@ -192,7 +192,7 @@ class SuiteChecks {
 
     static CheckNoLayers() {
         app := SuiteApplication(true, this.directory "\without-layers")
-        app.activeModules["keyboard-layers"] := false
+        app.activeModules["secret-layers"] := false
         app.InitializeCatalog()
         manager := app.manager
         flag := {active: false}

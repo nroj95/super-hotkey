@@ -1,4 +1,4 @@
-; Internal Window Cascade module. Launch ..\window-cascade.ahk instead.
+; Internal Window Cascade module. Launch ..\cascade-kingdom.ahk instead.
 ; All shared geometry is in physical virtual-screen pixels, never system-DPI units.
 
 ; =============================================================================

@@ -90,10 +90,10 @@ try {
 
         $updatedText = $settings | ConvertTo-Json -Depth 100
         $uniqueSuffix = [guid]::NewGuid().ToString('N').Substring(0, 8)
-        $backupPath = '{0}.win-key-overhaul-{1}-{2}.bak' -f (
+        $backupPath = '{0}.wonder-windows-{1}-{2}.bak' -f (
             $SettingsPath, (Get-Date -Format 'yyyyMMdd-HHmmss'), $uniqueSuffix
         )
-        $temporaryPath = "$SettingsPath.win-key-overhaul-$uniqueSuffix.tmp"
+        $temporaryPath = "$SettingsPath.wonder-windows-$uniqueSuffix.tmp"
         [System.IO.File]::WriteAllText($temporaryPath, $updatedText, $utf8)
 
         # PowerToys may be writing its own settings. Do not knowingly replace a

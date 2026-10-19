@@ -180,7 +180,7 @@ WW_ReadFancyZonesIntegrationState(mode := "Read")
     if !FileExist(fancyzones_settings_path) || !FileExist(helper_path) || !FileExist(powershell_path)
         return false
 
-    result_path := A_Temp "\win-key-overhaul-fancyzones-"
+    result_path := A_Temp "\wonder-windows-fancyzones-"
         . DllCall("GetCurrentProcessId", "uint") "-" A_TickCount ".txt"
 
     ; Bypass applies only to this helper process; no stored execution policy is

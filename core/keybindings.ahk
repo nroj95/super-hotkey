@@ -268,42 +268,42 @@ class Keybindings {
     static OrderDisplayEntries(category, entries) {
         static order := Map(
             "Global", [
-                "core.keybindings", "window-cascade.copy-log", "window-cascade.reset-log"],
+                "core.keybindings", "cascade-kingdom.copy-log", "cascade-kingdom.reset-log"],
             "Paper Pad", [
                 "paper-pad.help", "paper-pad.toggle"],
             "Paper Pad / Inside the editor", [
                 "paper-pad.new", "paper-pad.save", "paper-pad.delete",
                 "paper-pad.previous", "paper-pad.next", "paper-pad.hide"],
             "Cascade Kingdom", [
-                "window-cascade.help",
-                "window-cascade.focus-previous", "window-cascade.focus-next",
-                "window-cascade.slot-previous", "window-cascade.slot-next",
-                "window-cascade.swap-up", "window-cascade.swap-down",
-                "window-cascade.rotate-next",
-                "window-cascade.adopt", "window-cascade.bring-forward",
-                "window-cascade.minimize",
-                "window-cascade.gather",
-                "window-cascade.close-active", "window-cascade.close-monitor"],
+                "cascade-kingdom.help",
+                "cascade-kingdom.focus-previous", "cascade-kingdom.focus-next",
+                "cascade-kingdom.slot-previous", "cascade-kingdom.slot-next",
+                "cascade-kingdom.swap-up", "cascade-kingdom.swap-down",
+                "cascade-kingdom.rotate-next",
+                "cascade-kingdom.adopt", "cascade-kingdom.bring-forward",
+                "cascade-kingdom.minimize",
+                "cascade-kingdom.gather",
+                "cascade-kingdom.close-active", "cascade-kingdom.close-monitor"],
             "Wonder Windows", [
-                "win-key-overhaul.help",
-                "win-key-overhaul.focus-up", "win-key-overhaul.focus-down",
-                "win-key-overhaul.focus-left", "win-key-overhaul.focus-right",
-                "win-key-overhaul.cycle-stacked", "win-key-overhaul.cycle-expanded",
-                "win-key-overhaul.maximize", "win-key-overhaul.restore", "win-key-overhaul.minimize",
-                "win-key-overhaul.move-monitor",
-                "win-key-overhaul.layout-left", "win-key-overhaul.layout-right",
-                "win-key-overhaul.tile-top-left", "win-key-overhaul.tile-top",
-                "win-key-overhaul.tile-top-right", "win-key-overhaul.tile-bottom-left",
-                "win-key-overhaul.tile-bottom", "win-key-overhaul.tile-bottom-right",
-                "win-key-overhaul.stretch-left", "win-key-overhaul.stretch-right",
-                "win-key-overhaul.stretch-height", "win-key-overhaul.stretch-full-cycle",
-                "win-key-overhaul.reset-stretch",
-                "win-key-overhaul.swap-up", "win-key-overhaul.swap-down",
-                "win-key-overhaul.swap-left", "win-key-overhaul.swap-right",
-                "win-key-overhaul.isolate", "win-key-overhaul.minimize-all"],
+                "wonder-windows.help",
+                "wonder-windows.focus-up", "wonder-windows.focus-down",
+                "wonder-windows.focus-left", "wonder-windows.focus-right",
+                "wonder-windows.cycle-stacked", "wonder-windows.cycle-expanded",
+                "wonder-windows.maximize", "wonder-windows.restore", "wonder-windows.minimize",
+                "wonder-windows.move-monitor",
+                "wonder-windows.layout-left", "wonder-windows.layout-right",
+                "wonder-windows.tile-top-left", "wonder-windows.tile-top",
+                "wonder-windows.tile-top-right", "wonder-windows.tile-bottom-left",
+                "wonder-windows.tile-bottom", "wonder-windows.tile-bottom-right",
+                "wonder-windows.stretch-left", "wonder-windows.stretch-right",
+                "wonder-windows.stretch-height", "wonder-windows.stretch-full-cycle",
+                "wonder-windows.reset-stretch",
+                "wonder-windows.swap-up", "wonder-windows.swap-down",
+                "wonder-windows.swap-left", "wonder-windows.swap-right",
+                "wonder-windows.isolate", "wonder-windows.minimize-all"],
             "Wonder Windows / FancyZones", [
-                "win-key-overhaul.zone-up", "win-key-overhaul.zone-down",
-                "win-key-overhaul.zone-left", "win-key-overhaul.zone-right"],
+                "wonder-windows.zone-up", "wonder-windows.zone-down",
+                "wonder-windows.zone-left", "wonder-windows.zone-right"],
             "Power-Up Utilities", [
                 "power-up-utilities.interface.open", "power-up-utilities.system.wake-speakers",
                 "power-up-utilities.system.sleep"],
@@ -327,7 +327,7 @@ class Keybindings {
             "Power-Up Utilities / Windows Terminal", [
                 "power-up-utilities.terminal.copy", "power-up-utilities.terminal.clear"],
             "Secret Layers", [
-                "keyboard-layers.help", "power-up-utilities.keyboard.toggle-caps"])
+                "secret-layers.help", "power-up-utilities.keyboard.toggle-caps"])
         if !order.Has(category)
             return entries
         byId := Map()
@@ -1077,7 +1077,7 @@ class Keybindings {
     _SettingsTitle() {
         if this.settingsModuleId != ""
             return SuiteSettings.ModuleNames[this.settingsModuleId] " - Keybindings"
-        if IsObject(SuiteState.App) && !SuiteState.App.ModuleActive("keyboard-layers")
+        if IsObject(SuiteState.App) && !SuiteState.App.ModuleActive("secret-layers")
             return "Keybindings — Secret Layers disabled"
 
         capsActive := IsObject(this.client) && this.client.LayerEnabled("caps")

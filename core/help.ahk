@@ -2,7 +2,7 @@
 class ModuleHelp {
     static Introduction(id) {
         switch id {
-            case "window-cascade":
+            case "cascade-kingdom":
                 return "WHY I MADE THIS"
                     . "`r`nI wanted a window layout I could summon when needed, without taking "
                     . "over how other applications normally open."
@@ -21,7 +21,7 @@ class ModuleHelp {
                     . "`r`nWonder Windows handles ordinary manual resizing and monitor transfers. "
                     . "Existing cascades remain available without continuously rearranging other apps. "
                     . "Settings controls focus-tab visibility and colors."
-            case "win-key-overhaul":
+            case "wonder-windows":
                 return "WHY I MADE THIS"
                     . "`r`nWindows already has window-management shortcuts, but I found many of them "
                     . "frustrating or incomplete. I wanted something more powerful, consistent "
@@ -82,7 +82,7 @@ class ModuleHelp {
                     . "`r`nPaper Pad automatically saves changes when switching pages, hiding or exiting. "
                     . "Settings lets you choose your editor, notes folder, display and autosave "
                     . "interval; changing paths never moves existing notes."
-            case "keyboard-layers":
+            case "secret-layers":
                 return "WHY I MADE THIS"
                     . "`r`nI wanted to get more out of my existing keyboard. CapsLock and Pause seemed "
                     . "like perfect candidates for unlocking an entirely new set of shortcuts "

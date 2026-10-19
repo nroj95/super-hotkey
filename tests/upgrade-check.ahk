@@ -138,7 +138,7 @@ class SuiteUpgradeChecks {
             manager.Start()
             app.ui := SuiteInterface(app)
             app.ui.ShowLayerSettings()
-            window := app.ui.windows["settings:keyboard-layers"]
+            window := app.ui.windows["settings:secret-layers"]
             this.Assert(!window["capsToggleEnabled"].Value
                 && !window["capsToggleModifier"].Enabled
                 && window["capsToggleModifier"].Text = "Alt",
@@ -147,9 +147,9 @@ class SuiteUpgradeChecks {
             app.ui.UpdateSelectorEnabled(window["capsToggleModifier"], window["capsToggleEnabled"])
             this.Assert(window["capsToggleModifier"].Enabled,
                 "Caps Lock double-tap checkbox enables the modifier dropdown")
-            app.ui.CloseWindow("settings:keyboard-layers")
+            app.ui.CloseWindow("settings:secret-layers")
             app.ui.ShowCascadeSettings()
-            window := app.ui.windows["settings:window-cascade"]
+            window := app.ui.windows["settings:cascade-kingdom"]
             this.Assert(window["autoCascade"].Enabled && !window["autoCascade"].Value
                 && window["tabs"].Enabled && window["activeColor"].Enabled
                 && window["inactiveColor"].Enabled,
@@ -490,18 +490,18 @@ class SuiteUpgradeChecks {
                 && manager.GetConfiguration()["core.keybindings"].bindings[2] = replacement
                 && KB_Manifest.Get(KB_Manifest.Read(manager.path), "bindings", "core.keybindings") != "",
                 "Apply saves staged hotkeys and closes the editor without restarting")
-            manager.ShowSettings("window-cascade")
+            manager.ShowSettings("cascade-kingdom")
             this.Assert(manager.settingsDone.Text = "Back"
                 && manager.settingsApply.Text = "Apply"
-                && manager.settingsModuleId = "window-cascade",
+                && manager.settingsModuleId = "cascade-kingdom",
                 "module Keybindings provides Back and live Apply")
             unrelated := manager.settingsDraft["core.keybindings"].bindings[2]
             moduleCandidate := manager._CloneConfiguration(manager.settingsDraft)
-            moduleCandidate["window-cascade.help"].bindings[1] := Keybindings.Parse("Caps + F10").signature
+            moduleCandidate["cascade-kingdom.help"].bindings[1] := Keybindings.Parse("Caps + F10").signature
             manager._StageConfiguration(moduleCandidate)
             manager._StageDefaults()
-            this.Assert(manager.settingsDraft["window-cascade.help"].bindings[1]
-                    = manager.actions["window-cascade.help"].defaults[1]
+            this.Assert(manager.settingsDraft["cascade-kingdom.help"].bindings[1]
+                    = manager.actions["cascade-kingdom.help"].defaults[1]
                 && manager.settingsDraft["core.keybindings"].bindings[2] = unrelated,
                 "module Restore defaults stages only that module's shortcuts")
             manager._CloseSettings()
@@ -533,7 +533,7 @@ class SuiteUpgradeChecks {
             manager.Start()
             app.ui := SuiteInterface(app)
             app.ui.ShowCascadeSettings()
-            settings := app.ui.windows["settings:window-cascade"]
+            settings := app.ui.windows["settings:cascade-kingdom"]
             expectedAuto := !previous.autoCascade
             settings["autoCascade"].Value := expectedAuto
             expectedVisible := !previous.visible
@@ -546,8 +546,8 @@ class SuiteUpgradeChecks {
             this.Assert(app.ui.pageFooters[settings.Hwnd].buttons[1].button.Text = "Apply",
                 "Cascade Kingdom Settings use Apply without restart")
             app.ui.SaveCascade()
-            path := app.Settings.directory "\window-cascade\settings.ini"
-            this.Assert(!app.ui.windows.Has("settings:window-cascade")
+            path := app.Settings.directory "\cascade-kingdom\settings.ini"
+            this.Assert(!app.ui.windows.Has("settings:cascade-kingdom")
                 && cascade_auto_placement_enabled = expectedAuto
                 && focus_corner_visible = expectedVisible
                 && focus_corner_active_slot_color_name = activeName
@@ -677,7 +677,7 @@ class SuiteUpgradeChecks {
 
     static DisabledModuleWarning() {
         app := SuiteApplication(true, SuiteChecks.directory "\disabled-secret-layers")
-        app.activeModules["keyboard-layers"] := false
+        app.activeModules["secret-layers"] := false
         app.InitializeCatalog()
         manager := app.manager
         try {
@@ -890,40 +890,40 @@ class SuiteUpgradeChecks {
                 && WW_DirectionalSwapScore(0, 60, "down") = 60,
                 "directional swapping selects only windows on the requested side")
             oldDefaults := app.manager._DefaultConfiguration()
-            oldDefaults["win-key-overhaul.focus-up"].bindings[1] := Keybindings.Parse("Caps + Win + Up").signature
-            oldDefaults["win-key-overhaul.stretch-full-cycle"].bindings[1] := Keybindings.Parse("Caps + Win + Enter").signature
-            oldDefaults["win-key-overhaul.reset-stretch"].bindings[2] := Keybindings.Parse("Caps + Win + Backspace").signature
-            oldDefaults["win-key-overhaul.cycle-expanded"].bindings[1] := Keybindings.Parse("Win + Shift + Tab").signature
-            oldDefaults["win-key-overhaul.focus-left"].bindings[1] := Keybindings.Parse("Pause + Z").signature
+            oldDefaults["wonder-windows.focus-up"].bindings[1] := Keybindings.Parse("Caps + Win + Up").signature
+            oldDefaults["wonder-windows.stretch-full-cycle"].bindings[1] := Keybindings.Parse("Caps + Win + Enter").signature
+            oldDefaults["wonder-windows.reset-stretch"].bindings[2] := Keybindings.Parse("Caps + Win + Backspace").signature
+            oldDefaults["wonder-windows.cycle-expanded"].bindings[1] := Keybindings.Parse("Win + Shift + Tab").signature
+            oldDefaults["wonder-windows.focus-left"].bindings[1] := Keybindings.Parse("Pause + Z").signature
             WW_MigrateKeybindingDefaults(oldDefaults)
-            this.Assert(oldDefaults["win-key-overhaul.focus-up"].bindings[1]
+            this.Assert(oldDefaults["wonder-windows.focus-up"].bindings[1]
                     = Keybindings.Parse("Win + Alt + Up").signature
-                && oldDefaults["win-key-overhaul.stretch-full-cycle"].bindings[1]
+                && oldDefaults["wonder-windows.stretch-full-cycle"].bindings[1]
                     = Keybindings.Parse("Shift + Win + Enter").signature
-                && oldDefaults["win-key-overhaul.reset-stretch"].bindings[2] = ""
-                && oldDefaults["win-key-overhaul.cycle-expanded"].bindings[1]
+                && oldDefaults["wonder-windows.reset-stretch"].bindings[2] = ""
+                && oldDefaults["wonder-windows.cycle-expanded"].bindings[1]
                     = Keybindings.Parse("Caps + Win + Enter").signature
-                && oldDefaults["win-key-overhaul.focus-left"].bindings[1]
+                && oldDefaults["wonder-windows.focus-left"].bindings[1]
                     = Keybindings.Parse("Pause + Z").signature,
                 "legacy default shortcuts migrate without changing customized bindings")
-            oldDefaults["window-cascade.reset-log"].bindings[1] := Keybindings.Parse("Caps + F5").signature
-            oldDefaults["window-cascade.copy-log"].bindings[1] := Keybindings.Parse("Pause + F9").signature
+            oldDefaults["cascade-kingdom.reset-log"].bindings[1] := Keybindings.Parse("Caps + F5").signature
+            oldDefaults["cascade-kingdom.copy-log"].bindings[1] := Keybindings.Parse("Pause + F9").signature
             CascadeMigrateDebugKeybindingDefaults(oldDefaults)
-            this.Assert(oldDefaults["window-cascade.reset-log"].bindings[1]
+            this.Assert(oldDefaults["cascade-kingdom.reset-log"].bindings[1]
                     = Keybindings.Parse("Pause + F1").signature
-                && oldDefaults["window-cascade.copy-log"].bindings[1]
+                && oldDefaults["cascade-kingdom.copy-log"].bindings[1]
                     = Keybindings.Parse("Pause + F9").signature,
                 "old clear-log defaults migrate without replacing customized log shortcuts")
-            oldDefaults["window-cascade.copy-log"].bindings[1] := Keybindings.Parse("Caps + F6").signature
+            oldDefaults["cascade-kingdom.copy-log"].bindings[1] := Keybindings.Parse("Caps + F6").signature
             oldDefaults["paper-pad.help"].bindings[2] := Keybindings.Parse("Pause + F2").signature
             CascadeMigrateDebugKeybindingDefaults(oldDefaults)
-            this.Assert(oldDefaults["window-cascade.copy-log"].bindings[1]
+            this.Assert(oldDefaults["cascade-kingdom.copy-log"].bindings[1]
                     = Keybindings.Parse("Caps + F6").signature,
                 "migration preserves an existing assignment of the desired hotkey")
-            oldDefaults["window-cascade.reset-log"].bindings[1] := Keybindings.Parse("Caps + F5").signature
-            oldDefaults["window-cascade.reset-log"].bindings[2] := Keybindings.Parse("Pause + F1").signature
+            oldDefaults["cascade-kingdom.reset-log"].bindings[1] := Keybindings.Parse("Caps + F5").signature
+            oldDefaults["cascade-kingdom.reset-log"].bindings[2] := Keybindings.Parse("Pause + F1").signature
             CascadeMigrateDebugKeybindingDefaults(oldDefaults)
-            this.Assert(oldDefaults["window-cascade.reset-log"].bindings[1]
+            this.Assert(oldDefaults["cascade-kingdom.reset-log"].bindings[1]
                     = Keybindings.Parse("Caps + F5").signature,
                 "migration preserves a secondary binding on the same action")
             this.Assert(WW_NextMaximizeCycleIndex(false, false, 0) = 0,
@@ -1046,10 +1046,10 @@ class SuiteUpgradeChecks {
             try this.Assert(!SuiteSizeGrip.handles.Has(focusTabProbe.Hwnd),
                 "Cascade Kingdom focus tabs have no sizing grip")
             finally focusTabProbe.Destroy()
-            event := {phase: "down", actionId: "win-key-overhaul.maximize", slot: 1,
+            event := {phase: "down", actionId: "wonder-windows.maximize", slot: 1,
                 foregroundHwnd: 0, key: "sc148", layer: "normal", modifiers: 8, oneShot: false}
             app.wonder.Event(event)
-            this.Assert(InStr(SuiteState.Log.Read(), "dry run: win-key-overhaul.maximize"),
+            this.Assert(InStr(SuiteState.Log.Read(), "dry run: wonder-windows.maximize"),
                 "Wonder Windows dry-run callbacks do not move real windows")
         }
         finally app.manager.Stop()
@@ -1085,11 +1085,11 @@ class SuiteUpgradeChecks {
             this.Assert(groups["Power-Up Utilities"] > 0,
                 "individual utilities remain directly under Power-Up Utilities")
             this.Assert(manager.actions["core.keybindings"].category = "Global"
-                && manager.actions["window-cascade.copy-log"].category = "Global"
-                && manager.actions["window-cascade.reset-log"].category = "Global",
+                && manager.actions["cascade-kingdom.copy-log"].category = "Global"
+                && manager.actions["cascade-kingdom.reset-log"].category = "Global",
                 "core and debug actions share one Global display heading")
             this.Assert(manager.actions["core.keybindings"].id = "core.keybindings"
-                && manager.actions["window-cascade.copy-log"].id = "window-cascade.copy-log",
+                && manager.actions["cascade-kingdom.copy-log"].id = "cascade-kingdom.copy-log",
                 "Global rename leaves saved action IDs unchanged")
             rows := Keybindings.DisplayRows(manager.DiscoverParticipants())
             this.CheckDisplayOrder(rows)
@@ -1110,7 +1110,7 @@ class SuiteUpgradeChecks {
                 && Keybindings.ContextTagText("paper-pad") = "editor only"
                 && Keybindings.ContextTagText("windows-terminal") = "terminal only",
                 "only application-specific shortcuts receive readable context tags")
-            this.Assert(manager.actions["win-key-overhaul.layout-left"].scope = ""
+            this.Assert(manager.actions["wonder-windows.layout-left"].scope = ""
                 && manager.actions["paper-pad.previous"].scope = "paper-pad",
                 "Wonder Windows is a global fallback for Paper Pad editor shortcuts")
             this.Assert(manager.actions["power-up-utilities.terminal.clear"].scope = "windows-terminal"
@@ -1151,10 +1151,10 @@ class SuiteUpgradeChecks {
                 && rows[paperSection + 3].label = "Paper Pad / Inside the editor",
                 "Paper Pad puts Help first, followed by its toggle and editor subcategory")
             expectedHelp := Map("Paper Pad", "paper-pad.help",
-                "Cascade Kingdom", "window-cascade.help",
-                "Wonder Windows", "win-key-overhaul.help",
+                "Cascade Kingdom", "cascade-kingdom.help",
+                "Wonder Windows", "wonder-windows.help",
                 "Power-Up Utilities", "power-up-utilities.interface.open",
-                "Secret Layers", "keyboard-layers.help")
+                "Secret Layers", "secret-layers.help")
             for index, row in rows {
                 if row.id != "" || !expectedHelp.Has(row.label)
                     continue
@@ -1162,35 +1162,35 @@ class SuiteUpgradeChecks {
                     row.label " displays its Help shortcut first")
             }
             saved := manager.GetConfiguration()
-            this.Assert(saved["window-cascade.reset-log"].bindings[1]
+            this.Assert(saved["cascade-kingdom.reset-log"].bindings[1]
                     = Keybindings.Parse("Pause + F1").signature
-                && saved["window-cascade.copy-log"].bindings[1]
+                && saved["cascade-kingdom.copy-log"].bindings[1]
                     = Keybindings.Parse("Pause + F2").signature,
                 "debug log hotkeys default to Pause + F1/F2")
             this.Assert(saved["paper-pad.help"].bindings[1]
                 = Keybindings.Parse("Pause + F12").signature
                 && saved["paper-pad.help"].bindings[2] = "",
                 "Paper Pad Help defaults to Pause + F12")
-            this.Assert(saved["keyboard-layers.help"].bindings[1] = ""
-                && saved["keyboard-layers.help"].bindings[2] = "",
+            this.Assert(saved["secret-layers.help"].bindings[1] = ""
+                && saved["secret-layers.help"].bindings[2] = "",
                 "Secret Layers Help remains unassigned by default")
             this.Assert(manager.actions["power-up-utilities.keyboard.toggle-caps"].category = "Secret Layers"
                 && saved["power-up-utilities.keyboard.toggle-caps"].bindings[1] = "",
                 "Caps Lock toggle belongs to Secret Layers and defaults unassigned")
-            this.Assert(saved["window-cascade.help"].bindings[1]
+            this.Assert(saved["cascade-kingdom.help"].bindings[1]
                 = Keybindings.Parse("Caps + H").signature
-                && saved["win-key-overhaul.help"].bindings[1]
+                && saved["wonder-windows.help"].bindings[1]
                     = Keybindings.Parse("Caps + Win + H").signature
                 && saved["power-up-utilities.interface.open"].bindings[1]
                     = Keybindings.Parse("Pause + H").signature,
                 "existing module Help shortcuts retain their original defaults")
             this.Assert(this.RouteExists(manager, "paper-pad.help"),
                 "Paper Pad Help registers its default Pause + F12 shortcut")
-            this.Assert(!this.RouteExists(manager, "keyboard-layers.help"),
+            this.Assert(!this.RouteExists(manager, "secret-layers.help"),
                 "unassigned Secret Layers Help installs no shortcut")
-            this.Assert(InStr(ModuleHelp.Text("keyboard-layers", manager),
+            this.Assert(InStr(ModuleHelp.Text("secret-layers", manager),
                 "WHY I MADE THIS") = 1
-                && !InStr(ModuleHelp.Text("keyboard-layers", manager), "CURRENT SAVED SHORTCUTS"),
+                && !InStr(ModuleHelp.Text("secret-layers", manager), "CURRENT SAVED SHORTCUTS"),
                 "Secret Layers help provides a practical guide without a shortcut inventory")
             filtered := Keybindings.DisplayRows(manager.DiscoverParticipants(), "Inside the editor")
             this.Assert(filtered.Length > 2 && filtered[1].label = "Paper Pad"
@@ -1234,10 +1234,10 @@ class SuiteUpgradeChecks {
                 "subcategories retain the same heading style as main categories")
             seenFancy := false
             for row in rows
-                if InStr(row.id, "win-key-overhaul.zone-") = 1
+                if InStr(row.id, "wonder-windows.zone-") = 1
                     seenFancy := true
             this.Assert(!seenFancy, "FancyZones actions are hidden while integration is inactive")
-            this.Assert(!this.RouteExists(manager, "win-key-overhaul.zone-left"),
+            this.Assert(!this.RouteExists(manager, "wonder-windows.zone-left"),
                 "inactive FancyZones actions reserve no shortcuts")
             app.activeModules["paper-pad"] := false
             manager.Apply(manager.GetConfiguration())
@@ -1264,7 +1264,7 @@ class SuiteUpgradeChecks {
             this.Assert(app.wonder.FancyZonesAvailable("left") && !app.wonder.FancyZonesAvailable("up"),
                 "FancyZones availability respects the active navigation mode")
             app.wonder.RefreshOptionalActions()
-            this.Assert(!this.RouteExists(manager, "win-key-overhaul.zone-left"),
+            this.Assert(!this.RouteExists(manager, "wonder-windows.zone-left"),
                 "a newly enabled conflicting integration does not steal an active shortcut")
             this.Assert(manager.GetConfiguration()["power-up-utilities.keyboard.f13"].bindings[1]
                 = Keybindings.Parse("Ctrl + Alt + Left").signature,
@@ -1273,7 +1273,7 @@ class SuiteUpgradeChecks {
             changed := manager.GetConfiguration()
             changed["power-up-utilities.keyboard.f13"].bindings[1] := "Caps + Q"
             manager.Apply(changed)
-            this.Assert(this.RouteExists(manager, "win-key-overhaul.zone-left"),
+            this.Assert(this.RouteExists(manager, "wonder-windows.zone-left"),
                 "FancyZones shortcuts activate after their conflict is cleared")
             rows := Keybindings.DisplayRows(manager.DiscoverParticipants())
             fancyLeft := false
@@ -1282,9 +1282,9 @@ class SuiteUpgradeChecks {
             for row in rows {
                 if row.id = "" && row.label = "Wonder Windows / FancyZones"
                     fancyHeading := true
-                if row.id = "win-key-overhaul.zone-left"
+                if row.id = "wonder-windows.zone-left"
                     fancyLeft := true
-                if row.id = "win-key-overhaul.zone-up"
+                if row.id = "wonder-windows.zone-up"
                     fancyUp := true
             }
             this.Assert(fancyLeft && !fancyUp && fancyHeading,
@@ -1292,9 +1292,9 @@ class SuiteUpgradeChecks {
             WW_fancyzones_process_id := 0
             WW_fancyzones_integration_state := false
             app.wonder.RefreshOptionalActions()
-            this.Assert(!this.RouteExists(manager, "win-key-overhaul.zone-left"),
+            this.Assert(!this.RouteExists(manager, "wonder-windows.zone-left"),
                 "stopping FancyZones releases its registered shortcuts")
-            this.Assert(manager.GetConfiguration()["win-key-overhaul.zone-left"].bindings[1] != "",
+            this.Assert(manager.GetConfiguration()["wonder-windows.zone-left"].bindings[1] != "",
                 "disappearing optional shortcuts preserve their assignments")
             this.Assert(!InStr(Keybindings.DisplayRows(manager.DiscoverParticipants())[1].label, "disabled"),
                 "Keybindings headings do not acquire disabled suffixes")
@@ -1328,7 +1328,7 @@ class SuiteUpgradeChecks {
 
     static CheckDisplayOrder(rows) {
         this.AssertDisplaySequence(rows, [
-            "core.keybindings", "window-cascade.copy-log", "window-cascade.reset-log"],
+            "core.keybindings", "cascade-kingdom.copy-log", "cascade-kingdom.reset-log"],
             "Global shortcuts group application first and logs together")
         this.AssertDisplaySequence(rows, [
             "paper-pad.help", "paper-pad.toggle", "paper-pad.new",
@@ -1336,31 +1336,31 @@ class SuiteUpgradeChecks {
             "paper-pad.next", "paper-pad.hide"],
             "Paper Pad groups document operations and page navigation")
         this.AssertDisplaySequence(rows, [
-            "window-cascade.help", "window-cascade.focus-previous", "window-cascade.focus-next",
-            "window-cascade.slot-previous", "window-cascade.slot-next",
-            "window-cascade.swap-up", "window-cascade.swap-down",
-            "window-cascade.rotate-next",
-            "window-cascade.adopt", "window-cascade.bring-forward", "window-cascade.minimize",
-            "window-cascade.gather",
-            "window-cascade.close-active", "window-cascade.close-monitor"],
+            "cascade-kingdom.help", "cascade-kingdom.focus-previous", "cascade-kingdom.focus-next",
+            "cascade-kingdom.slot-previous", "cascade-kingdom.slot-next",
+            "cascade-kingdom.swap-up", "cascade-kingdom.swap-down",
+            "cascade-kingdom.rotate-next",
+            "cascade-kingdom.adopt", "cascade-kingdom.bring-forward", "cascade-kingdom.minimize",
+            "cascade-kingdom.gather",
+            "cascade-kingdom.close-active", "cascade-kingdom.close-monitor"],
             "Cascade Kingdom groups navigation, rotation and management")
         this.AssertDisplaySequence(rows, [
-            "win-key-overhaul.help", "win-key-overhaul.focus-up",
-            "win-key-overhaul.focus-down", "win-key-overhaul.focus-left",
-            "win-key-overhaul.focus-right", "win-key-overhaul.cycle-stacked",
-            "win-key-overhaul.cycle-expanded",
-            "win-key-overhaul.maximize", "win-key-overhaul.restore", "win-key-overhaul.minimize",
-            "win-key-overhaul.move-monitor",
-            "win-key-overhaul.layout-left", "win-key-overhaul.layout-right",
-            "win-key-overhaul.tile-top-left", "win-key-overhaul.tile-top",
-            "win-key-overhaul.tile-top-right", "win-key-overhaul.tile-bottom-left",
-            "win-key-overhaul.tile-bottom", "win-key-overhaul.tile-bottom-right",
-            "win-key-overhaul.stretch-left", "win-key-overhaul.stretch-right",
-            "win-key-overhaul.stretch-height", "win-key-overhaul.stretch-full-cycle",
-            "win-key-overhaul.reset-stretch",
-            "win-key-overhaul.swap-up", "win-key-overhaul.swap-down",
-            "win-key-overhaul.swap-left", "win-key-overhaul.swap-right",
-            "win-key-overhaul.isolate", "win-key-overhaul.minimize-all"],
+            "wonder-windows.help", "wonder-windows.focus-up",
+            "wonder-windows.focus-down", "wonder-windows.focus-left",
+            "wonder-windows.focus-right", "wonder-windows.cycle-stacked",
+            "wonder-windows.cycle-expanded",
+            "wonder-windows.maximize", "wonder-windows.restore", "wonder-windows.minimize",
+            "wonder-windows.move-monitor",
+            "wonder-windows.layout-left", "wonder-windows.layout-right",
+            "wonder-windows.tile-top-left", "wonder-windows.tile-top",
+            "wonder-windows.tile-top-right", "wonder-windows.tile-bottom-left",
+            "wonder-windows.tile-bottom", "wonder-windows.tile-bottom-right",
+            "wonder-windows.stretch-left", "wonder-windows.stretch-right",
+            "wonder-windows.stretch-height", "wonder-windows.stretch-full-cycle",
+            "wonder-windows.reset-stretch",
+            "wonder-windows.swap-up", "wonder-windows.swap-down",
+            "wonder-windows.swap-left", "wonder-windows.swap-right",
+            "wonder-windows.isolate", "wonder-windows.minimize-all"],
             "Wonder Windows groups focus, positioning, stretching and grouping")
         this.AssertDisplaySequence(rows, [
             "power-up-utilities.interface.open", "power-up-utilities.system.wake-speakers",
@@ -1383,7 +1383,7 @@ class SuiteUpgradeChecks {
             "power-up-utilities.terminal.copy", "power-up-utilities.terminal.clear"],
             "Terminal copy precedes destructive clear")
         this.AssertDisplaySequence(rows, [
-            "keyboard-layers.help", "power-up-utilities.keyboard.toggle-caps"],
+            "secret-layers.help", "power-up-utilities.keyboard.toggle-caps"],
             "Secret Layers keeps Help first")
         powerHeadings := []
         for row in rows
@@ -1397,13 +1397,13 @@ class SuiteUpgradeChecks {
             && powerHeadings[5] = "Power-Up Utilities / Windows Terminal",
             "existing Power-Up Utilities headings have a purposeful order")
         ; Search/filtering must retain the declared order, not the source order.
-        subset := [{id: "win-key-overhaul.minimize"}, {id: "win-key-overhaul.focus-up"},
-            {id: "win-key-overhaul.unknown"}]
+        subset := [{id: "wonder-windows.minimize"}, {id: "wonder-windows.focus-up"},
+            {id: "wonder-windows.unknown"}]
         reordered := Keybindings.OrderDisplayEntries("Wonder Windows", subset)
         this.Assert(reordered.Length = 3
-            && reordered[1].id = "win-key-overhaul.focus-up"
-            && reordered[2].id = "win-key-overhaul.minimize"
-            && reordered[3].id = "win-key-overhaul.unknown",
+            && reordered[1].id = "wonder-windows.focus-up"
+            && reordered[2].id = "wonder-windows.minimize"
+            && reordered[3].id = "wonder-windows.unknown",
             "filtered actions keep their order and unknown future actions follow")
         original := Keybindings.OrderDisplayEntries("Unregistered category", subset)
         this.Assert(original.Length = 3 && original[1].id = subset[1].id
@@ -1672,11 +1672,11 @@ class SuiteUpgradeChecks {
                 guide := window["helpText"].Value
                 this.Assert(StrLen(guide) > 300 && !InStr(guide, "CURRENT SAVED SHORTCUTS"),
                     "help explains usage without listing every keybinding: " id)
-                firstHeading := Map("window-cascade", "CASCADE ONLY WHEN YOU ASK",
-                    "win-key-overhaul", "ARRANGE YOUR WINDOWS",
+                firstHeading := Map("cascade-kingdom", "CASCADE ONLY WHEN YOU ASK",
+                    "wonder-windows", "ARRANGE YOUR WINDOWS",
                     "power-up-utilities", "MORE KEYS WITHOUT A NEW KEYBOARD",
                     "paper-pad", "YOUR OWN QUICK-NOTES DRAWER",
-                    "keyboard-layers", "HOLD A KEY FOR MORE HOTKEYS")
+                    "secret-layers", "HOLD A KEY FOR MORE HOTKEYS")
                 this.Assert(InStr(guide, "WHY I MADE THIS`r`n") = 1
                     && InStr(guide, "`r`n`r`n" firstHeading[id]) > 0
                     && !InStr(guide, "GETTING STARTED"),
@@ -1684,7 +1684,7 @@ class SuiteUpgradeChecks {
                 this.Assert(StrLen(guide) >= 600,
                     "each Help guide provides substantial practical usage details: " id)
                 this.Assert(InStr(guide, "before the application finishes opening") > 0
-                    || id != "window-cascade",
+                    || id != "cascade-kingdom",
                     "Help sentences aren't split by fixed hard line breaks")
                 window.GetClientPos(, , &helpWidth, &helpHeight)
                 expectedHelpHeight := Max(480, 145 + app.ui.HelpTextHeight(id, 820) + 12)
@@ -1823,7 +1823,7 @@ class SuiteUpgradeChecks {
                         "Settings replaces Help rather than stacking over it: " id)
                     settings := app.ui.windows["settings:" id]
                     settings.GetClientPos(, , &settingsW, &settingsH)
-                    if id = "win-key-overhaul" {
+                    if id = "wonder-windows" {
                         for pair in [["snapStatus", ["on", "off", "unknown"]],
                             ["screenGridStatus", ["running", "not running"]],
                             ["fancyZonesStatus", ["running", "not running"]]] {

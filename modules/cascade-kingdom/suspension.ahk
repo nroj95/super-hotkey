@@ -1,11 +1,11 @@
-; Internal Window Cascade module. Launch ..\window-cascade.ahk instead.
+; Internal Window Cascade module. Launch ..\cascade-kingdom.ahk instead.
 ; Included into the same script; functions share the existing global state.
 ;
 ; New windows are unmanaged unless explicitly launched with CapsLock.
 
 IsCascadeEnabled() {
     app := SuiteState.App
-    return app.ModuleActive("window-cascade") && !app.dryRun && !app.stopping
+    return app.ModuleActive("cascade-kingdom") && !app.dryRun && !app.stopping
         && !app.suspended && !app.systemSuspended && !app.sessionLocked
 }
 

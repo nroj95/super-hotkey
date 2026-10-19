@@ -1,4 +1,4 @@
-; Internal Window Cascade module. Launch ..\window-cascade.ahk instead.
+; Internal Window Cascade module. Launch ..\cascade-kingdom.ahk instead.
 ; Included into the same script; functions share the existing global state.
 ;
 ; Click contract:

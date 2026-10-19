@@ -1,4 +1,4 @@
-; Preserved held/one-shot state machine; lifecycle and dispatch are in keyboard-layers.ahk.
+; Preserved held/one-shot state machine; lifecycle and dispatch are in secret-layers.ahk.
 
 CPL_PrefixDown(layerName, physicalKey, *) {
     global CPL

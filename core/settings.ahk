@@ -1,13 +1,13 @@
 ; Saved preferences are independent of the currently running module/layer choices.
 class SuiteSettings {
-    static ModuleOrder := ["window-cascade", "win-key-overhaul", "power-up-utilities", "paper-pad", "keyboard-layers"]
-    static ModuleNames := Map("window-cascade", "Cascade Kingdom", "win-key-overhaul", "Wonder Windows",
-        "power-up-utilities", "Power-Up Utilities", "paper-pad", "Paper Pad", "keyboard-layers", "Secret Layers")
-    static ModuleDescriptions := Map("window-cascade", "Automatic window placement and cascades.",
-        "win-key-overhaul", "Window hotkeys, layouts, stretching and navigation.",
+    static ModuleOrder := ["cascade-kingdom", "wonder-windows", "power-up-utilities", "paper-pad", "secret-layers"]
+    static ModuleNames := Map("cascade-kingdom", "Cascade Kingdom", "wonder-windows", "Wonder Windows",
+        "power-up-utilities", "Power-Up Utilities", "paper-pad", "Paper Pad", "secret-layers", "Secret Layers")
+    static ModuleDescriptions := Map("cascade-kingdom", "Automatic window placement and cascades.",
+        "wonder-windows", "Window hotkeys, layouts, stretching and navigation.",
         "power-up-utilities", "Extra keyboard, text and system actions.",
         "paper-pad", "A persistent Notepad3 drawer for quick notes.",
-        "keyboard-layers", "Independent CapsLock and Pause hotkey layers.")
+        "secret-layers", "Independent CapsLock and Pause hotkey layers.")
 
     __New(directory) {
         this.directory := directory
@@ -118,7 +118,7 @@ class SuiteSettings {
 
     ResetModulePreferences() {
         ; Paths, editor profile, page state and notes are outside this whitelist.
-        for id, sections in Map("window-cascade", ["FocusTabs", "Controls", "Standalone"],
+        for id, sections in Map("cascade-kingdom", ["FocusTabs", "Controls", "Standalone"],
             "paper-pad", ["Window", "Saving", "Controls"]) {
             path := this.directory "\" id "\settings.ini"
             if FileExist(path)

@@ -34,7 +34,7 @@ class CapsLockModifierToggle {
     Eligible() {
         app := SuiteState.App
         return IsObject(app) && !app.dryRun && !app.stopping && !app.suspended
-            && !app.systemSuspended && app.ModuleActive("keyboard-layers")
+            && !app.systemSuspended && app.ModuleActive("secret-layers")
             && app.activeLayers["caps"] && IsObject(app.manager)
             && app.manager.running && !app.manager.gated && !app.manager.applying
     }

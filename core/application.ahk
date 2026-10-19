@@ -80,11 +80,11 @@ class SuiteApplication {
         }
         this.power.Start()
         if !this.dryRun {
-            if this.ModuleActive("window-cascade") {
+            if this.ModuleActive("cascade-kingdom") {
                 this.cascadeStarted := true
                 WindowCascadeModule.Start(this.manager)
             }
-            if this.ModuleActive("win-key-overhaul") {
+            if this.ModuleActive("wonder-windows") {
                 this.wonderStarted := true
                 this.wonder.Start()
             }
@@ -120,7 +120,7 @@ class SuiteApplication {
         this.cascadeInitialized := true
         options := {directory: this.Settings.directory "\keybindings",
             statusCallback: ObjBindMethod(this, "BindingStatus")}
-        if this.ModuleActive("keyboard-layers") && (this.activeLayers["caps"] || this.activeLayers["pause"])
+        if this.ModuleActive("secret-layers") && (this.activeLayers["caps"] || this.activeLayers["pause"])
             options.layerFactory := (name, status) => LocalKeyboardLayers(name, status, this.activeLayers)
         this.manager := Keybindings("super-hotkey", SuiteApplication.Name, options)
         this.manager.RegisterScope("paper-pad", PaperPadWindowActive)
@@ -133,15 +133,15 @@ class SuiteApplication {
         WindowCascadeModule.Register(this.manager)
         PaperPadModule.Register(this.manager)
         this.wonder := WonderWindowsModule(this.manager, this.dryRun)
-        this.manager.AddAction("keyboard-layers.help", "show Secret Layers help",
-            ObjBindMethod(this, "HelpShortcutEvent", "keyboard-layers"), [],
+        this.manager.AddAction("secret-layers.help", "show Secret Layers help",
+            ObjBindMethod(this, "HelpShortcutEvent", "secret-layers"), [],
             {category: "Secret Layers", help: true,
-                available: (*) => this.ModuleActive("keyboard-layers")})
+                available: (*) => this.ModuleActive("secret-layers")})
         ; Retain the old ID so saved shortcuts survive the change of module owner.
         this.manager.AddAction("power-up-utilities.keyboard.toggle-caps", "toggle Caps Lock",
             ObjBindMethod(this, "ToggleCapsLockEvent"), [],
-            {category: "Secret Layers", available: (*) => this.ModuleActive("keyboard-layers")})
-        if this.ModuleActive("keyboard-layers") && this.activeLayers["caps"]
+            {category: "Secret Layers", available: (*) => this.ModuleActive("secret-layers")})
+        if this.ModuleActive("secret-layers") && this.activeLayers["caps"]
             && this.Settings.capsToggleModifier != "Disabled"
             this.capsToggle := CapsLockModifierToggle(this.Settings.capsToggleModifier)
     }
@@ -152,7 +152,7 @@ class SuiteApplication {
 
     ToggleCapsLockEvent(event) {
         if event.phase = "up" && !this.dryRun && !this.stopping && !this.suspended
-            && !this.manager.gated && this.ModuleActive("keyboard-layers")
+            && !this.manager.gated && this.ModuleActive("secret-layers")
             this.ToggleCapsLock()
     }
 

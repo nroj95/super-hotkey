@@ -550,10 +550,10 @@ class SuiteInterface {
 
     ShowModuleSettings(id, *) {
         switch id {
-            case "keyboard-layers": this.ShowLayerSettings()
-            case "window-cascade": this.ShowCascadeSettings()
+            case "secret-layers": this.ShowLayerSettings()
+            case "cascade-kingdom": this.ShowCascadeSettings()
             case "paper-pad": this.ShowPaperSettings()
-            case "win-key-overhaul": this.ShowWonderSettings()
+            case "wonder-windows": this.ShowWonderSettings()
         }
     }
 
@@ -566,7 +566,7 @@ class SuiteInterface {
     }
 
     ShowLayerSettings(*) {
-        key := "settings:keyboard-layers"
+        key := "settings:secret-layers"
         if this.Existing(key)
             return
         window := this.NewWindow(key, "Secret Layers - Settings", true)
@@ -583,12 +583,12 @@ class SuiteInterface {
         window.AddText("x20 y235 w560", "Only works while the CapsLock layer is enabled."
             . "`nAn optional shortcut is available in Keybindings.")
         this.Footer(window, [["Apply and restart", ObjBindMethod(this, "SaveLayers"), 160],
-            ["Back", ObjBindMethod(this, "BackToHelp", "keyboard-layers"), 100]], 300, 600)
+            ["Back", ObjBindMethod(this, "BackToHelp", "secret-layers"), 100]], 300, 600)
         this.ShowPage(key, 600, 350, 560, 325)
     }
 
     SaveLayers(*) {
-        key := "settings:keyboard-layers"
+        key := "settings:secret-layers"
         window := this.windows[key]
         try {
             this.app.Settings.Save(this.app.Settings.modules,
@@ -608,7 +608,7 @@ class SuiteInterface {
     ; =========================================================================
 
     ShowCascadeSettings(*) {
-        key := "settings:window-cascade"
+        key := "settings:cascade-kingdom"
         if this.Existing(key)
             return
         global cascade_auto_placement_enabled
@@ -631,7 +631,7 @@ class SuiteInterface {
         inactive.Choose(focus_corner_inactive_slot_color_name)
         window.AddText("x20 y265 w550", "Changes apply immediately. Existing cascades stay intact.")
         this.Footer(window, [["Apply", ObjBindMethod(this, "SaveCascade"), 120],
-            ["Back", ObjBindMethod(this, "BackToHelp", "window-cascade"), 100]], 335, 600)
+            ["Back", ObjBindMethod(this, "BackToHelp", "cascade-kingdom"), 100]], 335, 600)
         this.ShowPage(key, 600, 385, 560, 350)
     }
 
@@ -640,7 +640,7 @@ class SuiteInterface {
         global focus_corner_visible, focus_tab_color_presets
         global focus_corner_active_slot_color_name, focus_corner_inactive_slot_color_name
         global focus_corner_active_slot_color, focus_corner_inactive_slot_color
-        key := "settings:window-cascade"
+        key := "settings:cascade-kingdom"
         window := this.windows[key]
         try {
             autoCascade := window["autoCascade"].Value != 0
@@ -649,7 +649,7 @@ class SuiteInterface {
             inactiveName := window["inactiveColor"].Text
             if !focus_tab_color_presets.Has(activeName) || !focus_tab_color_presets.Has(inactiveName)
                 throw ValueError("Select valid focus-tab colors.")
-            this.app.Settings.WritePreferences("window-cascade", Map(
+            this.app.Settings.WritePreferences("cascade-kingdom", Map(
                 "Controls", Map("AutoCascadeNewWindows", autoCascade ? 1 : 0),
                 "FocusTabs", Map("Visible", visible ? 1 : 0,
                     "ActiveSlotColor", activeName, "InactiveSlotColor", inactiveName)))
@@ -787,7 +787,7 @@ class SuiteInterface {
     ; =========================================================================
 
     ShowWonderSettings(*) {
-        key := "settings:win-key-overhaul"
+        key := "settings:wonder-windows"
         if this.Existing(key)
             return
         window := this.NewWindow(key, "Wonder Windows - Settings", true)
@@ -807,7 +807,7 @@ class SuiteInterface {
             ["Disable Snap...", ObjBindMethod(this, "WonderAction", "disable"), 140],
             ["ScreenGrid...", ObjBindMethod(this, "WonderAction", "screengrid"), 125],
             ["FancyZones...", ObjBindMethod(this, "WonderAction", "fancyzones"), 135],
-            ["Back", ObjBindMethod(this, "BackToHelp", "win-key-overhaul"), 90]], 290)
+            ["Back", ObjBindMethod(this, "BackToHelp", "wonder-windows"), 90]], 290)
         this.ShowPage(key, 800, 340, 740, 320)
     }
 
@@ -992,7 +992,7 @@ class SuiteInterface {
         backup := ""
         try {
             backup := app.Settings.Backup([app.Settings.path, app.manager.path,
-                root "\window-cascade\settings.ini", root "\paper-pad\settings.ini"])
+                root "\cascade-kingdom\settings.ini", root "\paper-pad\settings.ini"])
             app.manager.Apply(app.manager._DefaultConfiguration())
             choices := Map()
             for id in SuiteSettings.ModuleOrder

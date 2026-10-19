@@ -118,7 +118,7 @@ focus_tab_release_poll_ms := 50
 ; Caps + Pause Layers is optional; Keybindings handles reconnection.
 
 
-settings_directory := SuiteState.App.Settings.directory "\window-cascade"
+settings_directory := SuiteState.App.Settings.directory "\cascade-kingdom"
 settings_path := settings_directory "\settings.ini"
 focus_corner_visible := IniRead(settings_path, "FocusTabs", "Visible", "1") = "1"
 

@@ -62,10 +62,10 @@ InitializeCascadeKeybindings(manager)
 
 CascadeAddAction(manager, id, label, commandId, binding, parameter := 0)
 {
-    manager.AddAction("window-cascade." id, label, CascadeBindingEvent.Bind(commandId, parameter),
+    manager.AddAction("cascade-kingdom." id, label, CascadeBindingEvent.Bind(commandId, parameter),
         [binding], {category: commandId < 0 ? "Global" : "Cascade Kingdom",
             help: id = "help",
-            available: (*) => commandId < 0 || SuiteState.App.ModuleActive("window-cascade")})
+            available: (*) => commandId < 0 || SuiteState.App.ModuleActive("cascade-kingdom")})
 }
 
 CascadeBindingEvent(commandId, parameter, event)
@@ -113,8 +113,8 @@ CascadeCopyLogFromBinding(*)
 CascadeMigrateDebugKeybindingDefaults(configuration)
 {
     for change in [
-        ["window-cascade.reset-log", "Caps + F5", "Pause + F1"],
-        ["window-cascade.copy-log", "Caps + F6", "Pause + F2"]
+        ["cascade-kingdom.reset-log", "Caps + F5", "Pause + F1"],
+        ["cascade-kingdom.copy-log", "Caps + F6", "Pause + F2"]
     ] {
         actionId := change[1]
         if !configuration.Has(actionId)

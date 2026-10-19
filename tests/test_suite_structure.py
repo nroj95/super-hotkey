@@ -91,7 +91,7 @@ class SuiteStructureTests(unittest.TestCase):
 
     def test_feature_modules_do_not_register_unmanaged_actions(self):
         for path in (ROOT / 'modules').rglob('*.ahk'):
-            if path.parent.name == 'keyboard-layers':
+            if path.parent.name == 'secret-layers':
                 continue
             text = path.read_text(encoding='utf-8-sig')
             self.assertNotRegex(text, r'(?<!\w)Hotkey\(')
@@ -102,7 +102,7 @@ class SuiteStructureTests(unittest.TestCase):
         text = (ROOT / 'core/settings.ahk').read_text()
         for name in ['Cascade Kingdom', 'Wonder Windows', 'Power-Up Utilities', 'Paper Pad', 'Secret Layers']:
             self.assertIn(name, text)
-        for identifier in ['window-cascade', 'win-key-overhaul', 'power-up-utilities', 'paper-pad', 'keyboard-layers']:
+        for identifier in ['cascade-kingdom', 'wonder-windows', 'power-up-utilities', 'paper-pad', 'secret-layers']:
             self.assertIn(f'"{identifier}"', text)
 
     def test_obsolete_migration_tree_was_removed(self):
