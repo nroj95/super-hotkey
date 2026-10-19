@@ -1,4 +1,4 @@
-; Physical, non-blocking modifier double-taps for the Secret Keys CapsLock layer.
+; Physical, non-blocking modifier double-taps for the Secret Layers CapsLock layer.
 class CapsLockModifierToggle {
     __New(modifier) {
         SuiteSettings.ValidateCapsToggleModifier(modifier)

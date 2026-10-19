@@ -100,7 +100,7 @@ class SuiteStructureTests(unittest.TestCase):
 
     def test_current_module_names_and_ids(self):
         text = (ROOT / 'core/settings.ahk').read_text()
-        for name in ['Cascade Kingdom', 'Wonder Windows', 'Power-Up Utilities', 'Paper Pad', 'Secret Keys']:
+        for name in ['Cascade Kingdom', 'Wonder Windows', 'Power-Up Utilities', 'Paper Pad', 'Secret Layers']:
             self.assertIn(name, text)
         for identifier in ['window-cascade', 'win-key-overhaul', 'power-up-utilities', 'paper-pad', 'keyboard-layers']:
             self.assertIn(f'"{identifier}"', text)

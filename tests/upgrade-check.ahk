@@ -85,7 +85,7 @@ class SuiteUpgradeChecks {
     static Preferences() {
         settings := SuiteSettings(SuiteChecks.directory "\upgrade-preferences")
         this.Assert(settings.layers["caps"] && settings.layers["pause"] && !settings.verbose,
-            "both Secret Keys layers default on; verbose debugging defaults off")
+            "both keyboard layers default on; verbose debugging defaults off")
         this.Assert(settings.capsToggleModifier = "Shift"
             && settings.capsToggleModifierChoice = "Shift",
             "Shift is the default enabled Caps Lock double-tap modifier")
@@ -676,7 +676,7 @@ class SuiteUpgradeChecks {
     }
 
     static DisabledModuleWarning() {
-        app := SuiteApplication(true, SuiteChecks.directory "\disabled-secret-keys")
+        app := SuiteApplication(true, SuiteChecks.directory "\disabled-secret-layers")
         app.activeModules["keyboard-layers"] := false
         app.InitializeCatalog()
         manager := app.manager
@@ -684,7 +684,7 @@ class SuiteUpgradeChecks {
             manager.SetPaused(true)
             manager.Start()
             manager.ShowSettings()
-            this.Assert(manager.settings.Title = "Keybindings — Secret Keys disabled",
+            this.Assert(manager.settings.Title = "Keybindings — Secret Layers disabled",
                 "module-disabled Keybindings title describes the unavailable layers")
             manager.settings["search"].Value := "open Keybindings"
             manager._RenderSettings()
@@ -692,7 +692,7 @@ class SuiteUpgradeChecks {
             this.Assert(InStr(core.primary.Text, "⚠ Caps + Alt + K") = 1
                 && core.secondary.Text = "Ctrl + Alt + K"
                 && core.primary.Enabled,
-                "disabled Secret Keys marks only the Caps binding and leaves it editable")
+                "disabled Secret Layers marks only the Caps binding and leaves it editable")
             this.Assert(manager.warningButtons.Has(core.primary.Hwnd)
                 && !manager.warningButtons.Has(core.secondary.Hwnd),
                 "warning background applies only to unavailable assignment buttons")
@@ -728,7 +728,7 @@ class SuiteUpgradeChecks {
             manager._RenderSettings()
             paper := manager.visibleRows[2].primary
             this.Assert(InStr(paper.Text, "⚠ Pause + F12") = 1 && paper.Enabled,
-                "disabled Secret Keys marks the saved Pause Help binding as reassignable")
+                "disabled Secret Layers marks the saved Pause Help binding as reassignable")
             this.Assert(manager.warningButtons.Has(paper.Hwnd),
                 "disabled Pause bindings also receive the amber warning background")
             before := manager.GetConfiguration()["paper-pad.help"].bindings[1]
@@ -1132,7 +1132,7 @@ class SuiteUpgradeChecks {
                 }
             }
             expectedOrder := ["Global", "Paper Pad", "Cascade Kingdom",
-                "Wonder Windows", "Power-Up Utilities", "Secret Keys"]
+                "Wonder Windows", "Power-Up Utilities", "Secret Layers"]
             this.Assert(mainHeadings.Length = expectedOrder.Length,
                 "Keybindings includes exactly the five assignable sections")
             for index, expectedName in expectedOrder
@@ -1154,7 +1154,7 @@ class SuiteUpgradeChecks {
                 "Cascade Kingdom", "window-cascade.help",
                 "Wonder Windows", "win-key-overhaul.help",
                 "Power-Up Utilities", "power-up-utilities.interface.open",
-                "Secret Keys", "keyboard-layers.help")
+                "Secret Layers", "keyboard-layers.help")
             for index, row in rows {
                 if row.id != "" || !expectedHelp.Has(row.label)
                     continue
@@ -1173,10 +1173,10 @@ class SuiteUpgradeChecks {
                 "Paper Pad Help defaults to Pause + F12")
             this.Assert(saved["keyboard-layers.help"].bindings[1] = ""
                 && saved["keyboard-layers.help"].bindings[2] = "",
-                "Secret Keys Help remains unassigned by default")
-            this.Assert(manager.actions["power-up-utilities.keyboard.toggle-caps"].category = "Secret Keys"
+                "Secret Layers Help remains unassigned by default")
+            this.Assert(manager.actions["power-up-utilities.keyboard.toggle-caps"].category = "Secret Layers"
                 && saved["power-up-utilities.keyboard.toggle-caps"].bindings[1] = "",
-                "Caps Lock toggle belongs to Secret Keys and defaults unassigned")
+                "Caps Lock toggle belongs to Secret Layers and defaults unassigned")
             this.Assert(saved["window-cascade.help"].bindings[1]
                 = Keybindings.Parse("Caps + H").signature
                 && saved["win-key-overhaul.help"].bindings[1]
@@ -1187,11 +1187,11 @@ class SuiteUpgradeChecks {
             this.Assert(this.RouteExists(manager, "paper-pad.help"),
                 "Paper Pad Help registers its default Pause + F12 shortcut")
             this.Assert(!this.RouteExists(manager, "keyboard-layers.help"),
-                "unassigned Secret Keys Help installs no shortcut")
+                "unassigned Secret Layers Help installs no shortcut")
             this.Assert(InStr(ModuleHelp.Text("keyboard-layers", manager),
                 "WHY I MADE THIS") = 1
                 && !InStr(ModuleHelp.Text("keyboard-layers", manager), "CURRENT SAVED SHORTCUTS"),
-                "Secret Keys help provides a practical guide without a shortcut inventory")
+                "Secret Layers help provides a practical guide without a shortcut inventory")
             filtered := Keybindings.DisplayRows(manager.DiscoverParticipants(), "Inside the editor")
             this.Assert(filtered.Length > 2 && filtered[1].label = "Paper Pad"
                 && filtered[2].label = "Paper Pad / Inside the editor",
@@ -1384,7 +1384,7 @@ class SuiteUpgradeChecks {
             "Terminal copy precedes destructive clear")
         this.AssertDisplaySequence(rows, [
             "keyboard-layers.help", "power-up-utilities.keyboard.toggle-caps"],
-            "Secret Keys keeps Help first")
+            "Secret Layers keeps Help first")
         powerHeadings := []
         for row in rows
             if row.id = "" && InStr(row.label, "Power-Up Utilities") = 1
@@ -1985,7 +1985,7 @@ class SuiteUpgradeChecks {
                         if control.Type = "Text" && InStr(control.Text, "Disabled modules keep")
                             obsoleteLine := true
                     this.Assert(!obsoleteLine,
-                        "Modules no longer has the redundant line under Secret Keys")
+                        "Modules no longer has the redundant line under Secret Layers")
                     appSettingsFound := false
                     for control in window
                         if control.Type = "Button" && control.Text = "App settings..."

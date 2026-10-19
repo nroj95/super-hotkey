@@ -12,7 +12,7 @@ module IDs use their current feature names. settings use `%LOCALAPPDATA%\nroj\Su
 
 Keybindings owns persistence, conflict validation, native registration and recording. registered disjoint scopes may share a hotkey, and an application-specific route takes priority over a global fallback. Paper Pad editor navigation and Windows Terminal macros stay contextual.
 
-Secret Keys installs only enabled CapsLock/Pause prefixes. disabling a layer restores its native key unless that key was explicitly reassigned. saved assignments remain editable. Apply changes live; Cancel, Back and closing the editor discard uncommitted edits.
+Secret Layers installs only enabled CapsLock/Pause prefixes. disabling a layer restores its native key unless that key was explicitly reassigned. saved assignments remain editable. Apply changes live; Cancel, Back and closing the editor discard uncommitted edits.
 
 reconfiguration and input gating invalidate module queues and deferred callbacks. cancelled utility presses are discarded, not treated as releases. Paper Pad tags hotkey requests so they cannot replay after a pause; direct UI operations and save-safety work remain available.
 

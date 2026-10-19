@@ -2,7 +2,7 @@
 class SuiteSettings {
     static ModuleOrder := ["window-cascade", "win-key-overhaul", "power-up-utilities", "paper-pad", "keyboard-layers"]
     static ModuleNames := Map("window-cascade", "Cascade Kingdom", "win-key-overhaul", "Wonder Windows",
-        "power-up-utilities", "Power-Up Utilities", "paper-pad", "Paper Pad", "keyboard-layers", "Secret Keys")
+        "power-up-utilities", "Power-Up Utilities", "paper-pad", "Paper Pad", "keyboard-layers", "Secret Layers")
     static ModuleDescriptions := Map("window-cascade", "Automatic window placement and cascades.",
         "win-key-overhaul", "Window hotkeys, layouts, stretching and navigation.",
         "power-up-utilities", "Extra keyboard, text and system actions.",

@@ -558,7 +558,7 @@ class SuiteInterface {
     }
 
     ; =========================================================================
-    ; Secret Keys: persistent, independent layer choices; restart-based hooks
+    ; Secret Layers: persistent, independent layer choices; restart-based hooks
     ; =========================================================================
 
     UpdateSelectorEnabled(selector, checkbox, *) {
@@ -569,7 +569,7 @@ class SuiteInterface {
         key := "settings:keyboard-layers"
         if this.Existing(key)
             return
-        window := this.NewWindow(key, "Secret Keys - Settings", true)
+        window := this.NewWindow(key, "Secret Layers - Settings", true)
         window.AddText("x20 y20 w560", "Modules is the master switch. These choices control each layer independently.")
         window.AddCheckbox("x20 y70 w540 vpause", "Enable Pause layer").Value := this.app.Settings.layers["pause"]
         window.AddCheckbox("x20 y115 w540 vcaps", "Enable CapsLock layer").Value := this.app.Settings.layers["caps"]
@@ -600,7 +600,7 @@ class SuiteInterface {
             Reload()
         }
         catch Error as failure
-            this.Report(failure, "Secret Keys / settings")
+            this.Report(failure, "Secret Layers / settings")
     }
 
     ; =========================================================================

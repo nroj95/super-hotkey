@@ -133,14 +133,14 @@ class SuiteApplication {
         WindowCascadeModule.Register(this.manager)
         PaperPadModule.Register(this.manager)
         this.wonder := WonderWindowsModule(this.manager, this.dryRun)
-        this.manager.AddAction("keyboard-layers.help", "show Secret Keys help",
+        this.manager.AddAction("keyboard-layers.help", "show Secret Layers help",
             ObjBindMethod(this, "HelpShortcutEvent", "keyboard-layers"), [],
-            {category: "Secret Keys", help: true,
+            {category: "Secret Layers", help: true,
                 available: (*) => this.ModuleActive("keyboard-layers")})
         ; Retain the old ID so saved shortcuts survive the change of module owner.
         this.manager.AddAction("power-up-utilities.keyboard.toggle-caps", "toggle Caps Lock",
             ObjBindMethod(this, "ToggleCapsLockEvent"), [],
-            {category: "Secret Keys", available: (*) => this.ModuleActive("keyboard-layers")})
+            {category: "Secret Layers", available: (*) => this.ModuleActive("keyboard-layers")})
         if this.ModuleActive("keyboard-layers") && this.activeLayers["caps"]
             && this.Settings.capsToggleModifier != "Disabled"
             this.capsToggle := CapsLockModifierToggle(this.Settings.capsToggleModifier)
@@ -319,7 +319,7 @@ class SuiteApplication {
         this.stopping := true
         SetTimer(this.resumeCallback, 0)
         if IsObject(this.capsToggle)
-            this.Cleanup("Secret Keys / Caps Lock", ObjBindMethod(this.capsToggle, "Stop"))
+            this.Cleanup("Secret Layers / Caps Lock", ObjBindMethod(this.capsToggle, "Stop"))
         if IsObject(this.manager)
             this.Cleanup("Keybindings", ObjBindMethod(this.manager, "Stop"))
         if IsObject(this.power)

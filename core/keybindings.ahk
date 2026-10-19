@@ -326,7 +326,7 @@ class Keybindings {
                 "power-up-utilities.text.timestamp"],
             "Power-Up Utilities / Windows Terminal", [
                 "power-up-utilities.terminal.copy", "power-up-utilities.terminal.clear"],
-            "Secret Keys", [
+            "Secret Layers", [
                 "keyboard-layers.help", "power-up-utilities.keyboard.toggle-caps"])
         if !order.Has(category)
             return entries
@@ -775,7 +775,7 @@ class Keybindings {
         this._RefreshGate()
         this.routeMap := Map()
         ; Scope-specific routes take priority over global fallbacks in both
-        ; the normal dispatcher and the Secret Keys layer dispatcher.
+        ; the normal dispatcher and the Secret Layers layer dispatcher.
         orderedRoutes := []
         for route in this.routes
             if route.action.scope != ""
@@ -1078,7 +1078,7 @@ class Keybindings {
         if this.settingsModuleId != ""
             return SuiteSettings.ModuleNames[this.settingsModuleId] " - Keybindings"
         if IsObject(SuiteState.App) && !SuiteState.App.ModuleActive("keyboard-layers")
-            return "Keybindings — Secret Keys disabled"
+            return "Keybindings — Secret Layers disabled"
 
         capsActive := IsObject(this.client) && this.client.LayerEnabled("caps")
         pauseActive := IsObject(this.client) && this.client.LayerEnabled("pause")
@@ -1787,7 +1787,7 @@ class Keybindings {
         return "normal"
     }
 
-    ; The recorder is active while Secret Keys is gated, so it must track
+    ; The recorder is active while Secret Layers is gated, so it must track
     ; prefix taps itself instead of relying on the running layer dispatcher.
     _RecordingPrefixLayer(vk) {
         if !IsObject(this.client)
@@ -2116,7 +2116,7 @@ class Keybindings {
             return !IsObject(this.client) || !this.client.LayerEnabled(binding.layer)
                 ? "unavailable: " binding.layer " layer is disabled" : ""
         return binding.activationKey && IsObject(this.client) && this.client.OwnsPrefix(binding.key)
-            ? "unavailable: this key is owned by Secret Keys" : ""
+            ? "unavailable: this key is owned by Secret Layers" : ""
     }
 
     _SelectedRoute(signature) {

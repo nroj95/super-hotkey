@@ -1,4 +1,4 @@
-; Secret Keys owns only the enabled prefixes; callbacks remain inside this process.
+; Secret Layers owns only the enabled prefixes; callbacks remain inside this process.
 class LocalKeyboardLayers {
     __New(name := "", statusCallback := 0, layers := unset) {
         global CPL
@@ -26,7 +26,7 @@ class LocalKeyboardLayers {
     Bind(layer, modifiers, key, label, callback, repeat := false, context := 0) {
         global CPL
         if !this.LayerEnabled(layer)
-            throw Error("Cannot register a disabled Secret Keys layer.")
+            throw Error("Cannot register a disabled Secret Layers layer.")
         routeKey := CPL_RouteKey(layer, modifiers, key)
         route := {routeKey: routeKey, layer: layer, modifiers: modifiers, key: key,
             label: label, callback: callback, repeat: repeat, context: context,

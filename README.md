@@ -8,7 +8,7 @@ a small AutoHotkey v2 suite for the Windows shortcuts and window behavior i want
 | Wonder Windows | position, stretch, focus and swap windows |
 | Power-Up Utilities | extra keys, text shortcuts and system utilities |
 | Paper Pad | a quick-notes drawer using Notepad3 |
-| Secret Keys | use CapsLock and Pause as extra keyboard layers |
+| Secret Layers | use CapsLock and Pause as extra keyboard layers |
 
 ## start
 
