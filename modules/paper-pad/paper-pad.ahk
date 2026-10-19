@@ -1631,7 +1631,8 @@ class PaperPadController
         SetTimer this.autosave_callback, 0
         SetTimer this.page_lock_sync_callback, 0
         SetTimer this.process_commands_callback, 0
-        if this.HasWindow() {
+        ; Leave the native editor to Windows during shutdown or logoff.
+        if exit_reason != "Shutdown" && exit_reason != "Logoff" && this.HasWindow() {
             if !this.exit_prepared {
                 try this.SaveCurrentPage()
             }
@@ -1641,8 +1642,7 @@ class PaperPadController
                 DllCall("SetWindowRgn", "ptr", this.window_hwnd, "ptr", 0, "int", true)
                 bounds := this.last_bounds ? this.last_bounds : this.GetBounds()
                 WinMove bounds.x, bounds.y, bounds.w, bounds.h, "ahk_id " this.window_hwnd
-                if exit_reason != "Reload" && exit_reason != "Single"
-                    && exit_reason != "Shutdown" && exit_reason != "Logoff" {
+                if exit_reason != "Reload" && exit_reason != "Single" {
                     WinSetAlwaysOnTop false, "ahk_id " this.window_hwnd
                     WinShow "ahk_id " this.window_hwnd
                 }

@@ -305,8 +305,10 @@ class SuiteApplication {
             return 0
         if IsObject(this.manager)
             this.manager.SetPaused(true)
-        ; Save/close refusal must happen before dismantling the rest of the suite.
-        if this.paperPadStarted && IsSet(paperPad) {
+        ; Only interactive exits require Paper Pad's save/close approval.
+        ; Windows shutdown may have already closed the editor.
+        if this.paperPadStarted && IsSet(paperPad)
+            && reason != "Shutdown" && reason != "Logoff" {
             try paperPad.PrepareSuiteExit(reason)
             catch Error as failure {
                 SuiteState.Log.Error("Paper Pad / exit refused", failure)
