@@ -5,7 +5,7 @@ class SuiteReleaseChecks {
     static Run() {
         this.PowerCancellation()
         this.NativeNewPolicy()
-        this.NativeSaveReconciliation()
+        this.NativeSaveDelegation()
         this.LargeDebugLog()
         this.CascadeOptInLaunch()
         this.CascadeLaunchMonitors()
@@ -27,55 +27,53 @@ class SuiteReleaseChecks {
             "native New never replaces an edited untitled document")
     }
 
-    static NativeSaveReconciliation() {
+    static NativeSaveDelegation() {
         path := SuiteChecks.directory "\release-native-save.md"
         FileAppend "original", path, "UTF-8-RAW"
         pad := SuiteReleaseNativeSavePad(path)
         try {
-            ; Native Save completes, then the user edits again before autosave.
-            pad.native_save_candidate := {path: path, text: "native version", tick: A_TickCount}
+            ; A previous disk version must not prevent native Save.
             FileDelete path
             FileAppend "native version", path, "UTF-8-RAW"
             pad.bridge.text := "native version plus new edits"
             pad.bridge.dirty := true
             this.Assert(pad.SaveCurrentPage(false)
                 && FileRead(path, "UTF-8") == pad.bridge.text,
-                "native Save followed by new edits remains eligible for autosave")
-            this.Assert(!IsObject(pad.native_save_candidate),
-                "a verified Paper Pad save consumes the native Save snapshot")
+                "native Save works without shortcut tracking")
 
-            ; A different external disk version must never be silently replaced.
-            pad.native_save_candidate := {path: path, text: "different version", tick: A_TickCount}
+            ; Notepad3 can reload an externally changed document.
             FileDelete path
-            FileAppend "external modification", path, "UTF-8-RAW"
-            pad.bridge.text := "local unsaved work"
-            pad.bridge.dirty := true
-            SuiteChecks.Rejects((*) => pad.SaveCurrentPage(false),
-                "a genuine external change still blocks Paper Pad autosave")
-            this.Assert(FileRead(path, "UTF-8") = "external modification",
-                "a rejected external conflict preserves the disk version")
-            pad.native_save_candidate := {path: path, text: "external modification",
-                tick: A_TickCount - 6000}
-            this.Assert(pad.NativeSaveMatchesDisk(path),
-                "exact native Save contents remain recognizable after a delay")
-
-            ; Native File > Save has no keyboard observer. A clean editor and
-            ; identical disk file can still establish the new baseline.
-            FileDelete path
-            FileAppend "menu saved version", path, "UTF-8-RAW"
-            pad.bridge.text := "menu saved version"
+            FileAppend "externally reloaded", path, "UTF-8-RAW"
+            pad.bridge.text := "externally reloaded"
             pad.bridge.dirty := false
-            pad.autosave_paused := true
-            this.Assert(pad.ReconcileCleanNativeSave(path)
-                && pad.disk_stamp = PaperPadFileStamp(path) && !pad.autosave_paused,
-                "native File Save updates the baseline and resumes autosave")
+            this.Assert(pad.SaveCurrentPage(false)
+                && FileRead(path, "UTF-8") = "externally reloaded",
+                "native reload becomes the current document")
 
-            FileDelete path
-            FileAppend "another external version", path, "UTF-8-RAW"
-            pad.bridge.text := "unsaved local edits"
+            ; An unsuccessful native Save must not count as success.
+            pad.bridge.text := "unsaved editor text"
             pad.bridge.dirty := true
-            this.Assert(!pad.ReconcileCleanNativeSave(path),
-                "native Save reconciliation refuses to bless a dirty conflicting buffer")
+            pad.bridge.suppress_save := true
+            SuiteChecks.Rejects((*) => pad.SaveCurrentPage(false),
+                "a failed native Save cannot be accepted")
+            this.Assert(FileRead(path, "UTF-8") = "externally reloaded",
+                "a failed native Save preserves the disk contents")
+
+            pad.bridge.suppress_save := false
+            this.Assert(pad.SaveCurrentPage(false)
+                && FileRead(path, "UTF-8") = "unsaved editor text",
+                "native Save succeeds after a previous failure")
+
+            ; A clean document can recover a paused autosave.
+            pad.autosave_paused := true
+            this.Assert(pad.ResumeAutosaveAfterCleanNativeSave(path)
+                && !pad.autosave_paused,
+                "clean native Save resumes autosave")
+
+            pad.bridge.dirty := true
+            pad.autosave_paused := true
+            this.Assert(!pad.ResumeAutosaveAfterCleanNativeSave(path),
+                "dirty documents do not falsely resume autosave")
         }
         finally FileDelete path
     }
@@ -650,7 +648,6 @@ class SuiteReleaseNativeSavePad extends PaperPadController {
         this.current_path := path
         this.bridge := SuiteReleaseNativeSaveBridge(path)
         this.disk_stamp := PaperPadFileStamp(path)
-        this.native_save_candidate := 0
         this.autosave_paused := false
         this.autosave_tracking := {sampled: false, text: "", last_change: 0}
     }
@@ -660,7 +657,6 @@ class SuiteReleaseNativeSavePad extends PaperPadController {
 
     AcceptSave(path, stamp) {
         this.disk_stamp := stamp
-        this.native_save_candidate := 0
     }
 }
 
@@ -670,6 +666,7 @@ class SuiteReleaseNativeSaveBridge {
         this.text := FileRead(path, "UTF-8")
         this.dirty := false
         this.tainted := false
+        this.suppress_save := false
     }
 
     CurrentPath() => this.path
@@ -679,6 +676,8 @@ class SuiteReleaseNativeSaveBridge {
     IsDirty() => this.dirty
 
     Save() {
+        if this.suppress_save
+            return
         FileDelete this.path
         FileAppend this.text, this.path, "UTF-8-RAW"
         this.dirty := false

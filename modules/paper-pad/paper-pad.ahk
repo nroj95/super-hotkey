@@ -48,7 +48,6 @@ class PaperPadController
         this.busy := false
         this.autosave_paused := false
         this.untitled_notice_shown := false
-        this.native_save_candidate := 0
         this.last_verified_save_tick := A_TickCount
         this.last_autosave_attempt_tick := A_TickCount - PaperPadController.AutosaveIdleMs
         this.autosave_tracking := {sampled: false, text: "", last_change: 0}
@@ -841,9 +840,8 @@ class PaperPadController
                 return
             }
             this.untitled_notice_shown := false
-            ; Catch native File > Save (and ordinary Ctrl+S) while the editor
-            ; is clean, before another edit can make its contents diverge.
-            this.ReconcileCleanNativeSave(path)
+            ; A clean native Save or reload can resume a previously paused autosave.
+            this.ResumeAutosaveAfterCleanNativeSave(path)
             if path = this.page_lock_path
                 return
 
@@ -937,7 +935,6 @@ class PaperPadController
             ; are checked against this new baseline.
             this.current_path := path
             this.disk_stamp := PaperPadFileStamp(path)
-            this.native_save_candidate := 0
         }
         return path
     }
@@ -952,48 +949,19 @@ class PaperPadController
         this.persisted_stamp := this.disk_stamp
     }
 
-    NoteNativeSave()
+    ResumeAutosaveAfterCleanNativeSave(path)
     {
-        if !this.bridge || this.bridge.tainted || !this.IsVisible()
-            return
-        try {
-            path := this.bridge.CurrentPath()
-            if this.IsNotePath(path) {
-                ; Capture the version being saved, not whatever is edited later.
-                this.native_save_candidate := {path: path,
-                    text: this.bridge.DocumentText(), tick: A_TickCount}
-            }
-        }
-        catch {
-            ; Native Save must remain usable if observation is unavailable.
-        }
-    }
-
-    NativeSaveMatchesDisk(path)
-    {
-        candidate := this.native_save_candidate
-        if !IsObject(candidate) || candidate.path != path
+        if !this.autosave_paused || path != this.current_path || !FileExist(path)
             return false
-        ; Matching bytes are still safe after five seconds; time is not proof
-        ; of an external conflict, and a false expiry blocks later edits.
-        return this.bridge.MatchesDiskText(path, candidate.text)
-    }
-
-    ReconcileCleanNativeSave(path)
-    {
-        if path != this.current_path || !FileExist(path)
-            return false
-        stamp := PaperPadFileStamp(path)
-        if stamp = this.disk_stamp && !this.autosave_paused
-            return false
-        ; A clean editor identical to disk is sufficient evidence of a native
-        ; Save or reload, including File > Save without a keyboard observer.
         if this.bridge.IsDirty() || !this.bridge.MatchesDisk(path)
+            || this.bridge.IsDirty()
             return false
-        if this.bridge.IsDirty() || PaperPadFileStamp(path) != stamp
+
+        stamp := PaperPadFileStamp(path)
+        if PaperPadFileStamp(path) != stamp
             return false
+
         this.disk_stamp := stamp
-        this.native_save_candidate := 0
         this.PersistCurrentState()
         this.last_verified_save_tick := A_TickCount
         this.autosave_tracking.sampled := false
@@ -1001,7 +969,7 @@ class PaperPadController
         this.autosave_tracking.last_change := 0
         this.autosave_paused := false
         SuiteState.PaperPadStatus := "Paper Pad"
-        SuiteState.Log.Debug("Paper Pad", "Reconciled a clean native save or reload.")
+        SuiteState.Log.Debug("Paper Pad", "Resumed autosave after native Save or reload.")
         return true
     }
 
@@ -1011,31 +979,12 @@ class PaperPadController
         if this.bridge && !this.bridge.tainted && this.bridge.CurrentPath() = ""
             this.AdoptNativeNew()
         path := this.CheckCurrentPage()
-        current_stamp := PaperPadFileStamp(path)
-        if this.disk_stamp = "" || current_stamp != this.disk_stamp {
-            ; A native reload can match the editor; native Save can precede more edits.
-            if !this.bridge.MatchesDisk(path) && !this.NativeSaveMatchesDisk(path) {
-                SuiteState.Log.Debug("Paper Pad", "Save rejected: unknown disk version."
-                    . " | old_stamp=" this.disk_stamp " | disk_stamp=" current_stamp
-                    . " | dirty=" this.bridge.IsDirty()
-                    . " | observed_save=" IsObject(this.native_save_candidate))
-                throw Error("The page changed on disk, or its previous save state is unknown.`n`n"
-                    . "Use Notepad3 File > Save As to preserve the editor version under a new scratch name,"
-                    . " or File > Revert to keep the disk version. No automatic overwrite was attempted.")
-            }
-            if PaperPadFileStamp(path) != current_stamp
-                throw Error("The file changed again while being checked. Retry after the other writer has finished.")
-            this.disk_stamp := current_stamp
-        }
+        ; Notepad3 owns external-file monitoring, saving, and reloading.
 
         ; Autosave needs one verified disk snapshot. Hide/switch/reload/exit also
         ; require a clean editor after verification, with bounded save retries.
         save_passes := require_clean ? 3 : 1
         loop save_passes {
-            before_save_stamp := PaperPadFileStamp(path)
-            if before_save_stamp != this.disk_stamp
-                throw Error("The page changed on disk before saving. No automatic overwrite was attempted.")
-
             try save_snapshot := this.bridge.DocumentText()
             catch PaperPadTextChangedError as failure {
                 ; No Save has been sent on this autosave pass. Ordinary typing
@@ -1046,11 +995,9 @@ class PaperPadController
                 return false
             }
 
-            ; Recheck after the cross-process text read, and on every retry.
+            ; Verify that Notepad3 is still editing the expected file.
             if this.bridge.CurrentPath() != path
                 throw Error("The active page changed before saving. Inspect Notepad3 before retrying.")
-            if PaperPadFileStamp(path) != before_save_stamp
-                throw Error("The page changed on disk while preparing to save. No automatic overwrite was attempted.")
 
             ; Always ask the native editor to save: encoding-only changes may not
             ; set Scintilla's text-dirty flag. Its Save handler is synchronous.
@@ -1067,7 +1014,7 @@ class PaperPadController
                 if this.bridge.IsDirty() || !this.bridge.MatchesDisk(path)
                     || this.bridge.IsDirty()
                 {
-                    throw Error("The completed save could not be verified against either the submitted snapshot or the clean editor. No new save baseline was accepted. Stop editing briefly and retry, or preserve the editor text with File > Save As.")
+                    throw Error("Notepad3 did not save the expected document version. Resolve any native dialog or save error and retry; no successful save was recorded.")
                 }
             }
             if PaperPadFileStamp(path) != after_save_stamp
@@ -1095,7 +1042,6 @@ class PaperPadController
         if PaperPadFileStamp(path) != stamp
             throw Error("The file changed again before the verified save could be recorded.")
         this.disk_stamp := stamp
-        this.native_save_candidate := 0
         this.PersistCurrentState()
         this.last_verified_save_tick := A_TickCount
         this.autosave_tracking.sampled := false

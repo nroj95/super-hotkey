@@ -77,10 +77,11 @@ class ModuleHelp {
                     . "If you type before a native New is attached, use Save As to preserve it. "
                     . "Hiding Paper Pad preserves undo history, but switching pages clears it. "
                     . "You can still inspect and back up these files in an ordinary file manager."
-                    . "`r`n`r`nSAVING SAFELY"
+                    . "`r`n`r`nSAVING AND RELOADING"
                     . "`r`nPaper Pad automatically saves changes when switching pages, hiding or exiting. "
                     . "Settings lets you choose your editor, notes folder, display and autosave "
-                    . "interval; changing paths never moves existing notes."
+                    . "interval; changing paths never moves existing notes. "
+                    . "Notepad3 controls external-file reloads, which may replace unsaved text."
             case "secret-layers":
                 return "WHY I MADE THIS"
                     . "`r`nI wanted to get more out of my existing keyboard. CapsLock and Pause seemed "

@@ -23,8 +23,6 @@ class PaperPadModule {
     static Start(manager) {
         global paperPad
         paperPad := PaperPadController(SuiteState.App.Settings.directory "\paper-pad")
-        ; Observe native Save without replacing Notepad3's Ctrl+S behavior.
-        manager.Observe("~^s", PaperPadEditorFocused, (*) => paperPad.NoteNativeSave())
         manager.Observe("~#.", PaperPadEditorFocused,
             (*) => paperPad.NoteSystemTextInputInvocation())
         pending := (*) => IsSet(paperPad) && paperPad.SystemTextInputEscapePending()
