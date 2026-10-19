@@ -40,7 +40,6 @@ jobs:
             modules/
             assets/
             tests/
-            docs/
             README.md
             AGENTS.md
             LICENSE

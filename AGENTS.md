@@ -1,7 +1,6 @@
 # implementation constraints
 
 - target AutoHotkey v2 64-bit Windows. preserve existing feature behavior and avoid unnecessary scope expansion.
-- this is a runnable draft, not yet a stable release. complete `docs/integration-status.md` acceptance checks before publishing.
 - use one launcher, process, tray, application icon, Keybindings manager and shared debug log. avoid plugin frameworks and module-specific trays.
 - each module tray entry opens its Getting started guide. module Settings and shared Keybindings navigation belong in those pages.
 - use **hotkeys** for user-facing configurable triggers, **Keybindings** for the editor and **actions** for their effects.
