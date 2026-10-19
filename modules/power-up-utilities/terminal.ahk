@@ -1,9 +1,9 @@
 ; =============================================================================
 ; terminal.ahk - the two Windows Terminal macros from the old CapsLock layer
 ; =============================================================================
-; The original shortcut sequences are preserved. In particular, clearing sends
-; Ctrl+Shift+K, Ctrl+C, Enter, Ctrl+Shift+K; it may interrupt a running command.
-; Keep the user's corresponding Windows Terminal key assignments in place.
+; Discover effective Terminal shortcuts without modifying Terminal's settings.
+; Clearing still sends Ctrl+C and Enter between two clear actions and can
+; interrupt a running command. Both extra keys are checked for safe behavior.
 ; Never activate another window to finish a macro after the user changes focus.
 ; =============================================================================
 
@@ -32,9 +32,10 @@ class PH_Terminal {
             throw Error("This Windows Terminal installation is not supported by the shortcut checker. No keys were sent.")
         version := FileGetVersion(executable)
         settingsPath := EnvGet("LOCALAPPDATA") "\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json"
-        stamp := FileExist(settingsPath)
-            ? FileGetTime(settingsPath, "M") ":" FileGetSize(settingsPath) : "defaults"
-        cacheKey := executable "|" version "|" stamp
+        ; Compare file contents, not second-resolution timestamps: users can
+        ; edit and restore bindings within the same second.
+        settingsSnapshot := FileExist(settingsPath) ? FileRead(settingsPath, "UTF-8") : "<defaults>"
+        cacheKey := executable "|" version "|" settingsSnapshot
 
         if cacheKey != this.bindingsCacheKey {
             helper := A_ScriptDir "\modules\power-up-utilities\terminal-bindings.ps1"
@@ -53,6 +54,8 @@ class PH_Terminal {
                 if exitCode != 0 || !RegExMatch(output, "^OK\R")
                     throw Error("Windows Terminal shortcut check failed: " (output != "" ? output : "no result")
                         . ". No keys were sent.")
+                if (FileExist(settingsPath) ? FileRead(settingsPath, "UTF-8") : "<defaults>") != settingsSnapshot
+                    throw Error("Windows Terminal settings changed during verification. Retry the shortcut.")
                 this.bindingsStatus := output
                 this.bindingsCacheKey := cacheKey
             }
@@ -60,16 +63,28 @@ class PH_Terminal {
                 try FileDelete(resultPath)
             }
         }
-        ; Verify only the shortcuts that this macro needs.
-        required := action = "clear" ? ["CLEAR=1"] : ["COPY=1", "SELECT=1"]
-        for line in required {
-            if !InStr("`n" this.bindingsStatus "`n", "`n" line "`n")
-                throw Error("Windows Terminal shortcut " (line = "CLEAR=1" ? "Ctrl+Shift+K (Clear buffer)"
-                    : line = "COPY=1" ? "Ctrl+Shift+C (Copy text)"
-                    : "Ctrl+Shift+A (Select all)")
-                    . " is missing or reassigned. Check Terminal Settings > Actions. No keys were sent.")
+        if !this.Ready(job)
+            return false
+        if action = "clear" {
+            if !InStr("`n" this.bindingsStatus "`n", "`nSAFE_CLEAR_STEPS=1`n")
+                throw Error("Windows Terminal Ctrl+C or Enter is reassigned. No keys were sent.")
+            return {clear: this.ResolvedShortcut("CLEAR")}
         }
-        return this.Ready(job)
+        return {copy: this.ResolvedShortcut("COPY"),
+            select: this.ResolvedShortcut("SELECT")}
+    }
+
+    ResolvedShortcut(name) {
+        for line in StrSplit(this.bindingsStatus, "`n", "`r") {
+            if InStr(line, name "=") != 1
+                continue
+            shortcut := SubStr(line, StrLen(name) + 2)
+            ; Accept only the exact safe AHK Send format emitted by our helper.
+            if RegExMatch(shortcut, "^[\^!+]{1,3}(?:[a-z0-9]|\{F(?:[1-9]|1[0-9]|2[0-4])\})$")
+                return shortcut
+            break
+        }
+        throw Error("No supported Windows Terminal shortcut for " name ". Check Terminal Settings > Actions. No keys were sent.")
     }
 
     SendStep(job, shortcut) {
@@ -80,9 +95,10 @@ class PH_Terminal {
     }
 
     Clear(job) {
-        if !this.CheckBindings(job, "clear")
+        shortcuts := this.CheckBindings(job, "clear")
+        if !shortcuts
             return
-        for index, shortcut in ["^+k", "^c", "{Enter}", "^+k"] {
+        for index, shortcut in [shortcuts.clear, "^c", "{Enter}", shortcuts.clear] {
             if !this.SendStep(job, shortcut)
                 return
             if index < 4
@@ -91,7 +107,8 @@ class PH_Terminal {
     }
 
     Copy(job) {
-        if !this.CheckBindings(job, "copy")
+        shortcuts := this.CheckBindings(job, "copy")
+        if !shortcuts
             return
         savedClipboard := ClipboardAll()
         if !this.Ready(job)
@@ -106,10 +123,10 @@ class PH_Terminal {
         }
         finally Critical previousCritical
         try {
-            if !this.SendStep(job, "^+a")
+            if !this.SendStep(job, shortcuts.select)
                 return
             Sleep(50)
-            if !this.SendStep(job, "^+c") || !ClipWait(1)
+            if !this.SendStep(job, shortcuts.copy) || !ClipWait(1)
                 return
             if !this.Ready(job)
                 return
