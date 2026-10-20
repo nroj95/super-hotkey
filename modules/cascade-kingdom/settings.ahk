@@ -84,8 +84,8 @@ minimum_height := 220
 ; Focus-tab dimensions are 96-DPI UI units; only these are scaled per monitor.
 ; Slot spacing, drop tolerance, and cascade rectangles remain physical pixels.
 focus_corner_size := 24
-focus_corner_thickness := 42
-focus_corner_full_height_thickness := 31
+focus_corner_thickness := 54
+focus_corner_full_height_thickness := 36
 focus_corner_overlap := 2
 ; Coalesce event-driven focus-tab updates. The slow timer below is only a
 ; fallback for Windows events that may occasionally be missed.
