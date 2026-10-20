@@ -285,7 +285,7 @@ ShowFocusCornerOverlay(
 
     global focus_corner_overlays
     global focus_corner_size
-    global focus_corner_thickness
+    global focus_corner_thickness, focus_corner_full_height_thickness
     global focus_corner_overlap
     global focus_corner_inactive_slot_color, focus_corner_active_slot_color
     global focus_corner_inactive_slot_alpha, focus_corner_active_slot_alpha
@@ -337,7 +337,8 @@ ShowFocusCornerOverlay(
     }
 
     ; Scale UI dimensions only. DWM positions and full-height bounds are pixels.
-    thickness := Max(1, ScaleForDpi(focus_corner_thickness, dpi))
+    tab_width := full_height ? focus_corner_full_height_thickness : focus_corner_thickness
+    thickness := Max(1, ScaleForDpi(tab_width, dpi))
     overlap := Min(thickness - 1, Max(0, ScaleForDpi(focus_corner_overlap, dpi)))
     marker_size := Max(1, ScaleForDpi(focus_corner_size, dpi))
     outside := thickness - overlap
@@ -363,6 +364,11 @@ ShowFocusCornerOverlay(
         . " w" thickness
         . " h" marker_height
     )
+
+    ; Trim the left and bottom edges, plus the top edge on full-height tabs.
+    top_trim := full_height ? 1 : 0
+    WinSetRegion("1-" top_trim " W" (thickness - 1)
+        " H" (marker_height - 1 - top_trim), overlay.gui.Hwnd)
 
     SetFocusCornerOpacity(overlay, focus_corner_visible ? marker_alpha : 1)
 
