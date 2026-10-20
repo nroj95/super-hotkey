@@ -75,6 +75,7 @@ class SuiteUpgradeChecks {
         this.ApplicationSuspension()
         this.DisabledModuleWarning()
         this.ScopesAndObservers()
+        this.WonderDefaultMigration()
         this.GeometryAndOwnership()
         this.ActiveShortcutVisibility()
         this.StagedKeybindings()
@@ -845,6 +846,44 @@ class SuiteUpgradeChecks {
                 manager.Stop()
                 this.scopeActive := false
                 this.terminalScopeActive := false
+            }
+        }
+    }
+
+    static WonderDefaultMigration() {
+        actionId := "wonder-windows.cycle-expanded"
+        oldBinding := Keybindings.Parse("Win + Shift + Tab").signature
+        newBinding := Keybindings.Parse("Caps + Win + Enter").signature
+        for migrated in [false, true] {
+            directory := SuiteChecks.directory "\wonder-migration-" migrated
+            DirCreate directory
+            loop 2 {
+                firstLoad := A_Index = 1
+                manager := Keybindings("wonder-migration", "Wonder migration", {directory: directory})
+                try {
+                    manager.AddAction(actionId, "Cycle expanded windows", (*) => 0,
+                        ["Caps + Win + Enter"])
+                    manager.SetPaused(true)
+                    if firstLoad {
+                        document := Map("meta", Map("schema", "1", "id", manager.id,
+                            "name", manager.name), "bindings", Map(actionId, "1`t" oldBinding "`t"))
+                        if migrated
+                            document["meta"]["debugDefaults"] := "2"
+                        KB_Manifest.WriteAtomic(manager.path, document)
+                    }
+                    manager.Start()
+                    expected := firstLoad && !migrated ? newBinding : oldBinding
+                    this.Assert(manager.GetConfiguration()[actionId].bindings[1] = expected,
+                        "Wonder migration preserves explicit choices: current=" migrated ", first=" firstLoad)
+                    this.Assert(KB_Manifest.Get(KB_Manifest.Read(manager.path), "meta", "wonderDefaults") = "1",
+                        "Wonder migration completion is persisted")
+                    if firstLoad {
+                        configuration := manager.GetConfiguration()
+                        configuration[actionId].bindings[1] := oldBinding
+                        manager.Apply(configuration)
+                    }
+                }
+                finally manager.Stop()
             }
         }
     }

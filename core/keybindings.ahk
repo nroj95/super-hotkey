@@ -639,7 +639,10 @@ class Keybindings {
                 bindings: this._NormalizeSlots([fields[2], fields[3]])}
         }
         if this.document.Count {
-            WW_MigrateKeybindingDefaults(this.configuration)
+            ; debugDefaults=2 was first written after these Wonder Windows defaults changed.
+            if KB_Manifest.Get(this.document, "meta", "wonderDefaults",
+                KB_Manifest.Get(this.document, "meta", "debugDefaults") = "2" ? "1" : "") != "1"
+                WW_MigrateKeybindingDefaults(this.configuration)
             ; Run this migration once so future manual Caps + F5/F6 choices remain saved.
             if KB_Manifest.Get(this.document, "meta", "debugDefaults") != "2"
                 CascadeMigrateDebugKeybindingDefaults(this.configuration)
@@ -727,7 +730,7 @@ class Keybindings {
 
     _MakeDocument(configuration, routes, explicitEdits := 0) {
         document := Map("meta", Map("schema", "1", "id", this.id, "name", this.name,
-            "debugDefaults", "2"), "bindings", Map())
+            "wonderDefaults", "1", "debugDefaults", "2"), "bindings", Map())
         for actionId, setting in configuration
             document["bindings"][actionId] := (setting.enabled ? "1" : "0")
                 . "`t" setting.bindings[1] "`t" setting.bindings[2]

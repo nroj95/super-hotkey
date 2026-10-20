@@ -29,8 +29,10 @@ class SuiteReleaseChecks {
 
     static NativeSaveDelegation() {
         path := SuiteChecks.directory "\release-native-save.md"
+        savedPath := SuiteChecks.directory "\release-native-save-as.md"
         FileAppend "original", path, "UTF-8-RAW"
-        pad := SuiteReleaseNativeSavePad(path)
+        window := SuiteGui("+ToolWindow", "Paper Pad native Save As regression")
+        pad := SuiteReleaseNativeSavePad(path, window.Hwnd)
         try {
             ; A previous disk version must not prevent native Save.
             FileDelete path
@@ -74,8 +76,33 @@ class SuiteReleaseChecks {
             pad.autosave_paused := true
             this.Assert(!pad.ResumeAutosaveAfterCleanNativeSave(path),
                 "dirty documents do not falsely resume autosave")
+
+            ; The watcher must adopt native Save As while autosave is paused.
+            FileAppend "saved under a new name", savedPath, "UTF-8-RAW"
+            pad.bridge.path := savedPath
+            pad.bridge.text := "saved under a new name"
+            pad.bridge.dirty := false
+            pad.autosave_paused := true
+            pad.SyncPageLock()
+            this.Assert(!pad.autosave_paused && pad.current_path = savedPath
+                && pad.page_lock_path = savedPath,
+                "clean native Save As resumes autosave on the new page")
+
+            pad.bridge.text := "new page edits"
+            pad.bridge.dirty := true
+            pad.last_verified_save_tick := A_TickCount - PaperPadController.AutosaveMaxMs
+            pad.last_autosave_attempt_tick := A_TickCount - PaperPadController.AutosaveIdleMs
+            pad.Autosave()
+            this.Assert(FileRead(savedPath, "UTF-8") = "new page edits"
+                && FileRead(path, "UTF-8") = "unsaved editor text",
+                "recovered autosave writes the new page and leaves the original intact")
         }
-        finally FileDelete path
+        finally {
+            window.Destroy()
+            FileDelete path
+            if FileExist(savedPath)
+                FileDelete savedPath
+        }
     }
 
     static LargeDebugLog() {
@@ -643,20 +670,34 @@ class SuiteReleasePad extends PaperPadController {
 }
 
 class SuiteReleaseNativeSavePad extends PaperPadController {
-    __New(path) {
-        this.path := path
+    __New(path, hwnd) {
+        this.window_hwnd := hwnd
         this.current_path := path
         this.bridge := SuiteReleaseNativeSaveBridge(path)
+        SplitPath(path, , &directory)
+        this.notes_directory := directory
+        this.allowed_extensions := "|md|"
+        this.busy := false
+        this.command_queue := []
+        this.page_lock_path := ""
         this.disk_stamp := PaperPadFileStamp(path)
         this.autosave_paused := false
         this.autosave_tracking := {sampled: false, text: "", last_change: 0}
     }
 
+    HasWindow() => true
+    IsVisible() => true
+    SyncZOrder() => 0
+    ProtectPage(path) => this.page_lock_path := path
+    ReleasePageLock() => this.page_lock_path := ""
     PersistCurrentState() => 0
-    CheckCurrentPage() => this.path
 
     AcceptSave(path, stamp) {
         this.disk_stamp := stamp
+    }
+
+    ReportError(failure, notification := false) {
+        throw failure
     }
 }
 
@@ -669,6 +710,7 @@ class SuiteReleaseNativeSaveBridge {
         this.suppress_save := false
     }
 
+    CheckReady() => 0
     CurrentPath() => this.path
     DocumentText() => this.text
     MatchesDisk(path) => FileRead(path, "UTF-8") == this.text

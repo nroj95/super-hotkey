@@ -840,6 +840,9 @@ class PaperPadController
                 return
             }
             this.untitled_notice_shown := false
+            ; Native Save As can recover under a different supported page path.
+            if this.autosave_paused && this.IsNotePath(path)
+                path := this.CheckCurrentPage()
             ; A clean native Save or reload can resume a previously paused autosave.
             this.ResumeAutosaveAfterCleanNativeSave(path)
             if path = this.page_lock_path
