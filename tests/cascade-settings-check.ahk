@@ -9,7 +9,7 @@ class CascadeSettingsChecks {
     }
 
     static Policy() {
-        global cascade_gesture_key, cascade_target_display, cascade_displays
+        global cascade_gesture_key, cascade_target_display, cascade_displays, cascade_history
         global cascade_auto_placement_enabled, cascade_opt_in_intent, cascade_titlebar_click
         app := SuiteApplication(true, SuiteChecks.directory "\cascade-policy")
         InitializeCascadeState()
@@ -37,11 +37,14 @@ class CascadeSettingsChecks {
             cascade_displays := Map(1, {device: "left"}, 2, {device: "right"})
             this.Assert(ResolveCascadeDestination(2) = 2,
                 "All displays retains the requested destination")
+            this.Assert(!cascade_history.Count && HasCascadeDropDestination(1)
+                && HasCascadeDropDestination(2),
+                "empty cascades allow dropping onto either display")
             cascade_target_display := "right"
             this.Assert(ResolveCascadeDestination(1) = 2 && CascadeDisplayAllowed(2)
                 && !CascadeDisplayAllowed(1),
                 "a single display redirects adoption and excludes other drop zones")
-            this.Assert(!HasCascadeDropDestination(1, {source_monitor: 1}),
+            this.Assert(!HasCascadeDropDestination(1) && HasCascadeDropDestination(2),
                 "an excluded display cannot remain a drag destination")
             this.Assert(ResolveCascadePlacementMonitor({monitor_device: "left"}, 1) = 2,
                 "queued launches use the configured destination, not their source")

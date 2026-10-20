@@ -327,10 +327,10 @@ CompleteCascadeWindowDrop(drag)
         return
     }
 
-    monitor_index := GetMonitorForWindow(hwnd)
-    if !monitor_index
-        return
     if !GetVisibleWindowBounds(hwnd, &frame_x, &frame_y, &frame_width, &frame_height)
+        return
+    monitor_index := GetMonitorForPoint(frame_x, frame_y)
+    if !monitor_index
         return
 
     geometry := GetCanonicalCascadeGeometry(monitor_index)
@@ -338,7 +338,7 @@ CompleteCascadeWindowDrop(drag)
         frame_x, frame_y, geometry.slots, cascade_slot_tolerance
     )
 
-    if slot_index && HasCascadeDropDestination(monitor_index, drag) {
+    if slot_index && HasCascadeDropDestination(monitor_index) {
         if PlaceCascadeWindowOnMonitor(hwnd, monitor_index, geometry.slots[slot_index]) {
             RemoveWindowFromMinimizeState(hwnd)
             if drag.source_monitor
@@ -359,24 +359,10 @@ CompleteCascadeWindowDrop(drag)
     ReleaseCascadeWindow(hwnd)
 }
 
-HasCascadeDropDestination(monitor_index, drag)
+; Canonical slots are valid even before the first window joins the cascade.
+HasCascadeDropDestination(monitor_index)
 {
-    global cascade_history
-    if !CascadeDisplayAllowed(monitor_index)
-        return false
-
-    ; The last window can return to its own cascade. Do not create invisible
-    ; drop zones on an otherwise empty monitor for unrelated existing windows.
-    if drag.source_monitor = monitor_index
-        return true
-    if !cascade_history.Has(monitor_index)
-        return false
-    for hwnd in cascade_history[monitor_index] {
-        if hwnd != drag.hwnd && IsCascadeWindow(hwnd)
-            && GetMonitorForWindow(hwnd) = monitor_index
-            return true
-    }
-    return false
+    return CascadeDisplayAllowed(monitor_index)
 }
 
 ReleaseCascadeWindow(hwnd)

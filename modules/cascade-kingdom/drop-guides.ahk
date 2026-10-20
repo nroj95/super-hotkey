@@ -13,10 +13,14 @@ class CascadeDropGuides {
         }
         try {
             WinGetPosPixels(&x, &y, &width, &height, drag.hwnd)
-            monitor := GetMonitorForWindow(drag.hwnd)
             if (x = drag.x && y = drag.y) || CascadeDragIsResize(drag, width, height)
-                || !IsCascadeWindow(drag.hwnd) || !monitor
-                || !HasCascadeDropDestination(monitor, drag) {
+                || !IsCascadeWindow(drag.hwnd)
+                || !GetVisibleWindowBounds(drag.hwnd, &frame_x, &frame_y, &frame_width, &frame_height) {
+                this.Hide()
+                return
+            }
+            monitor := GetMonitorForPoint(frame_x, frame_y)
+            if !HasCascadeDropDestination(monitor) {
                 this.Hide()
                 return
             }
