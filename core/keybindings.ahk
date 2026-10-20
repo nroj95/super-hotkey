@@ -247,8 +247,7 @@ class Keybindings {
         preferred := ["Power-Up Utilities",
             "Power-Up Utilities / Extra function keys",
             "Power-Up Utilities / Virtual number pad",
-            "Power-Up Utilities / Text and symbols",
-            "Power-Up Utilities / Windows Terminal"]
+            "Power-Up Utilities / Text and symbols"]
         result := []
         placed := Map()
         for wanted in preferred
@@ -270,9 +269,8 @@ class Keybindings {
             "Global", [
                 "core.keybindings", "cascade-kingdom.copy-log", "cascade-kingdom.reset-log"],
             "Paper Pad", [
-                "paper-pad.help", "paper-pad.toggle"],
-            "Paper Pad / Inside the editor", [
-                "paper-pad.delete", "paper-pad.previous", "paper-pad.next", "paper-pad.hide"],
+                "paper-pad.help", "paper-pad.toggle", "paper-pad.delete",
+                "paper-pad.previous", "paper-pad.next", "paper-pad.hide"],
             "Cascade Kingdom", [
                 "cascade-kingdom.help",
                 "cascade-kingdom.focus-previous", "cascade-kingdom.focus-next",
@@ -305,7 +303,8 @@ class Keybindings {
                 "wonder-windows.zone-left", "wonder-windows.zone-right"],
             "Power-Up Utilities", [
                 "power-up-utilities.interface.open", "power-up-utilities.system.wake-speakers",
-                "power-up-utilities.system.sleep"],
+                "power-up-utilities.system.sleep",
+                "power-up-utilities.terminal.copy", "power-up-utilities.terminal.clear"],
             "Power-Up Utilities / Extra function keys", [
                 "power-up-utilities.keyboard.f13", "power-up-utilities.keyboard.f14",
                 "power-up-utilities.keyboard.f15", "power-up-utilities.keyboard.f16",
@@ -323,8 +322,6 @@ class Keybindings {
                 "power-up-utilities.text.apostrophe", "power-up-utilities.text.en-dash",
                 "power-up-utilities.text.nbsp", "power-up-utilities.text.sharp-s",
                 "power-up-utilities.text.timestamp"],
-            "Power-Up Utilities / Windows Terminal", [
-                "power-up-utilities.terminal.copy", "power-up-utilities.terminal.clear"],
             "Secret Layers", [
                 "secret-layers.help", "power-up-utilities.keyboard.toggle-caps"])
         if !order.Has(category)

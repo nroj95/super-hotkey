@@ -14,7 +14,7 @@ class PaperPadModule {
         ]
         for item in actions
             manager.AddAction("paper-pad." item[1], item[2], ObjBindMethod(this, "Event", item[1]), item[3],
-                {category: "Paper Pad / Inside the editor", available: ObjBindMethod(this, "Available"),
+                {category: "Paper Pad", available: ObjBindMethod(this, "Available"),
                     scope: "paper-pad", context: PaperPadEditorFocused})
     }
 

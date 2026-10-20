@@ -23,8 +23,7 @@ class PowerUpUtilities {
     }
 
     AddAction(moduleId, actionId, label, kind, value, defaultBinding, needsFocus := false) {
-        static subcategories := Map("terminal", "Windows Terminal",
-            "function-keys", "Extra function keys",
+        static subcategories := Map("function-keys", "Extra function keys",
             "number-pad", "Virtual number pad", "text", "Text and symbols",
             "timestamp", "Text and symbols")
         category := subcategories.Has(moduleId)

@@ -47,9 +47,9 @@ class PH_Modules {
         }
         ; The old Caps+C override and F23 cannot both own one global signature.
         ; Keep the actions independently configurable instead of hiding a router.
-        app.AddAction("terminal", "terminal.copy", "copy buffer as Markdown",
+        app.AddAction("terminal", "terminal.copy", "copy terminal buffer as Markdown",
             "terminal-copy", "", "Caps + C", true)
-        app.AddAction("terminal", "terminal.clear", "clear buffer",
+        app.AddAction("terminal", "terminal.clear", "clear terminal buffer",
             "terminal-clear", "", "Caps + K", true)
         app.AddAction("text", "text.sharp-s", "insert ß", "text", "ß", "Pause + S", true)
         app.AddAction("text", "text.en-dash", "insert en dash", "text", "–", "Pause + -", true)

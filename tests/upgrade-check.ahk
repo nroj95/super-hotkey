@@ -1103,7 +1103,6 @@ class SuiteUpgradeChecks {
             manager.SetPaused(true)
             manager.Start()
             groups := Map("Power-Up Utilities", 0,
-                "Power-Up Utilities / Windows Terminal", 0,
                 "Power-Up Utilities / Extra function keys", 0,
                 "Power-Up Utilities / Virtual number pad", 0,
                 "Power-Up Utilities / Text and symbols", 0)
@@ -1115,8 +1114,9 @@ class SuiteUpgradeChecks {
                     "Power-Up Utilities keeps only useful subcategories: " actionId)
                 groups[action.category] += 1
             }
-            this.Assert(groups["Power-Up Utilities / Windows Terminal"] = 2,
-                "Windows Terminal macros have their own category")
+            this.Assert(manager.actions["power-up-utilities.terminal.copy"].category = "Power-Up Utilities"
+                && manager.actions["power-up-utilities.terminal.clear"].category = "Power-Up Utilities",
+                "Windows Terminal actions share the main category")
             this.Assert(groups["Power-Up Utilities / Extra function keys"] = 12
                 && groups["Power-Up Utilities / Virtual number pad"] = 10
                 && groups["Power-Up Utilities / Text and symbols"] = 5,
@@ -1187,8 +1187,8 @@ class SuiteUpgradeChecks {
                 }
             this.Assert(paperSection > 0 && rows[paperSection + 1].id = "paper-pad.help"
                 && rows[paperSection + 2].id = "paper-pad.toggle"
-                && rows[paperSection + 3].label = "Paper Pad / Inside the editor",
-                "Paper Pad puts Help first, followed by its toggle and editor subcategory")
+                && rows[paperSection + 3].id = "paper-pad.delete",
+                "Paper Pad keeps all actions under one heading")
             expectedHelp := Map("Paper Pad", "paper-pad.help",
                 "Cascade Kingdom", "cascade-kingdom.help",
                 "Wonder Windows", "wonder-windows.help",
@@ -1231,10 +1231,11 @@ class SuiteUpgradeChecks {
                 "WHY I MADE THIS") = 1
                 && !InStr(ModuleHelp.Text("secret-layers", manager), "CURRENT SAVED SHORTCUTS"),
                 "Secret Layers help provides a practical guide without a shortcut inventory")
-            filtered := Keybindings.DisplayRows(manager.DiscoverParticipants(), "Inside the editor")
-            this.Assert(filtered.Length > 2 && filtered[1].label = "Paper Pad"
-                && filtered[2].label = "Paper Pad / Inside the editor",
-                "filtered editor-only actions retain the Paper Pad parent section")
+            filtered := Keybindings.DisplayRows(manager.DiscoverParticipants(), "paper-pad.")
+            this.Assert(filtered.Length = 7 && filtered[1].label = "Paper Pad"
+                && filtered[2].id = "paper-pad.help"
+                && filtered[7].id = "paper-pad.hide",
+                "filtered Paper Pad actions share one heading")
             generalHeading := 0
             functionHeading := 0
             for index, row in rows {
@@ -1402,8 +1403,9 @@ class SuiteUpgradeChecks {
             "Wonder Windows groups focus, positioning, stretching and grouping")
         this.AssertDisplaySequence(rows, [
             "power-up-utilities.interface.open", "power-up-utilities.system.wake-speakers",
-            "power-up-utilities.system.sleep"],
-            "Power-Up Utilities groups general system controls")
+            "power-up-utilities.system.sleep",
+            "power-up-utilities.terminal.copy", "power-up-utilities.terminal.clear"],
+            "Power-Up Utilities groups system and Terminal controls")
         this.AssertDisplaySequence(rows, [
             "power-up-utilities.keyboard.f13", "power-up-utilities.keyboard.f18",
             "power-up-utilities.keyboard.f24"],
@@ -1418,21 +1420,17 @@ class SuiteUpgradeChecks {
             "power-up-utilities.text.timestamp"],
             "text utilities keep characters together before timestamp")
         this.AssertDisplaySequence(rows, [
-            "power-up-utilities.terminal.copy", "power-up-utilities.terminal.clear"],
-            "Terminal copy precedes destructive clear")
-        this.AssertDisplaySequence(rows, [
             "secret-layers.help", "power-up-utilities.keyboard.toggle-caps"],
             "Secret Layers keeps Help first")
         powerHeadings := []
         for row in rows
             if row.id = "" && InStr(row.label, "Power-Up Utilities") = 1
                 powerHeadings.Push(row.label)
-        this.Assert(powerHeadings.Length = 5
+        this.Assert(powerHeadings.Length = 4
             && powerHeadings[1] = "Power-Up Utilities"
             && powerHeadings[2] = "Power-Up Utilities / Extra function keys"
             && powerHeadings[3] = "Power-Up Utilities / Virtual number pad"
-            && powerHeadings[4] = "Power-Up Utilities / Text and symbols"
-            && powerHeadings[5] = "Power-Up Utilities / Windows Terminal",
+            && powerHeadings[4] = "Power-Up Utilities / Text and symbols",
             "existing Power-Up Utilities headings have a purposeful order")
         ; Search/filtering must retain the declared order, not the source order.
         subset := [{id: "wonder-windows.minimize"}, {id: "wonder-windows.focus-up"},
@@ -1636,14 +1634,14 @@ class SuiteUpgradeChecks {
             app.manager._ResizeSettings(editor, 0, compactWidth, compactHeight)
             this.Assert(app.manager.visibleRows.Length < expandedRows,
                 "resizing smaller reduces the visible row count without losing the catalog")
-            app.manager.settingsSearch.Value := "Inside the editor"
+            app.manager.settingsSearch.Value := "page"
             app.manager._SearchChanged()
-            headingRow := app.manager.visibleRows[2]
+            headingRow := app.manager.visibleRows[1]
             this.Assert(headingRow.categoryTitle.Visible
-                && headingRow.categoryTitle.Text = "Paper Pad / Inside the editor"
+                && headingRow.categoryTitle.Text = "Paper Pad"
                 && !headingRow.contextTag.Visible,
-                "category headings no longer show the generic scoped marker")
-            paperRow := app.manager.visibleRows[3]
+                "merged Paper Pad heading has no scope marker")
+            paperRow := app.manager.visibleRows[2]
             paperRow.title.GetPos(&descriptionX, &descriptionY, &descriptionWidth, &descriptionHeight)
             paperRow.contextTag.GetPos(&tagX, &tagY, &tagWidth, &tagHeight)
             paperRow.primary.GetPos(&bindingX, &bindingY, , &bindingHeight)
@@ -1656,16 +1654,18 @@ class SuiteUpgradeChecks {
                 && Abs((tagY + tagHeight / 2) - (bindingY + bindingHeight / 2)) <= 1
                 && tagHeight < descriptionHeight,
                 "context tag is compact and vertically centered with the binding")
-            nextPaperRow := app.manager.visibleRows[4]
+            nextPaperRow := app.manager.visibleRows[3]
             nextPaperRow.contextTag.GetPos(&nextTagX, , &nextTagWidth)
             nextPaperRow.primary.GetPos(&nextBindingX)
             this.Assert(nextPaperRow.contextTag.Visible
                 && nextTagX = tagX && nextTagWidth = tagWidth
                 && nextBindingX = bindingX,
                 "Paper Pad context tags align across different description lengths")
-            app.manager.settingsSearch.Value := "Windows Terminal"
+            app.manager.settingsSearch.Value := "power-up-utilities.terminal"
             app.manager._SearchChanged()
-            terminalRow := app.manager.visibleRows[3]
+            this.Assert(app.manager.visibleRows[1].categoryTitle.Text = "Power-Up Utilities",
+                "Terminal actions display under the main heading")
+            terminalRow := app.manager.visibleRows[2]
             terminalRow.title.GetPos(&terminalDescriptionX, , &terminalDescriptionWidth)
             terminalRow.contextTag.GetPos(&terminalTagX, , &terminalTagWidth)
             terminalRow.primary.GetPos(&terminalBindingX)
