@@ -417,7 +417,7 @@ class PaperPadController
 
     AttachExistingWindow()
     {
-        for candidate in WinGetList("ahk_class Notepad3") {
+        for candidate in WinGetList("ahk_exe Notepad3.exe") {
             if !DllCall("GetPropW", "ptr", candidate, "str", this.window_marker, "ptr")
                 continue
             this.window_hwnd := candidate
@@ -487,22 +487,27 @@ class PaperPadController
             IniWrite 0, this.settings_path, "Setup", "WelcomePending"
         initial_path := PaperPadFullPath(initial_path)
         before_load_stamp := PaperPadFileStamp(initial_path)
-        ; /n isolates the editor process; /f isolates settings; /l auto-reloads
-        ; clean external changes instead of overriding the preference with /l0.
+        ; /n isolates the editor process; /f isolates settings.
+        ; /l enables read-only log monitoring, so use normal file watching.
         command_line := '"' executable '" /n /f "' this.editor_profile
-            . '" /l "' initial_path '"'
+            . '" "' initial_path '"'
         Run command_line, this.notes_directory, "Hide", &editor_pid
         this.editor_pid := editor_pid
         deadline := A_TickCount + 12000
         loop {
-            candidate := WinExist("ahk_class Notepad3 ahk_pid " editor_pid)
+            candidate := 0
+            for hwnd in WinGetList("ahk_pid " editor_pid) {
+                if DllCall("GetDlgItem", "ptr", hwnd, "int", 0xFB03, "ptr")
+                    && DllCall("GetDlgItem", "ptr", hwnd, "int", 0xFB05, "ptr") {
+                    candidate := hwnd
+                    break
+                }
+            }
             if candidate {
                 this.window_hwnd := candidate
                 this.MarkWindow(candidate)
                 WinHide "ahk_id " candidate
-                if DllCall("GetDlgItem", "ptr", candidate, "int", 0xFB03, "ptr")
-                    && DllCall("GetDlgItem", "ptr", candidate, "int", 0xFB05, "ptr")
-                    break
+                break
             }
             if A_TickCount >= deadline || !ProcessExist(editor_pid)
                 throw Error("Notepad3 did not create a ready editor. Check for a startup dialog, then retry.")
@@ -667,7 +672,7 @@ class PaperPadController
 
     CloseInstallerNotepad3Windows(known_windows)
     {
-        for hwnd in WinGetList("ahk_class Notepad3 ahk_exe Notepad3.exe") {
+        for hwnd in WinGetList("ahk_exe Notepad3.exe") {
             if known_windows.Has(hwnd)
                 continue
 
