@@ -118,7 +118,7 @@ class SuiteSettings {
 
     ResetModulePreferences() {
         ; Paths, editor profile, page state and notes are outside this whitelist.
-        for id, sections in Map("cascade-kingdom", ["FocusTabs", "Controls", "Standalone"],
+        for id, sections in Map("cascade-kingdom", ["FocusTabs", "DropGuides", "Controls", "Standalone"],
             "paper-pad", ["Window", "Saving", "Controls"]) {
             path := this.directory "\" id "\settings.ini"
             if FileExist(path)

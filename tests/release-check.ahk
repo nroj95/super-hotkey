@@ -1,4 +1,5 @@
 ; Release regressions use inert callbacks, temporary settings and test-owned windows.
+#Include "%A_ScriptDir%\tests\cascade-settings-check.ahk"
 class SuiteReleaseChecks {
     static calls := 0
 
@@ -15,6 +16,7 @@ class SuiteReleaseChecks {
         this.PaperPadDialogOwnership()
         this.FocusTabDpi()
         SuiteHardeningChecks.Run()
+        CascadeSettingsChecks.Run()
     }
 
     static Assert(condition, label) => SuiteChecks.Assert(condition, label)
@@ -235,12 +237,12 @@ class SuiteReleaseChecks {
             cascade_displays := Map(sourceMonitor, {device: MonitorGetName(sourceMonitor)})
             cascade_launch_hint := 0
             cascade_opt_in_intent := {tick: A_TickCount,
-                monitor_device: MonitorGetName(sourceMonitor), source_hwnd: source.Hwnd}
+                monitor_device: MonitorGetName(sourceMonitor), source_hwnd: source.Hwnd, cascade: true}
             app.dryRun := false
             QueueWindowPlacement(target.Hwnd, source.Hwnd)
             captured := pending_windows[target.Hwnd]
             this.Assert(captured.monitor_device = MonitorGetName(sourceMonitor)
-                && captured.monitor_reason = "caps-launch" && !IsObject(cascade_opt_in_intent),
+                && captured.monitor_reason = "gesture-launch" && !IsObject(cascade_opt_in_intent),
                 "discovery consumes a one-shot opt-in and snapshots its display")
             SuiteSizeGrip.Detach(source)
             source.Destroy()
@@ -301,12 +303,6 @@ class SuiteReleaseChecks {
             this.Assert(CascadeIsOptInIntentFresh(intent)
                 && !CascadeIsOptInIntentFresh({tick: A_TickCount - 8001}),
                 "Caps launch intents expire without being reused")
-            this.Assert(CascadeShouldAdoptHiddenExplorer(true, true, true, false)
-                && CascadeShouldAdoptHiddenExplorer(true, true, false, true)
-                && !CascadeShouldAdoptHiddenExplorer(true, true, false, false)
-                && !CascadeShouldAdoptHiddenExplorer(false, true, true, false)
-                && !CascadeShouldAdoptHiddenExplorer(true, false, true, false),
-                "a startup-hidden Explorer reveal requires foreground and cascade intent")
             this.Assert(CascadeIsSecondCaptionClick(
                 {hwnd: 42, pid: 8, x: 100, y: 150, tick: 200},
                 42, 8, 102, 151, 260, 500, 4, 4)

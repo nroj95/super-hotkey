@@ -29,7 +29,7 @@ CaptureCascadeMousePress(*)
     MouseGetPosPixels(&mouse_x, &mouse_y, &hover_hwnd)
     hwnd := DllCall("GetAncestor", "ptr", hover_hwnd, "uint", 2, "ptr") ; GA_ROOT
     CaptureCascadeLaunchIntent(hwnd)
-    CascadeObserveCapsMouseClick(hwnd, mouse_x, mouse_y)
+    CascadeObserveGestureMouseClick(hwnd, mouse_x, mouse_y)
     cascade_mouse_press := GetCascadeMousePressSnapshot(hwnd)
 }
 
@@ -68,6 +68,7 @@ CaptureCascadeMouseRelease(*)
 
     global cascade_mouse_press, cascade_window_drag
 
+    CascadeDropGuides.Hide()
     if IsObject(cascade_mouse_press)
         cascade_mouse_press.up_tick := A_TickCount
     if IsObject(cascade_window_drag)
@@ -156,12 +157,14 @@ EndCascadeWindowDrag(hwnd)
     if !IsCascadeWindowBeingDragged(hwnd)
         return
 
+    CascadeDropGuides.Hide()
     cascade_window_drag.native_ended := true
     SetTimer(WatchCascadeWindowDrag, -1)
 }
 
 CancelCascadeWindowDrop(*)
 {
+    CascadeDropGuides.Hide()
     global cascade_window_drag, cascade_mouse_press
     if IsObject(cascade_mouse_press)
         cascade_mouse_press.cancelled := true
@@ -199,10 +202,12 @@ WatchCascadeWindowDrag()
         }
 
         if IsCascadeDisplayTransition() {
+            CascadeDropGuides.Hide()
             SetTimer(WatchCascadeWindowDrag, 50)
             return
         }
 
+        CascadeDropGuides.Update(drag)
         left_button_held := GetKeyState("LButton", "P")
         native_move_state := drag.native_ended
             ? 0
@@ -277,6 +282,7 @@ StopCascadeWindowDrag(expected_drag := 0)
 
     if IsObject(expected_drag) && cascade_window_drag != expected_drag
         return
+    CascadeDropGuides.Hide()
     cascade_window_drag := 0
     cascade_drag_generation += 1
     SetTimer(WatchCascadeWindowDrag, 0)
@@ -289,6 +295,13 @@ StopCascadeWindowDrag(expected_drag := 0)
 ; =============================================================================
 ; one release-time snap / adopt / detach decision
 ; =============================================================================
+
+CascadeDragIsResize(drag, width, height)
+{
+    return drag.resize || (drag.minmax = 0
+        && drag.dpi = GetCascadeWindowMonitorDpi(drag.hwnd)
+        && (width != drag.width || height != drag.height))
+}
 
 CompleteCascadeWindowDrop(drag)
 {
@@ -307,11 +320,7 @@ CompleteCascadeWindowDrop(drag)
 
     ; Edge resizes are not drop-to-join. DPI changes and restoring a maximized
     ; title-bar drag may change size without being an edge resize.
-    resized := drag.resize || (
-        drag.minmax = 0
-        && drag.dpi = GetCascadeWindowMonitorDpi(hwnd)
-        && (width != drag.width || height != drag.height)
-    )
+    resized := CascadeDragIsResize(drag, width, height)
     if resized || !IsCascadeWindow(hwnd) {
         if drag.source_monitor && !IsWindowInCascadeLayout(hwnd)
             ReleaseCascadeWindow(hwnd)
@@ -353,6 +362,8 @@ CompleteCascadeWindowDrop(drag)
 HasCascadeDropDestination(monitor_index, drag)
 {
     global cascade_history
+    if !CascadeDisplayAllowed(monitor_index)
+        return false
 
     ; The last window can return to its own cascade. Do not create invisible
     ; drop zones on an otherwise empty monitor for unrelated existing windows.

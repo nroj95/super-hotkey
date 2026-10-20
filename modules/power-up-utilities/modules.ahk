@@ -59,7 +59,7 @@ class PH_Modules {
             "timestamp", "", "Pause + T", true)
         app.AddAction("speaker-wake", "system.wake-speakers", "wake speakers",
             "speaker-wake", "", "Pause + Pause")
-        app.AddAction("sleep", "system.sleep", "sleep computer", "sleep", "", "Pause + Escape")
+        app.AddAction("sleep", "system.sleep", "put computer to sleep", "sleep", "", "Pause + Escape")
         app.AddAction("interface", "interface.open", "show Power-Up Utilities help",
             "interface", "", "Pause + H")
     }

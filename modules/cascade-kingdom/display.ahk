@@ -58,6 +58,7 @@ HandleCascadeDisplayMessage(wparam, lparam, message, hwnd)
 
 QueueCascadeDisplayRefresh()
 {
+    CascadeDropGuides.Hide()
     global cascade_display_change_pending, cascade_display_generation
     global cascade_display_refresh_delay_ms, cascade_membership_generation
     if !cascade_display_change_pending {
@@ -132,6 +133,12 @@ RefreshCascadeDisplays()
                     destination := MonitorGetPrimary()
                 if !new_displays.Has(destination)
                     destination := 1
+                if !CascadeDisplayAllowed(destination, new_displays) {
+                    for hwnd in history.Clone()
+                        ReleaseCascadeWindow(hwnd)
+                    topology_changed := true
+                    continue
+                }
                 if destination != old_monitor || !old_displays.Has(old_monitor)
                     topology_changed := true
                 if !remapped_history.Has(destination)

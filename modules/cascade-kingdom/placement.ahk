@@ -20,7 +20,7 @@ PlaceCascadeWindowOnMonitor(
     global window_width_ratio, window_height_ratio
     global edge_margin, minimum_width, minimum_height
 
-    if !hwnd || !target_monitor || !WinExist("ahk_id " hwnd)
+    if !hwnd || !CascadeDisplayAllowed(target_monitor) || !WinExist("ahk_id " hwnd)
         return false
 
     window := "ahk_id " hwnd
@@ -227,6 +227,8 @@ ReserveNewWindowPlacement(hwnd, source_hwnd, queued_monitor, request)
 
     display_generation := cascade_display_generation
     target_monitor := ResolveCascadePlacementMonitor(request, queued_monitor)
+    if !target_monitor
+        return 0
     dpi_transition :=
         GetCascadeWindowMonitorDpi(hwnd) != GetCascadeMonitorDpi(target_monitor)
 
@@ -488,6 +490,8 @@ PlaceNewWindow(
             return
         }
         queued_monitor := ResolveCascadePlacementMonitor(request, queued_monitor)
+        if !queued_monitor
+            return
 
         DebugLog(
             "PlaceNewWindow begin."

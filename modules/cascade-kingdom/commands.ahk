@@ -40,7 +40,7 @@ AdoptActiveWindow()
     if !managed_monitor
         undo_snapshot := CaptureAdoptionUndoSnapshot(hwnd)
 
-    target_monitor := GetMonitorForWindow(hwnd)
+    target_monitor := ResolveCascadeDestination(GetMonitorForWindow(hwnd))
 
     if !target_monitor
         return
@@ -166,7 +166,7 @@ GatherCascadesToCommandMonitor()
 
     global cascade_history
 
-    target_monitor := GetCommandMonitor()
+    target_monitor := ResolveCascadeDestination(GetCommandMonitor())
     if !target_monitor
         return
 

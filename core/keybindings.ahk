@@ -777,7 +777,7 @@ class Keybindings {
         this._RefreshGate()
         this.routeMap := Map()
         ; Scope-specific routes take priority over global fallbacks in both
-        ; the normal dispatcher and the Secret Layers layer dispatcher.
+        ; the normal dispatcher and the Secret Layers dispatcher.
         orderedRoutes := []
         for route in this.routes
             if route.action.scope != ""

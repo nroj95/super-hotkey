@@ -512,6 +512,9 @@ TakeCascadeTaskbarMonitor(hwnd, context)
 
 ResolveCascadePlacementMonitor(request, fallback_monitor)
 {
+    global cascade_target_display
+    if cascade_target_display != "All"
+        return ResolveCascadeDestination(fallback_monitor)
     if request.HasOwnProp("monitor_device") && request.monitor_device != "" {
         monitor := FindCascadeMonitorDevice(request.monitor_device)
         ; Never reuse a removed display's old index or re-sample a later mouse.

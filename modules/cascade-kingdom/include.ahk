@@ -4,6 +4,8 @@
 #Include "%A_ScriptDir%\modules\cascade-kingdom\discovery.ahk"
 #Include "%A_ScriptDir%\modules\cascade-kingdom\display.ahk"
 #Include "%A_ScriptDir%\modules\cascade-kingdom\dpi.ahk"
+#Include "%A_ScriptDir%\modules\cascade-kingdom\drop-guides.ahk"
+#Include "%A_ScriptDir%\modules\cascade-kingdom\policy.ahk"
 #Include "%A_ScriptDir%\modules\cascade-kingdom\focus-corners.ahk"
 #Include "%A_ScriptDir%\modules\cascade-kingdom\focus-tab-clicks.ahk"
 #Include "%A_ScriptDir%\modules\cascade-kingdom\interface.ahk"

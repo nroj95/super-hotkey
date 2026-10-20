@@ -1,7 +1,7 @@
 ; Cascade Kingdom implementation; included by the Super Hotkey launcher.
 ; Included into the same script; functions share the existing global state.
 ;
-; New windows are unmanaged unless explicitly launched with CapsLock.
+; New-window adoption follows the configured automatic mode and cascade key.
 
 IsCascadeEnabled() {
     app := SuiteState.App

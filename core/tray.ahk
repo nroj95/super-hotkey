@@ -611,32 +611,42 @@ class SuiteInterface {
         key := "settings:cascade-kingdom"
         if this.Existing(key)
             return
-        global cascade_auto_placement_enabled
+        global cascade_auto_placement_enabled, cascade_gesture_key, cascade_target_display
+        global cascade_drop_guide_color_name
         global focus_corner_visible, focus_tab_color_presets
         global focus_corner_active_slot_color_name, focus_corner_inactive_slot_color_name
         window := this.NewWindow(key, "Cascade Kingdom - Settings", true)
-        window.AddText("x20 y18 w560", "Hold CapsLock while launching a program to cascade it."
-            . "`nCapsLock + double-click a title bar adopts an existing window.")
-        window.AddCheckbox("x20 y77 w550 vautoCascade",
+        window.AddText("x20 y18 w560", "Hold the cascade key to reverse automatic cascading."
+            . "`nKey + double-click a title bar always adopts a window."
+            . "`nThe key must be enabled in Secret Layers.")
+        window.AddCheckbox("x20 y86 w550 vautoCascade",
             "Automatically cascade newly opened windows").Value := cascade_auto_placement_enabled
-        window.AddCheckbox("x20 y115 w550 vtabs", "Show focus tabs").Value := focus_corner_visible
+        window.AddText("x20 y132 w200", "Cascade key")
+        window.AddDropDownList("x240 y127 w210 vcascadeKey", ["CapsLock", "Pause"]).Choose(cascade_gesture_key)
+        choices := this.DisplayChoices(cascade_target_display, true)
+        this.cascadeMonitors := choices.values
+        window.AddText("x20 y177 w200", "Cascade on")
+        window.AddDropDownList("x240 y172 w300 vdisplay", choices.names).Choose(choices.selected)
+        window.AddCheckbox("x20 y215 w550 vtabs", "Show focus tabs").Value := focus_corner_visible
         colors := []
         for name in focus_tab_color_presets
             colors.Push(name)
-        window.AddText("x20 y165 w200", "Active-slot tab color")
-        active := window.AddDropDownList("x240 y160 w210 vactiveColor", colors)
-        active.Choose(focus_corner_active_slot_color_name)
-        window.AddText("x20 y210 w200", "Inactive-slot tab color")
-        inactive := window.AddDropDownList("x240 y205 w210 vinactiveColor", colors)
-        inactive.Choose(focus_corner_inactive_slot_color_name)
-        window.AddText("x20 y265 w550", "Changes apply immediately. Existing cascades stay intact.")
+        window.AddText("x20 y260 w200", "Active-slot tab color")
+        window.AddDropDownList("x240 y255 w210 vactiveColor", colors).Choose(focus_corner_active_slot_color_name)
+        window.AddText("x20 y305 w200", "Inactive-slot tab color")
+        window.AddDropDownList("x240 y300 w210 vinactiveColor", colors).Choose(focus_corner_inactive_slot_color_name)
+        window.AddText("x20 y350 w200", "Drop-guide color")
+        window.AddDropDownList("x240 y345 w210 vguideColor", colors).Choose(cascade_drop_guide_color_name)
+        window.AddText("x20 y380 w520", "Display changes release other displays without moving windows."
+            . "`nClick Apply to use these settings.")
         this.Footer(window, [["Apply", ObjBindMethod(this, "SaveCascade"), 120],
-            ["Back", ObjBindMethod(this, "BackToHelp", "cascade-kingdom"), 100]], 335, 600)
-        this.ShowPage(key, 600, 385, 560, 350)
+            ["Back", ObjBindMethod(this, "BackToHelp", "cascade-kingdom"), 100]], 465, 600)
+        this.ShowPage(key, 600, 515, 560, 490)
     }
 
     SaveCascade(*) {
-        global cascade_auto_placement_enabled
+        global cascade_auto_placement_enabled, cascade_gesture_key, cascade_target_display
+        global cascade_drop_guide_color_name
         global focus_corner_visible, focus_tab_color_presets
         global focus_corner_active_slot_color_name, focus_corner_inactive_slot_color_name
         global focus_corner_active_slot_color, focus_corner_inactive_slot_color
@@ -644,27 +654,77 @@ class SuiteInterface {
         window := this.windows[key]
         try {
             autoCascade := window["autoCascade"].Value != 0
+            gestureKey := window["cascadeKey"].Text
+            display := this.cascadeMonitors[window["display"].Value]
             visible := window["tabs"].Value != 0
             activeName := window["activeColor"].Text
             inactiveName := window["inactiveColor"].Text
+            guideName := window["guideColor"].Text
             if !focus_tab_color_presets.Has(activeName) || !focus_tab_color_presets.Has(inactiveName)
-                throw ValueError("Select valid focus-tab colors.")
+                || !focus_tab_color_presets.Has(guideName)
+                throw ValueError("Select valid tab and drop-guide colors.")
+            if gestureKey != "CapsLock" && gestureKey != "Pause"
+                throw ValueError("Select CapsLock or Pause as the cascade key.")
             this.app.Settings.WritePreferences("cascade-kingdom", Map(
-                "Controls", Map("AutoCascadeNewWindows", autoCascade ? 1 : 0),
+                "Controls", Map("AutoCascadeNewWindows", autoCascade ? 1 : 0,
+                    "CascadeKey", gestureKey, "Display", display),
+                "DropGuides", Map("Color", guideName),
                 "FocusTabs", Map("Visible", visible ? 1 : 0,
                     "ActiveSlotColor", activeName, "InactiveSlotColor", inactiveName)))
+            routingChanged := cascade_auto_placement_enabled != autoCascade
+                || cascade_gesture_key != gestureKey || cascade_target_display != display
+            if routingChanged {
+                this.app.CancelInputs()
+                WindowCascadeModule.Suspend()
+            }
             cascade_auto_placement_enabled := autoCascade
+            cascade_gesture_key := gestureKey
+            cascade_target_display := display
+            cascade_drop_guide_color_name := guideName
+            if routingChanged
+                CascadeReleaseExcludedDisplays()
             if focus_corner_visible != visible
                 ToggleFocusCornerVisibility()
             focus_corner_active_slot_color_name := activeName
             focus_corner_inactive_slot_color_name := inactiveName
             focus_corner_active_slot_color := focus_tab_color_presets[activeName]
             focus_corner_inactive_slot_color := focus_tab_color_presets[inactiveName]
+            CascadeDropGuides.Hide()
+            if routingChanged && this.app.cascadeStarted && IsCascadeEnabled()
+                WindowCascadeModule.Resume()
             QueueFocusCornerUpdate()
             this.CloseWindow(key)
         }
         catch Error as failure
             this.Report(failure, "Cascade Kingdom / settings")
+    }
+
+    DisplayChoices(selected, includeAll := false) {
+        values := includeAll ? ["All"] : []
+        names := includeAll ? ["All displays"] : []
+        models := this.GetDisplayModels()
+        primary := MonitorGetPrimary()
+        if selected = "Primary"
+            selected := MonitorGetName(primary)
+        loop MonitorGetCount() {
+            try {
+                name := MonitorGetName(A_Index)
+                MonitorGetWorkArea(A_Index)
+                values.Push(name)
+                names.Push("Display " A_Index " - " models.Get(name, name)
+                    . (A_Index = primary ? " (primary)" : ""))
+            }
+        }
+        selectedIndex := 0
+        for index, name in values
+            if name = selected
+                selectedIndex := index
+        if !selectedIndex {
+            values.Push(selected)
+            names.Push(selected " (unavailable)")
+            selectedIndex := names.Length
+        }
+        return {values: values, names: names, selected: selectedIndex}
     }
 
     ; =========================================================================
@@ -683,29 +743,11 @@ class SuiteInterface {
         window.AddText("x20 y105 w150", "Notepad3 executable")
         window.AddEdit("x180 y100 w590 veditor", IniRead(path, "Paths", "Notepad3Executable", ""))
         window.AddText("x180 y132 w590", "Leave the executable blank for automatic detection.")
-        this.padMonitors := ["Primary"]
-        names := ["Main display"]
-        models := this.GetDisplayModels()
-        loop MonitorGetCount() {
-            try {
-                name := MonitorGetName(A_Index)
-                MonitorGetWorkArea(A_Index)
-                this.padMonitors.Push(name)
-                names.Push("Display " A_Index " - " models.Get(name, name))
-            }
-        }
         selected := IniRead(path, "Window", "Monitor", "Primary")
-        selectedIndex := 0
-        for index, name in this.padMonitors
-            if name = selected
-                selectedIndex := index
-        if !selectedIndex {
-            this.padMonitors.Push(selected)
-            names.Push(selected " (unavailable)")
-            selectedIndex := names.Length
-        }
+        choices := this.DisplayChoices(selected)
+        this.padMonitors := choices.values
         window.AddText("x20 y180 w150", "Display")
-        window.AddDropDownList("x180 y175 w380 vdisplay", names).Choose(selectedIndex)
+        window.AddDropDownList("x180 y175 w380 vdisplay", choices.names).Choose(choices.selected)
         fields := [["width", "Width (%)", "Window", "WidthPercent", 45],
             ["height", "Height (%)", "Window", "HeightPercent", 35],
             ["animation", "Animation (ms)", "Window", "AnimationDurationMs", 180]]

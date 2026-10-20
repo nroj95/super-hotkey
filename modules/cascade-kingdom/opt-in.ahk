@@ -1,8 +1,7 @@
 ; Internal Cascade Kingdom input opt-in gestures.
 
-; Launch intent is deliberately one-shot. Normal new windows are never adopted.
-; A shell click/Enter is recognized up to eight seconds after the gesture.
-; Holding CapsLock until SHOW is also supported for launchers we cannot identify.
+; A key-held launch captures one opt-in or opt-out for up to eight seconds.
+; A physical hold at SHOW supports launchers whose input we cannot identify.
 
 CascadeIsOptInIntentFresh(intent, now := 0)
 {
@@ -15,8 +14,8 @@ CascadeIsOptInIntentFresh(intent, now := 0)
 
 CascadeRememberLaunchIntent(monitor := 0, source := 0)
 {
-    global cascade_opt_in_intent
-    if !IsCascadeEnabled() || !GetKeyState("CapsLock", "P")
+    global cascade_opt_in_intent, cascade_auto_placement_enabled
+    if !IsCascadeEnabled() || !CascadeGestureHeld()
         return
     if !monitor {
         MouseGetPosPixels(&x, &y)
@@ -24,9 +23,10 @@ CascadeRememberLaunchIntent(monitor := 0, source := 0)
     }
     if !monitor
         return
+    CascadeConsumeGesture()
     cascade_opt_in_intent := {tick: A_TickCount,
         monitor_device: GetCascadeMonitorDevice(monitor),
-        source_hwnd: source}
+        source_hwnd: source, cascade: !cascade_auto_placement_enabled}
 }
 
 CascadeIsLaunchSurface(hwnd)
@@ -47,16 +47,9 @@ CascadeIsLaunchSurface(hwnd)
 ; window appears open. Its first SHOW is effectively a new window, but the
 ; startup guard would otherwise reject it. Only permit the first *foreground*
 ; reveal of one of those exact, startup-hidden HWND/PID pairs.
-CascadeShouldAdoptHiddenExplorer(was_hidden_at_start, foreground_matches,
-    automatic_enabled, caps_held)
-{
-    return was_hidden_at_start && foreground_matches
-        && (automatic_enabled || caps_held)
-}
-
 CascadeTakeHiddenStartupExplorerReveal(hwnd)
 {
-    global cascade_hidden_startup_explorers, cascade_auto_placement_enabled
+    global cascade_hidden_startup_explorers
     if !cascade_hidden_startup_explorers.Has(hwnd)
         return 0
 
@@ -77,59 +70,57 @@ CascadeTakeHiddenStartupExplorerReveal(hwnd)
     catch
         return 0
 
-    if !CascadeShouldAdoptHiddenExplorer(true, true,
-        cascade_auto_placement_enabled, GetKeyState("CapsLock", "P"))
-        return 0
-
-    MouseGetPosPixels(&x, &y)
-    monitor := GetMonitorForPoint(x, y)
-    return monitor ? monitor : MonitorGetPrimary()
+    ; Share the exact same captured opt-in/opt-out as ordinary new windows.
+    return CascadeTakeOptInMonitor(hwnd)
 }
 
 CascadeCaptureKeyboardLaunch(*)
 {
-    if !IsCascadeEnabled() || !GetKeyState("CapsLock", "P")
+    if !IsCascadeEnabled() || !CascadeGestureHeld()
         return
     hwnd := DllCall("GetForegroundWindow", "ptr")
     if CascadeIsLaunchSurface(hwnd)
         CascadeRememberLaunchIntent(0, hwnd)
 }
 
-; This is deliberately separate from the existing taskbar *focus recovery* hint.
-; The first eligible NEW window consumes the opt-in; subsequent windows are normal.
+; Separate from taskbar focus recovery. One eligible new HWND consumes intent.
 CascadeTakeOptInMonitor(hwnd, &reason := "")
 {
     global cascade_opt_in_intent, cascade_auto_placement_enabled
     reason := ""
     intent := cascade_opt_in_intent
+    if !CascadeGestureEnabled() {
+        cascade_opt_in_intent := 0
+        intent := 0
+    }
     if CascadeIsOptInIntentFresh(intent) && hwnd != intent.source_hwnd {
         cascade_opt_in_intent := 0
-        monitor := FindCascadeMonitorDevice(intent.monitor_device)
-        if monitor {
-            reason := "caps-launch"
-            return monitor
+        if !intent.cascade {
+            reason := "gesture-opt-out"
+            return 0
         }
-        ; A disconnected display must never be replaced by a stale monitor index.
-        reason := "caps-launch-disconnected"
-        return MonitorGetPrimary()
+        monitor := FindCascadeMonitorDevice(intent.monitor_device)
+        reason := "gesture-launch"
+        return ResolveCascadeDestination(monitor ? monitor : MonitorGetPrimary())
     }
     if IsObject(intent) && !CascadeIsOptInIntentFresh(intent)
         cascade_opt_in_intent := 0
-    if GetKeyState("CapsLock", "P") {
-        MouseGetPosPixels(&x, &y)
-        monitor := GetMonitorForPoint(x, y)
-        if monitor {
-            reason := "caps-held-at-show"
-            return monitor
+    held := CascadeGestureHeld()
+    if !CascadeShouldLaunch(cascade_auto_placement_enabled, held) {
+        if held {
+            CascadeConsumeGesture()
+            reason := "gesture-held-opt-out"
         }
+        return 0
     }
-    if cascade_auto_placement_enabled {
-        MouseGetPosPixels(&x, &y)
-        monitor := GetMonitorForPoint(x, y)
+    MouseGetPosPixels(&x, &y)
+    monitor := GetMonitorForPoint(x, y)
+    if held {
+        CascadeConsumeGesture()
+        reason := "gesture-held-at-show"
+    } else
         reason := monitor ? "automatic-pointer" : "automatic-fallback"
-        return monitor ? monitor : MonitorGetPrimary()
-    }
-    return 0
+    return ResolveCascadeDestination(monitor ? monitor : MonitorGetPrimary())
 }
 
 ; Prefer a real OS caption hit. Custom title bars can report client-area hits,
@@ -167,7 +158,7 @@ CascadeWasMaximizeRestore(before, after)
 
 CascadeVerifyCustomCaptionDoubleClick(hwnd, pid, monitor, before)
 {
-    if !IsCascadeEnabled() || GetManagedCascadeMonitor(hwnd)
+    if !IsCascadeEnabled() || !CascadeGestureEnabled() || GetManagedCascadeMonitor(hwnd)
         return
     try {
         if !WinExist("ahk_id " hwnd) || WinGetPID("ahk_id " hwnd) != pid
@@ -184,10 +175,10 @@ CascadeVerifyCustomCaptionDoubleClick(hwnd, pid, monitor, before)
         DebugError("Verify custom title-bar double-click", err)
 }
 
-CascadeObserveCapsMouseClick(hwnd, x, y)
+CascadeObserveGestureMouseClick(hwnd, x, y)
 {
     global cascade_titlebar_click
-    if !GetKeyState("CapsLock", "P") {
+    if !CascadeGestureHeld() {
         cascade_titlebar_click := 0
         return
     }
@@ -204,6 +195,7 @@ CascadeObserveCapsMouseClick(hwnd, x, y)
         catch
             return
         if state = 0 || state = 1 {
+            CascadeConsumeGesture()
             now := A_TickCount
             if CascadeIsSecondCaptionClick(cascade_titlebar_click, hwnd, pid, x, y,
                 now, DllCall("GetDoubleClickTime", "uint"),
@@ -213,19 +205,19 @@ CascadeObserveCapsMouseClick(hwnd, x, y)
                 cascade_titlebar_click := 0
                 if first.native_caption && CascadeIsCaptionPoint(hwnd, x, y) {
                     ; Preserve native title-bar adoption behavior.
-                    SetTimer(CascadeAdoptCaptionWindow.Bind(hwnd, pid, monitor), -80)
+                    CascadeQueueGesture(CascadeAdoptCaptionWindow, 80, hwnd, pid, monitor)
                 } else {
                     ; No geometry guesses for custom title bars or client content.
                     ; Wait for the native double-click to change maximize state.
-                    SetTimer(CascadeVerifyCustomCaptionDoubleClick.Bind(
-                        hwnd, pid, monitor, first.window_state), -120)
+                    CascadeQueueGesture(CascadeVerifyCustomCaptionDoubleClick, 120,
+                        hwnd, pid, monitor, first.window_state)
                 }
                 return
             }
             native_caption := CascadeIsCaptionPoint(hwnd, x, y)
             cascade_titlebar_click := {hwnd: hwnd, pid: pid, x: x, y: y,
                 tick: now, window_state: state, native_caption: native_caption}
-            ; File Explorer's client area may launch apps under CapsLock.
+            ; File Explorer's client area may launch apps under the cascade key.
             if !native_caption && CascadeIsLaunchSurface(hwnd)
                 CascadeRememberLaunchIntent(monitor, hwnd)
             return
@@ -238,18 +230,24 @@ CascadeObserveCapsMouseClick(hwnd, x, y)
 
 CascadeAdoptCaptionWindow(hwnd, pid, monitor)
 {
-    if !IsCascadeEnabled() || IsCascadeDisplayTransition()
+    global cascade_opt_in_intent
+    if !IsCascadeEnabled() || !CascadeGestureEnabled() || IsCascadeDisplayTransition()
         || HasCascadeWindowDrag() || GetManagedCascadeMonitor(hwnd)
         return
     try {
         if !WinExist("ahk_id " hwnd) || WinGetPID("ahk_id " hwnd) != pid
             || IsShellSurfaceWindow(hwnd) || !SuiteWindowOwnership.AllowsWonderWindows(hwnd)
             return
+        monitor := ResolveCascadeDestination(monitor)
+        if !monitor
+            return
+        ; Only confirmed title-bar adoption consumes a possible Explorer launch.
+        cascade_opt_in_intent := 0
         ; Never adopt an unrelated foreground HWND or an internal tool surface.
         was_manual := SuiteWindowOwnership.Release(hwnd)
         if !PlaceCascadeWindowOnMonitor(hwnd, monitor) && was_manual
             SuiteWindowOwnership.Claim(hwnd)
     }
     catch Error as err
-        DebugError("Caps double-click adoption", err)
+        DebugError("Cascade-key double-click adoption", err)
 }

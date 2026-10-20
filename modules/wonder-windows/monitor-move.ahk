@@ -30,7 +30,7 @@ WW_CycleWindowMonitor()
 
         ; A live Cascade-managed window must join the destination cascade,
         ; not become a permanent manually positioned Wonder Windows window.
-        if IsCascadeEnabled() && GetManagedCascadeMonitor(hwnd) {
+        if IsCascadeEnabled() && GetManagedCascadeMonitor(hwnd) && CascadeDisplayAllowed(target) {
             RemoveWindowFromMinimizeState(hwnd)
             if PlaceCascadeWindowOnMonitor(hwnd, target) {
                 WW_ForgetLastMinimizedWindow()

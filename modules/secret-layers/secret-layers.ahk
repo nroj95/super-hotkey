@@ -26,7 +26,7 @@ class LocalKeyboardLayers {
     Bind(layer, modifiers, key, label, callback, repeat := false, context := 0) {
         global CPL
         if !this.LayerEnabled(layer)
-            throw Error("Cannot register a disabled Secret Layers layer.")
+            throw Error("Cannot register a shortcut for a disabled key in Secret Layers.")
         routeKey := CPL_RouteKey(layer, modifiers, key)
         route := {routeKey: routeKey, layer: layer, modifiers: modifiers, key: key,
             label: label, callback: callback, repeat: repeat, context: context,

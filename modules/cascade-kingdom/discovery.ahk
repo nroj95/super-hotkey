@@ -370,6 +370,7 @@ PlaceHandledWindowReshow(request)
             if resolved_monitor
                 target_monitor := resolved_monitor
         }
+        target_monitor := ResolveCascadeDestination(target_monitor)
         if !target_monitor
             return
 

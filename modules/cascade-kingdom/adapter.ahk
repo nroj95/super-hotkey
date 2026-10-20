@@ -59,6 +59,7 @@ class WindowCascadeModule {
     }
 
     static Stop() {
+        CascadeDropGuides.Destroy()
         global cascade_command_queue
         cascade_command_queue := []
         SetTimer(DrainCascadeCommandQueue, 0)

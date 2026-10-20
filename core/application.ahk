@@ -210,6 +210,10 @@ class SuiteApplication {
             this.power.CancelWork()
         SuiteFocusBorder.Hide()
         if this.cascadeStarted {
+            global cascade_opt_in_intent, cascade_titlebar_click
+            cascade_opt_in_intent := 0
+            cascade_titlebar_click := 0
+            CancelCascadeWindowDrop()
             global cascade_command_queue
             cascade_command_queue := []
             CancelNewWindowFocus()

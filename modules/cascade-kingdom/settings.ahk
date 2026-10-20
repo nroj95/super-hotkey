@@ -95,6 +95,7 @@ focus_corner_fallback_ms := 1000
 ; represents its exposed window; the active slot represents the next layer.
 ; Deeper tabs stay hidden, so opacity no longer accumulates with stack depth.
 focus_tab_color_presets := Map(
+    "White", "FFFFFF",
     "Grey", "808080",
     "Red", "F44336",
     "Orange", "FF9800",
@@ -109,7 +110,7 @@ focus_tab_color_presets := Map(
 ; Inactive-slot tabs stay faint while active-slot tabs use stronger opacity.
 ; Alpha 1 is reserved for the hidden state so overlays remain hit-testable.
 focus_corner_visible := true
-focus_corner_inactive_slot_alpha := 72
+focus_corner_inactive_slot_alpha := 128
 focus_corner_active_slot_alpha := 255
 
 ; Only watch for a missed mouse-up while a focus-tab click owns the button.
@@ -136,20 +137,20 @@ focus_corner_active_slot_color_name := IniRead(
     settings_path,
     "FocusTabs",
     "ActiveSlotColor",
-    "Green"
+    "Yellow"
 )
 focus_corner_inactive_slot_color_name := IniRead(
     settings_path,
     "FocusTabs",
     "InactiveSlotColor",
-    "Grey"
+    "White"
 )
 
 if !focus_tab_color_presets.Has(focus_corner_active_slot_color_name)
-    focus_corner_active_slot_color_name := "Green"
+    focus_corner_active_slot_color_name := "Yellow"
 
 if !focus_tab_color_presets.Has(focus_corner_inactive_slot_color_name)
-    focus_corner_inactive_slot_color_name := "Grey"
+    focus_corner_inactive_slot_color_name := "White"
 
 focus_corner_active_slot_color :=
     focus_tab_color_presets[focus_corner_active_slot_color_name]
@@ -210,6 +211,13 @@ cascade_restore_request_depth := 0
 cascade_close_batches := Map()
 cascade_close_focus_request := 0
 cascade_auto_placement_enabled := IniRead(settings_path, "Controls", "AutoCascadeNewWindows", "0") = "1"
+cascade_gesture_key := IniRead(settings_path, "Controls", "CascadeKey", "CapsLock")
+if cascade_gesture_key != "CapsLock" && cascade_gesture_key != "Pause"
+    cascade_gesture_key := "CapsLock"
+cascade_target_display := IniRead(settings_path, "Controls", "Display", "All")
+cascade_drop_guide_color_name := IniRead(settings_path, "DropGuides", "Color", "Pink")
+if !focus_tab_color_presets.Has(cascade_drop_guide_color_name)
+    cascade_drop_guide_color_name := "Pink"
 cascade_opt_in_intent := 0
 cascade_hidden_startup_explorers := Map()
 cascade_titlebar_click := 0
