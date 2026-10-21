@@ -56,6 +56,7 @@ WW_CycleMaximizedFullscreenWindows()
 {
     Critical "On"
     WW_ForgetLastMinimizedWindow()
+    WW_EndFocusNavigationSession()
 
     global WW_maximized_fullscreen_cycle, WW_last_maximized_fullscreen_hwnd
 
@@ -68,47 +69,32 @@ WW_CycleMaximizedFullscreenWindows()
     }
 
     active_hwnd := WinExist("A")
-    active_index := WW_FindWindowIndex(
+    target_hwnd := WW_NextMaximizedFullscreenWindow(
         WW_maximized_fullscreen_cycle,
-        active_hwnd
+        active_hwnd,
+        WW_last_maximized_fullscreen_hwnd
     )
 
-    if active_index {
-        WW_last_maximized_fullscreen_hwnd := active_hwnd
-
-        if WW_maximized_fullscreen_cycle.Length = 1 {
-            WW_DebugLog(
-                "Expanded-window cycle stopped: active window is the only candidate."
-                . " | target=" WW_DebugDescribeWindow(active_hwnd)
-            )
-            return
-        }
-
-        target_index := (
-            active_index = WW_maximized_fullscreen_cycle.Length
-            ? 1
-            : active_index + 1
-        )
-        target_hwnd := WW_maximized_fullscreen_cycle[target_index]
-    } else if WW_last_maximized_fullscreen_hwnd
-        && WW_FindWindowIndex(
-            WW_maximized_fullscreen_cycle,
-            WW_last_maximized_fullscreen_hwnd
-        )
-    {
-        target_hwnd := WW_last_maximized_fullscreen_hwnd
-    } else {
-        target_hwnd := WW_maximized_fullscreen_cycle[1]
-    }
-
     WW_DebugLog(
-        "Expanded-window cycle activation."
+        "Expanded-window cycle step."
         . " | from=" WW_DebugDescribeWindow(active_hwnd)
         . " | to=" WW_DebugDescribeWindow(target_hwnd)
     )
 
-    if WW_ActivateMaximizedFullscreenWindow(target_hwnd)
+    if WW_ShowMaximizedFullscreenCycleWindow(WW_maximized_fullscreen_cycle, target_hwnd)
         WW_last_maximized_fullscreen_hwnd := target_hwnd
+}
+
+WW_NextMaximizedFullscreenWindow(windows, active_hwnd, last_hwnd)
+{
+    if !windows.Length
+        return 0
+    active_index := WW_FindWindowIndex(windows, active_hwnd)
+    if active_index
+        return active_index = windows.Length ? 0 : windows[active_index + 1]
+    if WW_FindWindowIndex(windows, last_hwnd)
+        return last_hwnd
+    return windows[1]
 }
 
 WW_RefreshMaximizedFullscreenCycle()
@@ -125,7 +111,7 @@ WW_RefreshMaximizedFullscreenCycle()
     preserved_set := Map()
 
     ; Keep the established order stable even though activating a window changes
-    ; native Z-order. Closed/restored windows simply fall out of the cycle.
+    ; native Z-order. Minimized members stay; closed/normal-size windows fall out.
     for hwnd in WW_maximized_fullscreen_cycle {
         if !detected_set.Has(hwnd)
             continue
@@ -158,11 +144,39 @@ WW_GetMaximizedFullscreenWindows()
 
 WW_IsMaximizedFullscreenSwitcherWindow(hwnd)
 {
-    if !WW_IsWindowToggleCandidate(hwnd)
+    if !WW_IsWindowToggleCandidate(hwnd, true)
         return false
-    try return WinGetMinMax(hwnd) = 1 || WW_IsNativeFullscreen(hwnd)
+    try {
+        state := WinGetMinMax(hwnd)
+        if state != -1
+            return state = 1 || WW_IsNativeFullscreen(hwnd)
+
+        placement := WW_CaptureWindowPlacement(hwnd)
+        ; Windows remembers whether an iconic window should restore maximized.
+        if (NumGet(placement, 4, "uint") & 0x0002) ; WPF_RESTORETOMAXIMIZED
+            || SuiteFullscreen.placements.Has(hwnd)
+            return true
+
+        ; Native fullscreen is a normal-state window filling a physical monitor.
+        ; Its current minimized rectangle cannot identify that saved geometry.
+        return WW_WindowPlacementFillsPhysicalMonitor(placement, WW_GetWindowMonitorInfo(hwnd))
+    }
     catch
         return false
+}
+
+WW_WindowPlacementFillsPhysicalMonitor(placement, monitor_info, tolerance := 2)
+{
+    ; Candidates exclude tool windows, so rcNormalPosition uses workspace
+    ; coordinates. Convert to screen coordinates, including top/left taskbars.
+    offset_x := NumGet(monitor_info, 20, "int") - NumGet(monitor_info, 4, "int")
+    offset_y := NumGet(monitor_info, 24, "int") - NumGet(monitor_info, 8, "int")
+    return (
+        Abs(NumGet(placement, 28, "int") + offset_x - NumGet(monitor_info, 4, "int")) <= tolerance
+        && Abs(NumGet(placement, 32, "int") + offset_y - NumGet(monitor_info, 8, "int")) <= tolerance
+        && Abs(NumGet(placement, 36, "int") + offset_x - NumGet(monitor_info, 12, "int")) <= tolerance
+        && Abs(NumGet(placement, 40, "int") + offset_y - NumGet(monitor_info, 16, "int")) <= tolerance
+    )
 }
 
 WW_WindowFillsPhysicalMonitor(hwnd, tolerance := 2)
@@ -204,9 +218,31 @@ WW_WindowFillsPhysicalMonitor(hwnd, tolerance := 2)
     )
 }
 
-WW_ActivateMaximizedFullscreenWindow(target_hwnd)
+WW_ShowMaximizedFullscreenCycleWindow(windows, target_hwnd)
 {
-    if !WW_IsMaximizedFullscreenSwitcherWindow(target_hwnd)
+    if target_hwnd && !WW_IsMaximizedFullscreenSwitcherWindow(target_hwnd)
         return false
-    return WW_ActivateWindowReliably(target_hwnd)
+
+    ; Minimize the whole snapshot before restoring the next window. Target 0 is
+    ; the all-minimized step; clearing the last target starts the next pass at 1.
+    for hwnd in windows {
+        if hwnd = target_hwnd || !WW_IsMaximizedFullscreenSwitcherWindow(hwnd)
+            continue
+        try {
+            if WinGetMinMax(hwnd) != -1
+                WinMinimize(hwnd)
+            if WinExist(hwnd) && WinGetMinMax(hwnd) != -1 {
+                WW_DebugLog("Expanded-window cycle could not minimize hwnd=" hwnd)
+                return false
+            }
+        }
+        catch Error as err {
+            if WinExist(hwnd) {
+                WW_DebugError("Expanded-window cycle minimize", err)
+                return false
+            }
+        }
+    }
+
+    return !target_hwnd || WW_ActivateWindowReliably(target_hwnd)
 }

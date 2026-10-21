@@ -45,7 +45,7 @@ WW_WindowStateMatchesProcess(hwnd, saved)
 ; window filtering
 ; =============================================================================
 
-WW_IsWindowToggleCandidate(hwnd)
+WW_IsWindowToggleCandidate(hwnd, include_minimized := false)
 {
     if !SuiteWindowOwnership.AllowsWonderWindows(hwnd)
         return false
@@ -64,7 +64,7 @@ WW_IsWindowToggleCandidate(hwnd)
         return false
 
     try {
-        if WinGetMinMax("ahk_id " hwnd) = -1
+        if !include_minimized && WinGetMinMax("ahk_id " hwnd) = -1
             return false
 
         style := WinGetStyle("ahk_id " hwnd)
