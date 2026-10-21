@@ -6,6 +6,7 @@ class SuiteHardeningChecks {
         this.FocusBorderLifecycle()
         this.SwapRollback()
         this.ExpandedWindowCycle()
+        WW_RunWindowCommand(ObjBindMethod(this, "MaximizedAdoption"))
     }
 
     static Assert(condition, label) => SuiteChecks.Assert(condition, label)
@@ -99,6 +100,82 @@ class SuiteHardeningChecks {
                 try SuiteSizeGrip.Detach(window)
                 try window.Destroy()
             }
+        }
+    }
+
+    static MaximizedAdoption() {
+        global cascade_history, cascade_window_drag, pending_adoption_undo
+        global cascade_displays
+        app := SuiteApplication(true, SuiteChecks.directory "\maximized-adoption")
+        InitializeCascadeState()
+        window := SuiteGui("+Resize -DPIScale", "Maximized adoption fixture")
+        previousCritical := Critical("On")
+        try {
+            ; Stay in dry run: no hooks, desktop discovery or real adoption.
+            ; Only the test-owned window is restored/moved by the undo check.
+            ; Populate display geometry without starting hooks or discovery.
+            cascade_displays := ReadCascadeDisplays().displays
+            window.Show("x60 y60 w320 h220")
+            hwnd := window.Hwnd
+            original := WW_CaptureWindowPlacement(hwnd)
+            WinMaximize(hwnd)
+            WinActivate(hwnd)
+            this.Assert(!!WinWaitActive(hwnd, , 1),
+                "maximized adoption fixture owns foreground")
+            this.Assert(ActiveWindowBlocksCascadeCommands()
+                && !ActiveWindowBlocksCascadeCommands(true),
+                "only explicit adoption bypasses the maximized-window command guard")
+            cascade_window_drag := {}
+            this.Assert(ActiveWindowBlocksCascadeCommands(true),
+                "maximized adoption still respects an active native drag")
+            cascade_window_drag := 0
+
+            pending_adoption_undo := CaptureAdoptionUndoSnapshot(hwnd)
+            this.Assert(IsObject(pending_adoption_undo)
+                && IsObject(pending_adoption_undo["maximized_placement"]),
+                "maximized adoption snapshots native placement before restoring")
+            WinRestore(hwnd)
+            WinMove(100, 100, 420, 280, hwnd)
+            this.Assert(UndoPendingAdoption() && WinGetMinMax(hwnd) = 1,
+                "adoption undo restores maximized state")
+            restored := WW_CaptureWindowPlacement(hwnd)
+            sameRectangle := true
+            for offset in [28, 32, 36, 40]
+                sameRectangle := sameRectangle
+                    && NumGet(original, offset, "int") = NumGet(restored, offset, "int")
+            this.Assert(sameRectangle,
+                "maximized adoption undo preserves the original normal restore rectangle")
+
+            monitor := GetMonitorForWindow(hwnd)
+            cascade_history := Map(monitor, [hwnd])
+            WinRestore(hwnd)
+            this.Assert(CascadeCanAdoptCaptionWindow(hwnd, 1),
+                "a restored maximized member can be adopted from its captured caption gesture")
+            this.Assert(!CascadeCanAdoptCaptionWindow(hwnd, 0),
+                "ordinary managed title-bar double-clicks retain their existing behavior")
+            cascade_history.Clear()
+            this.Assert(CascadeCanAdoptCaptionWindow(hwnd, 0)
+                && CascadeCanAdoptCaptionWindow(hwnd, 1),
+                "unmanaged caption adoption accepts normal and maximized starting states")
+            normalSnapshot := CaptureAdoptionUndoSnapshot(hwnd)
+            this.Assert(IsObject(normalSnapshot) && !normalSnapshot["maximized_placement"],
+                "normal-window adoption retains its existing geometry-only undo")
+
+            WinSetStyle((WinGetStyle(hwnd) & ~0xC40000) | 0x80000000, hwnd)
+            WinSetExStyle(WinGetExStyle(hwnd) & ~0x300, hwnd)
+            WW_RefreshWindowFrame(hwnd)
+            WW_GetWindowMonitorBounds(hwnd, &left, &top, &right, &bottom)
+            WinMove(left, top, right - left, bottom - top, hwnd)
+            this.Assert(WW_IsNativeFullscreen(hwnd) && ActiveWindowBlocksCascadeCommands(true),
+                "allowing maximized adoption does not bypass the fullscreen guard")
+        }
+        finally {
+            CancelPendingAdoptionUndo()
+            StopCascadeDisplays()
+            InitializeCascadeState()
+            try SuiteSizeGrip.Detach(window)
+            window.Destroy()
+            Critical(previousCritical)
         }
     }
 

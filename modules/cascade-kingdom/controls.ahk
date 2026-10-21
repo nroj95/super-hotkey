@@ -60,7 +60,7 @@ CaptureExplorerSpaceReshowIntent()
 ; command availability
 ; =============================================================================
 
-ActiveWindowBlocksCascadeCommands()
+ActiveWindowBlocksCascadeCommands(allow_maximized := false)
 {
     ; Do not rotate, gather or reposition windows underneath a native drag.
     if HasCascadeWindowDrag() || IsCascadeDisplayTransition()
@@ -76,9 +76,10 @@ ActiveWindowBlocksCascadeCommands()
         return false
 
     try {
-        ; Maximized windows are intentionally outside cascade management.
+        ; Explicit adoption restores maximized windows; other layout commands
+        ; must not rearrange the cascade underneath them.
         if WinGetMinMax("ahk_id " active_hwnd) = 1
-            return true
+            return !allow_maximized
 
         WinGetPosPixels(
             &window_x,
@@ -244,7 +245,7 @@ DispatchCascadeCommand(command)
     if command_id = cascade_command_close_active {
         if HasCascadeWindowDrag() || IsCascadeDisplayTransition()
             return
-    } else if ActiveWindowBlocksCascadeCommands()
+    } else if ActiveWindowBlocksCascadeCommands(command_id = cascade_command_adopt_active)
         return
 
     if command_id != cascade_command_adopt_active

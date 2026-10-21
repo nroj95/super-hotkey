@@ -63,6 +63,8 @@ CaptureAdoptionUndoSnapshot(hwnd)
     global handled_windows
 
     try {
+        ; Keep the maximized state AND its original normal restore rectangle.
+        maximized_placement := WinGetMinMax(hwnd) = 1 ? WW_CaptureWindowPlacement(hwnd) : 0
         WinGetPosPixels(
             &window_x,
             &window_y,
@@ -81,7 +83,8 @@ CaptureAdoptionUndoSnapshot(hwnd)
         "y", window_y,
         "width", window_width,
         "height", window_height,
-        "was_handled", handled_windows.Has(hwnd)
+        "was_handled", handled_windows.Has(hwnd),
+        "maximized_placement", maximized_placement
     )
 }
 
@@ -122,13 +125,19 @@ UndoPendingAdoption()
     CancelPlacementStabilization(hwnd)
 
     try {
-        WinMovePixels(
-            snapshot["x"],
-            snapshot["y"],
-            snapshot["width"],
-            snapshot["height"],
-            "ahk_id " hwnd
-        )
+        if snapshot["maximized_placement"] {
+            if !DllCall("SetWindowPlacement", "ptr", hwnd,
+                "ptr", snapshot["maximized_placement"], "int")
+                throw OSError()
+        } else {
+            WinMovePixels(
+                snapshot["x"],
+                snapshot["y"],
+                snapshot["width"],
+                snapshot["height"],
+                "ahk_id " hwnd
+            )
+        }
     }
     catch {
         ; If restoration fails, keep the window managed rather than leaving a

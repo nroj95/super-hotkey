@@ -156,9 +156,17 @@ CascadeWasMaximizeRestore(before, after)
     return (before = 0 && after = 1) || (before = 1 && after = 0)
 }
 
+CascadeCanAdoptCaptionWindow(hwnd, before)
+{
+    ; Native restore may finish before the deferred callback, while the window
+    ; is still in cascade history. Preserve the state from the first click.
+    return before = 1 || !GetManagedCascadeMonitor(hwnd)
+}
+
 CascadeVerifyCustomCaptionDoubleClick(hwnd, pid, monitor, before)
 {
-    if !IsCascadeEnabled() || !CascadeGestureEnabled() || GetManagedCascadeMonitor(hwnd)
+    if !IsCascadeEnabled() || !CascadeGestureEnabled()
+        || !CascadeCanAdoptCaptionWindow(hwnd, before)
         return
     try {
         if !WinExist("ahk_id " hwnd) || WinGetPID("ahk_id " hwnd) != pid
@@ -169,7 +177,7 @@ CascadeVerifyCustomCaptionDoubleClick(hwnd, pid, monitor, before)
             return
         DebugLog("Custom title-bar double-click confirmed by maximize/restore."
             . " | " DebugDescribeWindow(hwnd))
-        CascadeAdoptCaptionWindow(hwnd, pid, monitor)
+        CascadeAdoptCaptionWindow(hwnd, pid, monitor, before)
     }
     catch Error as err
         DebugError("Verify custom title-bar double-click", err)
@@ -205,7 +213,8 @@ CascadeObserveGestureMouseClick(hwnd, x, y)
                 cascade_titlebar_click := 0
                 if first.native_caption && CascadeIsCaptionPoint(hwnd, x, y) {
                     ; Preserve native title-bar adoption behavior.
-                    CascadeQueueGesture(CascadeAdoptCaptionWindow, 80, hwnd, pid, monitor)
+                    CascadeQueueGesture(CascadeAdoptCaptionWindow, 80,
+                        hwnd, pid, monitor, first.window_state)
                 } else {
                     ; No geometry guesses for custom title bars or client content.
                     ; Wait for the native double-click to change maximize state.
@@ -228,11 +237,11 @@ CascadeObserveGestureMouseClick(hwnd, x, y)
         CascadeRememberLaunchIntent(monitor, hwnd)
 }
 
-CascadeAdoptCaptionWindow(hwnd, pid, monitor)
+CascadeAdoptCaptionWindow(hwnd, pid, monitor, before := 0)
 {
     global cascade_opt_in_intent
     if !IsCascadeEnabled() || !CascadeGestureEnabled() || IsCascadeDisplayTransition()
-        || HasCascadeWindowDrag() || GetManagedCascadeMonitor(hwnd)
+        || HasCascadeWindowDrag() || !CascadeCanAdoptCaptionWindow(hwnd, before)
         return
     try {
         if !WinExist("ahk_id " hwnd) || WinGetPID("ahk_id " hwnd) != pid
