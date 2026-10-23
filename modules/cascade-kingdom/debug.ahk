@@ -41,13 +41,7 @@ DebugDescribeWindow(hwnd)
     try min_max := WinGetMinMax("ahk_id " hwnd)
 
     try {
-        WinGetPosPixels(
-            &window_x,
-            &window_y,
-            &window_width,
-            &window_height,
-            "ahk_id " hwnd
-        )
+        WinGetPosPixels(&window_x, &window_y, &window_width, &window_height, "ahk_id " hwnd)
 
         x := window_x
         y := window_y
@@ -61,33 +55,16 @@ DebugDescribeWindow(hwnd)
         " "
     )
 
-    visible := DllCall(
-        "IsWindowVisible",
-        "ptr", hwnd,
-        "int"
-    )
+    visible := DllCall("IsWindowVisible", "ptr", hwnd, "int")
 
-    iconic := DllCall(
-        "IsIconic",
-        "ptr", hwnd,
-        "int"
-    )
+    iconic := DllCall("IsIconic", "ptr", hwnd, "int")
 
     cloaked := false
     try cloaked := IsWindowCloaked(hwnd)
 
-    return (
-        "hwnd=" hwnd
-        . ' exe="' process_name '"'
-        . ' class="' class_name '"'
-        . ' title="' title '"'
-        . " minmax=" min_max
-        . " visible=" visible
-        . " iconic=" iconic
-        . " cloaked=" cloaked
-        . " rect=(" x "," y
-        . " " width "x" height ")"
-    )
+    return ("hwnd=" hwnd . ' exe="' process_name '"' . ' class="' class_name '"'
+        . ' title="' title '"' . " minmax=" min_max . " visible=" visible . " iconic=" iconic
+        . " cloaked=" cloaked . " rect=(" x "," y . " " width "x" height ")")
 }
 
 
@@ -103,13 +80,9 @@ DebugFocusCornerAppearance(active_hwnd, active_slot_targets)
     if !SuiteState.Log.verbose
         return
 
-    snapshot := (
-        "active=" active_hwnd
-        . " | foreground_now=" DllCall("GetForegroundWindow", "ptr")
+    snapshot := ("active=" active_hwnd . " | foreground_now=" DllCall("GetForegroundWindow", "ptr")
         . " | active_slot_windows=" active_slot_targets.Count
-        . " | tabs_visible=" focus_corner_visible
-        . " | click_owned=" HasFocusTabClick()
-    )
+        . " | tabs_visible=" focus_corner_visible . " | click_owned=" HasFocusTabClick())
 
     for target_hwnd, overlay in focus_corner_overlays {
         try {
@@ -128,20 +101,12 @@ DebugFocusCornerAppearance(active_hwnd, active_slot_targets)
 
             role := active_slot_targets.Has(target_hwnd) ? "active-slot" : "inactive-slot"
 
-            snapshot .= (
-                " | tab={target=" target_hwnd
-                . ",hwnd=" marker_hwnd
-                . ",role=" role
-                . ",color=" overlay.gui.BackColor
-                . ",dpi=" overlay.dpi
+            snapshot .= (" | tab={target=" target_hwnd . ",hwnd=" marker_hwnd . ",role=" role
+                . ",color=" overlay.gui.BackColor . ",dpi=" overlay.dpi
                 . ",base_alpha=" overlay.alpha
                 . ",native_alpha=" (native_alpha == "" ? "unknown" : native_alpha)
-                . ",shown=" overlay.shown
-                . ",visible=" native_visible
-                . ",topmost=" native_topmost
-                . ",above=" preceding_hwnd
-                . ",rect=" x "," y "," width "," height "}"
-            )
+                . ",shown=" overlay.shown . ",visible=" native_visible . ",topmost=" native_topmost
+                . ",above=" preceding_hwnd . ",rect=" x "," y "," width "," height "}")
         }
         catch {
             ; A target or its GUI may disappear during a diagnostic read.
@@ -169,10 +134,7 @@ DebugDescribeForegroundState()
     NumPut("uint", info.Size, info)
 
     foreground := DllCall("GetForegroundWindow", "ptr")
-    result := (
-        "foreground=" foreground
-        . " | foreground-pid=" WindowProcessId(foreground)
-    )
+    result := ("foreground=" foreground . " | foreground-pid=" WindowProcessId(foreground))
 
     if DllCall("GetGUIThreadInfo", "uint", 0, "ptr", info, "int") {
         thread_active := NumGet(info, 8, "ptr")
@@ -183,13 +145,10 @@ DebugDescribeForegroundState()
             : 0
         )
 
-        result .= (
-            " | thread-active=" thread_active
-            . " | keyboard-focus=" keyboard_focus
+        result .= (" | thread-active=" thread_active . " | keyboard-focus=" keyboard_focus
             . " | keyboard-focus-root=" keyboard_focus_root
             . " | keyboard-focus-pid=" WindowProcessId(keyboard_focus)
-            . " | focus-root-is-foreground=" (keyboard_focus_root = foreground)
-        )
+            . " | focus-root-is-foreground=" (keyboard_focus_root = foreground))
     }
 
     return result

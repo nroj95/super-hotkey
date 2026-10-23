@@ -346,7 +346,7 @@ ApplyPendingCascadeDisplayLayout()
                     continue
                 geometry := cascade_displays[slot.monitor].geometry
                 position := geometry.slots[slot.slot]
-                raw := GetRawRectForVisibleTarget(hwnd, position[1], position[2], geometry.width, geometry.height)
+                raw := VisibleToRawRect(hwnd, position[1], position[2], geometry.width, geometry.height)
                 if !cascade_display_reflow.Has(hwnd) || cascade_display_reflow[hwnd] != slot
                     || generation != cascade_display_generation || IsCascadeDisplayTransition()
                     continue

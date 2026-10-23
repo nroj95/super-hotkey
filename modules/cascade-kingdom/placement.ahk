@@ -5,12 +5,8 @@
 ; explicit placement on a monitor
 ; =============================================================================
 
-PlaceCascadeWindowOnMonitor(
-    hwnd,
-    target_monitor,
-    requested_position := 0,
-    preserve_existing_membership_order := false
-)
+PlaceCascadeWindowOnMonitor(hwnd, target_monitor, requested_position := 0,
+    preserve_existing_membership_order := false)
 {
     if !IsCascadeEnabled() || IsCascadeDisplayTransition()
         return false
@@ -41,13 +37,7 @@ PlaceCascadeWindowOnMonitor(
         if !IsCascadeWindow(hwnd)
             return false
 
-        MonitorGetWorkAreaPixels(
-            target_monitor,
-            &work_left,
-            &work_top,
-            &work_right,
-            &work_bottom
-        )
+        MonitorGetWorkAreaPixels(target_monitor, &work_left, &work_top, &work_right, &work_bottom)
 
         size := GetCascadeWindowSize(work_right - work_left, work_bottom - work_top)
         window_width := size[1]
@@ -71,20 +61,12 @@ PlaceCascadeWindowOnMonitor(
         target_x := position[1]
         target_y := position[2]
 
-        raw_target := GetRawRectForVisibleTarget(
-            hwnd,
-            target_x,
-            target_y,
-            window_width,
-            window_height
-        )
+        raw_target := VisibleToRawRect(hwnd, target_x, target_y, window_width, window_height)
 
         if !IsCascadeEnabled() || IsCascadeDisplayTransition()
             || display_generation != cascade_display_generation
             return false
-        owned_reservation := Map(
-            "monitor", target_monitor, "x", target_x, "y", target_y
-        )
+        owned_reservation := Map("monitor", target_monitor, "x", target_x, "y", target_y)
         placement_reservations[hwnd] := owned_reservation
 
         ; Explicit adoption/gather/drop placement does not need to block on the
@@ -110,11 +92,8 @@ PlaceCascadeWindowOnMonitor(
                 handled_windows[hwnd] := true
                 known_windows[hwnd] := true
             }
-            DebugLog(
-                "Explicit placement SetWindowPos failed."
-                . " | last-error=" move_error
-                . " | target=" DebugDescribeWindow(hwnd)
-            )
+            DebugLog("Explicit placement SetWindowPos failed." . " | last-error=" move_error
+                . " | target=" DebugDescribeWindow(hwnd))
             return false
         }
 
@@ -136,14 +115,8 @@ PlaceCascadeWindowOnMonitor(
 
         RecordCascadeWindow(target_monitor, hwnd)
 
-        SchedulePlacementStabilization(
-            hwnd,
-            target_x,
-            target_y,
-            window_width,
-            window_height,
-            dpi_transition
-        )
+        SchedulePlacementStabilization(hwnd, target_x, target_y, window_width, window_height,
+            dpi_transition)
 
         if previous_monitor && previous_monitor != target_monitor
             QueueCascadeCompaction(previous_monitor)
@@ -152,8 +125,6 @@ PlaceCascadeWindowOnMonitor(
         return true
     }
     catch Error as err {
-        if placement_reservations.Has(hwnd) && placement_reservations[hwnd] = owned_reservation
-            placement_reservations.Delete(hwnd)
         ; A failed re-slot/gather must not silently drop an already managed
         ; window from its original monitor history.
         if previous_monitor
@@ -213,13 +184,7 @@ ReserveNewWindowPlacement(hwnd, source_hwnd, queued_monitor, request)
     dpi_transition :=
         GetCascadeWindowMonitorDpi(hwnd) != GetCascadeMonitorDpi(target_monitor)
 
-    MonitorGetWorkAreaPixels(
-        target_monitor,
-        &work_left,
-        &work_top,
-        &work_right,
-        &work_bottom
-    )
+    MonitorGetWorkAreaPixels(target_monitor, &work_left, &work_top, &work_right, &work_bottom)
 
     size := GetCascadeWindowSize(work_right - work_left, work_bottom - work_top)
     window_width := size[1]
@@ -234,21 +199,9 @@ ReserveNewWindowPlacement(hwnd, source_hwnd, queued_monitor, request)
             || display_generation != cascade_display_generation
             return 0
 
-        position := GetNextCascadePosition(
-            target_monitor,
-            work_left,
-            work_top,
-            work_right,
-            work_bottom,
-            window_width,
-            window_height,
-            hwnd
-        )
-        reservation := Map(
-            "monitor", target_monitor,
-            "x", position[1],
-            "y", position[2]
-        )
+        position := GetNextCascadePosition(target_monitor, work_left, work_top, work_right,
+            work_bottom, window_width, window_height, hwnd)
+        reservation := Map("monitor", target_monitor, "x", position[1], "y", position[2])
         placement_reservations[hwnd] := reservation
     }
     finally {
@@ -282,31 +235,14 @@ TryProvisionalNewWindowPlacement(hwnd, source_hwnd, queued_monitor, request)
 
     plan := 0
     try {
-        plan := ReserveNewWindowPlacement(
-            hwnd,
-            source_hwnd,
-            queued_monitor,
-            request
-        )
+        plan := ReserveNewWindowPlacement(hwnd, source_hwnd, queued_monitor, request)
         if !IsObject(plan)
             return false
 
-        raw_target := GetRawRectForVisibleTarget(
-            hwnd,
-            plan.x,
-            plan.y,
-            plan.width,
-            plan.height
-        )
+        raw_target := VisibleToRawRect(hwnd, plan.x, plan.y, plan.width, plan.height)
 
         initial_rect := "unavailable"
-        if GetVisibleWindowBounds(
-            hwnd,
-            &initial_x,
-            &initial_y,
-            &initial_width,
-            &initial_height
-        ) {
+        if GetVisibleWindowBounds(hwnd, &initial_x, &initial_y, &initial_width, &initial_height) {
             initial_rect :=
                 "(" initial_x "," initial_y
                 . " " initial_width "x" initial_height ")"
@@ -324,14 +260,9 @@ TryProvisionalNewWindowPlacement(hwnd, source_hwnd, queued_monitor, request)
         }
 
 
-        DebugLog(
-            "Provisional new-window placement begin."
-            . " | monitor=" plan.monitor
-            . " | initial-visible-rect=" initial_rect
-            . " | target-visible-rect=(" plan.x "," plan.y
-            . " " plan.width "x" plan.height ")"
-            . " | hwnd=" hwnd
-        )
+        DebugLog("Provisional new-window placement begin." . " | monitor=" plan.monitor
+            . " | initial-visible-rect=" initial_rect . " | target-visible-rect=(" plan.x "," plan.y
+            . " " plan.width "x" plan.height ")" . " | hwnd=" hwnd)
 
         moved := PhysicalDllCall(
             "SetWindowPos",
@@ -350,11 +281,8 @@ TryProvisionalNewWindowPlacement(hwnd, source_hwnd, queued_monitor, request)
             if placement_reservations.Has(hwnd)
                 && placement_reservations[hwnd] = plan.reservation
                 placement_reservations.Delete(hwnd)
-            DebugLog(
-                "Provisional new-window placement failed."
-                . " | last-error=" move_error
-                . " | hwnd=" hwnd
-            )
+            DebugLog("Provisional new-window placement failed." . " | last-error=" move_error
+                . " | hwnd=" hwnd)
             return false
         }
 
@@ -371,13 +299,9 @@ TryProvisionalNewWindowPlacement(hwnd, source_hwnd, queued_monitor, request)
 
         request.provisional_placement := plan
 
-        DebugLog(
-            "Provisional new-window placement complete."
-            . " | monitor=" plan.monitor
-            . " | visible-rect=(" plan.x "," plan.y
-            . " " plan.width "x" plan.height ")"
-            . " | hwnd=" hwnd
-        )
+        DebugLog("Provisional new-window placement complete." . " | monitor=" plan.monitor
+            . " | visible-rect=(" plan.x "," plan.y . " " plan.width "x" plan.height ")"
+            . " | hwnd=" hwnd)
         return true
     }
     catch Error as err {
@@ -432,14 +356,8 @@ ReleaseFailedNewWindowPlacementReservation(hwnd, request, reservation := 0)
 }
 
 
-PlaceNewWindow(
-    hwnd,
-    source_hwnd,
-    queued_monitor := 0,
-    retry_count := 0,
-    settle_complete := false,
-    request := 0
-)
+PlaceNewWindow(hwnd, source_hwnd, queued_monitor := 0, retry_count := 0, settle_complete := false,
+    request := 0)
 {
     global pending_windows, handled_windows, placement_reservations
     global placement_ready_retry_ms, placement_ready_retry_limit
@@ -464,14 +382,9 @@ PlaceNewWindow(
         if !queued_monitor
             return
 
-        DebugLog(
-            "PlaceNewWindow begin."
-            . " | retry=" retry_count
-            . " | settled=" settle_complete
-            . " | queued-monitor=" queued_monitor
-            . " | target=" DebugDescribeWindow(hwnd)
-            . " | source=" DebugDescribeWindow(source_hwnd)
-        )
+        DebugLog("PlaceNewWindow begin." . " | retry=" retry_count . " | settled=" settle_complete
+            . " | queued-monitor=" queued_monitor . " | target=" DebugDescribeWindow(hwnd)
+            . " | source=" DebugDescribeWindow(source_hwnd))
 
         retry_reason := GetPlacementReadinessReason(hwnd)
 
@@ -480,10 +393,8 @@ PlaceNewWindow(
         if retry_reason = "maximized" {
             try {
                 WinRestore("ahk_id " hwnd)
-                DebugLog(
-                    "Restoring maximized new window before cascade placement."
-                    . " | target=" DebugDescribeWindow(hwnd)
-                )
+                DebugLog("Restoring maximized new window before cascade placement."
+                    . " | target=" DebugDescribeWindow(hwnd))
             }
             catch {
             }
@@ -495,23 +406,13 @@ PlaceNewWindow(
             next_retry := retry_count + 1
             retry_scheduled := true
 
-            DebugLog(
-                "Placement readiness retry."
-                . " | reason=" retry_reason
-                . " | retry=" next_retry
-                . "/" placement_ready_retry_limit
-                . " | target=" DebugDescribeWindow(hwnd)
-            )
+            DebugLog("Placement readiness retry." . " | reason=" retry_reason
+                . " | retry=" next_retry . "/" placement_ready_retry_limit
+                . " | target=" DebugDescribeWindow(hwnd))
 
             SetTimer(
-                PlaceNewWindow.Bind(
-                    hwnd,
-                    source_hwnd,
-                    queued_monitor,
-                    next_retry,
-                    settle_complete,
-                    request
-                ),
+                PlaceNewWindow.Bind(hwnd, source_hwnd, queued_monitor, next_retry, settle_complete,
+                    request),
                 -placement_ready_retry_ms
             )
 
@@ -519,33 +420,19 @@ PlaceNewWindow(
         }
 
         if !settle_complete {
-            source_is_shell_or_gone := (
-                !source_hwnd
-                || !WinExist("ahk_id " source_hwnd)
-                || IsShellSurfaceWindow(source_hwnd)
-            )
+            source_is_shell_or_gone := (!source_hwnd || !WinExist("ahk_id " source_hwnd)
+                || IsShellSurfaceWindow(source_hwnd))
 
             if queued_monitor && source_is_shell_or_gone {
                 ; Move a ready window before the shell/startup grace period.
                 ; The settled pass reuses this exact reservation if it succeeds.
-                TryProvisionalNewWindowPlacement(
-                    hwnd,
-                    source_hwnd,
-                    queued_monitor,
-                    request
-                )
+                TryProvisionalNewWindowPlacement(hwnd, source_hwnd, queued_monitor, request)
 
                 retry_scheduled := true
 
                 SetTimer(
-                    PlaceNewWindow.Bind(
-                        hwnd,
-                        source_hwnd,
-                        queued_monitor,
-                        retry_count,
-                        true,
-                        request
-                    ),
+                    PlaceNewWindow.Bind(hwnd, source_hwnd, queued_monitor, retry_count, true,
+                        request),
                     -placement_settle_delay_ms
                 )
 
@@ -554,25 +441,17 @@ PlaceNewWindow(
         }
 
         if !IsCascadeWindow(hwnd) {
-            DebugLog(
-                "Placement rejected by IsCascadeWindow."
-                . " | " DebugDescribeWindow(hwnd)
-            )
+            DebugLog("Placement rejected by IsCascadeWindow." . " | " DebugDescribeWindow(hwnd))
             return
         }
 
-        provisional := (
-            request.HasOwnProp("provisional_placement")
-            ? request.provisional_placement
-            : 0
-        )
+        provisional := (request.HasOwnProp("provisional_placement") ? request.provisional_placement
+            : 0)
 
         if IsObject(provisional)
-            && (
-                provisional.display_generation != cascade_display_generation
+            && (provisional.display_generation != cascade_display_generation
                 || !placement_reservations.Has(hwnd)
-                || placement_reservations[hwnd] != provisional.reservation
-            )
+                || placement_reservations[hwnd] != provisional.reservation)
         {
             if placement_reservations.Has(hwnd)
                 && placement_reservations[hwnd] = provisional.reservation
@@ -582,30 +461,16 @@ PlaceNewWindow(
         }
 
         reused_provisional := IsObject(provisional)
-        plan := (
-            reused_provisional
-            ? provisional
-            : ReserveNewWindowPlacement(
-                hwnd,
-                source_hwnd,
-                queued_monitor,
-                request
-            )
-        )
+        plan := (reused_provisional ? provisional
+            : ReserveNewWindowPlacement(hwnd, source_hwnd, queued_monitor, request))
         if !IsObject(plan) {
             if IsCascadeDisplayTransition()
                 || display_generation != cascade_display_generation
             {
                 retry_scheduled := true
                 SetTimer(
-                    PlaceNewWindow.Bind(
-                        hwnd,
-                        source_hwnd,
-                        queued_monitor,
-                        retry_count,
-                        settle_complete,
-                        request
-                    ),
+                    PlaceNewWindow.Bind(hwnd, source_hwnd, queued_monitor, retry_count,
+                        settle_complete, request),
                     -placement_ready_retry_ms
                 )
             }
@@ -620,15 +485,10 @@ PlaceNewWindow(
         dpi_transition := plan.dpi_transition
         owned_reservation := plan.reservation
 
-        DebugLog(
-            "Placement monitor resolved."
-            . " | dpi-transfer=" dpi_transition
-            . " | monitor=" target_monitor
-            . " | queued-monitor=" queued_monitor
-            . " | provisional=" reused_provisional
-            . " | target=" DebugDescribeWindow(hwnd)
-            . " | source=" DebugDescribeWindow(source_hwnd)
-        )
+        DebugLog("Placement monitor resolved." . " | dpi-transfer=" dpi_transition
+            . " | monitor=" target_monitor . " | queued-monitor=" queued_monitor
+            . " | provisional=" reused_provisional . " | target=" DebugDescribeWindow(hwnd)
+            . " | source=" DebugDescribeWindow(source_hwnd))
 
         if reused_provisional
             && IsCurrentNewWindowPlacement(hwnd, request)
@@ -638,44 +498,24 @@ PlaceNewWindow(
             && display_generation = cascade_display_generation
         {
             try {
-                if GetVisibleWindowBounds(
-                    hwnd,
-                    &current_x,
-                    &current_y,
-                    &current_width,
-                    &current_height
-                ) && GetMonitorForWindow(hwnd) = target_monitor
+                if GetVisibleWindowBounds(hwnd, &current_x, &current_y, &current_width,
+                    &current_height) && GetMonitorForWindow(hwnd) = target_monitor
                     && Abs(current_x - target_x) <= placement_stabilize_tolerance
                     && Abs(current_y - target_y) <= placement_stabilize_tolerance
                     && Abs(current_width - window_width) <= placement_stabilize_tolerance
                     && Abs(current_height - window_height) <= placement_stabilize_tolerance
                 {
-                    DebugLog(
-                        "Final placement move skipped."
-                        . " | reason=provisional-matched"
+                    DebugLog("Final placement move skipped." . " | reason=provisional-matched"
                         . " | actual=(" current_x "," current_y
                         . " " current_width "x" current_height ")"
                         . " | requested=(" target_x "," target_y
-                        . " " window_width "x" window_height ")"
-                        . " | hwnd=" hwnd
-                    )
+                        . " " window_width "x" window_height ")" . " | hwnd=" hwnd)
                     handled_windows[hwnd] := true
                     RecordCascadeWindow(target_monitor, hwnd)
-                    DebugLog(
-                        "Placement complete."
-                        . " | monitor=" target_monitor
-                        . " | final-move=skipped"
-                        . " | " DebugDescribeWindow(hwnd)
-                    )
-                    SchedulePlacementStabilization(
-                        hwnd,
-                        target_x,
-                        target_y,
-                        window_width,
-                        window_height,
-                        dpi_transition,
-                        true
-                    )
+                    DebugLog("Placement complete." . " | monitor=" target_monitor
+                        . " | final-move=skipped" . " | " DebugDescribeWindow(hwnd))
+                    SchedulePlacementStabilization(hwnd, target_x, target_y, window_width,
+                        window_height, dpi_transition, true)
                     StartNewWindowFocus(hwnd, request.focus)
                     return
                 }
@@ -685,37 +525,21 @@ PlaceNewWindow(
             }
         }
 
-        raw_target := GetRawRectForVisibleTarget(
-            hwnd,
-            target_x,
-            target_y,
-            window_width,
-            window_height
-        )
+        raw_target := VisibleToRawRect(hwnd, target_x, target_y, window_width, window_height)
 
         raw_target_x := raw_target[1]
         raw_target_y := raw_target[2]
         raw_target_width := raw_target[3]
         raw_target_height := raw_target[4]
 
-        DebugLog(
-            "Placement slot reserved."
-            . " | monitor=" target_monitor
-            . " | provisional=" reused_provisional
-            . " | visible-rect=(" target_x "," target_y
-            . " " window_width "x" window_height ")"
-            . " | hwnd=" hwnd
-        )
+        DebugLog("Placement slot reserved." . " | monitor=" target_monitor
+            . " | provisional=" reused_provisional . " | visible-rect=(" target_x "," target_y
+            . " " window_width "x" window_height ")" . " | hwnd=" hwnd)
 
-        DebugLog(
-            "Moving cascade window."
-            . " | monitor=" target_monitor
-            . " | visible-rect=(" target_x "," target_y
-            . " " window_width "x" window_height ")"
+        DebugLog("Moving cascade window." . " | monitor=" target_monitor
+            . " | visible-rect=(" target_x "," target_y . " " window_width "x" window_height ")"
             . " | raw-rect=(" raw_target_x "," raw_target_y
-            . " " raw_target_width "x" raw_target_height ")"
-            . " | " DebugDescribeWindow(hwnd)
-        )
+            . " " raw_target_width "x" raw_target_height ")" . " | " DebugDescribeWindow(hwnd))
 
         ; Post the placement request instead of blocking on applications whose
         ; window thread is temporarily busy, such as DST during startup.
@@ -725,11 +549,8 @@ PlaceNewWindow(
             | 0x0004  ; SWP_NOZORDER
         )
 
-        DebugLog(
-            "SetWindowPos begin."
-            . " | flags=" swp_flags
-            . " | target=" DebugDescribeWindow(hwnd)
-        )
+        DebugLog("SetWindowPos begin." . " | flags=" swp_flags
+            . " | target=" DebugDescribeWindow(hwnd))
 
         set_window_pos_start_tick := A_TickCount
 
@@ -743,39 +564,24 @@ PlaceNewWindow(
                 retry_count, settle_complete, request), -placement_ready_retry_ms)
             return
         }
-        set_window_pos_result := PhysicalDllCall(
-            "SetWindowPos",
-            "ptr", hwnd,
-            "ptr", 0,
-            "int", raw_target_x,
-            "int", raw_target_y,
-            "int", raw_target_width,
-            "int", raw_target_height,
-            "uint", swp_flags,
-            "int"
-        )
+        set_window_pos_result := PhysicalDllCall("SetWindowPos", "ptr", hwnd, "ptr", 0,
+            "int", raw_target_x, "int", raw_target_y, "int", raw_target_width,
+            "int", raw_target_height, "uint", swp_flags, "int")
 
         ; Logging and diagnostics call Windows too; preserve the original error.
         set_window_pos_error := A_LastError
         set_window_pos_elapsed_ms :=
             (A_TickCount - set_window_pos_start_tick) & 0xFFFFFFFF
 
-        DebugLog(
-            "SetWindowPos returned."
-            . " | result=" set_window_pos_result
-            . " | elapsed-ms=" set_window_pos_elapsed_ms
-            . " | target=" DebugDescribeWindow(hwnd)
-        )
+        DebugLog("SetWindowPos returned." . " | result=" set_window_pos_result
+            . " | elapsed-ms=" set_window_pos_elapsed_ms . " | target=" DebugDescribeWindow(hwnd))
 
         if !set_window_pos_result {
             if placement_reservations.Has(hwnd) && placement_reservations[hwnd] = owned_reservation
                 placement_reservations.Delete(hwnd)
 
-            DebugLog(
-                "SetWindowPos failed."
-                . " | last-error=" set_window_pos_error
-                . " | target=" DebugDescribeWindow(hwnd)
-            )
+            DebugLog("SetWindowPos failed." . " | last-error=" set_window_pos_error
+                . " | target=" DebugDescribeWindow(hwnd))
             return
         }
 
@@ -794,21 +600,11 @@ PlaceNewWindow(
         handled_windows[hwnd] := true
         RecordCascadeWindow(target_monitor, hwnd)
 
-        DebugLog(
-            "Placement complete."
-            . " | monitor=" target_monitor
-            . " | " DebugDescribeWindow(hwnd)
-        )
+        DebugLog("Placement complete." . " | monitor=" target_monitor
+            . " | " DebugDescribeWindow(hwnd))
 
-        SchedulePlacementStabilization(
-            hwnd,
-            target_x,
-            target_y,
-            window_width,
-            window_height,
-            dpi_transition,
-            true
-        )
+        SchedulePlacementStabilization(hwnd, target_x, target_y, window_width, window_height,
+            dpi_transition, true)
         StartNewWindowFocus(hwnd, request.focus)
 
     }
@@ -851,15 +647,8 @@ FinishPlacementStabilization(hwnd, generation)
     QueueFocusCornerUpdate()
 }
 
-SchedulePlacementStabilization(
-    hwnd,
-    target_x,
-    target_y,
-    target_width,
-    target_height,
-    dpi_transition := false,
-    startup_check := false
-)
+SchedulePlacementStabilization(hwnd, target_x, target_y, target_width, target_height,
+    dpi_transition := false, startup_check := false)
 {
     if !IsCascadeEnabled()
         return
@@ -882,16 +671,8 @@ SchedulePlacementStabilization(
 
     for delay_ms in placement_stabilize_delays_ms {
         SetTimer(
-            StabilizePlacedWindow.Bind(
-                hwnd,
-                target_x,
-                target_y,
-                target_width,
-                target_height,
-                stabilization_generation,
-                delay_ms,
-                0, 0, 0, startup_check
-            ),
+            StabilizePlacedWindow.Bind(hwnd, target_x, target_y, target_width, target_height,
+                stabilization_generation, delay_ms, 0, 0, 0, startup_check),
             -delay_ms
         )
     }
@@ -906,19 +687,9 @@ IsCurrentPlacementStabilization(hwnd, stabilization_generation)
             = stabilization_generation
 }
 
-StabilizePlacedWindow(
-    hwnd,
-    target_x,
-    target_y,
-    target_width,
-    target_height,
-    stabilization_generation,
-    delay_ms,
-    attempt := 0,
-    passive_stage := 0,
-    confirmation_count := 0,
-    startup_check := false
-)
+StabilizePlacedWindow(hwnd, target_x, target_y, target_width, target_height,
+    stabilization_generation, delay_ms, attempt := 0, passive_stage := 0, confirmation_count := 0,
+    startup_check := false)
 {
     global handled_windows, placement_reservations
     global placement_stabilize_tolerance
@@ -939,14 +710,9 @@ StabilizePlacedWindow(
     dpi_transition := placement_dpi_generations.Has(hwnd)
         && placement_dpi_generations[hwnd] = stabilization_generation
 
-    DebugLog(
-        "Stabilization callback."
-        . " | generation=" stabilization_generation
-        . " | delay-ms=" delay_ms
-        . " | attempt=" attempt
-        . " | passive-stage=" passive_stage
-        . " | hwnd=" hwnd
-    )
+    DebugLog("Stabilization callback." . " | generation=" stabilization_generation
+        . " | delay-ms=" delay_ms . " | attempt=" attempt . " | passive-stage=" passive_stage
+        . " | hwnd=" hwnd)
 
     if !handled_windows.Has(hwnd) {
         FinishPlacementStabilization(hwnd, stabilization_generation)
@@ -969,44 +735,26 @@ StabilizePlacedWindow(
             return
         }
 
-        if !TryGetVisibleFrameRect(
-            hwnd,
-            &current_x,
-            &current_y,
-            &current_width,
-            &current_height,
-            &current_inset_left,
-            &current_inset_top,
-            &current_inset_right,
-            &current_inset_bottom
-        ) {
+        if !(current_frame := GetWindowFrame(hwnd)) {
             FinishPlacementStabilization(hwnd, stabilization_generation)
 
             return
         }
+        current_x := current_frame.x
+        current_y := current_frame.y
+        current_width := current_frame.width
+        current_height := current_frame.height
 
-        needs_correction := (
-            Abs(current_x - target_x) > placement_stabilize_tolerance
+        needs_correction := (Abs(current_x - target_x) > placement_stabilize_tolerance
             || Abs(current_y - target_y) > placement_stabilize_tolerance
             || Abs(current_width - target_width) > placement_stabilize_tolerance
-            || Abs(current_height - target_height) > placement_stabilize_tolerance
-        )
+            || Abs(current_height - target_height) > placement_stabilize_tolerance)
 
-        DebugLog(
-            "Stabilization check."
-            . " | generation=" stabilization_generation
-            . " | delay-ms=" delay_ms
-            . " | matched=" (!needs_correction)
-            . " | actual=("
-            . current_x "," current_y " "
-            . current_width "x" current_height
-            . ")"
-            . " | requested=("
-            . target_x "," target_y " "
-            . target_width "x" target_height
-            . ")"
-            . " | hwnd=" hwnd
-        )
+        DebugLog("Stabilization check." . " | generation=" stabilization_generation
+            . " | delay-ms=" delay_ms . " | matched=" (!needs_correction) . " | actual=("
+            . current_x "," current_y " " . current_width "x" current_height . ")"
+            . " | requested=(" . target_x "," target_y " " . target_width "x" target_height . ")"
+            . " | hwnd=" hwnd)
 
         if !needs_correction {
             ; A browser can restore remembered geometry after the first match,
@@ -1021,12 +769,8 @@ StabilizePlacedWindow(
             }
             FinishPlacementStabilization(hwnd, stabilization_generation)
 
-            DebugLog(
-                "Placement reservation released."
-                . " | reason=matched"
-                . " | generation=" stabilization_generation
-                . " | hwnd=" hwnd
-            )
+            DebugLog("Placement reservation released." . " | reason=matched"
+                . " | generation=" stabilization_generation . " | hwnd=" hwnd)
 
             return
         }
@@ -1039,29 +783,15 @@ StabilizePlacedWindow(
                 return
             }
             SetTimer(
-                StabilizePlacedWindow.Bind(
-                    hwnd,
-                    target_x,
-                    target_y,
-                    target_width,
-                    target_height,
-                    stabilization_generation,
-                    placement_stabilize_confirmation_ms,
-                    attempt,
-                    passive_stage,
-                    confirmation_count + 1,
-                    startup_check
-                ),
+                StabilizePlacedWindow.Bind(hwnd, target_x, target_y, target_width, target_height,
+                    stabilization_generation, placement_stabilize_confirmation_ms, attempt,
+                    passive_stage, confirmation_count + 1, startup_check),
                 -placement_stabilize_confirmation_ms
             )
 
-            DebugLog(
-                "Stabilization confirmation-only recheck scheduled."
-                . " | generation=" stabilization_generation
-                . " | attempts=" attempt
-                . " | delay-ms=" placement_stabilize_confirmation_ms
-                . " | hwnd=" hwnd
-            )
+            DebugLog("Stabilization confirmation-only recheck scheduled."
+                . " | generation=" stabilization_generation . " | attempts=" attempt
+                . " | delay-ms=" placement_stabilize_confirmation_ms . " | hwnd=" hwnd)
 
             return
         }
@@ -1080,35 +810,19 @@ StabilizePlacedWindow(
             next_passive_stage := passive_stage + 1
 
             passive_delay_ms :=
-                placement_stabilize_backoff_delays_ms[
-                    next_passive_stage
-                ]
+                placement_stabilize_backoff_delays_ms[next_passive_stage]
 
             SetTimer(
-                StabilizePlacedWindow.Bind(
-                    hwnd,
-                    target_x,
-                    target_y,
-                    target_width,
-                    target_height,
-                    stabilization_generation,
-                    passive_delay_ms,
-                    attempt,
-                    next_passive_stage,
-                    confirmation_count,
-                    startup_check
-                ),
+                StabilizePlacedWindow.Bind(hwnd, target_x, target_y, target_width, target_height,
+                    stabilization_generation, passive_delay_ms, attempt, next_passive_stage,
+                    confirmation_count, startup_check),
                 -passive_delay_ms
             )
 
-            DebugLog(
-                "Stabilization passive recheck scheduled."
-                . " | generation=" stabilization_generation
-                . " | stage=" next_passive_stage
-                . "/" placement_stabilize_backoff_delays_ms.Length
-                . " | delay-ms=" passive_delay_ms
-                . " | hwnd=" hwnd
-            )
+            DebugLog("Stabilization passive recheck scheduled."
+                . " | generation=" stabilization_generation . " | stage=" next_passive_stage
+                . "/" placement_stabilize_backoff_delays_ms.Length . " | delay-ms=" passive_delay_ms
+                . " | hwnd=" hwnd)
 
             return
         }
@@ -1118,22 +832,11 @@ StabilizePlacedWindow(
         ; the application overrides that correction too.
         next_attempt := attempt + 1
 
-        raw_target_x := target_x - current_inset_left
-        raw_target_y := target_y - current_inset_top
-
-        raw_target_width := Max(
-            1,
-            target_width
-            + current_inset_left
-            + current_inset_right
-        )
-
-        raw_target_height := Max(
-            1,
-            target_height
-            + current_inset_top
-            + current_inset_bottom
-        )
+        raw_target := VisibleToRawRect(hwnd, target_x, target_y, target_width, target_height)
+        raw_target_x := raw_target[1]
+        raw_target_y := raw_target[2]
+        raw_target_width := raw_target[3]
+        raw_target_height := raw_target[4]
 
         swp_flags := (
             0x4000  ; SWP_ASYNCWINDOWPOS
@@ -1143,10 +846,7 @@ StabilizePlacedWindow(
 
         ; The callback may have been interrupted by a newer placement while it
         ; was checking geometry. Recheck immediately before posting the move.
-        if !IsCurrentPlacementStabilization(
-            hwnd,
-            stabilization_generation
-        ) {
+        if !IsCurrentPlacementStabilization(hwnd, stabilization_generation) {
             return
         }
 
@@ -1157,80 +857,43 @@ StabilizePlacedWindow(
             return
         }
 
-        DebugLog(
-            "Stabilization SetWindowPos begin."
-            . " | generation=" stabilization_generation
-            . " | attempt=" next_attempt
-            . " | passive-grace-complete=1"
-            . " | hwnd=" hwnd
-        )
+        DebugLog("Stabilization SetWindowPos begin." . " | generation=" stabilization_generation
+            . " | attempt=" next_attempt . " | passive-grace-complete=1" . " | hwnd=" hwnd)
 
         stabilization_start_tick := A_TickCount
 
-        stabilization_result := PhysicalDllCall(
-            "SetWindowPos",
-            "ptr", hwnd,
-            "ptr", 0,
-            "int", raw_target_x,
-            "int", raw_target_y,
-            "int", raw_target_width,
-            "int", raw_target_height,
-            "uint", swp_flags,
-            "int"
-        )
+        stabilization_result := PhysicalDllCall("SetWindowPos", "ptr", hwnd, "ptr", 0,
+            "int", raw_target_x, "int", raw_target_y, "int", raw_target_width,
+            "int", raw_target_height, "uint", swp_flags, "int")
 
         stabilization_error := A_LastError
         stabilization_elapsed_ms :=
             (A_TickCount - stabilization_start_tick) & 0xFFFFFFFF
 
-        DebugLog(
-            "Stabilization SetWindowPos returned."
-            . " | result=" stabilization_result
-            . " | generation=" stabilization_generation
-            . " | attempt=" next_attempt
-            . " | elapsed-ms=" stabilization_elapsed_ms
-            . " | hwnd=" hwnd
-        )
+        DebugLog("Stabilization SetWindowPos returned." . " | result=" stabilization_result
+            . " | generation=" stabilization_generation . " | attempt=" next_attempt
+            . " | elapsed-ms=" stabilization_elapsed_ms . " | hwnd=" hwnd)
 
         if !stabilization_result {
             FinishPlacementStabilization(hwnd, stabilization_generation)
 
-            DebugLog(
-                "Placement reservation released."
-                . " | reason=stabilization-failed"
-                . " | generation=" stabilization_generation
-                . " | last-error=" stabilization_error
-                . " | hwnd=" hwnd
-            )
+            DebugLog("Placement reservation released." . " | reason=stabilization-failed"
+                . " | generation=" stabilization_generation . " | last-error=" stabilization_error
+                . " | hwnd=" hwnd)
 
             return
         }
 
         SetTimer(
-            StabilizePlacedWindow.Bind(
-                hwnd,
-                target_x,
-                target_y,
-                target_width,
-                target_height,
-                stabilization_generation,
-                placement_stabilize_retry_ms,
-                next_attempt,
-                0,
-                confirmation_count,
-                startup_check
-            ),
+            StabilizePlacedWindow.Bind(hwnd, target_x, target_y, target_width, target_height,
+                stabilization_generation, placement_stabilize_retry_ms, next_attempt, 0,
+                confirmation_count, startup_check),
             -placement_stabilize_retry_ms
         )
 
-        DebugLog(
-            "Stabilization recheck scheduled."
-            . " | generation=" stabilization_generation
-            . " | attempt=" next_attempt
-            . " | passive-stage=0"
-            . " | delay-ms=" placement_stabilize_retry_ms
-            . " | hwnd=" hwnd
-        )
+        DebugLog("Stabilization recheck scheduled." . " | generation=" stabilization_generation
+            . " | attempt=" next_attempt . " | passive-stage=0"
+            . " | delay-ms=" placement_stabilize_retry_ms . " | hwnd=" hwnd)
     }
     catch Error as err {
         FinishPlacementStabilization(hwnd, stabilization_generation)

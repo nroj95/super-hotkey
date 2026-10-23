@@ -64,28 +64,14 @@ QueueWindowPlacement(hwnd, source_hwnd, explicit_monitor := 0)
     request.monitor_reason := monitor_reason
     pending_windows[hwnd] := request
 
-    DebugLog(
-        "Queue placement."
-        . " | target=" DebugDescribeWindow(hwnd)
-        . " | source=" DebugDescribeWindow(source_hwnd)
-        . " | queued-monitor=" queued_monitor
-        . " | monitor-reason=" monitor_reason
-        . " | monitor-device=" request.monitor_device
-        . " | mouse=(" queue_mouse_x "," queue_mouse_y ")"
-    )
+    DebugLog("Queue placement." . " | target=" DebugDescribeWindow(hwnd)
+        . " | source=" DebugDescribeWindow(source_hwnd) . " | queued-monitor=" queued_monitor
+        . " | monitor-reason=" monitor_reason . " | monitor-device=" request.monitor_device
+        . " | mouse=(" queue_mouse_x "," queue_mouse_y ")")
 
 
-    SetTimer(
-        PlaceNewWindow.Bind(
-            hwnd,
-            source_hwnd,
-            queued_monitor,
-            0,
-            false,
-            request
-        ),
-        -placement_delay_ms
-    )
+    SetTimer(PlaceNewWindow.Bind(hwnd, source_hwnd, queued_monitor, 0, false, request),
+        -placement_delay_ms)
 }
 
 ConsumeExplorerSpaceIntentForNewWindow(hwnd, source_hwnd, target_pid)
@@ -118,10 +104,8 @@ ConsumeExplorerSpaceIntentForNewWindow(hwnd, source_hwnd, target_pid)
 
     explorer_space_reshow_hint := 0
     if SuiteState.Log.verbose {
-        DebugLog(
-            "Explorer Space re-show intent consumed by new window."
-            . " | target=" DebugDescribeWindow(hwnd)
-        )
+        DebugLog("Explorer Space re-show intent consumed by new window."
+            . " | target=" DebugDescribeWindow(hwnd))
     }
     return true
 }
@@ -284,18 +268,11 @@ TryQueueHandledWindowReshow(hwnd, trigger := "show")
         hint: hint
     }
 
-    DebugLog(
-        "Handled window " intent.kind " re-show queued."
-        . " | trigger=" intent.trigger
-        . " | from-monitor=" source_monitor
-        . " | target-monitor=" target_monitor
-        . " | target=" DebugDescribeWindow(hwnd)
-    )
+    DebugLog("Handled window " intent.kind " re-show queued." . " | trigger=" intent.trigger
+        . " | from-monitor=" source_monitor . " | target-monitor=" target_monitor
+        . " | target=" DebugDescribeWindow(hwnd))
 
-    SetTimer(
-        PlaceHandledWindowReshow.Bind(request),
-        -placement_delay_ms
-    )
+    SetTimer(PlaceHandledWindowReshow.Bind(request), -placement_delay_ms)
     return true
 }
 
@@ -309,12 +286,10 @@ HandledWindowReshowMatchesRememberedPlacement(hwnd, placement)
     if !GetVisibleWindowBounds(hwnd, &x, &y, &width, &height)
         return false
 
-    return (
-        Abs(x - placement.x) <= placement_stabilize_tolerance
+    return (Abs(x - placement.x) <= placement_stabilize_tolerance
         && Abs(y - placement.y) <= placement_stabilize_tolerance
         && Abs(width - placement.width) <= placement_stabilize_tolerance
-        && Abs(height - placement.height) <= placement_stabilize_tolerance
-    )
+        && Abs(height - placement.height) <= placement_stabilize_tolerance)
 }
 
 
@@ -330,11 +305,8 @@ PlaceHandledWindowReshow(request)
 
         hint_age := (A_TickCount - request.hint.tick) & 0xFFFFFFFF
         if hint_age > handled_reshow_hint_max_age_ms {
-            DebugLog(
-                "Handled window " request.intent_kind " re-show skipped."
-                . " | reason=intent-expired"
-                . " | target=" DebugDescribeWindow(request.hwnd)
-            )
+            DebugLog("Handled window " request.intent_kind " re-show skipped."
+                . " | reason=intent-expired" . " | target=" DebugDescribeWindow(request.hwnd))
             return
         }
 
@@ -354,13 +326,9 @@ PlaceHandledWindowReshow(request)
             && DllCall("GetForegroundWindow", "ptr") != hwnd
         {
             keep_intent := request.trigger = "show"
-            DebugLog(
-                "Handled window explorer-space re-show "
-                . (keep_intent ? "waiting." : "skipped.")
-                . " | reason=target-not-foreground"
-                . " | trigger=" request.trigger
-                . " | target=" DebugDescribeWindow(hwnd)
-            )
+            DebugLog("Handled window explorer-space re-show "
+                . (keep_intent ? "waiting." : "skipped.") . " | reason=target-not-foreground"
+                . " | trigger=" request.trigger . " | target=" DebugDescribeWindow(hwnd))
             return
         }
 
@@ -382,68 +350,44 @@ PlaceHandledWindowReshow(request)
         ; A trusted re-show may repair placement, but it is not permission to
         ; undo an application/user maximize or minimize state.
         if WinGetMinMax(hwnd) != 0 {
-            DebugLog(
-                "Handled window " request.intent_kind " re-show placement skipped."
-                . " | mode=" mode
-                . " | reason=non-normal-state"
-                . " | target=" DebugDescribeWindow(hwnd)
-            )
+            DebugLog("Handled window " request.intent_kind " re-show placement skipped."
+                . " | mode=" mode . " | reason=non-normal-state"
+                . " | target=" DebugDescribeWindow(hwnd))
             return
         }
 
         if same_monitor {
             remembered := GetRememberedCascadePlacement(hwnd, target_monitor)
             if !IsObject(remembered) {
-                DebugLog(
-                    "Handled window " request.intent_kind " re-show placement skipped."
-                    . " | mode=" mode
-                    . " | reason=no-remembered-slot"
-                    . " | target=" DebugDescribeWindow(hwnd)
-                )
+                DebugLog("Handled window " request.intent_kind " re-show placement skipped."
+                    . " | mode=" mode . " | reason=no-remembered-slot"
+                    . " | target=" DebugDescribeWindow(hwnd))
                 return
             }
             if HandledWindowReshowMatchesRememberedPlacement(hwnd, remembered) {
-                DebugLog(
-                    "Handled window " request.intent_kind " re-show placement skipped."
-                    . " | mode=" mode
-                    . " | reason=already-matched"
-                    . " | target=" DebugDescribeWindow(hwnd)
-                )
+                DebugLog("Handled window " request.intent_kind " re-show placement skipped."
+                    . " | mode=" mode . " | reason=already-matched"
+                    . " | target=" DebugDescribeWindow(hwnd))
                 return
             }
             requested_position := [remembered.x, remembered.y]
             preserve_membership_order := true
         }
 
-        DebugLog(
-            "Handled window " request.intent_kind " re-show placement begin."
-            . " | mode=" mode
-            . " | from-monitor=" source_monitor
-            . " | target-monitor=" target_monitor
-            . " | target=" DebugDescribeWindow(hwnd)
-        )
+        DebugLog("Handled window " request.intent_kind " re-show placement begin." . " | mode=" mode
+            . " | from-monitor=" source_monitor . " | target-monitor=" target_monitor
+            . " | target=" DebugDescribeWindow(hwnd))
 
-        placed := PlaceCascadeWindowOnMonitor(
-            hwnd,
-            target_monitor,
-            requested_position,
-            preserve_membership_order
-        )
+        placed := PlaceCascadeWindowOnMonitor(hwnd, target_monitor, requested_position,
+            preserve_membership_order)
 
         if placed {
-            DebugLog(
-                "Handled window " request.intent_kind " re-show placement complete."
-                . " | mode=" mode
-                . " | monitor=" target_monitor
-                . " | " DebugDescribeWindow(hwnd)
-            )
+            DebugLog("Handled window " request.intent_kind " re-show placement complete."
+                . " | mode=" mode . " | monitor=" target_monitor . " | " DebugDescribeWindow(hwnd))
         } else {
-            DebugLog(
-                "Handled window " request.intent_kind " re-show placement skipped."
-                . " | mode=" mode
-                . " | target-monitor=" target_monitor
-                . " | " DebugDescribeWindow(hwnd)
-            )
+            DebugLog("Handled window " request.intent_kind " re-show placement skipped."
+                . " | mode=" mode . " | target-monitor=" target_monitor
+                . " | " DebugDescribeWindow(hwnd))
         }
     }
     catch Error as err {
@@ -475,10 +419,7 @@ WatchForMissedWindows()
         known_windows[hwnd] := true
 
         if SuiteState.Log.verbose {
-            DebugLog(
-                "Poll discovered HWND."
-                . " | " DebugDescribeWindow(hwnd)
-            )
+            DebugLog("Poll discovered HWND." . " | " DebugDescribeWindow(hwnd))
         }
 
         if pending_windows.Has(hwnd) || handled_windows.Has(hwnd)
@@ -486,10 +427,7 @@ WatchForMissedWindows()
 
         if !IsPlausibleTopLevelWindow(hwnd) {
             if SuiteState.Log.verbose {
-                DebugLog(
-                    "Poll rejected by top-level prefilter."
-                    . " | " DebugDescribeWindow(hwnd)
-                )
+                DebugLog("Poll rejected by top-level prefilter." . " | " DebugDescribeWindow(hwnd))
             }
             continue
         }
@@ -562,78 +500,33 @@ StartWindowHooks()
 
     win_event_callback := CallbackCreate(HandleWinEvent)
 
-    foreground_hook := DllCall(
-        "SetWinEventHook",
-        "uint", EVENT_SYSTEM_FOREGROUND,
-        "uint", EVENT_SYSTEM_FOREGROUND,
-        "ptr", 0,
-        "ptr", win_event_callback,
-        "uint", 0,
-        "uint", 0,
-        "uint", flags,
-        "ptr"
-    )
+    foreground_hook := DllCall("SetWinEventHook", "uint", EVENT_SYSTEM_FOREGROUND,
+        "uint", EVENT_SYSTEM_FOREGROUND, "ptr", 0, "ptr", win_event_callback, "uint", 0, "uint", 0,
+        "uint", flags, "ptr")
 
 
-    window_show_hook := DllCall(
-        "SetWinEventHook",
-        "uint", EVENT_OBJECT_SHOW,
-        "uint", EVENT_OBJECT_SHOW,
-        "ptr", 0,
-        "ptr", win_event_callback,
-        "uint", 0,
-        "uint", 0,
-        "uint", flags,
-        "ptr"
-    )
+    window_show_hook := DllCall("SetWinEventHook", "uint", EVENT_OBJECT_SHOW,
+        "uint", EVENT_OBJECT_SHOW, "ptr", 0, "ptr", win_event_callback, "uint", 0, "uint", 0,
+        "uint", flags, "ptr")
 
 
-    window_destroy_hook := DllCall(
-        "SetWinEventHook",
-        "uint", EVENT_OBJECT_DESTROY,
-        "uint", EVENT_OBJECT_DESTROY,
-        "ptr", 0,
-        "ptr", win_event_callback,
-        "uint", 0,
-        "uint", 0,
-        "uint", flags,
-        "ptr"
-    )
+    window_destroy_hook := DllCall("SetWinEventHook", "uint", EVENT_OBJECT_DESTROY,
+        "uint", EVENT_OBJECT_DESTROY, "ptr", 0, "ptr", win_event_callback, "uint", 0, "uint", 0,
+        "uint", flags, "ptr")
 
 
-    window_move_size_hook := DllCall(
-        "SetWinEventHook",
-        "uint", EVENT_SYSTEM_MOVESIZESTART,
-        "uint", EVENT_SYSTEM_MOVESIZEEND,
-        "ptr", 0,
-        "ptr", win_event_callback,
-        "uint", 0,
-        "uint", 0,
-        "uint", flags,
-        "ptr"
-    )
+    window_move_size_hook := DllCall("SetWinEventHook", "uint", EVENT_SYSTEM_MOVESIZESTART,
+        "uint", EVENT_SYSTEM_MOVESIZEEND, "ptr", 0, "ptr", win_event_callback, "uint", 0, "uint", 0,
+        "uint", flags, "ptr")
 
     ; MINIMIZEEND announces a restore, not settled geometry. The shared
     ; completion watcher confirms readiness before requesting compaction.
-    window_restore_hook := DllCall(
-        "SetWinEventHook",
-        "uint", EVENT_SYSTEM_MINIMIZESTART,
-        "uint", EVENT_SYSTEM_MINIMIZEEND,
-        "ptr", 0,
-        "ptr", win_event_callback,
-        "uint", 0,
-        "uint", 0,
-        "uint", flags,
-        "ptr"
-    )
+    window_restore_hook := DllCall("SetWinEventHook", "uint", EVENT_SYSTEM_MINIMIZESTART,
+        "uint", EVENT_SYSTEM_MINIMIZEEND, "ptr", 0, "ptr", win_event_callback, "uint", 0, "uint", 0,
+        "uint", flags, "ptr")
 
-    if (
-        !foreground_hook
-        || !window_show_hook
-        || !window_destroy_hook
-        || !window_move_size_hook
-        || !window_restore_hook
-    ) {
+    if (!foreground_hook || !window_show_hook || !window_destroy_hook || !window_move_size_hook
+        || !window_restore_hook) {
 
         MsgBox(
             "Could not install all Windows event hooks.`n`n"
@@ -690,15 +583,7 @@ StopWindowHooks()
     }
 }
 
-HandleWinEvent(
-    hook_handle,
-    event,
-    hwnd,
-    object_id,
-    child_id,
-    event_thread,
-    event_time
-)
+HandleWinEvent(hook_handle, event, hwnd, object_id, child_id, event_thread, event_time)
 {
     global current_foreground_hwnd, previous_foreground_hwnd
     global pending_windows, handled_windows
@@ -722,12 +607,8 @@ HandleWinEvent(
                 previous_foreground_hwnd := current_foreground_hwnd
                 current_foreground_hwnd := hwnd
 
-                DebugLog(
-                    "Foreground changed."
-                    . " | current=" DebugDescribeWindow(hwnd)
-                    . " | previous="
-                    . DebugDescribeWindow(previous_foreground_hwnd)
-                )
+                DebugLog("Foreground changed." . " | current=" DebugDescribeWindow(hwnd)
+                    . " | previous=" . DebugDescribeWindow(previous_foreground_hwnd))
 
             }
 
@@ -754,10 +635,7 @@ HandleWinEvent(
             if SuiteState.Log.verbose
                 && (was_managed || pending_windows.Has(hwnd) || handled_windows.Has(hwnd))
             {
-                DebugLog(
-                    "Destroy event."
-                    . " | " DebugDescribeWindow(hwnd)
-                )
+                DebugLog("Destroy event." . " | " DebugDescribeWindow(hwnd))
             }
 
             ForgetWindow(hwnd)
@@ -805,12 +683,8 @@ HandleWinEvent(
             QueueFocusCornerUpdate()
 
         if SuiteState.Log.verbose {
-            DebugLog(
-                "Show event."
-                . " | pending=" pending_windows.Has(hwnd)
-                . " | handled=" handled_windows.Has(hwnd)
-                . " | " DebugDescribeWindow(hwnd)
-            )
+            DebugLog("Show event." . " | pending=" pending_windows.Has(hwnd)
+                . " | handled=" handled_windows.Has(hwnd) . " | " DebugDescribeWindow(hwnd))
         }
 
         ; Some already-managed apps re-show the same HWND rather than creating
@@ -825,10 +699,8 @@ HandleWinEvent(
             explicit_monitor := CascadeTakeHiddenStartupExplorerReveal(hwnd)
             if !explicit_monitor {
                 if SuiteState.Log.verbose {
-                    DebugLog(
-                        "Show event skipped: window existed at script startup."
-                        . " | " DebugDescribeWindow(hwnd)
-                    )
+                    DebugLog("Show event skipped: window existed at script startup."
+                        . " | " DebugDescribeWindow(hwnd))
                 }
                 return
             }
@@ -857,11 +729,8 @@ HandleWinEvent(
         if source_hwnd = hwnd
             source_hwnd := previous_foreground_hwnd
 
-        DebugLog(
-            "Show event accepted."
-            . " | target=" DebugDescribeWindow(hwnd)
-            . " | source=" DebugDescribeWindow(source_hwnd)
-        )
+        DebugLog("Show event accepted." . " | target=" DebugDescribeWindow(hwnd)
+            . " | source=" DebugDescribeWindow(source_hwnd))
 
         QueueWindowPlacement(hwnd, source_hwnd, explicit_monitor)
     }

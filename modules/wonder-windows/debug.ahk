@@ -33,13 +33,7 @@ WW_DebugDescribeWindow(hwnd)
     try style := WinGetStyle(hwnd)
     try ex_style := WinGetExStyle(hwnd)
 
-    try WinGetPos(
-        &x,
-        &y,
-        &width,
-        &height,
-        hwnd
-    )
+    try WinGetPos(&x, &y, &width, &height, hwnd)
 
     title := StrReplace(
         StrReplace(title, "`r", " "),
@@ -48,46 +42,21 @@ WW_DebugDescribeWindow(hwnd)
     )
 
     visible :=
-        DllCall(
-            "IsWindowVisible",
-            "ptr", hwnd,
-            "int"
-        )
+        DllCall("IsWindowVisible", "ptr", hwnd, "int")
 
     iconic :=
-        DllCall(
-            "IsIconic",
-            "ptr", hwnd,
-            "int"
-        )
+        DllCall("IsIconic", "ptr", hwnd, "int")
 
     owner :=
-        DllCall(
-            "GetWindow",
-            "ptr", hwnd,
-            "uint", 4,
-            "ptr"
-        )
+        DllCall("GetWindow", "ptr", hwnd, "uint", 4, "ptr")
 
     cloaked := false
 
     try cloaked :=
         IsWindowCloaked(hwnd)
 
-    return (
-        "hwnd=" hwnd
-        . ' exe="' process_name '"'
-        . ' class="' class_name '"'
-        . ' title="' title '"'
-        . " minmax=" min_max
-        . " visible=" visible
-        . " iconic=" iconic
-        . " cloaked=" cloaked
-        . " owner=" owner
-        . " style=" style
-        . " exstyle=" ex_style
-        . " rect=(" x "," y " "
-        . width "x" height ")"
-        . ' path="' process_path '"'
-    )
+    return ("hwnd=" hwnd . ' exe="' process_name '"' . ' class="' class_name '"'
+        . ' title="' title '"' . " minmax=" min_max . " visible=" visible . " iconic=" iconic
+        . " cloaked=" cloaked . " owner=" owner . " style=" style . " exstyle=" ex_style
+        . " rect=(" x "," y " " . width "x" height ")" . ' path="' process_path '"')
 }

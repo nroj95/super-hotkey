@@ -28,13 +28,7 @@ WW_FocusNearestWindow(direction)
     }
 
     try {
-        WinGetPos(
-            &active_x,
-            &active_y,
-            &active_width,
-            &active_height,
-            "ahk_id " active_hwnd
-        )
+        WinGetPos(&active_x, &active_y, &active_width, &active_height, "ahk_id " active_hwnd)
     }
     catch {
         return
@@ -54,13 +48,8 @@ WW_FocusNearestWindow(direction)
             continue
 
         try {
-            WinGetPos(
-                &candidate_x,
-                &candidate_y,
-                &candidate_width,
-                &candidate_height,
-                "ahk_id " hwnd
-            )
+            WinGetPos(&candidate_x, &candidate_y, &candidate_width, &candidate_height,
+                "ahk_id " hwnd)
         }
         catch {
             continue
@@ -144,10 +133,7 @@ WW_FocusAfterMinimize(minimized_hwnd)
         if A_Index > 1
             Sleep 25
 
-        foreground_hwnd := DllCall(
-            "GetForegroundWindow",
-            "ptr"
-        )
+        foreground_hwnd := DllCall("GetForegroundWindow", "ptr")
 
         if foreground_hwnd != minimized_hwnd
             && WW_IsWindowToggleCandidate(foreground_hwnd)

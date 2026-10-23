@@ -151,9 +151,8 @@ class SuiteReleaseChecks {
             SuiteShowCentered(source, 320, 240)
             SuiteShowCentered(target, 340, 260)
             sourceMonitor := GetMonitorForWindow(source.Hwnd)
-            cascade_displays[sourceMonitor] := {device: MonitorGetName(sourceMonitor)}
             WinMinimize(source.Hwnd)
-            this.Assert(GetCascadeSourceMonitor(source.Hwnd) = sourceMonitor,
+            this.Assert(WindowMonitorIndex(source.Hwnd) = sourceMonitor,
                 "a minimized source retains its restored monitor")
             WinRestore(source.Hwnd)
 

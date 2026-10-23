@@ -40,56 +40,13 @@ WW_WindowStateMatchesProcess(hwnd, saved)
 WW_IsWindowToggleCandidate(hwnd, include_minimized := false)
 {
     if !SuiteWindowOwnership.AllowsWonderWindows(hwnd)
+        || !DllCall("IsWindowVisible", "ptr", hwnd, "int")
+        || !IsTopLevelAppWindow(hwnd) || IsWindowCloaked(hwnd)
         return false
 
-    if !DllCall("IsWindowVisible", "ptr", hwnd, "int")
-        return false
-
-    root_hwnd := DllCall(
-        "GetAncestor",
-        "ptr", hwnd,
-        "uint", 2, ; GA_ROOT
-        "ptr"
-    )
-
-    if root_hwnd != hwnd
-        return false
-
-    try {
-        if !include_minimized && WinGetMinMax("ahk_id " hwnd) = -1
-            return false
-
-        style := WinGetStyle("ahk_id " hwnd)
-        ex_style := WinGetExStyle("ahk_id " hwnd)
-        title := WinGetTitle("ahk_id " hwnd)
-        class_name := WinGetClass("ahk_id " hwnd)
-    }
-    catch {
-        return false
-    }
-
-    if title = ""
-        return false
-
-    if style & 0x40000000 ; WS_CHILD
-        return false
-
-    if ex_style & 0x00000080 ; WS_EX_TOOLWINDOW
-        return false
-
-    if ex_style & 0x08000000 ; WS_EX_NOACTIVATE
-        return false
-
-    if DllCall("GetWindow", "ptr", hwnd, "uint", 4, "ptr") ; GW_OWNER
-        return false
-
-    if IsShellSurfaceClass(class_name)
-        return false
-
-    if IsWindowCloaked(hwnd)
-        return false
-
-    return true
+    try return (include_minimized || WinGetMinMax("ahk_id " hwnd) != -1)
+        && WinGetTitle("ahk_id " hwnd) != ""
+    return false
 }
 
 ; =============================================================================
@@ -130,11 +87,7 @@ WW_GetWindowMonitorInfo(hwnd)
     monitor_info := Buffer(40, 0)
     NumPut("uint", monitor_info.Size, monitor_info, 0)
 
-    if !DllCall(
-        "GetMonitorInfo",
-        "ptr", monitor_handle,
-        "ptr", monitor_info
-    ) {
+    if !DllCall("GetMonitorInfo", "ptr", monitor_handle, "ptr", monitor_info) {
         throw OSError()
     }
 
@@ -150,12 +103,7 @@ WW_CaptureWindowPlacement(hwnd)
     placement := Buffer(44, 0)
     NumPut("uint", placement.Size, placement, 0)
 
-    if !DllCall(
-        "GetWindowPlacement",
-        "ptr", hwnd,
-        "ptr", placement,
-        "int"
-    ) {
+    if !DllCall("GetWindowPlacement", "ptr", hwnd, "ptr", placement, "int") {
         throw OSError()
     }
 
@@ -165,38 +113,19 @@ WW_CaptureWindowPlacement(hwnd)
 WW_ApplyWindowPlacement(hwnd, placement, show_command := unset)
 {
     SuiteWindowOwnership.Claim(hwnd)
-    original_show_command := NumGet(
-        placement,
-        8,
-        "uint"
-    )
+    original_show_command := NumGet(placement, 8, "uint")
 
     try {
         if IsSet(show_command)
-            NumPut(
-                "uint",
-                show_command,
-                placement,
-                8
-            )
+            NumPut("uint", show_command, placement, 8)
 
-        if !DllCall(
-            "SetWindowPlacement",
-            "ptr", hwnd,
-            "ptr", placement,
-            "int"
-        ) {
+        if !DllCall("SetWindowPlacement", "ptr", hwnd, "ptr", placement, "int") {
             throw OSError()
         }
     }
     finally {
         if IsSet(show_command)
-            NumPut(
-                "uint",
-                original_show_command,
-                placement,
-                8
-            )
+            NumPut("uint", original_show_command, placement, 8)
     }
 }
 
@@ -212,10 +141,7 @@ WW_ActivateWindowReliably(hwnd)
     if WinActive(hwnd) && !DllCall("IsIconic", "ptr", hwnd, "int")
         return true
 
-    WW_DebugLog(
-        "ActivateWindowReliably begin."
-        . " | target=" WW_DebugDescribeWindow(hwnd)
-    )
+    WW_DebugLog("ActivateWindowReliably begin." . " | target=" WW_DebugDescribeWindow(hwnd))
 
     try {
         if WinGetMinMax(hwnd) = -1
@@ -229,26 +155,17 @@ WW_ActivateWindowReliably(hwnd)
         if WinActive(hwnd)
             return true
 
-        set_foreground_result := DllCall(
-            "SetForegroundWindow",
-            "ptr", hwnd,
-            "int"
-        )
+        set_foreground_result := DllCall("SetForegroundWindow", "ptr", hwnd, "int")
 
         Sleep 50
 
         foreground_hwnd :=
             DllCall("GetForegroundWindow", "ptr")
 
-        WW_DebugLog(
-            "Normal-window activation attempt."
-            . " | attempt=" attempt
-            . " | SetForegroundWindow="
-            . set_foreground_result
-            . " | requested=" WW_DebugDescribeWindow(hwnd)
-            . " | foreground="
-            . WW_DebugDescribeWindow(foreground_hwnd)
-        )
+        WW_DebugLog("Normal-window activation attempt." . " | attempt=" attempt
+            . " | SetForegroundWindow=" . set_foreground_result
+            . " | requested=" WW_DebugDescribeWindow(hwnd) . " | foreground="
+            . WW_DebugDescribeWindow(foreground_hwnd))
 
         if foreground_hwnd = hwnd
             return true
@@ -281,27 +198,10 @@ WW_MoveWindowToVisibleRectangle(hwnd, target)
         return false
 
     try {
-        WinGetPos(&raw_x, &raw_y, &raw_width, &raw_height, hwnd)
-        if !GetVisibleWindowBounds(hwnd, &visible_x, &visible_y, &visible_width, &visible_height) {
-            visible_x := raw_x
-            visible_y := raw_y
-            visible_width := raw_width
-            visible_height := raw_height
-        }
-
         ; DWM's visible frame excludes the invisible resize borders. Compensate
         ; for all four so tiled windows visually meet the requested boundaries.
-        inset_left := visible_x - raw_x
-        inset_top := visible_y - raw_y
-        inset_right := raw_x + raw_width - visible_x - visible_width
-        inset_bottom := raw_y + raw_height - visible_y - visible_height
-        WinMove(
-            target[1] - inset_left,
-            target[2] - inset_top,
-            target[3] + inset_left + inset_right,
-            target[4] + inset_top + inset_bottom,
-            hwnd
-        )
+        raw := VisibleToRawRect(hwnd, target*)
+        WinMove(raw[1], raw[2], raw[3], raw[4], hwnd)
         Sleep 10
         return true
     }

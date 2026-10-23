@@ -69,17 +69,11 @@ WW_CycleMaximizedFullscreenWindows()
     }
 
     active_hwnd := WinExist("A")
-    target_hwnd := WW_NextMaximizedFullscreenWindow(
-        WW_maximized_fullscreen_cycle,
-        active_hwnd,
-        WW_last_maximized_fullscreen_hwnd
-    )
+    target_hwnd := WW_NextMaximizedFullscreenWindow(WW_maximized_fullscreen_cycle, active_hwnd,
+        WW_last_maximized_fullscreen_hwnd)
 
-    WW_DebugLog(
-        "Expanded-window cycle step."
-        . " | from=" WW_DebugDescribeWindow(active_hwnd)
-        . " | to=" WW_DebugDescribeWindow(target_hwnd)
-    )
+    WW_DebugLog("Expanded-window cycle step." . " | from=" WW_DebugDescribeWindow(active_hwnd)
+        . " | to=" WW_DebugDescribeWindow(target_hwnd))
 
     if WW_ShowMaximizedFullscreenCycleWindow(WW_maximized_fullscreen_cycle, target_hwnd)
         WW_last_maximized_fullscreen_hwnd := target_hwnd
@@ -182,40 +176,20 @@ WW_WindowPlacementFillsPhysicalMonitor(placement, monitor_info, tolerance := 2)
 WW_WindowFillsPhysicalMonitor(hwnd, tolerance := 2)
 {
     try {
-        if !GetVisibleWindowBounds(
-            hwnd,
-            &window_x,
-            &window_y,
-            &window_width,
-            &window_height
-        ) {
-            WinGetPos(
-                &window_x,
-                &window_y,
-                &window_width,
-                &window_height,
-                "ahk_id " hwnd
-            )
+        if !GetVisibleWindowBounds(hwnd, &window_x, &window_y, &window_width, &window_height) {
+            WinGetPos(&window_x, &window_y, &window_width, &window_height, "ahk_id " hwnd)
         }
 
-        WW_GetWindowMonitorBounds(
-            hwnd,
-            &monitor_left,
-            &monitor_top,
-            &monitor_right,
-            &monitor_bottom
+        WW_GetWindowMonitorBounds(hwnd, &monitor_left, &monitor_top, &monitor_right, &monitor_bottom
         )
     }
     catch {
         return false
     }
 
-    return (
-        Abs(window_x - monitor_left) <= tolerance
-        && Abs(window_y - monitor_top) <= tolerance
+    return (Abs(window_x - monitor_left) <= tolerance && Abs(window_y - monitor_top) <= tolerance
         && Abs(window_x + window_width - monitor_right) <= tolerance
-        && Abs(window_y + window_height - monitor_bottom) <= tolerance
-    )
+        && Abs(window_y + window_height - monitor_bottom) <= tolerance)
 }
 
 WW_ShowMaximizedFullscreenCycleWindow(windows, target_hwnd)

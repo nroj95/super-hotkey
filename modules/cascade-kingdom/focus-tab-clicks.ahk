@@ -138,11 +138,7 @@ ActivateFocusTabClick(press)
         if ordered_windows[1] = press.active_hwnd {
             ; Merely activating the second window would alternate the first two.
             ; Rotate the whole stack so A -> B -> C -> A visits every layer.
-            RotateCascadeSlotForWindow(
-                press.active_hwnd,
-                1,
-                monitor_index,
-                stack_info["slot_index"]
+            RotateCascadeSlotForWindow(press.active_hwnd, 1, monitor_index, stack_info["slot_index"]
             )
         } else {
             WinActivate(target_hwnd)

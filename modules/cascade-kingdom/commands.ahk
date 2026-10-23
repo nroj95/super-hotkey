@@ -65,27 +65,15 @@ CaptureAdoptionUndoSnapshot(hwnd)
     try {
         ; Keep the maximized state AND its original normal restore rectangle.
         maximized_placement := WinGetMinMax(hwnd) = 1 ? WW_CaptureWindowPlacement(hwnd) : 0
-        WinGetPosPixels(
-            &window_x,
-            &window_y,
-            &window_width,
-            &window_height,
-            "ahk_id " hwnd
-        )
+        WinGetPosPixels(&window_x, &window_y, &window_width, &window_height, "ahk_id " hwnd)
     }
     catch {
         return 0
     }
 
-    return Map(
-        "hwnd", hwnd,
-        "x", window_x,
-        "y", window_y,
-        "width", window_width,
-        "height", window_height,
-        "was_handled", handled_windows.Has(hwnd),
-        "maximized_placement", maximized_placement
-    )
+    return Map("hwnd", hwnd, "x", window_x, "y", window_y, "width", window_width,
+        "height", window_height, "was_handled", handled_windows.Has(hwnd),
+        "maximized_placement", maximized_placement)
 }
 
 IsPendingAdoptionUndoFor(hwnd)
@@ -130,13 +118,8 @@ UndoPendingAdoption()
                 "ptr", snapshot["maximized_placement"], "int")
                 throw OSError()
         } else {
-            WinMovePixels(
-                snapshot["x"],
-                snapshot["y"],
-                snapshot["width"],
-                snapshot["height"],
-                "ahk_id " hwnd
-            )
+            WinMovePixels(snapshot["x"], snapshot["y"], snapshot["width"], snapshot["height"],
+                "ahk_id " hwnd)
         }
     }
     catch {
@@ -371,10 +354,7 @@ IsCascadeCloseBatchActive(monitor_index)
 {
     global cascade_close_batches
 
-    return (
-        monitor_index
-        && cascade_close_batches.Has(monitor_index)
-    )
+    return (monitor_index && cascade_close_batches.Has(monitor_index))
 }
 
 
@@ -574,10 +554,8 @@ WatchCascadeWindowRestores()
                     continue
                 }
                 WinGetPosPixels(&raw_x, &raw_y, &raw_width, &raw_height, hwnd)
-                snapshot .= (
-                    hwnd ":" x "," y "," width "," height
-                    . ":" raw_x "," raw_y "," raw_width "," raw_height "|"
-                )
+                snapshot .= (hwnd ":" x "," y "," width "," height
+                    . ":" raw_x "," raw_y "," raw_width "," raw_height "|")
             }
             catch {
                 ready := false

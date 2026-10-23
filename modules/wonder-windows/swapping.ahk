@@ -141,12 +141,7 @@ WW_IsWindowSwapCandidate(hwnd, monitor_handle)
     if IsWindowCloaked(hwnd)
         return false
 
-    candidate_monitor := DllCall(
-        "MonitorFromWindow",
-        "ptr", hwnd,
-        "uint", 2,
-        "ptr"
-    )
+    candidate_monitor := DllCall("MonitorFromWindow", "ptr", hwnd, "uint", 2, "ptr")
 
     return candidate_monitor = monitor_handle
 }
@@ -219,13 +214,9 @@ WW_SaveSwapZone(hwnd, zone)
         WW_DebugLog("Could not mark a logical swap zone. hwnd=" hwnd)
         return
     }
-    WW_swap_zones[hwnd] := Map(
-        "pid", WinGetPID(hwnd),
+    WW_swap_zones[hwnd] := Map("pid", WinGetPID(hwnd),
         "monitor", DllCall("MonitorFromWindow", "ptr", hwnd, "uint", 2, "ptr"),
-        "work_area", WW_GetLayoutWorkArea(hwnd),
-        "zone", zone.Clone(),
-        "applied", actual
-    )
+        "work_area", WW_GetLayoutWorkArea(hwnd), "zone", zone.Clone(), "applied", actual)
 }
 
 WW_SwapWindowRectangles(first_hwnd, second_hwnd)

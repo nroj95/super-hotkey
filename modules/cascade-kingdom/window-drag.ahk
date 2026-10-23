@@ -244,11 +244,8 @@ WatchCascadeWindowDrag()
                 }
 
                 drag.cancelled := true
-                DebugLog(
-                    "Cascade drag abandoned after native state query failure."
-                    . " | elapsed-ms=" unknown_elapsed_ms
-                    . " | hwnd=" drag.hwnd
-                )
+                DebugLog("Cascade drag abandoned after native state query failure."
+                    . " | elapsed-ms=" unknown_elapsed_ms . " | hwnd=" drag.hwnd)
             } else {
                 drag.native_state_unknown_since := 0
             }
@@ -334,9 +331,7 @@ CompleteCascadeWindowDrop(drag)
         return
 
     geometry := GetCanonicalCascadeGeometry(monitor_index)
-    slot_index := FindNearestCascadeSlot(
-        frame_x, frame_y, geometry.slots, cascade_slot_tolerance
-    )
+    slot_index := FindNearestCascadeSlot(frame_x, frame_y, geometry.slots, cascade_slot_tolerance)
 
     if slot_index && HasCascadeDropDestination(monitor_index) {
         if PlaceCascadeWindowOnMonitor(hwnd, monitor_index, geometry.slots[slot_index]) {

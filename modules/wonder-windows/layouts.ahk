@@ -30,17 +30,8 @@ WW_StretchWindowVertically()
             WinRestore(window)
         }
 
-        if !WW_GetVerticalStretchGeometry(
-            hwnd,
-            &raw_x,
-            &raw_y,
-            &raw_width,
-            &raw_height,
-            &visible_top,
-            &visible_bottom,
-            &inset_top,
-            &inset_bottom
-        ) {
+        if !WW_GetVerticalStretchGeometry(hwnd, &raw_x, &raw_y, &raw_width, &raw_height,
+            &visible_top, &visible_bottom, &inset_top, &inset_bottom) {
             return
         }
 
@@ -51,32 +42,20 @@ WW_StretchWindowVertically()
             "ptr"
         )
 
-        WW_GetWindowMonitorWorkArea(
-            hwnd,
-            &work_left,
-            &work_top,
-            &work_right,
-            &work_bottom
-        )
+        WW_GetWindowMonitorWorkArea(hwnd, &work_left, &work_top, &work_right, &work_bottom)
 
         if !WW_vertical_stretch_windows.Has(hwnd)
             || !WW_IsStretchStateCurrent(hwnd, WW_vertical_stretch_windows[hwnd], monitor_handle,
                 [work_left, work_top, work_right, work_bottom])
         {
-            WW_vertical_stretch_windows[hwnd] := Map(
-                "pid", WinGetPID(hwnd),
+            WW_vertical_stretch_windows[hwnd] := Map("pid", WinGetPID(hwnd),
                 "monitor", monitor_handle,
                 "work_area", [work_left, work_top, work_right, work_bottom],
-                "original_top", visible_top,
-                "original_bottom", visible_bottom
-            )
+                "original_top", visible_top, "original_bottom", visible_bottom)
         }
 
-        bounds := WW_GetCollisionLimitedVerticalBounds(
-            WW_GetWindowLayoutRectangle(hwnd),
-            WW_GetHorizontalStretchObstacles(hwnd, monitor_handle),
-            work_top, work_bottom
-        )
+        bounds := WW_GetCollisionLimitedVerticalBounds(WW_GetWindowLayoutRectangle(hwnd),
+            WW_GetHorizontalStretchObstacles(hwnd, monitor_handle), work_top, work_bottom)
         if !WW_MoveWindowToVisibleVerticalBounds(hwnd, bounds[1], bounds[2]) {
             WW_DebugLog(
                 "Vertical stretch move failed; preserving restore state. hwnd="
@@ -190,11 +169,8 @@ WW_ResetWindowStretch()
         if !WW_IsStretchStateCurrent(hwnd, vertical_state, current_monitor) {
             WW_ForgetVerticalStretch(hwnd)
             WW_DebugLog("Discarded stale vertical stretch state. hwnd=" hwnd)
-        } else if WW_MoveWindowToVisibleVerticalBounds(
-            hwnd,
-            vertical_state["original_top"],
-            vertical_state["original_bottom"]
-        ) {
+        } else if WW_MoveWindowToVisibleVerticalBounds(hwnd, vertical_state["original_top"],
+            vertical_state["original_bottom"]) {
             WW_ForgetVerticalStretch(hwnd)
         } else {
             WW_DebugLog(
@@ -215,17 +191,8 @@ WW_ResetWindowStretch()
         return
     }
 
-    if !WW_GetHorizontalStretchGeometry(
-        hwnd,
-        &raw_x,
-        &raw_y,
-        &raw_width,
-        &raw_height,
-        &visible_left,
-        &visible_right,
-        &inset_left,
-        &inset_right
-    ) {
+    if !WW_GetHorizontalStretchGeometry(hwnd, &raw_x, &raw_y, &raw_width, &raw_height,
+        &visible_left, &visible_right, &inset_left, &inset_right) {
         WW_DebugLog(
             "Horizontal stretch reset could not read geometry; "
             . "preserving state. hwnd=" . hwnd
@@ -235,23 +202,13 @@ WW_ResetWindowStretch()
 
     ; Only restore edges that are actually stretched. The opposite live edge is
     ; left untouched if only one side was stretched.
-    target_visible_left := (
-        horizontal_state["left_stretched"]
-        ? horizontal_state["original_left"]
-        : visible_left
-    )
+    target_visible_left := (horizontal_state["left_stretched"] ? horizontal_state["original_left"]
+        : visible_left)
 
-    target_visible_right := (
-        horizontal_state["right_stretched"]
-        ? horizontal_state["original_right"]
-        : visible_right
-    )
+    target_visible_right := (horizontal_state["right_stretched"]
+        ? horizontal_state["original_right"] : visible_right)
 
-    if WW_MoveWindowToVisibleHorizontalBounds(
-        hwnd,
-        target_visible_left,
-        target_visible_right
-    ) {
+    if WW_MoveWindowToVisibleHorizontalBounds(hwnd, target_visible_left, target_visible_right) {
         WW_ForgetHorizontalStretch(hwnd)
     } else {
         WW_DebugLog(
@@ -290,17 +247,8 @@ WW_ToggleHorizontalStretch(side)
             WinRestore(window)
         }
 
-        if !WW_GetHorizontalStretchGeometry(
-            hwnd,
-            &raw_x,
-            &raw_y,
-            &raw_width,
-            &raw_height,
-            &visible_left,
-            &visible_right,
-            &inset_left,
-            &inset_right
-        ) {
+        if !WW_GetHorizontalStretchGeometry(hwnd, &raw_x, &raw_y, &raw_width, &raw_height,
+            &visible_left, &visible_right, &inset_left, &inset_right) {
             return
         }
 
@@ -311,13 +259,7 @@ WW_ToggleHorizontalStretch(side)
             "ptr"
         )
 
-        WW_GetWindowMonitorWorkArea(
-            hwnd,
-            &work_left,
-            &work_top,
-            &work_right,
-            &work_bottom
-        )
+        WW_GetWindowMonitorWorkArea(hwnd, &work_left, &work_top, &work_right, &work_bottom)
 
         if !WW_horizontal_stretch_windows.Has(hwnd)
             || !WW_IsStretchStateCurrent(hwnd, WW_horizontal_stretch_windows[hwnd], monitor_handle,
@@ -325,15 +267,11 @@ WW_ToggleHorizontalStretch(side)
         {
             ; Save visible frame edges, not the raw HWND bounds. Windows 11's
             ; invisible resize border can extend beyond what the user sees.
-            WW_horizontal_stretch_windows[hwnd] := Map(
-                "pid", WinGetPID(hwnd),
+            WW_horizontal_stretch_windows[hwnd] := Map("pid", WinGetPID(hwnd),
                 "monitor", monitor_handle,
                 "work_area", [work_left, work_top, work_right, work_bottom],
-                "original_left", visible_left,
-                "original_right", visible_right,
-                "left_stretched", false,
-                "right_stretched", false
-            )
+                "original_left", visible_left, "original_right", visible_right,
+                "left_stretched", false, "right_stretched", false)
         }
 
         state := WW_horizontal_stretch_windows[hwnd]
@@ -349,38 +287,22 @@ WW_ToggleHorizontalStretch(side)
 
         if side = "left" {
             next_stretched := !state["left_stretched"]
-            original_edge := (
-                state["left_stretched"]
-                ? state["original_left"]
-                : visible_left
-            )
+            original_edge := (state["left_stretched"] ? state["original_left"] : visible_left)
 
-            target_visible_left := (
-                next_stretched
-                ? collision_edge
-                : original_edge
-            )
+            target_visible_left := (next_stretched ? collision_edge : original_edge)
 
             ; Left stretch owns only the left edge. Preserve the live right edge,
             ; including any active right stretch or manual resize.
             target_visible_right := visible_right
         } else {
             next_stretched := !state["right_stretched"]
-            original_edge := (
-                state["right_stretched"]
-                ? state["original_right"]
-                : visible_right
-            )
+            original_edge := (state["right_stretched"] ? state["original_right"] : visible_right)
 
             ; Right stretch owns only the right edge. Preserve the live left edge,
             ; including any active left stretch or manual resize.
             target_visible_left := visible_left
 
-            target_visible_right := (
-                next_stretched
-                ? collision_edge
-                : original_edge
-            )
+            target_visible_right := (next_stretched ? collision_edge : original_edge)
         }
 
         if next_stretched
@@ -395,10 +317,7 @@ WW_ToggleHorizontalStretch(side)
         ; Do not mutate or discard restore state until the geometry move succeeds.
         ; Otherwise a transient move failure can leave the window stretched with
         ; no remembered edge to restore.
-        if !WW_MoveWindowToVisibleHorizontalBounds(
-            hwnd,
-            target_visible_left,
-            target_visible_right
+        if !WW_MoveWindowToVisibleHorizontalBounds(hwnd, target_visible_left, target_visible_right
         ) {
             WW_DebugLog(
                 "Horizontal stretch toggle failed; preserving state. hwnd="
@@ -428,9 +347,7 @@ WW_GetHorizontalStretchObstacles(active_hwnd, monitor_handle)
     for hwnd in WinGetList() {
         if hwnd = active_hwnd || !WW_IsWindowToggleCandidate(hwnd)
             continue
-        candidate_monitor := DllCall(
-            "MonitorFromWindow", "ptr", hwnd, "uint", 2, "ptr"
-        )
+        candidate_monitor := DllCall("MonitorFromWindow", "ptr", hwnd, "uint", 2, "ptr")
         if candidate_monitor != monitor_handle
             continue
         try obstacles.Push(WW_GetWindowLayoutRectangle(hwnd))
@@ -438,106 +355,30 @@ WW_GetHorizontalStretchObstacles(active_hwnd, monitor_handle)
     return obstacles
 }
 
-WW_GetHorizontalStretchGeometry(
-    hwnd,
-    &raw_x,
-    &raw_y,
-    &raw_width,
-    &raw_height,
-    &visible_left,
-    &visible_right,
-    &inset_left,
-    &inset_right
-)
+WW_GetHorizontalStretchGeometry(hwnd, &raw_x, &raw_y, &raw_width, &raw_height, &visible_left,
+    &visible_right, &inset_left, &inset_right)
 {
-    try WinGetPos(
-        &raw_x,
-        &raw_y,
-        &raw_width,
-        &raw_height,
-        "ahk_id " hwnd
-    )
-    catch {
+    if !(frame := GetWindowFrame(hwnd))
         return false
-    }
-
-    if raw_width <= 0 || raw_height <= 0
-        return false
-
-    if GetVisibleWindowBounds(
-        hwnd,
-        &visible_x,
-        &visible_y,
-        &visible_width,
-        &visible_height
-    ) {
-        visible_left := visible_x
-        visible_right := visible_x + visible_width
-    } else {
-        ; DWM frame bounds are normally available. Fall back to the raw HWND
-        ; rectangle so the stretch still works on windows without them.
-        visible_left := raw_x
-        visible_right := raw_x + raw_width
-    }
-
-    inset_left := visible_left - raw_x
-    inset_right := (raw_x + raw_width) - visible_right
-
+    raw_x := frame.rawX, raw_y := frame.rawY, raw_width := frame.rawWidth, raw_height := frame.rawHeight
+    visible_left := frame.x, visible_right := frame.x + frame.width
+    inset_left := frame.left, inset_right := frame.right
     return true
 }
 
-WW_GetVerticalStretchGeometry(
-    hwnd,
-    &raw_x,
-    &raw_y,
-    &raw_width,
-    &raw_height,
-    &visible_top,
-    &visible_bottom,
-    &inset_top,
-    &inset_bottom
-)
+WW_GetVerticalStretchGeometry(hwnd, &raw_x, &raw_y, &raw_width, &raw_height, &visible_top,
+    &visible_bottom, &inset_top, &inset_bottom)
 {
-    try WinGetPos(
-        &raw_x,
-        &raw_y,
-        &raw_width,
-        &raw_height,
-        "ahk_id " hwnd
-    )
-    catch {
+    if !(frame := GetWindowFrame(hwnd))
         return false
-    }
-
-    if raw_width <= 0 || raw_height <= 0
-        return false
-
-    if GetVisibleWindowBounds(
-        hwnd,
-        &visible_x,
-        &visible_y,
-        &visible_width,
-        &visible_height
-    ) {
-        visible_top := visible_y
-        visible_bottom := visible_y + visible_height
-    } else {
-        visible_top := raw_y
-        visible_bottom := raw_y + raw_height
-    }
-
-    inset_top := visible_top - raw_y
-    inset_bottom := (raw_y + raw_height) - visible_bottom
-
+    raw_x := frame.rawX, raw_y := frame.rawY, raw_width := frame.rawWidth, raw_height := frame.rawHeight
+    visible_top := frame.y, visible_bottom := frame.y + frame.height
+    inset_top := frame.top, inset_bottom := frame.bottom
     return true
 }
 
 
-WW_MoveWindowToVisibleHorizontalBounds(
-    hwnd,
-    target_visible_left,
-    target_visible_right
-)
+WW_MoveWindowToVisibleHorizontalBounds(hwnd, target_visible_left, target_visible_right)
 {
     SuiteWindowOwnership.Claim(hwnd)
     target_visible_width :=
@@ -546,37 +387,18 @@ WW_MoveWindowToVisibleHorizontalBounds(
     if target_visible_width <= 0
         return false
 
-    if !WW_GetHorizontalStretchGeometry(
-        hwnd,
-        &raw_x,
-        &raw_y,
-        &raw_width,
-        &raw_height,
-        &visible_left,
-        &visible_right,
-        &inset_left,
-        &inset_right
-    ) {
+    if !WW_GetHorizontalStretchGeometry(hwnd, &raw_x, &raw_y, &raw_width, &raw_height,
+        &visible_left, &visible_right, &inset_left, &inset_right) {
         return false
     }
 
     raw_target_x := target_visible_left - inset_left
-    raw_target_width := (
-        target_visible_width
-        + inset_left
-        + inset_right
-    )
+    raw_target_width := (target_visible_width + inset_left + inset_right)
 
     if raw_target_width <= 0
         return false
 
-    try WinMove(
-        raw_target_x,
-        raw_y,
-        raw_target_width,
-        raw_height,
-        "ahk_id " hwnd
-    )
+    try WinMove(raw_target_x, raw_y, raw_target_width, raw_height, "ahk_id " hwnd)
     catch {
         return false
     }
@@ -585,10 +407,8 @@ WW_MoveWindowToVisibleHorizontalBounds(
     ; requested width. Verify both edges before committing the stretch state.
     Loop 3 {
         Sleep 10
-        if WW_GetHorizontalStretchGeometry(
-            hwnd, &check_x, &check_y, &check_width, &check_height,
-            &check_left, &check_right, &check_inset_left, &check_inset_right
-        ) {
+        if WW_GetHorizontalStretchGeometry(hwnd, &check_x, &check_y, &check_width, &check_height,
+            &check_left, &check_right, &check_inset_left, &check_inset_right) {
             if Abs(check_left - target_visible_left) <= 2
                 && Abs(check_right - target_visible_right) <= 2
             {
@@ -603,12 +423,8 @@ WW_MoveWindowToVisibleHorizontalBounds(
 }
 
 
-WW_MoveWindowToVisibleVerticalBounds(
-    hwnd,
-    target_visible_top,
-    target_visible_bottom,
-    render_overscan := 0
-)
+WW_MoveWindowToVisibleVerticalBounds(hwnd, target_visible_top, target_visible_bottom,
+    render_overscan := 0)
 {
     SuiteWindowOwnership.Claim(hwnd)
     effective_top := target_visible_top - render_overscan
@@ -616,10 +432,8 @@ WW_MoveWindowToVisibleVerticalBounds(
     if effective_bottom <= effective_top
         return false
 
-    if !WW_GetVerticalStretchGeometry(
-        hwnd, &raw_x, &raw_y, &raw_width, &raw_height,
-        &visible_top, &visible_bottom, &inset_top, &inset_bottom
-    ) {
+    if !WW_GetVerticalStretchGeometry(hwnd, &raw_x, &raw_y, &raw_width, &raw_height,
+        &visible_top, &visible_bottom, &inset_top, &inset_bottom) {
         return false
     }
 
@@ -634,10 +448,8 @@ WW_MoveWindowToVisibleVerticalBounds(
         ; A resizable app can still impose a minimum or maximum height.
         Loop 4 {
             Sleep 10
-            if !WW_GetVerticalStretchGeometry(
-                hwnd, &check_x, &check_y, &check_width, &check_height,
-                &check_top, &check_bottom, &check_inset_top, &check_inset_bottom
-            ) {
+            if !WW_GetVerticalStretchGeometry(hwnd, &check_x, &check_y, &check_width, &check_height,
+                &check_top, &check_bottom, &check_inset_top, &check_inset_bottom) {
                 break
             }
 
@@ -751,10 +563,8 @@ WW_PlaceCornerTile(position)
         side := parts[2]
         work_area := WW_GetLayoutWorkArea(hwnd)
         side_ratios := WW_GetSideCycleRatios(side)
-        layouts := [
-            WW_BuildRatioLayout(work_area, side_ratios[1], vertical_position),
-            WW_BuildRatioLayout(work_area, side_ratios[2], vertical_position)
-        ]
+        layouts := [WW_BuildRatioLayout(work_area, side_ratios[1], vertical_position),
+            WW_BuildRatioLayout(work_area, side_ratios[2], vertical_position)]
         family := "corner-" position
         index := fresh_entry ? 0 : WW_FindCurrentLayoutIndex(hwnd, family, work_area, layouts)
         WW_ApplyTrackedLayout(hwnd, family, work_area, layouts, WW_GetNextCycleIndex(index, 2))
@@ -774,11 +584,9 @@ WW_PlaceCenterTile(vertical_position)
     try {
         work_area := WW_GetLayoutWorkArea(hwnd)
         family := "center-" vertical_position
-        layouts := [
-            WW_BuildRatioLayout(work_area, [2, 4, 2], vertical_position),
+        layouts := [WW_BuildRatioLayout(work_area, [2, 4, 2], vertical_position),
             WW_BuildRatioLayout(work_area, [2, 2, 4], vertical_position),
-            WW_BuildRatioLayout(work_area, [4, 2, 2], vertical_position)
-        ]
+            WW_BuildRatioLayout(work_area, [4, 2, 2], vertical_position)]
         index := fresh_entry ? 0 : WW_FindCurrentLayoutIndex(hwnd, family, work_area, layouts)
         next_side := WW_GetNextCenterTileSide(hwnd, vertical_position)
         target_index := index = 1 ? (next_side = "left" ? 2 : 3) : 1
@@ -872,13 +680,9 @@ WW_ApplyTrackedLayout(hwnd, family, work_area, layouts, target_index)
 
     ; Store the actual result: an app may enforce a minimum size larger than a
     ; quarter-screen tile. That must not strand the cycle on its first step.
-    WW_layout_cycle_windows[hwnd] := Map(
-        "pid", WinGetPID(hwnd),
-        "family", family,
-        "work_area", work_area,
-        "index", target_index,
-        "actual_rect", WW_GetWindowLayoutRectangle(hwnd)
-    )
+    WW_layout_cycle_windows[hwnd] := Map("pid", WinGetPID(hwnd), "family", family,
+        "work_area", work_area, "index", target_index,
+        "actual_rect", WW_GetWindowLayoutRectangle(hwnd))
     return true
 }
 
@@ -889,9 +693,7 @@ WW_GetNextCenterTileSide(hwnd, vertical_position)
     if !WW_center_tile_next_sides.Has(hwnd)
         || WW_center_tile_next_sides[hwnd]["pid"] != process_id
     {
-        WW_center_tile_next_sides[hwnd] := Map(
-            "pid", process_id, "top", "left", "bottom", "left"
-        )
+        WW_center_tile_next_sides[hwnd] := Map("pid", process_id, "top", "left", "bottom", "left")
     }
     return WW_center_tile_next_sides[hwnd][vertical_position]
 }

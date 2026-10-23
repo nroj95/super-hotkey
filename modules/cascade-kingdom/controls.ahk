@@ -46,11 +46,8 @@ CaptureExplorerSpaceReshowIntent()
     }
 
     if SuiteState.Log.verbose {
-        DebugLog(
-            "Explorer Space re-show intent captured."
-            . " | monitor=" monitor
-            . " | source=" DebugDescribeWindow(source_hwnd)
-        )
+        DebugLog("Explorer Space re-show intent captured." . " | monitor=" monitor
+            . " | source=" DebugDescribeWindow(source_hwnd))
     }
 }
 
@@ -80,13 +77,7 @@ ActiveWindowBlocksCascadeCommands(allow_maximized := false)
         if WinGetMinMax("ahk_id " active_hwnd) = 1
             return !allow_maximized
 
-        WinGetPosPixels(
-            &window_x,
-            &window_y,
-            &window_width,
-            &window_height,
-            "ahk_id " active_hwnd
-        )
+        WinGetPosPixels(&window_x, &window_y, &window_width, &window_height, "ahk_id " active_hwnd)
     }
     catch {
         return false
@@ -98,13 +89,7 @@ ActiveWindowBlocksCascadeCommands(allow_maximized := false)
 
     ; Borderless/exclusive fullscreen normally covers one monitor exactly.
     Loop MonitorGetCount() {
-        MonitorGetPixels(
-            A_Index,
-            &monitor_left,
-            &monitor_top,
-            &monitor_right,
-            &monitor_bottom
-        )
+        MonitorGetPixels(A_Index, &monitor_left, &monitor_top, &monitor_right, &monitor_bottom)
 
         if Abs(window_x - monitor_left) <= tolerance_px
             && Abs(window_y - monitor_top) <= tolerance_px
@@ -205,14 +190,9 @@ DispatchCascadeCommand(command)
         }
     }
     if !foreground_matches {
-        DebugLog(
-            "Queued cascade command skipped."
-            . " | reason=foreground-identity-changed"
-            . " | command=" name
-            . " | expected-foreground=" command.foreground_hwnd
-            . " | expected-pid=" command.foreground_pid
-            . " | actual-foreground=" actual_foreground
-        )
+        DebugLog("Queued cascade command skipped." . " | reason=foreground-identity-changed"
+            . " | command=" name . " | expected-foreground=" command.foreground_hwnd
+            . " | expected-pid=" command.foreground_pid . " | actual-foreground=" actual_foreground)
         return
     }
 

@@ -23,7 +23,7 @@ WW_CycleWindowMonitor()
         return
 
     try {
-        source := GetCascadeSourceMonitor(hwnd)
+        source := WindowMonitorIndex(hwnd)
         target := WW_NextMonitorIndex(source, MonitorGetCount())
         if !target || !WW_SetNativeFullscreen(hwnd, false)
             return

@@ -44,11 +44,7 @@ FocusCascadeLayerWindow(direction)
 
     ; If focus is outside the exposed layer, enter at the nearest window
     ; physically above/below the active window.
-    target_hwnd := GetNearestSpatialCascadeWindow(
-        ordered_windows,
-        active_hwnd,
-        direction
-    )
+    target_hwnd := GetNearestSpatialCascadeWindow(ordered_windows, active_hwnd, direction)
 
     if target_hwnd
         ActivateCascadeWindow(target_hwnd)
@@ -96,40 +92,17 @@ SwapActiveCascadeWindow(direction)
 
     target_hwnd := ordered_windows[target_index]
 
-    if !TryGetVisibleFrameRect(
-        active_hwnd,
-        &active_x,
-        &active_y,
-        &active_width,
-        &active_height,
-        &active_inset_left,
-        &active_inset_top,
-        &active_inset_right,
-        &active_inset_bottom
-    ) {
+    active_frame := GetWindowFrame(active_hwnd)
+    target_frame := GetWindowFrame(target_hwnd)
+    if !active_frame || !target_frame
         return
-    }
-
-    if !TryGetVisibleFrameRect(
-        target_hwnd,
-        &target_x,
-        &target_y,
-        &target_width,
-        &target_height,
-        &target_inset_left,
-        &target_inset_top,
-        &target_inset_right,
-        &target_inset_bottom
-    ) {
-        return
-    }
 
     ; Swap only the two exposed layer windows. Deeper windows remain in place.
-    if !MoveCascadeWindowToSlot(target_hwnd, active_x, active_y)
+    if !MoveCascadeWindowToSlot(target_hwnd, active_frame.x, active_frame.y)
         return
 
-    if !MoveCascadeWindowToSlot(active_hwnd, target_x, target_y) {
-        MoveCascadeWindowToSlot(target_hwnd, target_x, target_y)
+    if !MoveCascadeWindowToSlot(active_hwnd, target_frame.x, target_frame.y) {
+        MoveCascadeWindowToSlot(target_hwnd, target_frame.x, target_frame.y)
         return
     }
 
@@ -149,17 +122,8 @@ SwapActiveCascadeWindow(direction)
     if target_topmost >= 0 && active_topmost >= 0
         && target_topmost = active_topmost
     {
-        try PhysicalDllCall(
-            "SetWindowPos",
-            "ptr", target_hwnd,
-            "ptr", active_hwnd,
-            "int", 0,
-            "int", 0,
-            "int", 0,
-            "int", 0,
-            "uint", z_flags,
-            "int"
-        )
+        try PhysicalDllCall("SetWindowPos", "ptr", target_hwnd, "ptr", active_hwnd, "int", 0,
+            "int", 0, "int", 0, "int", 0, "uint", z_flags, "int")
     }
 
     QueueFocusCornerUpdate()
@@ -183,23 +147,12 @@ MoveCascadeWindowToSlot(hwnd, target_x, target_y, post_asynchronously := false)
     catch {
         return false
     }
-    if !TryGetVisibleFrameRect(
-        hwnd,
-        &current_x,
-        &current_y,
-        &current_width,
-        &current_height,
-        &inset_left,
-        &inset_top,
-        &inset_right,
-        &inset_bottom
-    ) {
+    if !(frame := GetWindowFrame(hwnd))
         return false
-    }
 
     if IsCascadeDisplayTransition() || display_generation != cascade_display_generation
         return false
-    if current_x = target_x && current_y = target_y {
+    if frame.x = target_x && frame.y = target_y {
         RememberCascadeSlot(hwnd, GetManagedCascadeMonitor(hwnd), target_x, target_y)
         return true
     }
@@ -210,19 +163,13 @@ MoveCascadeWindowToSlot(hwnd, target_x, target_y, post_asynchronously := false)
     if placement_reservations.Has(hwnd)
         placement_reservations.Delete(hwnd)
 
-    raw_target := [
-        target_x - inset_left, target_y - inset_top,
-        current_width + inset_left + inset_right,
-        current_height + inset_top + inset_bottom
-    ]
+    raw_target := [target_x - frame.left, target_y - frame.top, frame.rawWidth, frame.rawHeight]
 
     if !IsCascadeEnabled() || IsCascadeWindowBeingDragged(hwnd)
         || IsCascadeDisplayTransition() || display_generation != cascade_display_generation
         return false
 
-    owned_reservation := Map(
-        "monitor", GetMonitorForWindow(hwnd), "x", target_x, "y", target_y
-    )
+    owned_reservation := Map("monitor", GetMonitorForWindow(hwnd), "x", target_x, "y", target_y)
     placement_reservations[hwnd] := owned_reservation
     stabilization_scheduled := false
 
@@ -245,12 +192,7 @@ MoveCascadeWindowToSlot(hwnd, target_x, target_y, post_asynchronously := false)
         } else {
             ; Swaps depend on ordered move/rollback semantics, so keep those
             ; explicit callers synchronous instead of introducing a new race.
-            WinMovePixels(
-                raw_target[1],
-                raw_target[2],
-                raw_target[3],
-                raw_target[4],
-                "ahk_id " hwnd
+            WinMovePixels(raw_target[1], raw_target[2], raw_target[3], raw_target[4], "ahk_id " hwnd
             )
             move_accepted := true
         }
@@ -265,13 +207,7 @@ MoveCascadeWindowToSlot(hwnd, target_x, target_y, post_asynchronously := false)
             return false
 
         if !IsCascadeWindowBeingDragged(hwnd) {
-            SchedulePlacementStabilization(
-                hwnd,
-                target_x,
-                target_y,
-                current_width,
-                current_height
-            )
+            SchedulePlacementStabilization(hwnd, target_x, target_y, frame.width, frame.height)
             stabilization_scheduled := true
         }
         return true
@@ -301,12 +237,7 @@ RotateCurrentCascadeSlot(direction)
     return RotateCascadeSlotForWindow(WinExist("A"), direction)
 }
 
-RotateCascadeSlotForWindow(
-    target_hwnd,
-    direction,
-    expected_monitor := 0,
-    expected_slot := 0
-)
+RotateCascadeSlotForWindow(target_hwnd, direction, expected_monitor := 0, expected_slot := 0)
 {
     if !target_hwnd || !WinExist("ahk_id " target_hwnd)
         || IsShellSurfaceWindow(target_hwnd)
@@ -325,19 +256,13 @@ RotateCascadeSlotForWindow(
         if expected_slot && stack_info["slot_index"] != expected_slot
             continue
 
-        ordered_stack := SortCascadeWindowsByZOrder(
-            stack_info["windows"],
-            z_ranks
-        )
+        ordered_stack := SortCascadeWindowsByZOrder(stack_info["windows"], z_ranks)
 
         ; Preserve keyboard behavior: only rotate an exposed window's own stack.
         if ordered_stack.Length < 2 || ordered_stack[1] != target_hwnd
             continue
 
-        next_hwnd := RotateCascadeStackWindows(
-            ordered_stack,
-            direction
-        )
+        next_hwnd := RotateCascadeStackWindows(ordered_stack, direction)
 
         if next_hwnd
             ActivateCascadeWindow(next_hwnd)
@@ -387,17 +312,8 @@ RotateCascadeStackWindows(ordered_windows, direction)
             target_hwnd := band_windows[band_windows.Length]
             insert_after := front_is_topmost ? -1 : 0 ; TOPMOST / TOP
 
-            succeeded := PhysicalDllCall(
-                "SetWindowPos",
-                "ptr", target_hwnd,
-                "ptr", insert_after,
-                "int", 0,
-                "int", 0,
-                "int", 0,
-                "int", 0,
-                "uint", flags,
-                "int"
-            )
+            succeeded := PhysicalDllCall("SetWindowPos", "ptr", target_hwnd, "ptr", insert_after,
+                "int", 0, "int", 0, "int", 0, "int", 0, "uint", flags, "int")
 
             return succeeded ? target_hwnd : 0
         }
@@ -406,17 +322,8 @@ RotateCascadeStackWindows(ordered_windows, direction)
         current_hwnd := band_windows[1]
         deepest_hwnd := band_windows[band_windows.Length]
 
-        succeeded := PhysicalDllCall(
-            "SetWindowPos",
-            "ptr", current_hwnd,
-            "ptr", deepest_hwnd,
-            "int", 0,
-            "int", 0,
-            "int", 0,
-            "int", 0,
-            "uint", flags,
-            "int"
-        )
+        succeeded := PhysicalDllCall("SetWindowPos", "ptr", current_hwnd, "ptr", deepest_hwnd,
+            "int", 0, "int", 0, "int", 0, "int", 0, "uint", flags, "int")
 
         return succeeded ? band_windows[2] : 0
     }
@@ -445,19 +352,13 @@ RotateCascadeLayers(direction := 1)
     next_active_hwnd := 0
 
     for stack_info in stacks {
-        ordered_stack := SortCascadeWindowsByZOrder(
-            stack_info["windows"],
-            z_ranks
-        )
+        ordered_stack := SortCascadeWindowsByZOrder(stack_info["windows"], z_ranks)
 
         if ordered_stack.Length < 2
             continue
 
         was_active := ordered_stack[1] = active_hwnd
-        new_top_hwnd := RotateCascadeStackWindows(
-            ordered_stack,
-            direction
-        )
+        new_top_hwnd := RotateCascadeStackWindows(ordered_stack, direction)
 
         if was_active && new_top_hwnd
             next_active_hwnd := new_top_hwnd
@@ -484,12 +385,8 @@ GetSpatialCascadeOrder(windows)
         if !TryGetWindowCenter(hwnd, &center_x, &center_y)
             continue
 
-        item := Map(
-            "hwnd", hwnd,
-            "center_x", center_x,
-            "center_y", center_y,
-            "history_index", history_index
-        )
+        item := Map("hwnd", hwnd, "center_x", center_x, "center_y", center_y,
+            "history_index", history_index)
 
         insert_index := spatial_items.Length + 1
 
@@ -524,19 +421,11 @@ SpatialItemComesBefore(item, existing)
     return item["history_index"] < existing["history_index"]
 }
 
-GetNearestSpatialCascadeWindow(
-    ordered_windows,
-    active_hwnd,
-    direction
-)
+GetNearestSpatialCascadeWindow(ordered_windows, active_hwnd, direction)
 {
     if active_hwnd
         && WinExist("ahk_id " active_hwnd)
-        && TryGetWindowCenter(
-            active_hwnd,
-            &active_center_x,
-            &active_center_y
-        )
+        && TryGetWindowCenter(active_hwnd, &active_center_x, &active_center_y)
     {
         target_hwnd := 0
         best_distance := 0
@@ -570,11 +459,7 @@ GetNearestSpatialCascadeWindow(
     }
 
     ; No window remains in the requested direction, so wrap.
-    return (
-        direction < 0
-        ? ordered_windows[ordered_windows.Length]
-        : ordered_windows[1]
-    )
+    return (direction < 0 ? ordered_windows[ordered_windows.Length] : ordered_windows[1])
 }
 
 
@@ -620,10 +505,7 @@ BringCascadeForward(monitor_index)
 
     z_ranks := GetCascadeWindowZRanks()
 
-    ordered_windows := SortCascadeWindowsByZOrder(
-        windows,
-        z_ranks
-    )
+    ordered_windows := SortCascadeWindowsByZOrder(windows, z_ranks)
 
     visible_windows := []
     originally_topmost := Map()

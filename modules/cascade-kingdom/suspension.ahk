@@ -191,10 +191,7 @@ PruneMinimizedCascadeWindows()
         keep := IsSameMinimizedCascadeWindow(target)
 
         if keep {
-            try keep := (
-                WinGetMinMax(target.hwnd) = -1
-                && !!GetManagedCascadeMonitor(target.hwnd)
-            )
+            try keep := (WinGetMinMax(target.hwnd) = -1 && !!GetManagedCascadeMonitor(target.hwnd))
             catch
                 keep := false
         }

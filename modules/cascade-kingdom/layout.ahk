@@ -139,10 +139,7 @@ IsWindowInCascadeLayout(hwnd)
     if !hwnd || !WinExist("ahk_id " hwnd)
         return false
 
-    stacks := BuildCascadeSlotStacks(
-        [hwnd],
-        cascade_slot_tolerance
-    )
+    stacks := BuildCascadeSlotStacks([hwnd], cascade_slot_tolerance)
 
     return stacks.Length > 0
 }
@@ -224,10 +221,7 @@ GetCascadeSlotStacksForMonitor(monitor_index)
     if windows.Length = 0
         return []
 
-    return BuildCascadeSlotStacks(
-        windows,
-        cascade_slot_tolerance
-    )
+    return BuildCascadeSlotStacks(windows, cascade_slot_tolerance)
 }
 
 GetCurrentCascadeLayerWindows(monitor_index)
@@ -241,10 +235,7 @@ GetCurrentCascadeLayerWindows(monitor_index)
     layer_windows := []
 
     for stack_info in stacks {
-        ordered_stack := SortCascadeWindowsByZOrder(
-            stack_info["windows"],
-            z_ranks
-        )
+        ordered_stack := SortCascadeWindowsByZOrder(stack_info["windows"], z_ranks)
 
         if ordered_stack.Length
             layer_windows.Push(ordered_stack[1])
@@ -273,12 +264,7 @@ BuildCascadeSlotStacks(windows, tolerance)
             continue
         }
 
-        best_slot_index := FindNearestCascadeSlot(
-            window_x,
-            window_y,
-            slots,
-            tolerance
-        )
+        best_slot_index := FindNearestCascadeSlot(window_x, window_y, slots, tolerance)
 
         ; A manually moved window that is no longer near a canonical slot does
         ; not belong to any stack.
@@ -295,10 +281,7 @@ BuildCascadeSlotStacks(windows, tolerance)
             continue
         }
 
-        stack_info := Map(
-            "slot_index", best_slot_index,
-            "windows", [hwnd]
-        )
+        stack_info := Map("slot_index", best_slot_index, "windows", [hwnd])
 
         stacks_by_slot[stack_key] := stack_info
         stacks.Push(stack_info)
@@ -317,31 +300,16 @@ CenterCoordinate(work_start, work_size, window_size)
     return work_start + Floor((work_size - window_size) / 2)
 }
 
-BuildCascadeSlots(
-    work_left,
-    work_top,
-    work_right,
-    work_bottom,
-    window_width,
-    window_height
-)
+BuildCascadeSlots(work_left, work_top, work_right, work_bottom, window_width, window_height)
 {
     global cascade_x, cascade_y
 
     work_width := work_right - work_left
     work_height := work_bottom - work_top
 
-    center_x := CenterCoordinate(
-        work_left,
-        work_width,
-        window_width
-    )
+    center_x := CenterCoordinate(work_left, work_width, window_width)
 
-    center_y := CenterCoordinate(
-        work_top,
-        work_height,
-        window_height
-    )
+    center_y := CenterCoordinate(work_top, work_height, window_height)
 
     ; Slot 1 is the optimally centered position. Fill every position upward
     ; from center before continuing downward from center.
@@ -354,16 +322,8 @@ BuildCascadeSlots(
         x := center_x - cascade_x * step
         y := center_y - cascade_y * step
 
-        if !CascadePositionFits(
-            x,
-            y,
-            window_width,
-            window_height,
-            work_left,
-            work_top,
-            work_right,
-            work_bottom
-        ) {
+        if !CascadePositionFits(x, y, window_width, window_height, work_left, work_top, work_right,
+            work_bottom) {
             break
         }
 
@@ -378,16 +338,8 @@ BuildCascadeSlots(
         x := center_x + cascade_x * step
         y := center_y + cascade_y * step
 
-        if !CascadePositionFits(
-            x,
-            y,
-            window_width,
-            window_height,
-            work_left,
-            work_top,
-            work_right,
-            work_bottom
-        ) {
+        if !CascadePositionFits(x, y, window_width, window_height, work_left, work_top, work_right,
+            work_bottom) {
             break
         }
 
@@ -398,33 +350,16 @@ BuildCascadeSlots(
     return slots
 }
 
-CascadePositionFits(
-    x,
-    y,
-    window_width,
-    window_height,
-    work_left,
-    work_top,
-    work_right,
-    work_bottom
-)
+CascadePositionFits(x, y, window_width, window_height, work_left, work_top, work_right, work_bottom)
 {
     global edge_margin
 
-    return (
-        x >= work_left + edge_margin
-        && y >= work_top + edge_margin
+    return (x >= work_left + edge_margin && y >= work_top + edge_margin
         && x + window_width <= work_right - edge_margin
-        && y + window_height <= work_bottom - edge_margin
-    )
+        && y + window_height <= work_bottom - edge_margin)
 }
 
-FindNearestCascadeSlot(
-    window_x,
-    window_y,
-    slots,
-    tolerance
-)
+FindNearestCascadeSlot(window_x, window_y, slots, tolerance)
 {
     best_slot_index := 0
     best_distance := 0
@@ -452,12 +387,7 @@ FindNearestCascadeSlot(
     return best_slot_index
 }
 
-GetCascadeSlotCounts(
-    monitor_index,
-    slots,
-    tolerance,
-    excluded_hwnd := 0
-)
+GetCascadeSlotCounts(monitor_index, slots, tolerance, excluded_hwnd := 0)
 {
     global cascade_history, placement_reservations
 
@@ -488,12 +418,7 @@ GetCascadeSlotCounts(
                 continue
             }
 
-            best_slot_index := FindNearestCascadeSlot(
-                window_x,
-                window_y,
-                slots,
-                tolerance
-            )
+            best_slot_index := FindNearestCascadeSlot(window_x, window_y, slots, tolerance)
 
             if best_slot_index
                 counts[best_slot_index] += 1
@@ -509,12 +434,8 @@ GetCascadeSlotCounts(
         if !WinExist("ahk_id " reserved_hwnd)
             continue
 
-        best_slot_index := FindNearestCascadeSlot(
-            reservation["x"],
-            reservation["y"],
-            slots,
-            tolerance
-        )
+        best_slot_index := FindNearestCascadeSlot(reservation["x"], reservation["y"], slots,
+            tolerance)
 
         if best_slot_index
             counts[best_slot_index] += 1
@@ -523,34 +444,15 @@ GetCascadeSlotCounts(
     return counts
 }
 
-GetNextCascadePosition(
-    monitor_index,
-    work_left,
-    work_top,
-    work_right,
-    work_bottom,
-    window_width,
-    window_height,
-    excluded_hwnd := 0
-)
+GetNextCascadePosition(monitor_index, work_left, work_top, work_right, work_bottom, window_width,
+    window_height, excluded_hwnd := 0)
 {
     global cascade_slot_tolerance
 
-    slots := BuildCascadeSlots(
-        work_left,
-        work_top,
-        work_right,
-        work_bottom,
-        window_width,
-        window_height
-    )
+    slots := BuildCascadeSlots(work_left, work_top, work_right, work_bottom, window_width,
+        window_height)
 
-    slot_counts := GetCascadeSlotCounts(
-        monitor_index,
-        slots,
-        cascade_slot_tolerance,
-        excluded_hwnd
-    )
+    slot_counts := GetCascadeSlotCounts(monitor_index, slots, cascade_slot_tolerance, excluded_hwnd)
 
     selected_slot_index := 1
     selected_count := slot_counts[1]
@@ -696,10 +598,7 @@ CompactCascadeLayout(monitor_index, preferred_hwnd := 0)
     if windows.Length = 0
         return
 
-    stacks := BuildCascadeSlotStacks(
-        windows,
-        cascade_slot_tolerance
-    )
+    stacks := BuildCascadeSlotStacks(windows, cascade_slot_tolerance)
 
     if stacks.Length = 0
         return
@@ -723,11 +622,8 @@ CompactCascadeLayout(monitor_index, preferred_hwnd := 0)
         )
     }
 
-    target_stacks := BuildStableCascadeCompactionPlan(
-        ordered_stacks,
-        managed_window_count,
-        preferred_hwnd
-    )
+    target_stacks := BuildStableCascadeCompactionPlan(ordered_stacks, managed_window_count,
+        preferred_hwnd)
 
     failed_moves := 0
     for slot_index, stack_windows in target_stacks {
@@ -802,17 +698,8 @@ CompactCascadeLayout(monitor_index, preferred_hwnd := 0)
                 upper_hwnd := band_windows[A_Index]
                 lower_hwnd := band_windows[A_Index + 1]
 
-                try PhysicalDllCall(
-                    "SetWindowPos",
-                    "ptr", lower_hwnd,
-                    "ptr", upper_hwnd,
-                    "int", 0,
-                    "int", 0,
-                    "int", 0,
-                    "int", 0,
-                    "uint", z_flags,
-                    "int"
-                )
+                try PhysicalDllCall("SetWindowPos", "ptr", lower_hwnd, "ptr", upper_hwnd, "int", 0,
+                    "int", 0, "int", 0, "int", 0, "uint", z_flags, "int")
             }
         }
     }
@@ -953,22 +840,14 @@ SortCascadeWindowsByZOrder(windows, ranks)
     ordered_windows := []
 
     for hwnd in windows {
-        rank := (
-            ranks.Has(hwnd)
-            ? ranks[hwnd]
-            : 2147483647
-        )
+        rank := (ranks.Has(hwnd) ? ranks[hwnd] : 2147483647)
 
         insert_index := ordered_windows.Length + 1
 
         Loop ordered_windows.Length {
             existing_hwnd := ordered_windows[A_Index]
 
-            existing_rank := (
-                ranks.Has(existing_hwnd)
-                ? ranks[existing_hwnd]
-                : 2147483647
-            )
+            existing_rank := (ranks.Has(existing_hwnd) ? ranks[existing_hwnd] : 2147483647)
 
             if rank < existing_rank {
                 insert_index := A_Index

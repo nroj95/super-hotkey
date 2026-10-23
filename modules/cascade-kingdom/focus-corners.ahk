@@ -18,10 +18,7 @@ QueueFocusCornerUpdate()
 
     focus_corner_update_pending := true
 
-    SetTimer(
-        RunQueuedFocusCornerUpdate,
-        -focus_corner_update_ms
-    )
+    SetTimer(RunQueuedFocusCornerUpdate, -focus_corner_update_ms)
 }
 
 RunQueuedFocusCornerUpdate()
@@ -72,13 +69,7 @@ UpdateFocusCornerOverlays()
             continue
         }
 
-        if !GetVisibleWindowBounds(
-            hwnd,
-            &window_x,
-            &window_y,
-            &window_width,
-            &window_height
-        ) {
+        if !GetVisibleWindowBounds(hwnd, &window_x, &window_y, &window_width, &window_height) {
             continue
         }
 
@@ -104,13 +95,7 @@ UpdateFocusCornerOverlays()
             slot_stacks.Push(stack_info)
         }
         stacks_by_slot[stack_key]["windows"].Push(hwnd)
-        visible_bounds[hwnd] := [
-            window_x,
-            window_y,
-            window_width,
-            window_height,
-            monitor_index
-        ]
+        visible_bounds[hwnd] := [window_x, window_y, window_width, window_height, monitor_index]
 
         if !highest_hwnd_by_monitor.Has(monitor_index)
             || window_y < highest_y_by_monitor[monitor_index]
@@ -143,14 +128,8 @@ UpdateFocusCornerOverlays()
         active_slot_targets := Map()
 
         for stack_info in slot_stacks {
-            ordered_windows := SortCascadeWindowsByZOrder(
-                stack_info["windows"],
-                z_ranks
-            )
-            selected_hwnd := SelectFocusCornerSlotTarget(
-                ordered_windows,
-                active_hwnd
-            )
+            ordered_windows := SortCascadeWindowsByZOrder(stack_info["windows"], z_ranks)
+            selected_hwnd := SelectFocusCornerSlotTarget(ordered_windows, active_hwnd)
             contains_active := false
             full_height := false
 
@@ -193,16 +172,8 @@ UpdateFocusCornerOverlays()
 
             bounds := visible_bounds[hwnd]
             try {
-                ShowFocusCornerOverlay(
-                    hwnd,
-                    bounds[1],
-                    bounds[2],
-                    bounds[3],
-                    bounds[4],
-                    dpi_by_monitor[bounds[5]],
-                    full_height,
-                    active_slot_targets.Has(hwnd)
-                )
+                ShowFocusCornerOverlay(hwnd, bounds[1], bounds[2], bounds[3], bounds[4],
+                    dpi_by_monitor[bounds[5]], full_height, active_slot_targets.Has(hwnd))
             }
             catch Error as err {
                 ; Closing targets must not interrupt updates for the other slots.
@@ -269,16 +240,8 @@ SelectFocusCornerSlotTarget(ordered_windows, active_hwnd)
 ; overlay placement and lifetime
 ; =============================================================================
 
-ShowFocusCornerOverlay(
-    hwnd,
-    window_x,
-    window_y,
-    window_width,
-    window_height,
-    dpi,
-    full_height := false,
-    active_slot := false
-)
+ShowFocusCornerOverlay(hwnd, window_x, window_y, window_width, window_height, dpi,
+    full_height := false, active_slot := false)
 {
     if !IsCascadeEnabled()
         return
@@ -291,25 +254,16 @@ ShowFocusCornerOverlay(
     global focus_corner_inactive_slot_alpha, focus_corner_active_slot_alpha
     global focus_corner_visible
 
-    marker_color := (
-        active_slot
-        ? focus_corner_active_slot_color
-        : focus_corner_inactive_slot_color
+    marker_color := (active_slot ? focus_corner_active_slot_color : focus_corner_inactive_slot_color
     )
-    marker_alpha := (
-        active_slot
-        ? focus_corner_active_slot_alpha
-        : focus_corner_inactive_slot_alpha
+    marker_alpha := (active_slot ? focus_corner_active_slot_alpha : focus_corner_inactive_slot_alpha
     )
 
     if !focus_corner_overlays.Has(hwnd)
         CreateFocusCornerOverlay(hwnd, marker_color, marker_alpha)
 
     overlay := focus_corner_overlays[hwnd]
-    appearance_changed := (
-        overlay.color != marker_color
-        || overlay.alpha != marker_alpha
-    )
+    appearance_changed := (overlay.color != marker_color || overlay.alpha != marker_alpha)
 
     if overlay.color != marker_color {
         overlay.gui.BackColor := marker_color
@@ -319,15 +273,9 @@ ShowFocusCornerOverlay(
     overlay.alpha := marker_alpha
     ; Reuse the pass's validated monitor DPI instead of enumerating displays here.
 
-    if (
-        overlay.shown
-        && overlay.window_x = window_x
-        && overlay.window_y = window_y
-        && overlay.window_width = window_width
-        && overlay.window_height = window_height
-        && overlay.full_height = full_height
-        && overlay.dpi = dpi
-    ) {
+    if (overlay.shown && overlay.window_x = window_x && overlay.window_y = window_y
+        && overlay.window_width = window_width && overlay.window_height = window_height
+        && overlay.full_height = full_height && overlay.dpi = dpi) {
         SetFocusCornerOpacity(overlay, focus_corner_visible ? marker_alpha : 1)
         if appearance_changed
             WinRedraw(overlay.gui.Hwnd)
@@ -403,17 +351,8 @@ PlaceFocusCornerAboveTarget(hwnd, overlay)
         | SWP_NOMOVE
         | SWP_NOACTIVATE
 
-    PhysicalDllCall(
-        "SetWindowPos",
-        "ptr", overlay.gui.Hwnd,
-        "ptr", hwnd,
-        "int", 0,
-        "int", 0,
-        "int", 0,
-        "int", 0,
-        "uint", flags,
-        "int"
-    )
+    PhysicalDllCall("SetWindowPos", "ptr", overlay.gui.Hwnd, "ptr", hwnd, "int", 0, "int", 0,
+        "int", 0, "int", 0, "uint", flags, "int")
 }
 
 HideFocusCornerOverlay(hwnd)
@@ -440,12 +379,8 @@ CreateFocusCornerOverlay(hwnd, marker_color, marker_alpha)
 
     ; Only these borderless, control-free GUIs are per-monitor aware. The help
     ; window retains normal AHK scaling. Both creation and movement need PM context.
-    marker_gui := CreatePhysicalGui(
-        "-Caption -DPIScale"
-        . " +ToolWindow"
-        . " +E0x08000000",
-        "Cascade Kingdom Focus Marker"
-    )
+    marker_gui := CreatePhysicalGui("-Caption -DPIScale" . " +ToolWindow" . " +E0x08000000",
+        "Cascade Kingdom Focus Marker")
 
     marker_gui.BackColor := marker_color
 

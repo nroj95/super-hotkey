@@ -76,11 +76,8 @@ WW_CheckFancyZonesIntegration(*)
         if state && WW_FancyZonesArrowsReady(state) && WW_FancyZonesSwitchingReady(state) {
             WW_fancyzones_integration_state := state
         } else {
-            MsgBox(
-                "FancyZones setup could not be completed. Check the debug log "
-                . "or configure the shortcuts manually in PowerToys.",
-                "Wonder Windows", "Icon!"
-            )
+            MsgBox("FancyZones setup could not be completed. Check the debug log "
+                . "or configure the shortcuts manually in PowerToys.", "Wonder Windows", "Icon!")
         }
     }
     finally {

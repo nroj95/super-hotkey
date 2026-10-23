@@ -9,11 +9,7 @@ WW_ToggleOtherWindows()
 {
     global WW_isolation_minimized_windows, WW_isolation_active_hwnd
 
-    WW_ToggleMinimizedWindowGroup(
-        &WW_isolation_minimized_windows,
-        &WW_isolation_active_hwnd,
-        true
-    )
+    WW_ToggleMinimizedWindowGroup(&WW_isolation_minimized_windows, &WW_isolation_active_hwnd, true)
 }
 
 WW_ToggleAllWindows()
@@ -23,11 +19,7 @@ WW_ToggleAllWindows()
     WW_ToggleMinimizedWindowGroup(&WW_all_minimized_windows, &WW_all_active_hwnd)
 }
 
-WW_ToggleMinimizedWindowGroup(
-    &minimized_windows,
-    &saved_active_hwnd,
-    keep_active_window := false
-)
+WW_ToggleMinimizedWindowGroup(&minimized_windows, &saved_active_hwnd, keep_active_window := false)
 {
     ; Each toggle restores only its own saved group. Windows already minimized
     ; before that toggle stay untouched.
@@ -41,11 +33,7 @@ WW_ToggleMinimizedWindowGroup(
         ; Preserve the existing order: Win+Shift+Home restores front-to-back;
         ; Win+M restores back-to-front before returning focus.
         Loop windows_to_restore.Length {
-            index := (
-                keep_active_window
-                ? A_Index
-                : windows_to_restore.Length - A_Index + 1
-            )
+            index := (keep_active_window ? A_Index : windows_to_restore.Length - A_Index + 1)
             hwnd := windows_to_restore[index]
 
             if !WinExist("ahk_id " hwnd)
@@ -152,10 +140,8 @@ WW_MaximizeWindowTarget()
             return
 
         work_area := WW_GetLayoutWorkArea(hwnd)
-        layouts := [
-            WW_BuildRatioLayout(work_area, [0, 1, 0], "top"),
-            WW_BuildRatioLayout(work_area, [0, 1, 0], "bottom")
-        ]
+        layouts := [WW_BuildRatioLayout(work_area, [0, 1, 0], "top"),
+            WW_BuildRatioLayout(work_area, [0, 1, 0], "bottom")]
 
         maximized := WinGetMinMax(window) = 1
         tile_index := !maximized && !was_fullscreen
@@ -285,11 +271,8 @@ WW_RememberNormalWindowPlacement(hwnd)
 
     placement := WW_CaptureWindowPlacement(hwnd)
 
-    WW_normal_window_placements[hwnd] := Map(
-        "pid", process_id,
-        "work_area", work_area,
-        "placement", placement
-    )
+    WW_normal_window_placements[hwnd] := Map("pid", process_id, "work_area", work_area,
+        "placement", placement)
 }
 
 WW_RestoreNormalWindowPlacement(hwnd)

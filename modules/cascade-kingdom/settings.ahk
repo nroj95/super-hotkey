@@ -94,18 +94,9 @@ focus_corner_fallback_ms := 1000
 ; Focus-tab colors are chosen from a small fixed palette. An inactive slot
 ; represents its exposed window; the active slot represents the next layer.
 ; Deeper tabs stay hidden, so opacity no longer accumulates with stack depth.
-focus_tab_color_presets := Map(
-    "White", "FFFFFF",
-    "Grey", "808080",
-    "Red", "F44336",
-    "Orange", "FF9800",
-    "Yellow", "FBC02D",
-    "Green", "4CAF50",
-    "Cyan", "00BCD4",
-    "Blue", "2196F3",
-    "Purple", "9C27B0",
-    "Pink", "E91E63"
-)
+focus_tab_color_presets := Map("White", "FFFFFF", "Grey", "808080", "Red", "F44336",
+    "Orange", "FF9800", "Yellow", "FBC02D", "Green", "4CAF50", "Cyan", "00BCD4", "Blue", "2196F3",
+    "Purple", "9C27B0", "Pink", "E91E63")
 
 ; Inactive-slot tabs stay faint while active-slot tabs use stronger opacity.
 ; Alpha 1 is reserved for the hidden state so overlays remain hit-testable.
@@ -119,18 +110,10 @@ focus_tab_release_poll_ms := 50
 settings_path := SuiteState.App.Settings.directory "\cascade-kingdom\settings.ini"
 focus_corner_visible := IniRead(settings_path, "FocusTabs", "Visible", "1") = "1"
 
-focus_corner_active_slot_color_name := IniRead(
-    settings_path,
-    "FocusTabs",
-    "ActiveSlotColor",
-    "Yellow"
-)
-focus_corner_inactive_slot_color_name := IniRead(
-    settings_path,
-    "FocusTabs",
-    "InactiveSlotColor",
-    "White"
-)
+focus_corner_active_slot_color_name := IniRead(settings_path, "FocusTabs", "ActiveSlotColor",
+    "Yellow")
+focus_corner_inactive_slot_color_name := IniRead(settings_path, "FocusTabs", "InactiveSlotColor",
+    "White")
 
 if !focus_tab_color_presets.Has(focus_corner_active_slot_color_name)
     focus_corner_active_slot_color_name := "Yellow"

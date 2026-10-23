@@ -34,10 +34,8 @@ WW_PromptToDisableNativeWindowsSnap()
 
     ; Use the documented API, not a collection of guessed registry switches.
     ; SPI_SETWINARRANGING; SPIF_UPDATEINIFILE | SPIF_SENDCHANGE.
-    succeeded := DllCall(
-        "SystemParametersInfoW", "uint", 0x0083, "uint", 0,
-        "ptr", 0, "uint", 0x0003, "int"
-    )
+    succeeded := DllCall("SystemParametersInfoW", "uint", 0x0083, "uint", 0,
+        "ptr", 0, "uint", 0x0003, "int")
     if !succeeded || WW_GetNativeWindowsSnapState() != 0 {
         MsgBox(
             "Windows Snap could not be disabled automatically.`n`n"

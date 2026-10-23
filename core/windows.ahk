@@ -129,6 +129,33 @@ GetVisibleWindowBounds(hwnd, &x, &y, &width, &height) {
     return width > 0 && height > 0
 }
 
+; A window's raw rectangle and visible DWM frame in physical pixels, or 0.
+; Without DWM frame bounds the visible frame is the raw rectangle. left, top,
+; right and bottom are the invisible resize borders between the two.
+GetWindowFrame(hwnd) {
+    if !hwnd
+        return 0
+    try WinGetPosPixels(&rawX, &rawY, &rawWidth, &rawHeight, "ahk_id " hwnd)
+    catch
+        return 0
+    if rawWidth <= 0 || rawHeight <= 0
+        return 0
+    if !GetVisibleWindowBounds(hwnd, &x, &y, &width, &height)
+        x := rawX, y := rawY, width := rawWidth, height := rawHeight
+    return {rawX: rawX, rawY: rawY, rawWidth: rawWidth, rawHeight: rawHeight,
+        x: x, y: y, width: width, height: height,
+        left: x - rawX, top: y - rawY,
+        right: rawX + rawWidth - x - width, bottom: rawY + rawHeight - y - height}
+}
+
+; The raw rectangle that gives a window this visible frame.
+VisibleToRawRect(hwnd, x, y, width, height) {
+    if !(frame := GetWindowFrame(hwnd))
+        return [x, y, width, height]
+    return [x - frame.left, y - frame.top,
+        Max(1, width + frame.left + frame.right), Max(1, height + frame.top + frame.bottom)]
+}
+
 ; Taskbars, the desktop and tray popups are never arranged or focused.
 IsShellSurfaceClass(className) {
     return className = "Shell_TrayWnd" || className = "Shell_SecondaryTrayWnd"
@@ -139,6 +166,39 @@ IsShellSurfaceClass(className) {
 IsShellSurfaceWindow(hwnd) {
     try return hwnd && IsShellSurfaceClass(WinGetClass("ahk_id " hwnd))
     return false
+}
+
+; A root, activatable, unowned window outside the shell: the common base for
+; the windows the modules arrange.
+IsTopLevelAppWindow(hwnd, &className := "") {
+    if !hwnd || DllCall("GetAncestor", "ptr", hwnd, "uint", 2, "ptr") != hwnd ; GA_ROOT
+        return false
+    try {
+        style := WinGetStyle("ahk_id " hwnd)
+        exStyle := WinGetExStyle("ahk_id " hwnd)
+        className := WinGetClass("ahk_id " hwnd)
+    }
+    catch
+        return false
+    ; Reject WS_CHILD, WS_EX_TOOLWINDOW, WS_EX_NOACTIVATE and owned popups.
+    return !(style & 0x40000000) && !(exStyle & 0x08000080)
+        && !DllCall("GetWindow", "ptr", hwnd, "uint", 4, "ptr") && !IsShellSurfaceClass(className)
+}
+
+; The display Windows assigns a window to: the largest intersection, or the
+; restored rectangle when it is minimized. 0 when no display matches.
+WindowMonitorIndex(hwnd) {
+    monitor := DllCall("MonitorFromWindow", "ptr", hwnd, "uint", 2, "ptr") ; MONITOR_DEFAULTTONEAREST
+    info := Buffer(104, 0) ; MONITORINFOEXW
+    NumPut("uint", info.Size, info)
+    if !monitor || !DllCall("GetMonitorInfoW", "ptr", monitor, "ptr", info, "int")
+        return 0
+    device := StrGet(info.Ptr + 40, 32, "UTF-16")
+    Loop MonitorGetCount() {
+        if MonitorGetName(A_Index) = device
+            return A_Index
+    }
+    return 0
 }
 
 ; Geometry is in physical pixels. Scope the context to one native call:

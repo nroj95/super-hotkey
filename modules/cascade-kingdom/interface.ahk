@@ -12,19 +12,14 @@ CheckCompatibilitySettings(*)
             EnvGet("LOCALAPPDATA") "\Microsoft\PowerToys\FancyZones\settings.json"
 
         if FileExist(fancyzones_settings_path) {
-            fancyzones_settings := FileRead(
-                fancyzones_settings_path,
-                "UTF-8"
-            )
+            fancyzones_settings := FileRead(fancyzones_settings_path, "UTF-8")
 
             if RegExMatch(
                 fancyzones_settings,
                 '"fancyzones_appLastZone_moveWindows"\s*:\s*\{\s*"value"\s*:\s*true'
             ) {
-                warnings.Push(
-                    'FancyZones: "Move newly created windows to the last known zone" '
-                    . "is enabled."
-                )
+                warnings.Push('FancyZones: "Move newly created windows to the last known zone" '
+                    . "is enabled.")
             }
         }
 

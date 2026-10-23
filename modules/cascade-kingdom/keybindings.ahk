@@ -6,8 +6,7 @@ RegisterCascadeActions(manager)
     manager.AddAction("cascade-kingdom.help", "show Cascade Kingdom help",
         ObjBindMethod(SuiteState.App, "HelpShortcutEvent", "cascade-kingdom"), ["Caps + H"],
         {category: "Cascade Kingdom", available: CascadeModuleActive})
-    for item in [
-        ["focus-previous", "focus visible window up", "Caps + PgUp"],
+    for item in [["focus-previous", "focus visible window up", "Caps + PgUp"],
         ["focus-next", "focus visible window down", "Caps + PgDn"],
         ["slot-previous", "previous layer in this slot", "Caps + Left"],
         ["slot-next", "next layer in this slot", "Caps + Right"],
@@ -19,8 +18,7 @@ RegisterCascadeActions(manager)
         ["minimize", "minimize / restore managed windows", "Caps + M"],
         ["gather", "gather cascades onto this monitor", "Caps + Alt + Enter"],
         ["close-active", "close active window", "Caps + Delete"],
-        ["close-monitor", "close this monitor's cascade", "Caps + F4"]
-    ]
+        ["close-monitor", "close this monitor's cascade", "Caps + F4"]]
         manager.AddAction("cascade-kingdom." item[1], item[2], CascadeBindingEvent.Bind(item[1]),
             [item[3]], {category: "Cascade Kingdom", available: CascadeModuleActive})
 }
