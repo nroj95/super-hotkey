@@ -17,10 +17,10 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $ProgressPreference = 'SilentlyContinue'
-          $archive = Join-Path $env:RUNNER_TEMP 'AutoHotkey_2.0.19.zip'
+          $archive = Join-Path $env:RUNNER_TEMP 'AutoHotkey_2.0.26.zip'
           $directory = Join-Path $env:RUNNER_TEMP 'AutoHotkey-test'
-          Invoke-WebRequest 'https://github.com/AutoHotkey/AutoHotkey/releases/download/v2.0.19/AutoHotkey_2.0.19.zip' -OutFile $archive
-          $expected = '4E0D0E65655066A646A210951320FEAEF0729A3597177131ADAEC4066BEF5869'
+          Invoke-WebRequest 'https://github.com/AutoHotkey/AutoHotkey/releases/download/v2.0.26/AutoHotkey_2.0.26.zip' -OutFile $archive
+          $expected = '43522AA3122A57784AC5DB30ABF85C2244475C36ACD7796E2C993355F9E926AE'
           if ((Get-FileHash $archive -Algorithm SHA256).Hash -ne $expected) { throw 'AutoHotkey checksum mismatch.' }
           Expand-Archive $archive $directory
           "AHK=$directory\AutoHotkey64.exe" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
