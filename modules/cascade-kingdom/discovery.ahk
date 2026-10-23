@@ -64,8 +64,8 @@ QueueWindowPlacement(hwnd, source_hwnd, explicit_monitor := 0)
     request.monitor_reason := monitor_reason
     pending_windows[hwnd] := request
 
-    DebugLog("Queue placement." . " | target=" DebugDescribeWindow(hwnd)
-        . " | source=" DebugDescribeWindow(source_hwnd) . " | queued-monitor=" queued_monitor
+    DebugLog("Queue placement." . " | target=" DescribeWindow(hwnd)
+        . " | source=" DescribeWindow(source_hwnd) . " | queued-monitor=" queued_monitor
         . " | monitor-reason=" monitor_reason . " | monitor-device=" request.monitor_device
         . " | mouse=(" queue_mouse_x "," queue_mouse_y ")")
 
@@ -105,7 +105,7 @@ ConsumeExplorerSpaceIntentForNewWindow(hwnd, source_hwnd, target_pid)
     explorer_space_reshow_hint := 0
     if SuiteState.Log.verbose {
         DebugLog("Explorer Space re-show intent consumed by new window."
-            . " | target=" DebugDescribeWindow(hwnd))
+            . " | target=" DescribeWindow(hwnd))
     }
     return true
 }
@@ -270,7 +270,7 @@ TryQueueHandledWindowReshow(hwnd, trigger := "show")
 
     DebugLog("Handled window " intent.kind " re-show queued." . " | trigger=" intent.trigger
         . " | from-monitor=" source_monitor . " | target-monitor=" target_monitor
-        . " | target=" DebugDescribeWindow(hwnd))
+        . " | target=" DescribeWindow(hwnd))
 
     SetTimer(PlaceHandledWindowReshow.Bind(request), -placement_delay_ms)
     return true
@@ -306,7 +306,7 @@ PlaceHandledWindowReshow(request)
         hint_age := (A_TickCount - request.hint.tick) & 0xFFFFFFFF
         if hint_age > handled_reshow_hint_max_age_ms {
             DebugLog("Handled window " request.intent_kind " re-show skipped."
-                . " | reason=intent-expired" . " | target=" DebugDescribeWindow(request.hwnd))
+                . " | reason=intent-expired" . " | target=" DescribeWindow(request.hwnd))
             return
         }
 
@@ -328,7 +328,7 @@ PlaceHandledWindowReshow(request)
             keep_intent := request.trigger = "show"
             DebugLog("Handled window explorer-space re-show "
                 . (keep_intent ? "waiting." : "skipped.") . " | reason=target-not-foreground"
-                . " | trigger=" request.trigger . " | target=" DebugDescribeWindow(hwnd))
+                . " | trigger=" request.trigger . " | target=" DescribeWindow(hwnd))
             return
         }
 
@@ -352,7 +352,7 @@ PlaceHandledWindowReshow(request)
         if WinGetMinMax(hwnd) != 0 {
             DebugLog("Handled window " request.intent_kind " re-show placement skipped."
                 . " | mode=" mode . " | reason=non-normal-state"
-                . " | target=" DebugDescribeWindow(hwnd))
+                . " | target=" DescribeWindow(hwnd))
             return
         }
 
@@ -361,13 +361,13 @@ PlaceHandledWindowReshow(request)
             if !IsObject(remembered) {
                 DebugLog("Handled window " request.intent_kind " re-show placement skipped."
                     . " | mode=" mode . " | reason=no-remembered-slot"
-                    . " | target=" DebugDescribeWindow(hwnd))
+                    . " | target=" DescribeWindow(hwnd))
                 return
             }
             if HandledWindowReshowMatchesRememberedPlacement(hwnd, remembered) {
                 DebugLog("Handled window " request.intent_kind " re-show placement skipped."
                     . " | mode=" mode . " | reason=already-matched"
-                    . " | target=" DebugDescribeWindow(hwnd))
+                    . " | target=" DescribeWindow(hwnd))
                 return
             }
             requested_position := [remembered.x, remembered.y]
@@ -376,18 +376,18 @@ PlaceHandledWindowReshow(request)
 
         DebugLog("Handled window " request.intent_kind " re-show placement begin." . " | mode=" mode
             . " | from-monitor=" source_monitor . " | target-monitor=" target_monitor
-            . " | target=" DebugDescribeWindow(hwnd))
+            . " | target=" DescribeWindow(hwnd))
 
         placed := PlaceCascadeWindowOnMonitor(hwnd, target_monitor, requested_position,
             preserve_membership_order)
 
         if placed {
             DebugLog("Handled window " request.intent_kind " re-show placement complete."
-                . " | mode=" mode . " | monitor=" target_monitor . " | " DebugDescribeWindow(hwnd))
+                . " | mode=" mode . " | monitor=" target_monitor . " | " DescribeWindow(hwnd))
         } else {
             DebugLog("Handled window " request.intent_kind " re-show placement skipped."
                 . " | mode=" mode . " | target-monitor=" target_monitor
-                . " | " DebugDescribeWindow(hwnd))
+                . " | " DescribeWindow(hwnd))
         }
     }
     catch Error as err {
@@ -419,7 +419,7 @@ WatchForMissedWindows()
         known_windows[hwnd] := true
 
         if SuiteState.Log.verbose {
-            DebugLog("Poll discovered HWND." . " | " DebugDescribeWindow(hwnd))
+            DebugLog("Poll discovered HWND." . " | " DescribeWindow(hwnd))
         }
 
         if pending_windows.Has(hwnd) || handled_windows.Has(hwnd)
@@ -427,7 +427,7 @@ WatchForMissedWindows()
 
         if !IsPlausibleTopLevelWindow(hwnd) {
             if SuiteState.Log.verbose {
-                DebugLog("Poll rejected by top-level prefilter." . " | " DebugDescribeWindow(hwnd))
+                DebugLog("Poll rejected by top-level prefilter." . " | " DescribeWindow(hwnd))
             }
             continue
         }
@@ -607,8 +607,8 @@ HandleWinEvent(hook_handle, event, hwnd, object_id, child_id, event_thread, even
                 previous_foreground_hwnd := current_foreground_hwnd
                 current_foreground_hwnd := hwnd
 
-                DebugLog("Foreground changed." . " | current=" DebugDescribeWindow(hwnd)
-                    . " | previous=" . DebugDescribeWindow(previous_foreground_hwnd))
+                DebugLog("Foreground changed." . " | current=" DescribeWindow(hwnd)
+                    . " | previous=" . DescribeWindow(previous_foreground_hwnd))
 
             }
 
@@ -635,7 +635,7 @@ HandleWinEvent(hook_handle, event, hwnd, object_id, child_id, event_thread, even
             if SuiteState.Log.verbose
                 && (was_managed || pending_windows.Has(hwnd) || handled_windows.Has(hwnd))
             {
-                DebugLog("Destroy event." . " | " DebugDescribeWindow(hwnd))
+                DebugLog("Destroy event." . " | " DescribeWindow(hwnd))
             }
 
             ForgetWindow(hwnd)
@@ -684,7 +684,7 @@ HandleWinEvent(hook_handle, event, hwnd, object_id, child_id, event_thread, even
 
         if SuiteState.Log.verbose {
             DebugLog("Show event." . " | pending=" pending_windows.Has(hwnd)
-                . " | handled=" handled_windows.Has(hwnd) . " | " DebugDescribeWindow(hwnd))
+                . " | handled=" handled_windows.Has(hwnd) . " | " DescribeWindow(hwnd))
         }
 
         ; Some already-managed apps re-show the same HWND rather than creating
@@ -700,13 +700,13 @@ HandleWinEvent(hook_handle, event, hwnd, object_id, child_id, event_thread, even
             if !explicit_monitor {
                 if SuiteState.Log.verbose {
                     DebugLog("Show event skipped: window existed at script startup."
-                        . " | " DebugDescribeWindow(hwnd))
+                        . " | " DescribeWindow(hwnd))
                 }
                 return
             }
             startup_windows.Delete(hwnd)
             DebugLog("First reveal of cached Explorer window accepted."
-                . " | " DebugDescribeWindow(hwnd))
+                . " | " DescribeWindow(hwnd))
         }
 
         ; Cheap filtering here prevents Explorer controls, ribbon pieces,
@@ -729,8 +729,8 @@ HandleWinEvent(hook_handle, event, hwnd, object_id, child_id, event_thread, even
         if source_hwnd = hwnd
             source_hwnd := previous_foreground_hwnd
 
-        DebugLog("Show event accepted." . " | target=" DebugDescribeWindow(hwnd)
-            . " | source=" DebugDescribeWindow(source_hwnd))
+        DebugLog("Show event accepted." . " | target=" DescribeWindow(hwnd)
+            . " | source=" DescribeWindow(source_hwnd))
 
         QueueWindowPlacement(hwnd, source_hwnd, explicit_monitor)
     }

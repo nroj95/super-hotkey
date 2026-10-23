@@ -345,7 +345,7 @@ WW_GetHorizontalStretchObstacles(active_hwnd, monitor_handle)
 {
     obstacles := []
     for hwnd in WinGetList() {
-        if hwnd = active_hwnd || !WW_IsWindowToggleCandidate(hwnd)
+        if hwnd = active_hwnd || !IsSwitchableWindow(hwnd)
             continue
         candidate_monitor := DllCall("MonitorFromWindow", "ptr", hwnd, "uint", 2, "ptr")
         if candidate_monitor != monitor_handle
@@ -619,7 +619,7 @@ WW_GetPlacementTarget(&fresh_entry)
         return 0
 
     try {
-        if !WW_IsWindowToggleCandidate(hwnd)
+        if !IsSwitchableWindow(hwnd)
             return 0
         if WW_IsNativeFullscreen(hwnd) || WinGetMinMax(hwnd) != 0
             fresh_entry := true

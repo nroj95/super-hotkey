@@ -15,58 +15,6 @@ DebugError(context, failure) {
     SuiteState.Log.Error("Cascade Kingdom / " context, failure)
 }
 
-DebugDescribeWindow(hwnd)
-{
-    if !SuiteState.Log.verbose
-        return "hwnd=" hwnd
-
-    if !hwnd
-        return "hwnd=0"
-
-    if !DllCall("IsWindow", "ptr", hwnd, "int")
-        return "hwnd=" hwnd " [invalid]"
-
-    title := ""
-    class_name := ""
-    process_name := ""
-    min_max := "?"
-    x := "?"
-    y := "?"
-    width := "?"
-    height := "?"
-
-    try title := WinGetTitle("ahk_id " hwnd)
-    try class_name := WinGetClass("ahk_id " hwnd)
-    try process_name := WinGetProcessName("ahk_id " hwnd)
-    try min_max := WinGetMinMax("ahk_id " hwnd)
-
-    try {
-        WinGetPosPixels(&window_x, &window_y, &window_width, &window_height, "ahk_id " hwnd)
-
-        x := window_x
-        y := window_y
-        width := window_width
-        height := window_height
-    }
-
-    title := StrReplace(
-        StrReplace(title, "`r", " "),
-        "`n",
-        " "
-    )
-
-    visible := DllCall("IsWindowVisible", "ptr", hwnd, "int")
-
-    iconic := DllCall("IsIconic", "ptr", hwnd, "int")
-
-    cloaked := false
-    try cloaked := IsWindowCloaked(hwnd)
-
-    return ("hwnd=" hwnd . ' exe="' process_name '"' . ' class="' class_name '"'
-        . ' title="' title '"' . " minmax=" min_max . " visible=" visible . " iconic=" iconic
-        . " cloaked=" cloaked . " rect=(" x "," y . " " width "x" height ")")
-}
-
 
 ; =============================================================================
 ; focus-tab appearance diagnostics

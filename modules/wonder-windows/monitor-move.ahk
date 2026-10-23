@@ -19,7 +19,7 @@ WW_CycleWindowMonitor()
 {
     Critical "On"
     hwnd := WinExist("A")
-    if !WW_IsWindowToggleCandidate(hwnd)
+    if !IsSwitchableWindow(hwnd)
         return
 
     try {
@@ -30,12 +30,9 @@ WW_CycleWindowMonitor()
 
         ; A live Cascade-managed window must join the destination cascade,
         ; not become a permanent manually positioned Wonder Windows window.
-        if IsCascadeEnabled() && GetManagedCascadeMonitor(hwnd) && CascadeDisplayAllowed(target) {
-            RemoveWindowFromMinimizeState(hwnd)
-            if PlaceCascadeWindowOnMonitor(hwnd, target) {
+        if SuiteManagedWindows.CanMoveToMonitor(hwnd, target) {
+            if SuiteManagedWindows.MoveToMonitor(hwnd, target)
                 WW_ForgetLastMinimizedWindow()
-                QueueFocusCornerUpdate()
-            }
             return
         }
 

@@ -91,6 +91,17 @@ class SuiteWindowOwnership {
     }
 }
 
+; Windows that a module arranges automatically. Cascade Kingdom is the provider,
+; so Wonder Windows can respect its windows without calling into it.
+class SuiteManagedWindows {
+    static provider := 0  ; ManagedMonitor(hwnd), CanMoveToMonitor(hwnd, monitor), MoveToMonitor(hwnd, monitor)
+
+    ; The display a managed window belongs to, or 0 when no module manages it.
+    static Monitor(hwnd) => this.provider ? this.provider.ManagedMonitor(hwnd) : 0
+    static CanMoveToMonitor(hwnd, monitor) => this.provider && this.provider.CanMoveToMonitor(hwnd, monitor)
+    static MoveToMonitor(hwnd, monitor) => this.provider.MoveToMonitor(hwnd, monitor)
+}
+
 PaperPadWindowActive(*) {
     hwnd := DllCall("GetForegroundWindow", "ptr")
     return hwnd && !!DllCall("GetPropW", "ptr", hwnd, "str", "nroj.PaperPad.Notepad3Window", "ptr")
@@ -183,6 +194,77 @@ IsTopLevelAppWindow(hwnd, &className := "") {
     ; Reject WS_CHILD, WS_EX_TOOLWINDOW, WS_EX_NOACTIVATE and owned popups.
     return !(style & 0x40000000) && !(exStyle & 0x08000080)
         && !DllCall("GetWindow", "ptr", hwnd, "uint", 4, "ptr") && !IsShellSurfaceClass(className)
+}
+
+; A visible, uncloaked application window the user can switch to. Suite
+; overlays stay excluded; minimized windows count only when requested.
+IsSwitchableWindow(hwnd, includeMinimized := false) {
+    if !SuiteWindowOwnership.AllowsWonderWindows(hwnd) || !DllCall("IsWindowVisible", "ptr", hwnd, "int")
+        || !IsTopLevelAppWindow(hwnd) || IsWindowCloaked(hwnd)
+        return false
+    try return (includeMinimized || WinGetMinMax("ahk_id " hwnd) != -1) && WinGetTitle("ahk_id " hwnd) != ""
+    return false
+}
+
+; Restores and activates a window. Windows can refuse a foreground change,
+; so SetForegroundWindow is retried up to six times.
+ActivateWindow(hwnd) {
+    if !hwnd || !DllCall("IsWindow", "ptr", hwnd, "int")
+        return false
+    if WinActive(hwnd) && !DllCall("IsIconic", "ptr", hwnd, "int")
+        return true
+    SuiteState.Log.Debug("Core", "Window activation begin. | target=" DescribeWindow(hwnd))
+    try {
+        if WinGetMinMax(hwnd) = -1
+            WinRestore(hwnd)
+    }
+    Loop 6 {
+        try WinActivate(hwnd)
+        if WinActive(hwnd)
+            return true
+        result := DllCall("SetForegroundWindow", "ptr", hwnd, "int")
+        Sleep 50
+        foreground := DllCall("GetForegroundWindow", "ptr")
+        SuiteState.Log.Debug("Core", "Window activation attempt. | attempt=" A_Index
+            . " | SetForegroundWindow=" result " | requested=" DescribeWindow(hwnd)
+            . " | foreground=" DescribeWindow(foreground))
+        if foreground = hwnd
+            return true
+    }
+    return false
+}
+
+; A WINDOWPLACEMENT snapshot, including a maximized window's restore rectangle.
+CaptureWindowPlacement(hwnd) {
+    placement := Buffer(44, 0)
+    NumPut("uint", placement.Size, placement)
+    if !DllCall("GetWindowPlacement", "ptr", hwnd, "ptr", placement, "int")
+        throw OSError()
+    return placement
+}
+
+; A one-line window description for verbose logs; only the handle otherwise.
+DescribeWindow(hwnd) {
+    if !SuiteState.Log.verbose || !hwnd
+        return "hwnd=" hwnd
+    if !DllCall("IsWindow", "ptr", hwnd, "int")
+        return "hwnd=" hwnd " [invalid]"
+    title := className := processName := processPath := ""
+    minMax := style := exStyle := x := y := width := height := "?"
+    try title := StrReplace(StrReplace(WinGetTitle(hwnd), "`r", " "), "`n", " ")
+    try className := WinGetClass(hwnd)
+    try processName := WinGetProcessName(hwnd)
+    try processPath := WinGetProcessPath(hwnd)
+    try minMax := WinGetMinMax(hwnd)
+    try style := WinGetStyle(hwnd)
+    try exStyle := WinGetExStyle(hwnd)
+    try WinGetPosPixels(&x, &y, &width, &height, hwnd)
+    return "hwnd=" hwnd ' exe="' processName '" class="' className '" title="' title '"'
+        . " minmax=" minMax " visible=" DllCall("IsWindowVisible", "ptr", hwnd, "int")
+        . " iconic=" DllCall("IsIconic", "ptr", hwnd, "int") " cloaked=" IsWindowCloaked(hwnd)
+        . " owner=" DllCall("GetWindow", "ptr", hwnd, "uint", 4, "ptr")
+        . " style=" style " exstyle=" exStyle " rect=(" x "," y " " width "x" height ")"
+        . ' path="' processPath '"'
 }
 
 ; The display Windows assigns a window to: the largest intersection, or the

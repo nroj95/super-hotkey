@@ -68,7 +68,7 @@ WW_ToggleMinimizedWindowGroup(&minimized_windows, &saved_active_hwnd, keep_activ
         if keep_active_window && hwnd = active_hwnd
             continue
 
-        if !WW_IsWindowToggleCandidate(hwnd)
+        if !IsSwitchableWindow(hwnd)
             continue
 
         windows_to_minimize.Push(hwnd)
@@ -185,7 +185,7 @@ WW_MinimizeActiveWindow()
     ; When focus has fallen back to the shell/desktop, use Win+Backspace as a
     ; toggle for the most recent window minimized with this shortcut. Never
     ; minimize Explorer, the taskbar, StartAllBack, or another shell surface.
-    if !hwnd || !WW_IsWindowToggleCandidate(hwnd) {
+    if !hwnd || !IsSwitchableWindow(hwnd) {
         if WW_last_minimized_hwnd
             && WinExist("ahk_id " WW_last_minimized_hwnd)
         {
@@ -269,7 +269,7 @@ WW_RememberNormalWindowPlacement(hwnd)
         WW_normal_window_placements.Delete(hwnd)
     }
 
-    placement := WW_CaptureWindowPlacement(hwnd)
+    placement := CaptureWindowPlacement(hwnd)
 
     WW_normal_window_placements[hwnd] := Map("pid", process_id, "work_area", work_area,
         "placement", placement)

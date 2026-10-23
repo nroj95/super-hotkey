@@ -9,7 +9,7 @@ WW_CycleStackedWindows()
 {
     Critical "On"
     active := WinExist("A")
-    if !WW_IsWindowToggleCandidate(active) || GetManagedCascadeMonitor(active)
+    if !IsSwitchableWindow(active) || SuiteManagedWindows.Monitor(active)
         return
 
     monitor := DllCall("MonitorFromWindow", "ptr", active, "uint", 2, "ptr")
@@ -19,8 +19,8 @@ WW_CycleStackedWindows()
     ; WinGetList lists front to back. Bringing the last overlapping window
     ; forward rotates even a large stack without tracking activation history.
     for hwnd in WinGetList() {
-        if hwnd = active || !WW_IsWindowToggleCandidate(hwnd)
-            || GetManagedCascadeMonitor(hwnd)
+        if hwnd = active || !IsSwitchableWindow(hwnd)
+            || SuiteManagedWindows.Monitor(hwnd)
             continue
         if DllCall("MonitorFromWindow", "ptr", hwnd, "uint", 2, "ptr") != monitor
             continue
@@ -32,7 +32,7 @@ WW_CycleStackedWindows()
     if backmost {
         WW_ForgetLastMinimizedWindow()
         WW_EndFocusNavigationSession()
-        WW_ActivateWindowReliably(backmost)
+        ActivateWindow(backmost)
     }
 }
 
@@ -72,8 +72,8 @@ WW_CycleMaximizedFullscreenWindows()
     target_hwnd := WW_NextMaximizedFullscreenWindow(WW_maximized_fullscreen_cycle, active_hwnd,
         WW_last_maximized_fullscreen_hwnd)
 
-    WW_DebugLog("Expanded-window cycle step." . " | from=" WW_DebugDescribeWindow(active_hwnd)
-        . " | to=" WW_DebugDescribeWindow(target_hwnd))
+    WW_DebugLog("Expanded-window cycle step." . " | from=" DescribeWindow(active_hwnd)
+        . " | to=" DescribeWindow(target_hwnd))
 
     if WW_ShowMaximizedFullscreenCycleWindow(WW_maximized_fullscreen_cycle, target_hwnd)
         WW_last_maximized_fullscreen_hwnd := target_hwnd
@@ -138,14 +138,14 @@ WW_GetMaximizedFullscreenWindows()
 
 WW_IsMaximizedFullscreenSwitcherWindow(hwnd)
 {
-    if !WW_IsWindowToggleCandidate(hwnd, true)
+    if !IsSwitchableWindow(hwnd, true)
         return false
     try {
         state := WinGetMinMax(hwnd)
         if state != -1
             return state = 1 || WW_IsNativeFullscreen(hwnd)
 
-        placement := WW_CaptureWindowPlacement(hwnd)
+        placement := CaptureWindowPlacement(hwnd)
         ; Windows remembers whether an iconic window should restore maximized.
         if (NumGet(placement, 4, "uint") & 0x0002) ; WPF_RESTORETOMAXIMIZED
             || SuiteFullscreen.placements.Has(hwnd)
@@ -218,5 +218,5 @@ WW_ShowMaximizedFullscreenCycleWindow(windows, target_hwnd)
         }
     }
 
-    return !target_hwnd || WW_ActivateWindowReliably(target_hwnd)
+    return !target_hwnd || ActivateWindow(target_hwnd)
 }

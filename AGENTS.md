@@ -12,13 +12,13 @@ Super Hotkey is one AutoHotkey v2 64-bit process: a launcher, a small core and f
 | `core/keybindings-editor.ahk` | the Keybindings window |
 | `core/settings.ahk`, `core/logging.ahk` | suite preferences, backups and the shared log |
 | `core/ui.ahk`, `core/tray.ahk` | every GUI and the only tray |
-| `core/windows.ahk`, `core/focus-border.ahk` | window queries, DPI boundaries and manual window ownership |
+| `core/windows.ahk`, `core/focus-border.ahk` | window queries, activation, DPI boundaries, and manual and managed window ownership |
 | `modules/<id>/module.ahk` | a module's lifecycle, actions, settings page and guide |
 
 ## design rules
 
 - users assign **hotkeys** to **actions** in **Keybindings**. use these words consistently.
-- a module overrides only the `SuiteModule` methods it needs and registers its actions in `Register`. core never calls module internals; modules react through hooks such as `SuiteWindowOwnership.OnClaim`. `tests/test_suite_structure.py` enforces this and the shared global namespace.
+- a module overrides only the `SuiteModule` methods it needs and registers its actions in `Register`. core never calls module internals, and modules never call each other: they share behavior through core, such as the `SuiteWindowOwnership.OnClaim` hook and the `SuiteManagedWindows` provider. `tests/test_suite_structure.py` enforces both rules and the shared global namespace.
 - Keybindings owns every configurable hotkey, including CapsLock and Pause layer suffixes. Secret Layers' `KeyboardLayers` owns only the two prefix keys. only registered complementary scopes may share a hotkey; Paper Pad editor navigation works only in its editor.
 - native input callbacks only queue work. cancel queued work on reconfiguration, suspension and exit, and always release held output.
 - disabled modules and layers release their inputs and keep their assignments editable. CapsLock and Pause behave normally unless reassigned.

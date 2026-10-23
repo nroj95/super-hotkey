@@ -64,9 +64,9 @@ class SuiteHardeningChecks {
             this.Assert(WW_IsMaximizedFullscreenSwitcherWindow(maximized)
                 && !WW_IsMaximizedFullscreenSwitcherWindow(normal),
                 "initially minimized maximized windows qualify without admitting normal windows")
-            this.Assert(!WW_IsWindowToggleCandidate(maximized)
-                && !WW_IsWindowToggleCandidate(normal)
-                && WW_IsWindowToggleCandidate(maximized, true),
+            this.Assert(!IsSwitchableWindow(maximized)
+                && !IsSwitchableWindow(normal)
+                && IsSwitchableWindow(maximized, true),
                 "other window commands retain their default exclusion of minimized windows")
             WinRestore(normal)
 
@@ -121,7 +121,7 @@ class SuiteHardeningChecks {
             cascade_displays := ReadCascadeDisplays().displays
             window.Show("x60 y60 w320 h220")
             hwnd := window.Hwnd
-            original := WW_CaptureWindowPlacement(hwnd)
+            original := CaptureWindowPlacement(hwnd)
             WinMaximize(hwnd)
             WinActivate(hwnd)
             this.Assert(!!WinWaitActive(hwnd, , 1),
@@ -142,7 +142,7 @@ class SuiteHardeningChecks {
             WinMove(100, 100, 420, 280, hwnd)
             this.Assert(UndoPendingAdoption() && WinGetMinMax(hwnd) = 1,
                 "adoption undo restores maximized state")
-            restored := WW_CaptureWindowPlacement(hwnd)
+            restored := CaptureWindowPlacement(hwnd)
             sameRectangle := true
             for offset in [28, 32, 36, 40]
                 sameRectangle := sameRectangle

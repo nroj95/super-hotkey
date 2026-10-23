@@ -64,7 +64,7 @@ CaptureAdoptionUndoSnapshot(hwnd)
 
     try {
         ; Keep the maximized state AND its original normal restore rectangle.
-        maximized_placement := WinGetMinMax(hwnd) = 1 ? WW_CaptureWindowPlacement(hwnd) : 0
+        maximized_placement := WinGetMinMax(hwnd) = 1 ? CaptureWindowPlacement(hwnd) : 0
         WinGetPosPixels(&window_x, &window_y, &window_width, &window_height, "ahk_id " hwnd)
     }
     catch {

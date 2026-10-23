@@ -93,7 +93,7 @@ PlaceCascadeWindowOnMonitor(hwnd, target_monitor, requested_position := 0,
                 known_windows[hwnd] := true
             }
             DebugLog("Explicit placement SetWindowPos failed." . " | last-error=" move_error
-                . " | target=" DebugDescribeWindow(hwnd))
+                . " | target=" DescribeWindow(hwnd))
             return false
         }
 
@@ -383,8 +383,8 @@ PlaceNewWindow(hwnd, source_hwnd, queued_monitor := 0, retry_count := 0, settle_
             return
 
         DebugLog("PlaceNewWindow begin." . " | retry=" retry_count . " | settled=" settle_complete
-            . " | queued-monitor=" queued_monitor . " | target=" DebugDescribeWindow(hwnd)
-            . " | source=" DebugDescribeWindow(source_hwnd))
+            . " | queued-monitor=" queued_monitor . " | target=" DescribeWindow(hwnd)
+            . " | source=" DescribeWindow(source_hwnd))
 
         retry_reason := GetPlacementReadinessReason(hwnd)
 
@@ -394,7 +394,7 @@ PlaceNewWindow(hwnd, source_hwnd, queued_monitor := 0, retry_count := 0, settle_
             try {
                 WinRestore("ahk_id " hwnd)
                 DebugLog("Restoring maximized new window before cascade placement."
-                    . " | target=" DebugDescribeWindow(hwnd))
+                    . " | target=" DescribeWindow(hwnd))
             }
             catch {
             }
@@ -408,7 +408,7 @@ PlaceNewWindow(hwnd, source_hwnd, queued_monitor := 0, retry_count := 0, settle_
 
             DebugLog("Placement readiness retry." . " | reason=" retry_reason
                 . " | retry=" next_retry . "/" placement_ready_retry_limit
-                . " | target=" DebugDescribeWindow(hwnd))
+                . " | target=" DescribeWindow(hwnd))
 
             SetTimer(
                 PlaceNewWindow.Bind(hwnd, source_hwnd, queued_monitor, next_retry, settle_complete,
@@ -441,7 +441,7 @@ PlaceNewWindow(hwnd, source_hwnd, queued_monitor := 0, retry_count := 0, settle_
         }
 
         if !IsCascadeWindow(hwnd) {
-            DebugLog("Placement rejected by IsCascadeWindow." . " | " DebugDescribeWindow(hwnd))
+            DebugLog("Placement rejected by IsCascadeWindow." . " | " DescribeWindow(hwnd))
             return
         }
 
@@ -487,8 +487,8 @@ PlaceNewWindow(hwnd, source_hwnd, queued_monitor := 0, retry_count := 0, settle_
 
         DebugLog("Placement monitor resolved." . " | dpi-transfer=" dpi_transition
             . " | monitor=" target_monitor . " | queued-monitor=" queued_monitor
-            . " | provisional=" reused_provisional . " | target=" DebugDescribeWindow(hwnd)
-            . " | source=" DebugDescribeWindow(source_hwnd))
+            . " | provisional=" reused_provisional . " | target=" DescribeWindow(hwnd)
+            . " | source=" DescribeWindow(source_hwnd))
 
         if reused_provisional
             && IsCurrentNewWindowPlacement(hwnd, request)
@@ -513,7 +513,7 @@ PlaceNewWindow(hwnd, source_hwnd, queued_monitor := 0, retry_count := 0, settle_
                     handled_windows[hwnd] := true
                     RecordCascadeWindow(target_monitor, hwnd)
                     DebugLog("Placement complete." . " | monitor=" target_monitor
-                        . " | final-move=skipped" . " | " DebugDescribeWindow(hwnd))
+                        . " | final-move=skipped" . " | " DescribeWindow(hwnd))
                     SchedulePlacementStabilization(hwnd, target_x, target_y, window_width,
                         window_height, dpi_transition, true)
                     StartNewWindowFocus(hwnd, request.focus)
@@ -539,7 +539,7 @@ PlaceNewWindow(hwnd, source_hwnd, queued_monitor := 0, retry_count := 0, settle_
         DebugLog("Moving cascade window." . " | monitor=" target_monitor
             . " | visible-rect=(" target_x "," target_y . " " window_width "x" window_height ")"
             . " | raw-rect=(" raw_target_x "," raw_target_y
-            . " " raw_target_width "x" raw_target_height ")" . " | " DebugDescribeWindow(hwnd))
+            . " " raw_target_width "x" raw_target_height ")" . " | " DescribeWindow(hwnd))
 
         ; Post the placement request instead of blocking on applications whose
         ; window thread is temporarily busy, such as DST during startup.
@@ -550,7 +550,7 @@ PlaceNewWindow(hwnd, source_hwnd, queued_monitor := 0, retry_count := 0, settle_
         )
 
         DebugLog("SetWindowPos begin." . " | flags=" swp_flags
-            . " | target=" DebugDescribeWindow(hwnd))
+            . " | target=" DescribeWindow(hwnd))
 
         set_window_pos_start_tick := A_TickCount
 
@@ -574,14 +574,14 @@ PlaceNewWindow(hwnd, source_hwnd, queued_monitor := 0, retry_count := 0, settle_
             (A_TickCount - set_window_pos_start_tick) & 0xFFFFFFFF
 
         DebugLog("SetWindowPos returned." . " | result=" set_window_pos_result
-            . " | elapsed-ms=" set_window_pos_elapsed_ms . " | target=" DebugDescribeWindow(hwnd))
+            . " | elapsed-ms=" set_window_pos_elapsed_ms . " | target=" DescribeWindow(hwnd))
 
         if !set_window_pos_result {
             if placement_reservations.Has(hwnd) && placement_reservations[hwnd] = owned_reservation
                 placement_reservations.Delete(hwnd)
 
             DebugLog("SetWindowPos failed." . " | last-error=" set_window_pos_error
-                . " | target=" DebugDescribeWindow(hwnd))
+                . " | target=" DescribeWindow(hwnd))
             return
         }
 
@@ -601,7 +601,7 @@ PlaceNewWindow(hwnd, source_hwnd, queued_monitor := 0, retry_count := 0, settle_
         RecordCascadeWindow(target_monitor, hwnd)
 
         DebugLog("Placement complete." . " | monitor=" target_monitor
-            . " | " DebugDescribeWindow(hwnd))
+            . " | " DescribeWindow(hwnd))
 
         SchedulePlacementStabilization(hwnd, target_x, target_y, window_width, window_height,
             dpi_transition, true)

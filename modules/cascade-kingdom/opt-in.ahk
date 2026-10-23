@@ -176,7 +176,7 @@ CascadeVerifyCustomCaptionDoubleClick(hwnd, pid, monitor, before)
         if !CascadeWasMaximizeRestore(before, after)
             return
         DebugLog("Custom title-bar double-click confirmed by maximize/restore."
-            . " | " DebugDescribeWindow(hwnd))
+            . " | " DescribeWindow(hwnd))
         CascadeAdoptCaptionWindow(hwnd, pid, monitor, before)
     }
     catch Error as err

@@ -37,18 +37,6 @@ WW_WindowStateMatchesProcess(hwnd, saved)
 ; window filtering
 ; =============================================================================
 
-WW_IsWindowToggleCandidate(hwnd, include_minimized := false)
-{
-    if !SuiteWindowOwnership.AllowsWonderWindows(hwnd)
-        || !DllCall("IsWindowVisible", "ptr", hwnd, "int")
-        || !IsTopLevelAppWindow(hwnd) || IsWindowCloaked(hwnd)
-        return false
-
-    try return (include_minimized || WinGetMinMax("ahk_id " hwnd) != -1)
-        && WinGetTitle("ahk_id " hwnd) != ""
-    return false
-}
-
 ; =============================================================================
 ; monitor geometry
 ; =============================================================================
@@ -98,18 +86,6 @@ WW_GetWindowMonitorInfo(hwnd)
 ; native placement snapshots and frame refresh
 ; =============================================================================
 
-WW_CaptureWindowPlacement(hwnd)
-{
-    placement := Buffer(44, 0)
-    NumPut("uint", placement.Size, placement, 0)
-
-    if !DllCall("GetWindowPlacement", "ptr", hwnd, "ptr", placement, "int") {
-        throw OSError()
-    }
-
-    return placement
-}
-
 WW_ApplyWindowPlacement(hwnd, placement, show_command := unset)
 {
     SuiteWindowOwnership.Claim(hwnd)
@@ -132,47 +108,6 @@ WW_ApplyWindowPlacement(hwnd, placement, show_command := unset)
 ; =============================================================================
 ; activation and window-list lookup
 ; =============================================================================
-
-WW_ActivateWindowReliably(hwnd)
-{
-    if !hwnd || !DllCall("IsWindow", "ptr", hwnd, "int")
-        return false
-
-    if WinActive(hwnd) && !DllCall("IsIconic", "ptr", hwnd, "int")
-        return true
-
-    WW_DebugLog("ActivateWindowReliably begin." . " | target=" WW_DebugDescribeWindow(hwnd))
-
-    try {
-        if WinGetMinMax(hwnd) = -1
-            WinRestore(hwnd)
-    }
-
-    Loop 6 {
-        attempt := A_Index
-
-        try WinActivate(hwnd)
-        if WinActive(hwnd)
-            return true
-
-        set_foreground_result := DllCall("SetForegroundWindow", "ptr", hwnd, "int")
-
-        Sleep 50
-
-        foreground_hwnd :=
-            DllCall("GetForegroundWindow", "ptr")
-
-        WW_DebugLog("Normal-window activation attempt." . " | attempt=" attempt
-            . " | SetForegroundWindow=" . set_foreground_result
-            . " | requested=" WW_DebugDescribeWindow(hwnd) . " | foreground="
-            . WW_DebugDescribeWindow(foreground_hwnd))
-
-        if foreground_hwnd = hwnd
-            return true
-    }
-
-    return false
-}
 
 WW_FindWindowIndex(windows, target_hwnd)
 {

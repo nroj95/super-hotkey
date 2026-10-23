@@ -61,6 +61,27 @@ class SuiteStructureTests(unittest.TestCase):
             used = set(re.findall(r'[A-Za-z_]\w*', code(path))) & owned
             self.assertEqual(used, set(), f'{path.name} uses module internals')
 
+    def test_modules_do_not_reach_into_each_other(self):
+        # Modules share behavior through core, such as SuiteManagedWindows.
+        owned, declared = {}, {}
+        for path in MODULES:
+            text = source(path)
+            module = path.parent.name
+            owned.setdefault(module, set()).update(re.findall(r'(?m)^([A-Za-z_]\w*)\(', text),
+                                                   re.findall(r'(?m)^class\s+(\w+)', text))
+            for names in re.findall(r'(?m)^\s*global\s+(.+)$', code(path)):
+                declared.setdefault(module, set()).update(
+                    re.findall(r'([A-Za-z_]\w*)\s*(?::=[^,]*)?(?:,|$)', names))
+        for path in MODULES:
+            module = path.parent.name
+            others = set().union(*(names for other, names in owned.items() if other != module))
+            used = set(re.findall(r'[A-Za-z_]\w*', code(path))) & others
+            self.assertEqual(used, set(), f'{path.relative_to(ROOT)} uses another module')
+        for module, names in declared.items():
+            for other, other_names in declared.items():
+                if other != module:
+                    self.assertEqual(names & other_names, set(), f'{module} and {other} share globals')
+
     def test_only_core_owns_the_tray(self):
         for path in RUNTIME:
             text = code(path)

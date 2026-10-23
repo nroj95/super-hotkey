@@ -1109,7 +1109,7 @@ class SuiteUpgradeChecks {
                 SuiteFullscreen.Enable(guiProbe)
                 guiProbe.Show("NA w600 h400")
                 this.Assert(SuiteWindowOwnership.AllowsWonderWindows(guiProbe.Hwnd)
-                    && WW_IsWindowToggleCandidate(guiProbe.Hwnd),
+                    && IsSwitchableWindow(guiProbe.Hwnd),
                     "normal suite GUIs are Wonder Windows candidates")
                 this.Assert(!WW_IsNativeFullscreen(guiProbe.Hwnd),
                     "ordinary suite GUI is not mistaken for native fullscreen")

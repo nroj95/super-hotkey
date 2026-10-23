@@ -47,7 +47,7 @@ CaptureExplorerSpaceReshowIntent()
 
     if SuiteState.Log.verbose {
         DebugLog("Explorer Space re-show intent captured." . " | monitor=" monitor
-            . " | source=" DebugDescribeWindow(source_hwnd))
+            . " | source=" DescribeWindow(source_hwnd))
     }
 }
 
@@ -237,7 +237,7 @@ CascadeCaptureCloseFocusTargets(closing_hwnd)
 {
     targets := []
     for hwnd in WinGetList() {
-        if hwnd = closing_hwnd || !WW_IsWindowToggleCandidate(hwnd)
+        if hwnd = closing_hwnd || !IsSwitchableWindow(hwnd)
             continue
         try targets.Push({hwnd: hwnd, pid: WinGetPID("ahk_id " hwnd)})
     }
@@ -343,7 +343,7 @@ CascadeWatchCloseFocus(request)
         if CascadeHasUsableCloseForeground(foreground, request.hwnd, request.pid) {
             SuiteFocusBorder.Show(foreground, "cascade-close")
             DebugLog("Caps+Delete native focus highlighted. | target="
-                . DebugDescribeWindow(foreground))
+                . DescribeWindow(foreground))
         }
         return
     }
@@ -374,19 +374,19 @@ CascadeWatchCloseFocus(request)
         try {
             if !WinExist("ahk_id " target.hwnd)
                 || WinGetPID("ahk_id " target.hwnd) != target.pid
-                || !WW_IsWindowToggleCandidate(target.hwnd)
+                || !IsSwitchableWindow(target.hwnd)
                 continue
             ; Never override a real foreground switch while evaluating choices.
             foreground := DllCall("GetForegroundWindow", "ptr")
             if CascadeHasUsableCloseForeground(foreground, request.hwnd, request.pid)
                 return
-            if WW_ActivateWindowReliably(target.hwnd) {
+            if ActivateWindow(target.hwnd) {
                 ; Match Win+Backspace: show the accent border on the window
                 ; actually focused by the fallback, including other monitors.
                 if DllCall("GetForegroundWindow", "ptr") = target.hwnd
                     SuiteFocusBorder.Show(target.hwnd, "cascade-close")
                 DebugLog("Caps+Delete focus fallback. | target="
-                    . DebugDescribeWindow(target.hwnd))
+                    . DescribeWindow(target.hwnd))
                 return
             }
         }

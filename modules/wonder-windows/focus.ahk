@@ -44,7 +44,7 @@ WW_FocusNearestWindow(direction)
         if hwnd = active_hwnd
             continue
 
-        if !WW_IsWindowToggleCandidate(hwnd)
+        if !IsSwitchableWindow(hwnd)
             continue
 
         try {
@@ -136,7 +136,7 @@ WW_FocusAfterMinimize(minimized_hwnd)
         foreground_hwnd := DllCall("GetForegroundWindow", "ptr")
 
         if foreground_hwnd != minimized_hwnd
-            && WW_IsWindowToggleCandidate(foreground_hwnd)
+            && IsSwitchableWindow(foreground_hwnd)
         {
             WW_BeginSpatialFocus(foreground_hwnd)
             return
@@ -149,10 +149,10 @@ WW_FocusAfterMinimize(minimized_hwnd)
         if hwnd = minimized_hwnd
             continue
 
-        if !WW_IsWindowToggleCandidate(hwnd)
+        if !IsSwitchableWindow(hwnd)
             continue
 
-        if WW_ActivateWindowReliably(hwnd) {
+        if ActivateWindow(hwnd) {
             WW_BeginSpatialFocus(hwnd)
             return
         }
