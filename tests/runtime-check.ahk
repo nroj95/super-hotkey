@@ -250,6 +250,10 @@ class SuiteChecks {
         this.Assert(FileExist(diagnosticLog.path ".old"), "central log rotates at the size limit")
         diagnosticLog.Error("Power-Up Utilities", Error("diagnostic marker", "native checks"))
         this.Assert(InStr(FileRead(diagnosticLog.path, "UTF-8"), "diagnostic marker"), "errors retain their details and module attribution")
+        viewer := FileOpen(diagnosticLog.path, "r -d") ; viewers usually share read and write, not delete
+        diagnosticLog.Write("Core", "written while viewed")
+        viewer.Close()
+        this.Assert(InStr(FileRead(diagnosticLog.path, "UTF-8"), "written while viewed"), "an open log viewer cannot block log writes")
         diagnosticLog.Clear()
         this.Assert(InStr(FileRead(diagnosticLog.path, "UTF-8"), "previous log retained"), "clearing the log retains one previous segment")
     }

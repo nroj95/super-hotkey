@@ -13,10 +13,14 @@ class SuiteLog {
             return
         this.writing := true
         try {
+            ; An open log viewer can block the rename; rotate on a later write instead.
             if FileExist(this.path) && FileGetSize(this.path) >= this.maximumBytes
-                FileMove(this.path, this.path ".old", true)
+                try FileMove(this.path, this.path ".old", true)
             line := FormatTime(, "yyyyMMdd-HHmmss") " [" component "] " level ": " message "`n"
-            FileAppend(line, this.path, "UTF-8-RAW")
+            ; FileOpen shares the file, so a viewer cannot block the write as with FileAppend.
+            logFile := FileOpen(this.path, "a", "UTF-8-RAW")
+            logFile.Write(line)
+            logFile.Close()
         }
         catch Error as failure
             OutputDebug("Super Hotkey: log write failed: " failure.Message)
