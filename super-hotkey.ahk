@@ -21,6 +21,8 @@
 #Include "%A_ScriptDir%\modules\power-up-utilities\utilities.ahk"
 #Include "%A_ScriptDir%\modules\cascade-kingdom\include.ahk"
 #Include "%A_ScriptDir%\modules\cascade-kingdom\module.ahk"
+#Include "%A_ScriptDir%\modules\paper-pad\native.ahk"
+#Include "%A_ScriptDir%\modules\paper-pad\notepad3-bridge.ahk"
 #Include "%A_ScriptDir%\modules\paper-pad\paper-pad.ahk"
 #Include "%A_ScriptDir%\modules\paper-pad\module.ahk"
 #Include "%A_ScriptDir%\modules\wonder-windows\include.ahk"
