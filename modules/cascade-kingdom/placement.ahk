@@ -17,8 +17,6 @@ PlaceCascadeWindowOnMonitor(
 
     global cascade_display_generation
     global handled_windows, known_windows, pending_windows, placement_reservations
-    global window_width_ratio, window_height_ratio
-    global edge_margin, minimum_width, minimum_height
 
     if !hwnd || !CascadeDisplayAllowed(target_monitor) || !WinExist("ahk_id " hwnd)
         return false
@@ -51,24 +49,9 @@ PlaceCascadeWindowOnMonitor(
             &work_bottom
         )
 
-        work_width := work_right - work_left
-        work_height := work_bottom - work_top
-
-        window_width := Floor(work_width * window_width_ratio)
-        window_height := Floor(work_height * window_height_ratio)
-
-        window_width := Max(minimum_width, window_width)
-        window_height := Max(minimum_height, window_height)
-
-        window_width := Min(
-            window_width,
-            work_width - edge_margin * 2
-        )
-
-        window_height := Min(
-            window_height,
-            work_height - edge_margin * 2
-        )
+        size := GetCascadeWindowSize(work_right - work_left, work_bottom - work_top)
+        window_width := size[1]
+        window_height := size[2]
 
         ; Exclude this HWND from occupancy without removing its membership yet.
         ; A display notification during placement must still find the old member.
@@ -221,8 +204,6 @@ GetPlacementReadinessReason(hwnd)
 ReserveNewWindowPlacement(hwnd, source_hwnd, queued_monitor, request)
 {
     global handled_windows, placement_reservations
-    global window_width_ratio, window_height_ratio
-    global edge_margin, minimum_width, minimum_height
     global cascade_display_generation
 
     display_generation := cascade_display_generation
@@ -240,16 +221,9 @@ ReserveNewWindowPlacement(hwnd, source_hwnd, queued_monitor, request)
         &work_bottom
     )
 
-    work_width := work_right - work_left
-    work_height := work_bottom - work_top
-    window_width := Min(
-        Max(minimum_width, Floor(work_width * window_width_ratio)),
-        work_width - edge_margin * 2
-    )
-    window_height := Min(
-        Max(minimum_height, Floor(work_height * window_height_ratio)),
-        work_height - edge_margin * 2
-    )
+    size := GetCascadeWindowSize(work_right - work_left, work_bottom - work_top)
+    window_width := size[1]
+    window_height := size[2]
 
     previous_critical := Critical("On")
     try {
@@ -470,9 +444,6 @@ PlaceNewWindow(
     global pending_windows, handled_windows, placement_reservations
     global placement_ready_retry_ms, placement_ready_retry_limit
     global placement_settle_delay_ms, placement_stabilize_tolerance
-    global window_width_ratio, window_height_ratio
-    global edge_margin, minimum_width, minimum_height
-
     global cascade_display_generation
     display_generation := cascade_display_generation
     retry_scheduled := false
@@ -842,20 +813,6 @@ PlaceNewWindow(
 
     }
     catch Error as err {
-        error_number := 0
-
-        try
-            error_number := err.Number
-
-        if err.What = "WinMove" && error_number = 5 {
-            ; The window was successfully identified but Windows denied control.
-            ; Treat it as handled so fallback detection does not retry it, but do
-            ; not leave an earlier provisional slot reserved for an unmanaged window.
-            ReleaseFailedNewWindowPlacementReservation(hwnd, request, owned_reservation)
-            handled_windows[hwnd] := true
-            return
-        }
-
         DebugError("PlaceNewWindow", err)
     }
     finally {

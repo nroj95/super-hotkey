@@ -1,7 +1,7 @@
+; Wonder Windows runtime state. Every name assigned here is a global shared by
+; the Wonder Windows files.
 WW_InitializeState() {
     global
-; Internal Win Key Overhaul module; initialized once by the root launcher.
-; Keep assignments at top level to preserve the existing global scope.
 
 ; =============================================================================
 ; defaults and shared state
@@ -30,11 +30,4 @@ WW_screengrid_releases_url := "https://github.com/TtesseractT/ScreenGrid/release
 WW_fancyzones_process_id := 0
 WW_fancyzones_integration_state := false
 WW_fancyzones_check_in_progress := false
-
-
-; =============================================================================
-; debug settings
-; =============================================================================
-
-
 }

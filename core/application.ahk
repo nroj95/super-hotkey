@@ -1,17 +1,46 @@
 ; =============================================================================
-; Super Hotkey - shared lifecycle and native thread defaults.
+; Super Hotkey - application lifecycle, the shared input gate and modules.
 ; Modules never launch another AutoHotkey process or own the application tray.
 ; =============================================================================
 class SuiteState {
     static App := 0
     static Log := 0
-    static CascadeStatus := ""
-    static PaperPadStatus := ""
+}
+
+; One feature module. The application constructs one per entry in
+; SuiteSettings.ModuleOrder and drives it through these methods. Every method
+; is optional; the defaults do nothing.
+class SuiteModule {
+    started := false
+    hasSettings := false
+    ; INI sections in <settings>\<id>\settings.ini restored by Reset to defaults.
+    resetSections := []
+
+    __New(app, id) {
+        this.app := app
+        this.id := id
+    }
+
+    Name => SuiteSettings.ModuleNames[this.id]
+
+    Register(manager) => 0             ; add actions in Keybindings display order
+    Start() => 0                       ; begin native work; never called in a dry run
+    Stop(reason := "Exit", code := 0) => 0  ; release everything; safe if never started
+    PrepareExit(reason) => 0           ; throw to keep the suite running
+    CancelWork() => 0                  ; expire queued work after any input change
+    Suspend() => 0                     ; tray suspension, sleep or a locked session
+    Resume() => 0
+    ShowSettings(ui) => 0
+    HelpText() => ""
+    HelpButtons() => []                ; extra Help footer buttons: [label, callback, width]
 }
 
 class SuiteApplication {
     static Name := "Super Hotkey"
     static Version := "1.0.0"
+    ; Keybindings lists the compact Paper Pad section right after Global.
+    static KeybindingsOrder := ["paper-pad", "cascade-kingdom", "wonder-windows",
+        "power-up-utilities", "secret-layers"]
 
     __New(dryRun := false, directory := "") {
         this.dryRun := dryRun
@@ -21,23 +50,17 @@ class SuiteApplication {
         this.Settings := SuiteSettings(directory)
         this.activeModules := this.Settings.modules.Clone()
         this.activeLayers := this.Settings.layers.Clone()
-        this.wonder := 0
-        this.wonderStarted := false
+        this.modules := Map()
         this.manager := 0
-        this.power := 0
-        this.capsToggle := 0
         this.ui := 0
         this.stopping := false
         this.systemSuspended := false
         this.sessionLocked := false
         this.suspended := false
         this.inputGeneration := 0
-        this.cascadeInitialized := false
-        this.cascadeStarted := false
-        this.paperPadStarted := false
         this.mutex := 0
         this.sessionNotifications := false
-        this.bindingFailure := ""
+        this.startupWarnings := []
         this.exitCallback := ObjBindMethod(this, "Stop")
         this.errorCallback := ObjBindMethod(this, "UnhandledError")
         this.powerCallback := ObjBindMethod(this, "PowerEvent")
@@ -45,6 +68,10 @@ class SuiteApplication {
         this.resumeCallback := ObjBindMethod(this, "ResumeInputs")
         SuiteState.App := this
         SuiteState.Log := SuiteLog(directory, 2097152, this.Settings.verbose)
+        if this.Settings.loadWarning != "" {
+            this.startupWarnings.Push(this.Settings.loadWarning)
+            SuiteState.Log.Write("Core", StrReplace(this.Settings.loadWarning, "`n", " "), "ERROR")
+        }
         SuiteIcons.Initialize()
     }
 
@@ -75,23 +102,16 @@ class SuiteApplication {
         catch Error as failure {
             if !this.manager.running
                 throw failure
-            this.bindingFailure := failure.Message
+            this.startupWarnings.Push(failure.Message "`n`nAll hotkeys remain inactive until the conflict is resolved."
+                . "`nUse Keybindings to restore defaults, or disable a conflicting module and restart.")
             SuiteState.Log.Error("Keybindings", failure)
         }
-        this.power.Start()
+        for warning in this.manager.loadWarnings
+            this.startupWarnings.Push(warning)
         if !this.dryRun {
-            if this.ModuleActive("cascade-kingdom") {
-                this.cascadeStarted := true
-                WindowCascadeModule.Start(this.manager)
-            }
-            if this.ModuleActive("wonder-windows") {
-                this.wonderStarted := true
-                this.wonder.Start()
-            }
-            if this.ModuleActive("paper-pad") {
-                PaperPadModule.Start(this.manager)
-                this.paperPadStarted := true
-            }
+            for id in SuiteSettings.ModuleOrder
+                if this.ModuleActive(id)
+                    this.StartModule(this.modules[id])
         }
         this.ui := SuiteInterface(this)
         this.ui.BuildTray()
@@ -100,28 +120,42 @@ class SuiteApplication {
         this.sessionNotifications := DllCall("Wtsapi32\WTSRegisterSessionNotification",
             "ptr", A_ScriptHwnd, "uint", 0, "int") != 0
         this.RefreshInputGate()
-        if !this.dryRun && IsObject(this.capsToggle)
-            this.capsToggle.Start()
-        for id, enabled in this.activeModules
-            SuiteState.Log.Write(SuiteSettings.ModuleNames[id], enabled ? (this.dryRun ? "dry run; effects disabled" : "enabled") : "disabled")
+        for id in SuiteSettings.ModuleOrder
+            SuiteState.Log.Write(SuiteSettings.ModuleNames[id], this.ModuleActive(id)
+                ? (this.dryRun ? "dry run; effects disabled" : this.modules[id].started ? "enabled" : "failed to start")
+                : "disabled")
         SuiteState.Log.Write("Core", "startup complete")
-        if this.bindingFailure != "" {
-            MsgBox(this.bindingFailure "`n`nAll hotkeys remain inactive until the conflict is resolved."
-                . "`nUse Keybindings to restore defaults, or disable a conflicting module and restart.",
-                SuiteApplication.Name, "Icon!")
-            this.manager.ShowSettings()
-        } else if openSettings || this.dryRun
+        for warning in this.startupWarnings
+            MsgBox(warning, SuiteApplication.Name, "Icon!")
+        if this.startupWarnings.Length || openSettings || this.dryRun
             this.manager.ShowSettings()
     }
 
+    ; One failing module must not keep the rest of the suite from starting.
+    StartModule(module) {
+        module.started := true
+        try module.Start()
+        catch Error as failure {
+            SuiteState.Log.Error(module.Name " / start", failure)
+            this.startupWarnings.Push(module.Name " could not start:`n`n" failure.Message
+                . "`n`nThe other modules are running.")
+            this.Cleanup(module.Name, ObjBindMethod(module, "Stop", "Error", 1))
+            module.started := false
+            this.activeModules[module.id] := false
+        }
+    }
+
     InitializeCatalog() {
-        InitializeCascadeState()
-        WW_InitializeState()
-        this.cascadeInitialized := true
+        this.modules := Map(
+            "cascade-kingdom", CascadeKingdomModule(this),
+            "wonder-windows", WonderWindowsModule(this),
+            "power-up-utilities", PowerUpUtilities(this),
+            "paper-pad", PaperPadModule(this),
+            "secret-layers", SecretLayersModule(this))
         options := {directory: this.Settings.directory "\keybindings",
             statusCallback: ObjBindMethod(this, "BindingStatus")}
-        if this.ModuleActive("secret-layers") && (this.activeLayers["caps"] || this.activeLayers["pause"])
-            options.layerFactory := (name, status) => LocalKeyboardLayers(name, status, this.activeLayers)
+        if factory := this.modules["secret-layers"].LayerFactory()
+            options.layerFactory := factory
         this.manager := Keybindings("super-hotkey", SuiteApplication.Name, options)
         this.manager.RegisterScope("paper-pad", PaperPadWindowActive)
         this.manager.RegisterScope("windows-terminal", (*) => WinActive("ahk_exe WindowsTerminal.exe"))
@@ -129,47 +163,44 @@ class SuiteApplication {
         this.manager.RegisterDisjointScopes("paper-pad", "windows-terminal")
         this.manager.AddAction("core.keybindings", "open Keybindings", ObjBindMethod(this, "OpenBindingsEvent"),
             ["Caps + Alt + K", "Ctrl + Alt + K"], {category: "Global"})
-        this.power := PowerUpUtilities(this.manager, this.dryRun)
-        WindowCascadeModule.Register(this.manager)
-        PaperPadModule.Register(this.manager)
-        this.wonder := WonderWindowsModule(this.manager, this.dryRun)
-        this.manager.AddAction("secret-layers.help", "show Secret Layers help",
-            ObjBindMethod(this, "HelpShortcutEvent", "secret-layers"), [],
-            {category: "Secret Layers", help: true,
-                available: (*) => this.ModuleActive("secret-layers")})
-        ; Retain the old ID so saved shortcuts survive the change of module owner.
-        this.manager.AddAction("power-up-utilities.keyboard.toggle-caps", "toggle Caps Lock",
-            ObjBindMethod(this, "ToggleCapsLockEvent"), [],
-            {category: "Secret Layers", available: (*) => this.ModuleActive("secret-layers")})
-        if this.ModuleActive("secret-layers") && this.activeLayers["caps"]
-            && this.Settings.capsToggleModifier != "Disabled"
-            this.capsToggle := CapsLockModifierToggle(this.Settings.capsToggleModifier)
+        ; The log actions keep their original IDs so saved assignments survive.
+        this.manager.AddAction("cascade-kingdom.copy-log", "copy debug log",
+            ObjBindMethod(this, "LogShortcutEvent", "copy"), ["Pause + F2"], {category: "Global"})
+        this.manager.AddAction("cascade-kingdom.reset-log", "clear debug log",
+            ObjBindMethod(this, "LogShortcutEvent", "clear"), ["Pause + F1"], {category: "Global"})
+        this.manager.AddMigration("debugDefaults", "2", SuiteMigrateLogKeybindingDefaults)
+        for id in SuiteApplication.KeybindingsOrder
+            this.modules[id].Register(this.manager)
     }
 
     ModuleActive(id) => this.activeModules.Has(id) && this.activeModules[id]
 
-    ToggleCapsLock(*) => SetCapsLockState(GetKeyState("CapsLock", "T") ? "Off" : "On")
-
-    ToggleCapsLockEvent(event) {
-        if event.phase = "up" && !this.dryRun && !this.stopping && !this.suspended
-            && !this.manager.gated && this.ModuleActive("secret-layers")
-            this.ToggleCapsLock()
-    }
-
     BindingStatus(message) {
         SuiteState.Log.Write("Keybindings", message)
-        if message = "keybinding changes saved" {
-            this.bindingFailure := ""
-            if IsObject(this.power)
-                this.power.SyncEnabledActions()
-            if this.cascadeInitialized
-                SetTimer(RefreshCascadeHelpBindings, -1)
-        }
     }
 
     OpenBindingsEvent(event) {
         if event.phase = "down"
             this.QueueInput(ObjBindMethod(this, "ToggleKeybindings"))
+    }
+
+    LogShortcutEvent(kind, event) {
+        if event.phase != "down"
+            return
+        if this.dryRun {
+            SuiteState.Log.Write("Core", "dry run: " event.actionId)
+            return
+        }
+        this.QueueInput(ObjBindMethod(this, "RunLogShortcut", kind))
+    }
+
+    RunLogShortcut(kind, *) {
+        if !IsObject(this.ui)
+            return
+        if kind = "copy"
+            SuiteStatusTip(this.ui.CopyLog() ? "debug log copied" : "debug log copy failed")
+        else
+            SuiteStatusTip(this.ui.ClearLogNow() ? "debug log cleared" : "debug log clear failed")
     }
 
     HelpShortcutEvent(moduleId, event) {
@@ -202,29 +233,27 @@ class SuiteApplication {
     CancelInputs() {
         ; Expire deferred callbacks even if input resumes before their timer runs.
         this.inputGeneration += 1
-        if IsObject(this.capsToggle)
-            this.capsToggle.Reset()
-        if IsObject(this.wonder)
-            this.wonder.CancelWork()
-        if IsObject(this.power)
-            this.power.CancelWork()
+        for id, module in this.modules
+            module.CancelWork()
         SuiteFocusBorder.Hide()
-        if this.cascadeStarted {
-            global cascade_opt_in_intent, cascade_titlebar_click
-            cascade_opt_in_intent := 0
-            cascade_titlebar_click := 0
-            CancelCascadeWindowDrop()
-            global cascade_command_queue
-            cascade_command_queue := []
-            CancelNewWindowFocus()
-            StopFocusTabClick()
-        }
+    }
+
+    SuspendModules() {
+        for id, module in this.modules
+            if module.started
+                module.Suspend()
+    }
+
+    ResumeModules() {
+        for id, module in this.modules
+            if module.started
+                module.Resume()
     }
 
     ToggleKeybindings(*) {
-        if IsObject(this.manager.settings)
-            && WinActive("ahk_id " this.manager.settings.Hwnd) {
-            this.manager._RequestCloseSettings()
+        editor := this.manager.editor
+        if IsObject(editor.window) && WinActive("ahk_id " editor.window.Hwnd) {
+            editor.RequestClose()
             return
         }
         this.ShowKeybindings()
@@ -243,12 +272,10 @@ class SuiteApplication {
             this.suspended := true
             this.RefreshInputGate()
             this.CancelInputs()
-            if this.cascadeStarted
-                WindowCascadeModule.Suspend()
+            this.SuspendModules()
         } else {
             ; Snapshot windows opened during suspension before allowing placement.
-            if this.cascadeStarted
-                WindowCascadeModule.Resume()
+            this.ResumeModules()
             this.suspended := false
             this.RefreshInputGate()
         }
@@ -263,27 +290,25 @@ class SuiteApplication {
     }
 
     PowerEvent(event, *) {
+        ; PBT_APMSUSPEND, PBT_APMRESUMESUSPEND, PBT_APMRESUMEAUTOMATIC
         if event != 4 && event != 7 && event != 0x12
             return
-        if IsObject(this.power) && !this.dryRun
-            this.power.utilities.sleepPolicy.OnPowerEvent(event)
         SetTimer(this.resumeCallback, 0)
         this.systemSuspended := true
         this.RefreshInputGate()
         this.CancelInputs()
-        if this.cascadeStarted
-            WindowCascadeModule.Suspend()
+        this.SuspendModules()
         if event != 4
             SetTimer(this.resumeCallback, -500)
     }
 
     SessionEvent(event, *) {
+        ; WTS_SESSION_LOGOFF, WTS_SESSION_LOCK, WTS_SESSION_UNLOCK
         if event = 6 || event = 7 {
             this.sessionLocked := true
             this.RefreshInputGate()
             this.CancelInputs()
-            if this.cascadeStarted
-                WindowCascadeModule.Suspend()
+            this.SuspendModules()
         } else if event = 8 {
             this.sessionLocked := false
             SetTimer(this.resumeCallback, -500)
@@ -294,8 +319,8 @@ class SuiteApplication {
         if this.stopping
             return
         InstallKeybdHook(true, true)
-        if this.cascadeStarted && !this.sessionLocked && !this.suspended
-            WindowCascadeModule.Resume()
+        if !this.sessionLocked && !this.suspended
+            this.ResumeModules()
         ; Automatic power resume is not evidence that the session was unlocked.
         this.systemSuspended := false
         this.RefreshInputGate()
@@ -304,40 +329,35 @@ class SuiteApplication {
     }
 
     Stop(reason := "Exit", code := 0) {
-        global paperPad
         if this.stopping
             return 0
         if IsObject(this.manager)
             this.manager.SetPaused(true)
-        ; Only interactive exits require Paper Pad's save/close approval.
-        ; Windows shutdown may have already closed the editor.
-        if this.paperPadStarted && IsSet(paperPad)
-            && reason != "Shutdown" && reason != "Logoff" {
-            try paperPad.PrepareSuiteExit(reason)
-            catch Error as failure {
-                SuiteState.Log.Error("Paper Pad / exit refused", failure)
-                this.RefreshInputGate()
-                MsgBox(failure.Message "`n`nThe suite is still running. No notes were discarded.",
-                    SuiteApplication.Name, "Icon!")
-                return 1
+        ; Only interactive exits ask modules for approval. Windows shutdown may
+        ; already have closed their windows.
+        if reason != "Shutdown" && reason != "Logoff" {
+            for id, module in this.modules {
+                if !module.started
+                    continue
+                try module.PrepareExit(reason)
+                catch Error as failure {
+                    SuiteState.Log.Error(module.Name " / exit refused", failure)
+                    this.RefreshInputGate()
+                    MsgBox(failure.Message "`n`nThe suite is still running. No notes were discarded.",
+                        SuiteApplication.Name, "Icon!")
+                    return 1
+                }
             }
         }
         this.stopping := true
         SetTimer(this.resumeCallback, 0)
-        if IsObject(this.capsToggle)
-            this.Cleanup("Secret Layers / Caps Lock", ObjBindMethod(this.capsToggle, "Stop"))
         if IsObject(this.manager)
             this.Cleanup("Keybindings", ObjBindMethod(this.manager, "Stop"))
-        if IsObject(this.power)
-            this.Cleanup("Power-Up Utilities", ObjBindMethod(this.power, "Stop"))
         if IsObject(this.ui)
             this.Cleanup("Core / interfaces", ObjBindMethod(this.ui, "CloseAll"))
-        if this.wonderStarted
-            this.Cleanup("Wonder Windows", (*) => this.wonder.Stop(reason, code))
-        if this.cascadeStarted
-            this.Cleanup("Cascade Kingdom", (*) => WindowCascadeModule.Stop())
-        if this.paperPadStarted && IsSet(paperPad)
-            this.Cleanup("Paper Pad", (*) => paperPad.OnScriptExit(reason, code))
+        for id in SuiteSettings.ModuleOrder
+            if this.modules.Has(id)
+                this.Cleanup(SuiteSettings.ModuleNames[id], ObjBindMethod(this.modules[id], "Stop", reason, code))
         this.Cleanup("Core / focus border", (*) => SuiteFocusBorder.Hide("", true))
         SuiteWindowOwnership.Clear()
         OnMessage(0x0218, this.powerCallback, 0)
@@ -367,6 +387,8 @@ class SuiteApplication {
         return 0
     }
 
+    ; Two keyboard hooks for the same keys would fight; the old standalone
+    ; scripts must not run beside the suite.
     CheckOriginalScripts() {
         previous := A_DetectHiddenWindows
         DetectHiddenWindows true
@@ -383,5 +405,28 @@ class SuiteApplication {
             }
         }
         finally DetectHiddenWindows previous
+    }
+}
+
+; The debug-log hotkeys moved from Caps + F5/F6. Replace only those old stock
+; bindings and never take a hotkey another action already uses.
+SuiteMigrateLogKeybindingDefaults(configuration, meta := 0)
+{
+    for change in [
+        ["cascade-kingdom.reset-log", "Caps + F5", "Pause + F1"],
+        ["cascade-kingdom.copy-log", "Caps + F6", "Pause + F2"]
+    ] {
+        actionId := change[1]
+        if !configuration.Has(actionId)
+            || configuration[actionId].bindings[1] != Keybindings.Parse(change[2]).signature
+            continue
+        target := Keybindings.Parse(change[3]).signature
+        occupied := false
+        for otherId, setting in configuration
+            for slot, binding in setting.bindings
+                if binding = target && (otherId != actionId || slot != 1)
+                    occupied := true
+        if !occupied
+            configuration[actionId].bindings[1] := target
     }
 }

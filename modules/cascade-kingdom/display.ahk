@@ -103,7 +103,7 @@ RefreshCascadeDisplays()
     global cascade_history, cascade_window_slots, cascade_display_reflow
     global placement_reservations, placement_stabilization_generations, placement_dpi_generations
     global cascade_minimized_windows, cascade_restore_batches, cascade_close_batches
-    global cascade_compaction_pending, desktop_monitor_hint, desktop_monitor_hint_tick
+    global cascade_compaction_pending
 
     if cascade_display_refreshing
         return
@@ -196,8 +196,6 @@ RefreshCascadeDisplays()
                 if cascade_window_slots.Has(target.hwnd)
                     target.monitor := cascade_window_slots[target.hwnd].monitor
             }
-            desktop_monitor_hint := 0
-            desktop_monitor_hint_tick := 0
             CancelPendingAdoptionUndo()
             CancelNewWindowFocus()
             cascade_display_change_pending := false

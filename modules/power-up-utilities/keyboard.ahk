@@ -73,20 +73,12 @@ class PH_Keyboard {
         finally Critical previousCritical
     }
 
+    ; A safety net beside Keybindings' own up/cancel delivery.
     CheckReleases(*) {
         for token, press in this.held.Clone() {
             event := press.event
-            released := !this.app.CanDispatch(event.actionId)
-            if event.layer = "normal" {
-                released := released || !GetKeyState(event.key, "P")
-                    || Keybindings.ModifierMask() != event.modifiers
-            } else {
-                ; The local layer owns suppressed inputs. Do not mistake a
-                ; missing local physical event for a release; trust its up/cancel.
-                client := this.app.manager.client
-                released := released || !IsObject(client) || !client.session
-                    || !client.ServiceMatches()
-            }
+            released := !this.app.CanDispatch(event.actionId) || !GetKeyState(event.key, "P")
+                || Keybindings.ModifierMask() != event.modifiers
             if released
                 try this.Release(token)
                 catch Error as releaseError

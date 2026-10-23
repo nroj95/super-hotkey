@@ -32,6 +32,10 @@ class PaperPadController
     static AutosaveIdleMs := 1000
     static AutosaveMaxMs := 10000
     static AutosavePollMs := 500
+    ; [Window] size preferences: default, minimum and maximum.
+    static WindowDefaults := Map("WidthPercent", [45, 30, 100],
+        "HeightPercent", [35, 20, 100], "AnimationDurationMs", [180, 0, 1000])
+    static DefaultNotesDirectory => EnvGet("USERPROFILE") "\Paper Pad"
 
     ; =========================================================================
     ; configuration and serialized commands
@@ -39,9 +43,6 @@ class PaperPadController
 
     __New(dataDirectory)
     {
-        this.mutex_handle := 0
-        try {
-
         this.window_hwnd := 0
         this.editor_pid := 0
         this.bridge := 0
@@ -68,27 +69,16 @@ class PaperPadController
         this.page_lock_path := ""
         this.window_marker := "nroj.PaperPad.Notepad3Window"
         this.cascade_ignore_marker := "nroj.WindowCascade.Ignore"
-        this.controller_title := "nroj.PaperPad.Controller"
         this.data_directory := dataDirectory
         this.settings_path := this.data_directory "\settings.ini"
         this.state_path := this.data_directory "\state.ini"
         this.editor_profile := this.data_directory "\Notepad3.ini"
-        this.error_log := SuiteState.Log.path
-        this.mutex_handle := 0
-
-        this.mutex_handle := DllCall("CreateMutexW", "ptr", 0, "int", false,
-            "str", "Local\nroj.PaperPad.Controller", "ptr")
-        mutex_error := A_LastError
-        if !this.mutex_handle
-            throw OSError(mutex_error, "CreateMutexW")
-        if mutex_error = 183 {
-            DllCall("CloseHandle", "ptr", this.mutex_handle)
-            this.mutex_handle := 0
-            throw Error("Paper Pad is already running. Exit the other copy first.")
-        }
+        this.process_commands_callback := ObjBindMethod(this, "ProcessCommands")
+        this.autosave_callback := ObjBindMethod(this, "Autosave")
+        this.page_lock_sync_callback := ObjBindMethod(this, "SyncPageLock")
 
         DirCreate this.data_directory
-        default_notes_directory := EnvGet("USERPROFILE") "\Paper Pad"
+        default_notes_directory := PaperPadController.DefaultNotesDirectory
         this.CreateDefaultSettings(default_notes_directory)
         this.notes_directory := RTrim(IniRead(this.settings_path, "Paths",
             "NotesDirectory", default_notes_directory), "\/")
@@ -98,57 +88,38 @@ class PaperPadController
         ; Resolve . and .. before enforcing the direct-child page boundary.
         this.notes_directory := RTrim(PaperPadFullPath(this.notes_directory), "\/")
         this.monitor_target := this.ReadMonitorTarget()
-        this.width_percent := this.ReadNumber("Window", "WidthPercent", 45, 30, 100)
-        this.height_percent := this.ReadNumber("Window", "HeightPercent", 35, 20, 100)
-        this.animation_ms := this.ReadNumber("Window", "AnimationDurationMs", 180, 0, 1000)
+        sizes := PaperPadController.WindowDefaults
+        this.width_percent := this.ReadNumber("Window", "WidthPercent", sizes["WidthPercent"]*)
+        this.height_percent := this.ReadNumber("Window", "HeightPercent", sizes["HeightPercent"]*)
+        this.animation_ms := this.ReadNumber("Window", "AnimationDurationMs", sizes["AnimationDurationMs"]*)
         this.allowed_extensions := "|md|txt|ps1|psm1|psd1|py|pyw|ahk|lua|js|ts|jsx|tsx|"
             . "json|jsonc|yaml|yml|xml|html|htm|css|scss|ini|cfg|conf|toml|log|"
             . "sh|bash|bat|cmd|sql|c|cpp|h|hpp|cs|rs|go|java|rb|php|csv|tsv|"
 
-        this.process_commands_callback := ObjBindMethod(this, "ProcessCommands")
-        this.autosave_callback := ObjBindMethod(this, "Autosave")
-        this.page_lock_sync_callback := ObjBindMethod(this, "SyncPageLock")
-
-
         ; Hidden owner/sender window for WM_COPYDATA page switches.
-        this.controller_window := SuiteGui("+ToolWindow", this.controller_title)
-
-
+        this.controller_window := SuiteGui("+ToolWindow", "nroj.PaperPad.Controller")
 
         ; Reacquire the retained editor's page lock immediately after Reload,
         ; even while hidden. A fresh controller must not wait for the next hotkey.
         try this.AttachExistingWindow()
         catch as failure {
             this.autosave_paused := true
-            SuiteState.PaperPadStatus := "Paper Pad - autosave paused"
             this.ReportError(failure, true)
         }
         SetTimer this.autosave_callback, PaperPadController.AutosavePollMs
         SetTimer this.page_lock_sync_callback, 250
-    
-        }
-        catch Error as failure {
-            for name in ["autosave_callback", "page_lock_sync_callback", "process_commands_callback"]
-                if HasProp(this, name)
-                    SetTimer(this.%name%, 0)
-            if HasProp(this, "page_lock_handle")
-                try this.ReleasePageLock()
-            if HasProp(this, "controller_window")
-                try this.controller_window.Destroy()
-            if this.mutex_handle {
-                DllCall("CloseHandle", "ptr", this.mutex_handle)
-                this.mutex_handle := 0
-            }
-            throw failure
-        }
     }
 
     CreateDefaultSettings(default_notes_directory)
     {
         if !FileExist(this.settings_path) {
+            sizes := PaperPadController.WindowDefaults
             settings := "[Paths]`nNotesDirectory=" default_notes_directory
                 . "`nNotepad3Executable=`n"
-                . "`n[Window]`nMonitor=Primary`nWidthPercent=45`nHeightPercent=35`nAnimationDurationMs=180`n"
+                . "`n[Window]`nMonitor=Primary"
+                . "`nWidthPercent=" sizes["WidthPercent"][1]
+                . "`nHeightPercent=" sizes["HeightPercent"][1]
+                . "`nAnimationDurationMs=" sizes["AnimationDurationMs"][1] "`n"
                 . "`n[Setup]`nWelcomePending=1`n"
             FileAppend settings, this.settings_path, "UTF-16"
         }
@@ -196,8 +167,6 @@ class PaperPadController
             return fallback
         return Min(maximum, Max(minimum, Round(value)))
     }
-
-
 
     NoteSystemTextInputInvocation()
     {
@@ -256,14 +225,6 @@ class PaperPadController
         }
     }
 
-
-
-
-
-
-
-
-
     QueueCommand(command, inputGeneration := -1, *)
     {
         ; Hiding or toggling the drawer ends any outstanding Windows text-input
@@ -291,7 +252,6 @@ class PaperPadController
         if this.busy
             return
         this.busy := true
-        previous_dpi_context := DllCall("SetThreadDpiAwarenessContext", "ptr", -4, "ptr")
         try {
             while this.command_queue.Length {
                 request := this.command_queue.RemoveAt(1)
@@ -302,15 +262,12 @@ class PaperPadController
                 catch as failure {
                     this.command_queue := []
                     this.autosave_paused := true
-                    SuiteState.PaperPadStatus := "Paper Pad - autosave paused"
                     this.RevealAfterError(request.source_window)
                     this.ReportError(failure)
                 }
             }
         }
         finally {
-            if previous_dpi_context
-                DllCall("SetThreadDpiAwarenessContext", "ptr", previous_dpi_context, "ptr")
             this.busy := false
             if this.command_queue.Length
                 SetTimer this.process_commands_callback, -1
@@ -319,16 +276,6 @@ class PaperPadController
 
     ExecuteCommand(request)
     {
-        if request.name = "exit" {
-            this.ExitPaperPad()
-            return
-        }
-        if request.name = "reload" {
-            if this.HasWindow() || this.AttachExistingWindow()
-                this.SaveCurrentPage()
-            Reload
-            return
-        }
         if request.name = "hide" {
             if this.HasWindow() && this.IsVisible()
                 this.HideWindow()
@@ -534,7 +481,6 @@ class PaperPadController
         ; A newly launched editor starts a new save session. A failure in a
         ; previously closed editor must not leave this one silently paused.
         this.autosave_paused := false
-        SuiteState.PaperPadStatus := "Paper Pad"
         return new_page
     }
 
@@ -961,12 +907,10 @@ class PaperPadController
     {
         if !this.autosave_paused || path != this.current_path || !FileExist(path)
             return false
-        if this.bridge.IsDirty() || !this.bridge.MatchesDisk(path)
-            || this.bridge.IsDirty()
-            return false
-
+        ; Check the editor before and after the comparison, and the file around it.
         stamp := PaperPadFileStamp(path)
-        if PaperPadFileStamp(path) != stamp
+        if this.bridge.IsDirty() || !this.bridge.MatchesDisk(path)
+            || this.bridge.IsDirty() || PaperPadFileStamp(path) != stamp
             return false
 
         this.disk_stamp := stamp
@@ -976,7 +920,6 @@ class PaperPadController
         this.autosave_tracking.text := ""
         this.autosave_tracking.last_change := 0
         this.autosave_paused := false
-        SuiteState.PaperPadStatus := "Paper Pad"
         SuiteState.Log.Debug("Paper Pad", "Resumed autosave after native Save or reload.")
         return true
     }
@@ -1056,7 +999,6 @@ class PaperPadController
         this.autosave_tracking.text := ""
         this.autosave_tracking.last_change := 0
         this.autosave_paused := false
-        SuiteState.PaperPadStatus := "Paper Pad"
     }
 
     ConfigureNewPage()
@@ -1223,7 +1165,6 @@ class PaperPadController
         }
         catch as failure {
             this.autosave_paused := true
-            SuiteState.PaperPadStatus := "Paper Pad - autosave paused"
             this.ReportError(failure, true)
         }
         finally {
@@ -1242,7 +1183,7 @@ class PaperPadController
         monitor_index := this.ResolveMonitorIndex()
 
         try {
-            MonitorGetWorkArea(
+            MonitorGetWorkAreaPixels(
                 monitor_index,
                 &left,
                 &top,
@@ -1255,7 +1196,7 @@ class PaperPadController
             if monitor_index = primary_index
                 throw failure
 
-            MonitorGetWorkArea(
+            MonitorGetWorkAreaPixels(
                 primary_index,
                 &left,
                 &top,
@@ -1317,9 +1258,9 @@ class PaperPadController
         if WinGetMinMax("ahk_id " this.window_hwnd) != 0
             WinRestore "ahk_id " this.window_hwnd
         WinHide "ahk_id " this.window_hwnd
-        WinMove bounds.x, bounds.y, bounds.w, bounds.h, "ahk_id " this.window_hwnd
+        WinMovePixels(bounds.x, bounds.y, bounds.w, bounds.h, "ahk_id " this.window_hwnd)
         ; Some window styles impose a minimum size; animate the actual dimensions.
-        WinGetPos , , &actual_width, &actual_height, "ahk_id " this.window_hwnd
+        WinGetPosPixels(, , &actual_width, &actual_height, "ahk_id " this.window_hwnd)
         bounds.w := actual_width
         bounds.h := actual_height
 
@@ -1337,7 +1278,7 @@ class PaperPadController
         this.SaveCurrentPage()
         was_active := !!WinActive("ahk_id " this.window_hwnd)
         bounds := this.GetBounds()
-        WinGetPos &window_x, &window_y, &window_width, &window_height, "ahk_id " this.window_hwnd
+        WinGetPosPixels(&window_x, &window_y, &window_width, &window_height, "ahk_id " this.window_hwnd)
         bounds.x := window_x
         bounds.w := window_width
         bounds.h := window_height
@@ -1563,7 +1504,7 @@ class PaperPadController
             if showing {
                 ; Finish a successful show at the normal visible bounds.
                 DllCall("SetWindowRgn", "ptr", this.window_hwnd, "ptr", 0, "int", true)
-                WinMove bounds.x, bounds.y, bounds.w, bounds.h, "ahk_id " this.window_hwnd
+                WinMovePixels(bounds.x, bounds.y, bounds.w, bounds.h, "ahk_id " this.window_hwnd)
             } else {
                 ; Keep the fully retracted editor hidden until the next show.
                 try WinHide "ahk_id " this.window_hwnd
@@ -1576,7 +1517,7 @@ class PaperPadController
         ; Clip at the chosen work-area top: no spill onto a monitor above it.
         clip_top := Min(bounds.h, Max(0, bounds.y - current_y))
         this.SetClip(bounds.w, bounds.h, clip_top)
-        if !DllCall("SetWindowPos", "ptr", this.window_hwnd, "ptr", 0,
+        if !PhysicalDllCall("SetWindowPos", "ptr", this.window_hwnd, "ptr", 0,
             "int", bounds.x, "int", current_y, "int", 0, "int", 0,
             "uint", 0x215, "int") ; NOSIZE | NOZORDER | NOACTIVATE | NOOWNERZORDER
             throw OSError(A_LastError, "SetWindowPos")
@@ -1588,7 +1529,7 @@ class PaperPadController
             "int", width, "int", height, "ptr")
         if !region
             throw OSError(A_LastError, "CreateRectRgn")
-        if !DllCall("SetWindowRgn", "ptr", this.window_hwnd, "ptr", region, "int", true, "int") {
+        if !PhysicalDllCall("SetWindowRgn", "ptr", this.window_hwnd, "ptr", region, "int", true, "int") {
             DllCall("gdi32\DeleteObject", "ptr", region)
             throw OSError(A_LastError, "SetWindowRgn")
         }
@@ -1640,27 +1581,18 @@ class PaperPadController
         if !this.HasWindow()
             return
         try {
-            previous_dpi := DllCall("SetThreadDpiAwarenessContext", "ptr", -4, "ptr")
-            try {
-                DllCall("SetWindowRgn", "ptr", this.window_hwnd, "ptr", 0, "int", true)
-                bounds := this.GetBounds()
-                if WinGetMinMax("ahk_id " this.window_hwnd) != 0
-                    WinRestore "ahk_id " this.window_hwnd
-                WinMove bounds.x, bounds.y, bounds.w, bounds.h, "ahk_id " this.window_hwnd
-                WinShow "ahk_id " this.window_hwnd
-            }
-            finally {
-                if previous_dpi
-                    DllCall("SetThreadDpiAwarenessContext", "ptr", previous_dpi, "ptr")
-            }
+            DllCall("SetWindowRgn", "ptr", this.window_hwnd, "ptr", 0, "int", true)
+            bounds := this.GetBounds()
+            if WinGetMinMax("ahk_id " this.window_hwnd) != 0
+                WinRestore "ahk_id " this.window_hwnd
+            WinMovePixels(bounds.x, bounds.y, bounds.w, bounds.h, "ahk_id " this.window_hwnd)
+            WinShow "ahk_id " this.window_hwnd
             this.FocusEditor()
         }
     }
 
     ReportError(failure, notification := false)
     {
-        detail := FormatTime(, "yyyy-MM-dd HH:mm:ss") " | " failure.Message
-            . "`n" failure.What " | line " failure.Line "`n" failure.Stack "`n`n"
         SuiteState.Log.Error("Paper Pad", failure)
         if notification
             TrayTip failure.Message, "Paper Pad - autosave paused", 2
@@ -1671,7 +1603,7 @@ class PaperPadController
             restore_topmost := this.IsVisible()
             if restore_topmost
                 try this.SetDrawerTopmost(false)
-            try MsgBox failure.Message "`n`nDetails: " this.error_log, "Paper Pad", "Iconx 4096"
+            try MsgBox failure.Message "`n`nDetails: " SuiteState.Log.path, "Paper Pad", "Iconx 4096"
             finally {
                 if restore_topmost && this.IsVisible()
                     try this.SetDrawerTopmost(true)
@@ -1680,111 +1612,26 @@ class PaperPadController
     }
 
     ; =========================================================================
-    ; tray, GUI help, explicit exit and reload recovery
+    ; window size, help and suite exit
     ; =========================================================================
-
-
-
-
-
-
-
-
-
-
-
-
 
     ApplyWindowSize()
     {
         if !this.IsVisible()
             return
-
-        previous_dpi_context := DllCall(
-            "SetThreadDpiAwarenessContext",
-            "ptr", -4,
-            "ptr"
-        )
-
         try {
             bounds := this.GetBounds()
-
-            WinMove(
-                bounds.x,
-                bounds.y,
-                bounds.w,
-                bounds.h,
-                "ahk_id " this.window_hwnd
-            )
-
-            WinGetPos(
-                &actual_x,
-                &actual_y,
-                &actual_width,
-                &actual_height,
-                "ahk_id " this.window_hwnd
-            )
-
-            this.last_bounds := {
-                x: actual_x,
-                y: actual_y,
-                w: actual_width,
-                h: actual_height
-            }
+            WinMovePixels(bounds.x, bounds.y, bounds.w, bounds.h, "ahk_id " this.window_hwnd)
+            WinGetPosPixels(&actual_x, &actual_y, &actual_width, &actual_height, "ahk_id " this.window_hwnd)
+            this.last_bounds := {x: actual_x, y: actual_y, w: actual_width, h: actual_height}
         }
         catch as failure {
-            MsgBox(
-                "The size was saved, but the current window could not be resized.`n`n"
-                    . failure.Message,
-                "Paper Pad window size",
-                "Iconx 4096"
-            )
-        }
-        finally {
-            if previous_dpi_context {
-                DllCall(
-                    "SetThreadDpiAwarenessContext",
-                    "ptr", previous_dpi_context,
-                    "ptr"
-                )
-            }
+            MsgBox("The size was saved, but the current window could not be resized.`n`n"
+                . failure.Message, "Paper Pad window size", "Iconx 4096")
         }
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     ShowHelp(*) => SuiteState.App.ui.ToggleHelp("paper-pad")
-
-    ExitPaperPad()
-    {
-        ; Also find a retained editor when Exit is used directly after Reload.
-        if this.HasWindow() || this.AttachExistingWindow() {
-            this.SaveCurrentPage()
-            target_hwnd := this.window_hwnd
-            ; A normal close permits Notepad3's own final save checks and prompts.
-            ; No process-wide kill, no global executable/class matching.
-            PostMessage 0x0010, 0, 0, , "ahk_id " target_hwnd ; WM_CLOSE
-            if !WinWaitClose("ahk_id " target_hwnd, , 5)
-                throw Error("Notepad3 has not closed. Resolve its dialog, then choose Exit again.")
-            this.window_hwnd := 0
-            this.editor_pid := 0
-            this.bridge := 0
-        }
-        this.exit_prepared := true
-        ExitApp
-    }
 
     OnScriptExit(exit_reason, exit_code)
     {
@@ -1801,7 +1648,7 @@ class PaperPadController
             try {
                 DllCall("SetWindowRgn", "ptr", this.window_hwnd, "ptr", 0, "int", true)
                 bounds := this.last_bounds ? this.last_bounds : this.GetBounds()
-                WinMove bounds.x, bounds.y, bounds.w, bounds.h, "ahk_id " this.window_hwnd
+                WinMovePixels(bounds.x, bounds.y, bounds.w, bounds.h, "ahk_id " this.window_hwnd)
                 if exit_reason != "Reload" && exit_reason != "Single" {
                     WinSetAlwaysOnTop false, "ahk_id " this.window_hwnd
                     WinShow "ahk_id " this.window_hwnd
@@ -1810,10 +1657,6 @@ class PaperPadController
         }
         this.ReleasePageLock()
         this.bridge := 0
-        if this.mutex_handle {
-            DllCall("CloseHandle", "ptr", this.mutex_handle)
-            this.mutex_handle := 0
-        }
         return 0
     }
 
@@ -1963,9 +1806,17 @@ class Notepad3Bridge
         return this.Scintilla(2159) != 0 ; SCI_GETMODIFY
     }
 
+    ; The fixed IDs come from Notepad3's resources. Send one only while the
+    ; running editor's menu has it, so a renumbered release fails closed.
     Command(command_id)
     {
         this.CheckReady()
+        this.MenuState(command_id)
+        this.SendCommand(command_id)
+    }
+
+    SendCommand(command_id)
+    {
         this.Send(0x0111, command_id, 0) ; WM_COMMAND, native menu command
         this.CheckReady()
     }
@@ -1974,8 +1825,7 @@ class Notepad3Bridge
     {
         ; File > Save is the third item in Notepad3's File menu.
         ; Resolve its command ID from the running editor instead of hardcoding it.
-        command_id := this.MenuCommandId(0, 2)
-        this.Command(command_id)
+        this.SendCommand(this.MenuCommandId(0, 2))
     }
 
     MenuCommandId(top_level_index, item_index)
@@ -2025,8 +1875,12 @@ class Notepad3Bridge
     {
         this.CheckReady()
         ; Keep native File/Settings menus available for saving and error recovery.
-        if !DllCall("GetMenu", "ptr", this.hwnd, "ptr")
-            this.Command(Notepad3Bridge.view_menubar)
+        ; A hidden menu bar cannot be inspected, so verify the result instead.
+        if !DllCall("GetMenu", "ptr", this.hwnd, "ptr") {
+            this.SendCommand(Notepad3Bridge.view_menubar)
+            if !DllCall("GetMenu", "ptr", this.hwnd, "ptr")
+                throw Error("Notepad3 did not show its menu bar. No document was changed.")
+        }
         for command_id in [Notepad3Bridge.view_toolbar, Notepad3Bridge.minimize_to_tray] {
             if this.MenuState(command_id) & 8 ; MF_CHECKED
                 this.Command(command_id)
@@ -2139,15 +1993,6 @@ PaperPadUsableWindow(hwnd)
         && DllCall("IsWindow", "ptr", hwnd, "int")
         && DllCall("IsWindowVisible", "ptr", hwnd, "int")
         && !DllCall("IsIconic", "ptr", hwnd, "int")
-}
-
-PaperPadWindowProcessId(hwnd)
-{
-    if !hwnd
-        return 0
-    process_id := Buffer(4, 0)
-    DllCall("GetWindowThreadProcessId", "ptr", hwnd, "ptr", process_id, "uint")
-    return NumGet(process_id, 0, "uint")
 }
 
 PaperPadIsDialogWindow(hwnd)

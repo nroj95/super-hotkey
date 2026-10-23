@@ -152,49 +152,19 @@ class SuiteReleaseChecks {
             SuiteShowCentered(target, 340, 260)
             sourceMonitor := GetMonitorForWindow(source.Hwnd)
             cascade_displays[sourceMonitor] := {device: MonitorGetName(sourceMonitor)}
-            this.Assert(GetTargetMonitor(target.Hwnd, source.Hwnd, 987, &reason) = 987
-                && reason = "launch-pointer", "the pointer wins over the active source")
-            this.Assert(GetTargetMonitor(target.Hwnd, target.Hwnd, 987, &reason) = 987
-                && reason = "launch-pointer", "pointer targeting ignores the new window's remembered monitor")
             WinMinimize(source.Hwnd)
             this.Assert(GetCascadeSourceMonitor(source.Hwnd) = sourceMonitor,
                 "a minimized source retains its restored monitor")
             WinRestore(source.Hwnd)
 
             cascade_displays := Map(1, {device: "left"}, 2, {device: "right"})
-            hint := {tick: A_TickCount, monitor_device: "right"}
-            cascade_launch_hint := hint
-            context := {hint: hint}
-            this.Assert(TakeCascadeTaskbarMonitor(target.Hwnd, context) = 2,
-                "a fresh taskbar launch selects the clicked display")
-            this.Assert(!TakeCascadeTaskbarMonitor(source.Hwnd, context),
-                "one taskbar click cannot redirect a second new window")
-            this.Assert(!GetHandledWindowReshowIntent(source.Hwnd),
-                "a consumed new-window click cannot retarget an existing window")
-            hint := {tick: A_TickCount - new_window_focus_timeout_ms - 1, monitor_device: "right"}
-            cascade_launch_hint := hint
-            this.Assert(!TakeCascadeTaskbarMonitor(target.Hwnd, {hint: hint}),
-                "an expired taskbar click cannot override a later launch")
-            hint := {tick: A_TickCount, monitor_device: "right"}
-            this.Assert(!TakeCascadeTaskbarMonitor(target.Hwnd, {hint: hint}),
-                "a replaced launch context cannot redirect a window")
-            cascade_launch_hint := hint
-            hint.reshow_hwnd := source.Hwnd
-            this.Assert(!TakeCascadeTaskbarMonitor(target.Hwnd, {hint: hint}),
-                "an existing-window re-show owns its taskbar click")
-            cascade_launch_hint := {tick: A_TickCount, monitor_device: "removed"}
-            this.Assert(!TakeCascadeTaskbarMonitor(target.Hwnd, {hint: cascade_launch_hint})
-                && !cascade_launch_hint.HasOwnProp("placement_hwnd"),
-                "a removed taskbar display is not silently replaced by its old index")
-            this.Assert(!TakeCascadeTaskbarMonitor(target.Hwnd, 0),
-                "keyboard launches need no taskbar context")
             observer := InputHook("V L0")
             hint := {tick: A_TickCount, monitor_device: "right", key_observer: observer}
             cascade_launch_hint := hint
             CancelCascadeTaskbarPlacementIntent(observer)
             this.Assert(hint.HasOwnProp("placement_cancelled")
-                && !TakeCascadeTaskbarMonitor(target.Hwnd, {hint: hint}),
-                "a later keyboard launch cancels an unused taskbar monitor hint")
+                && !GetHandledWindowReshowIntent(source.Hwnd),
+                "a later keyboard launch cancels an unused taskbar hint")
             newerObserver := InputHook("V L0")
             cascade_launch_hint := {tick: A_TickCount, monitor_device: "right", key_observer: newerObserver}
             newerObserver.Start()
@@ -359,8 +329,7 @@ class SuiteReleaseChecks {
         try {
             manager.SetPaused(true)
             manager.Start()
-            app.power.Start()
-            power := app.power
+            power := app.modules["power-up-utilities"]
             ; Exercise dispatch without registering active input or emitting effects.
             power.DefineProp("CanDispatch", {Call: (self, actionId) => !self.stopping})
             power.DefineProp("InputsReleased", {Call: (self, event) => true})

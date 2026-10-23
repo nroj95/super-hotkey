@@ -1,8 +1,8 @@
+; Cascade Kingdom tuning constants, saved preferences and runtime state.
+; Every name assigned here is a global shared by the Cascade Kingdom files.
 InitializeCascadeState()
 {
     global
-; Internal Cascade Kingdom module; initialized once by the launcher.
-; Keep assignments at top level to preserve the existing global scope.
 
 ; =============================================================================
 ; settings
@@ -15,7 +15,6 @@ window_height_ratio := 0.80
 ; First branch moves left/up from center; second branch moves right/down.
 cascade_x := 28
 cascade_y := 24
-
 
 ; One tolerance for slot membership and mouse drops (screen-coordinate pixels).
 ; During a native drag, the original slot is retained. On release, the visible
@@ -117,22 +116,8 @@ focus_corner_active_slot_alpha := 255
 ; Only watch for a missed mouse-up while a focus-tab click owns the button.
 focus_tab_release_poll_ms := 50
 
-; Secret Layers is optional; Keybindings handles reconnection.
-
-
-settings_directory := SuiteState.App.Settings.directory "\cascade-kingdom"
-settings_path := settings_directory "\settings.ini"
+settings_path := SuiteState.App.Settings.directory "\cascade-kingdom\settings.ini"
 focus_corner_visible := IniRead(settings_path, "FocusTabs", "Visible", "1") = "1"
-
-; Keep actionable lifecycle/error logging enabled. Raw show/destroy/poll events
-; and detailed window-title/appearance snapshots are opt-in for the current run.
-
-
-debug_log_path := SuiteState.Log.path
-debug_log_backup_path := debug_log_path ".old"
-; Keep routine logging bounded without querying file size for every event.
-debug_log_max_bytes := 2 * 1024 * 1024
-debug_log_size_check_interval := 128
 
 focus_corner_active_slot_color_name := IniRead(
     settings_path,
@@ -158,20 +143,10 @@ focus_corner_active_slot_color :=
 focus_corner_inactive_slot_color :=
     focus_tab_color_presets[focus_corner_inactive_slot_color_name]
 
-rotate_key := IniRead(settings_path, "Controls", "RotateKey", "Space")
-
-if rotate_key != "Space" && rotate_key != "Tab"
-    rotate_key := "Space"
-
 ; =============================================================================
 ; runtime state
 ; =============================================================================
 
-rotate_key_menu := 0
-focus_tab_color_menu := 0
-focus_tab_active_slot_color_menu := 0
-focus_tab_inactive_slot_color_menu := 0
-cascade_keybindings := 0
 cascade_command_queue := []
 cascade_command_draining := false
 
@@ -235,35 +210,10 @@ focus_tab_click_generation := 0
 current_foreground_hwnd := WinExist("A")
 previous_foreground_hwnd := 0
 
-
 win_event_callback := 0
 foreground_hook := 0
 window_show_hook := 0
 window_destroy_hook := 0
 window_move_size_hook := 0
 window_restore_hook := 0
-
-
-
-; =============================================================================
-; local command IDs preserved from the original window-manager dispatcher
-; =============================================================================
-
-; There is no longer a cross-process command-number contract.
-cascade_command_focus_previous := 1
-cascade_command_focus_next := 2
-cascade_command_rotate_slot_previous := 3
-cascade_command_rotate_slot_next := 4
-cascade_command_swap_window_up := 5
-cascade_command_swap_window_down := 6
-cascade_command_adopt_active := 7
-; Rotation is forward-only in Keybindings.
-cascade_command_rotate_layers := 8
-cascade_command_toggle_minimize := 9
-cascade_command_bring_forward := 10
-cascade_command_close_active := 11
-cascade_command_close_scope := 12
-cascade_command_gather_to_monitor := 13
-cascade_command_show_help := 14
-
 }

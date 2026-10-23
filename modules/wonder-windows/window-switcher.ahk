@@ -182,7 +182,7 @@ WW_WindowPlacementFillsPhysicalMonitor(placement, monitor_info, tolerance := 2)
 WW_WindowFillsPhysicalMonitor(hwnd, tolerance := 2)
 {
     try {
-        if !WW_GetVisibleWindowBounds(
+        if !GetVisibleWindowBounds(
             hwnd,
             &window_x,
             &window_y,

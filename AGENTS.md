@@ -1,17 +1,39 @@
-# implementation constraints
+# agent guide
 
-- target AutoHotkey v2 64-bit Windows. preserve existing feature behavior and avoid unnecessary scope expansion.
-- use one launcher, process, tray, application icon, Keybindings manager and shared debug log. avoid plugin frameworks and module-specific trays.
-- each module tray entry opens its Getting started guide. module Settings and shared Keybindings navigation belong in those pages.
-- use **hotkeys** for user-facing configurable triggers, **Keybindings** for the editor and **actions** for their effects.
-- only registered complementary input scopes may share hotkeys. Paper Pad editor navigation is not global.
-- disabled modules and layers release inputs; the assignments remain editable. CapsLock/Pause behave normally unless independently reassigned.
-- defer feature work out of native input callbacks; cancel queued work on reconfiguration, suspension and exit. preserve held-output cleanup.
-- errors and lifecycle logging remain active without verbose logging; there are no per-module debug switches.
-- keep Restore defaults in Keybindings separate from Reset to defaults in the tray. require confirmation and do not delete notes, note paths, editor preferences or page state.
-- Windows Snap and FancyZones configuration require explicit consent. never change other applications' settings automatically.
-- the default suite settings path is `%LOCALAPPDATA%\nroj\SuperHotkey`. old configuration directories are not imported; never delete user data automatically. internal mutex and ownership identifiers may retain legacy names to preserve compatibility.
-- edit committed source in `core/` and `modules/` directly. historical generators and snapshots remain available through Git history, not in the working source tree.
-- preserve root MIT license and icon attribution.
-- tests use disposable preferences and dry-run inputs; never perform real system sleep, speaker actions or personal note operations in automated checks.
-- retain LF line endings. run portable tests and `python tests/check.py` on Windows.
+Super Hotkey is one AutoHotkey v2 64-bit process: a launcher, a small core and five modules. there is no build step; edit `core/` and `modules/` directly. earlier generators and snapshots live only in Git history.
+
+## map
+
+| path | owns |
+| --- | --- |
+| `super-hotkey.ahk` | explicit includes, command-line flags and startup |
+| `core/application.ahk` | the `SuiteModule` contract and the lifecycle: start, suspend, reconfigure, exit |
+| `core/keybindings.ahk` | actions, their persistence and all native hotkey dispatch, including layer suffixes |
+| `core/keybindings-editor.ahk` | the Keybindings window |
+| `core/settings.ahk`, `core/logging.ahk` | suite preferences, backups and the shared log |
+| `core/ui.ahk`, `core/tray.ahk` | every GUI and the only tray |
+| `core/windows.ahk`, `core/focus-border.ahk` | window queries, DPI boundaries and manual window ownership |
+| `modules/<id>/module.ahk` | a module's lifecycle, actions, settings page and guide |
+
+## design rules
+
+- users assign **hotkeys** to **actions** in **Keybindings**. use these words consistently.
+- a module overrides only the `SuiteModule` methods it needs and registers its actions in `Register`. core never calls module internals; modules react through hooks such as `SuiteWindowOwnership.OnClaim`. `tests/test_suite_structure.py` enforces this and the shared global namespace.
+- Keybindings owns every configurable hotkey, including CapsLock and Pause layer suffixes. Secret Layers' `KeyboardLayers` owns only the two prefix keys. only registered complementary scopes may share a hotkey; Paper Pad editor navigation works only in its editor.
+- native input callbacks only queue work. cancel queued work on reconfiguration, suspension and exit, and always release held output.
+- disabled modules and layers release their inputs and keep their assignments editable. CapsLock and Pause behave normally unless reassigned.
+- AutoHotkey threads share one OS thread. scope DPI awareness to single native calls with the `*Pixels` helpers, never across `Sleep` or dialogs in a thread that is not `Critical`.
+- errors and lifecycle events are always logged; verbose logging is the only debug switch.
+
+## user data and other applications
+
+- settings live in `%LOCALAPPDATA%\nroj\SuperHotkey`. never delete user data automatically and never import old configuration directories. damaged files are kept as `.damaged-yyyyMMdd-HHmmss` copies. internal mutex and ownership identifiers keep legacy names for compatibility.
+- **Restore defaults** in Keybindings and **Reset to defaults...** in the tray stay separate, ask for confirmation and never touch notes, note paths, editor preferences or page state.
+- never change another application's settings automatically. Windows Snap and FancyZones changes require explicit consent. the Windows Terminal resolver only reads; Paper Pad runs Notepad3 with its own settings file and sends menu commands only while the running editor's menu has them.
+
+## checks
+
+- run `python tests/check.py` on Windows; `--autohotkey PATH` selects the interpreter. it runs the portable tests, a parse check and the native harness in dry-run mode.
+- tests use disposable preferences and dry-run inputs. never perform real system sleep, speaker actions or personal note operations in automated checks.
+- files are UTF-8 without a BOM, with LF line endings.
+- keep the root MIT license and the FatCow icon attribution in `assets/`.

@@ -18,4 +18,8 @@ right-click the tray icon for module guides and settings. open **Keybindings** w
 
 settings and logs live in `%LOCALAPPDATA%\nroj\SuperHotkey`; notes are stored separately. the tray's **Suspend** releases hotkeys without discarding your settings.
 
+## develop
+
+edit `core/` and `modules/` directly; [AGENTS.md](AGENTS.md) maps the architecture and its rules. `python tests/check.py` runs every check in dry-run mode, with disposable settings and without touching your notes.
+
 code: [MIT](LICENSE). icon: [FatCow attribution](assets/ATTRIBUTION.md).

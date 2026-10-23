@@ -4,8 +4,6 @@ WW_DebugError(context, failure) => SuiteState.Log.Error("Wonder Windows / " cont
 
 WW_DebugDescribeWindow(hwnd)
 {
-
-
     if !SuiteState.Log.verbose
         return ""
 
@@ -74,7 +72,7 @@ WW_DebugDescribeWindow(hwnd)
     cloaked := false
 
     try cloaked :=
-        WW_IsWinKeyOverhaulCloaked(hwnd)
+        IsWindowCloaked(hwnd)
 
     return (
         "hwnd=" hwnd

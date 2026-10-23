@@ -23,7 +23,7 @@ class SuiteFocusBorder {
             return false
         }
 
-        if !this.GetVisibleBounds(hwnd, &x, &y, &width, &height)
+        if !GetVisibleWindowBounds(hwnd, &x, &y, &width, &height)
             || width <= this.thickness * 2 || height <= this.thickness * 2 {
             this.Hide()
             return false
@@ -102,25 +102,6 @@ class SuiteFocusBorder {
     }
 
     static Expire(*) => this.Hide()
-
-    static GetVisibleBounds(hwnd, &x, &y, &width, &height) {
-        frame := Buffer(16, 0)
-        result := DllCall(
-            "dwmapi\DwmGetWindowAttribute",
-            "ptr", hwnd,
-            "uint", 9, ; DWMWA_EXTENDED_FRAME_BOUNDS
-            "ptr", frame,
-            "uint", frame.Size,
-            "int"
-        )
-        if result != 0
-            return false
-        x := NumGet(frame, 0, "int")
-        y := NumGet(frame, 4, "int")
-        width := NumGet(frame, 8, "int") - x
-        height := NumGet(frame, 12, "int") - y
-        return width > 0 && height > 0
-    }
 
     static GetAccentColor() {
         colorization := 0

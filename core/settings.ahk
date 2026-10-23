@@ -1,5 +1,8 @@
-; Saved preferences are independent of the currently running module/layer choices.
+; Saved suite preferences, per-module preference files and their backups.
+; Saved choices are independent of the module/layer choices of this run.
 class SuiteSettings {
+    static BackupsKept := 20
+
     static ModuleOrder := ["cascade-kingdom", "wonder-windows", "power-up-utilities", "paper-pad", "secret-layers"]
     static ModuleNames := Map("cascade-kingdom", "Cascade Kingdom", "wonder-windows", "Wonder Windows",
         "power-up-utilities", "Power-Up Utilities", "paper-pad", "Paper Pad", "secret-layers", "Secret Layers")
@@ -9,12 +12,28 @@ class SuiteSettings {
         "paper-pad", "A persistent Notepad3 drawer for quick notes.",
         "secret-layers", "Independent CapsLock and Pause hotkey layers.")
 
+    ; Defaults apply to unreadable settings only after a recovery copy succeeds.
+    ; If preservation fails, stop before any subsequent save can replace them.
     __New(directory) {
         this.directory := directory
         this.path := directory "\settings.ini"
-        this.document := FileExist(this.path) ? KB_Manifest.Read(this.path) : Map()
-        if FileExist(this.path) && KB_Manifest.Get(this.document, "meta", "schema") != "1"
-            throw Error("The suite settings schema is unknown or damaged. No settings were overwritten.")
+        this.loadWarning := ""
+        try {
+            this.document := FileExist(this.path) ? KB_Manifest.Read(this.path) : Map()
+            if FileExist(this.path) && KB_Manifest.Get(this.document, "meta", "schema") != "1"
+                throw Error("The schema is unknown or damaged.")
+            this.ReadValues()
+        }
+        catch Error as failure {
+            copy := KB_Manifest.KeepDamagedFile(this.path)
+            this.loadWarning := "The suite settings could not be read: " failure.Message
+                . "`nDefaults are active until you change a setting. The original file was kept as:`n" copy
+            this.document := Map()
+            this.ReadValues()
+        }
+    }
+
+    ReadValues() {
         this.modules := Map()
         for id in SuiteSettings.ModuleOrder
             this.modules[id] := this.ReadFlag("modules", id, true)
@@ -32,7 +51,7 @@ class SuiteSettings {
     ReadFlag(section, key, fallback) {
         value := KB_Manifest.Get(this.document, section, key, fallback ? "1" : "0")
         if value != "0" && value != "1"
-            throw Error("Invalid setting: " section "/" key ". No settings were overwritten.")
+            throw Error("Invalid setting: " section "/" key ".")
         return value = "1"
     }
 
@@ -116,10 +135,10 @@ class SuiteSettings {
         }
     }
 
-    ResetModulePreferences() {
-        ; Paths, editor profile, page state and notes are outside this whitelist.
-        for id, sections in Map("cascade-kingdom", ["FocusTabs", "DropGuides", "Controls", "Standalone"],
-            "paper-pad", ["Window", "Saving", "Controls"]) {
+    ; sectionsById: module ID -> INI sections to delete. Paths, editor profiles,
+    ; page state and notes are never in these whitelists.
+    ResetModulePreferences(sectionsById) {
+        for id, sections in sectionsById {
             path := this.directory "\" id "\settings.ini"
             if FileExist(path)
                 for section in sections
@@ -127,16 +146,35 @@ class SuiteSettings {
         }
     }
 
+    ; Copies the existing files into a new timestamped folder and keeps only
+    ; the newest BackupsKept backup folders. Returns the folder, or "" if nothing existed.
     Backup(paths) {
-        folder := this.directory "\backups\" FormatTime(, "yyyyMMdd-HHmmss") "-" A_TickCount
+        existing := []
+        for path in paths
+            if FileExist(path)
+                existing.Push(path)
+        if !existing.Length
+            return ""
+        root := this.directory "\backups"
+        base := root "\" FormatTime(, "yyyyMMdd-HHmmss") "-"
+        tick := A_TickCount
+        while DirExist(base tick)
+            tick += 1
+        folder := base tick
         DirCreate folder
-        for path in paths {
-            if !FileExist(path)
-                continue
+        for path in existing {
             SplitPath(path, &filename, &parent)
             SplitPath(parent, &parentName)
             FileCopy(path, folder "\" parentName "-" filename, false)
         }
+        ; Retention touches only folders created here, never anything else.
+        folders := ""
+        loop files root "\*", "D"
+            if RegExMatch(A_LoopFileName, "^\d{8}-\d{6}-\d+$")
+                folders .= A_LoopFileName "`n"
+        folders := StrSplit(Trim(Sort(folders, "R"), "`n"), "`n")
+        while folders.Length > SuiteSettings.BackupsKept
+            try DirDelete(root "\" folders.Pop(), true)
         return folder
     }
 }

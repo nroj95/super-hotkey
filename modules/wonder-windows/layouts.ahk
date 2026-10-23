@@ -152,17 +152,6 @@ WW_PruneFullStretchWindows()
             WW_full_stretch_windows.Delete(hwnd)
 }
 
-WW_RestoreAllFullStretches()
-{
-    global WW_full_stretch_windows
-    for hwnd, saved in WW_full_stretch_windows.Clone() {
-        if !WW_IsStretchStateCurrent(hwnd, saved)
-            continue
-        try WW_MoveWindowToVisibleRectangle(hwnd, saved["original"])
-    }
-    WW_full_stretch_windows := Map()
-}
-
 WW_ResetWindowStretch()
 {
     Critical "On"
@@ -475,7 +464,7 @@ WW_GetHorizontalStretchGeometry(
     if raw_width <= 0 || raw_height <= 0
         return false
 
-    if WW_GetVisibleWindowBounds(
+    if GetVisibleWindowBounds(
         hwnd,
         &visible_x,
         &visible_y,
@@ -523,7 +512,7 @@ WW_GetVerticalStretchGeometry(
     if raw_width <= 0 || raw_height <= 0
         return false
 
-    if WW_GetVisibleWindowBounds(
+    if GetVisibleWindowBounds(
         hwnd,
         &visible_x,
         &visible_y,
@@ -698,46 +687,6 @@ WW_PruneVerticalStretchWindows()
         WW_ForgetVerticalStretch(hwnd)
 }
 
-WW_RestoreAllVerticalStretches()
-{
-    global WW_vertical_stretch_windows
-
-    windows := []
-
-    for hwnd in WW_vertical_stretch_windows
-        windows.Push(hwnd)
-
-    for hwnd in windows {
-        if !DllCall("IsWindow", "ptr", hwnd, "int")
-            continue
-
-        state := WW_vertical_stretch_windows[hwnd]
-
-        current_monitor := DllCall(
-            "MonitorFromWindow",
-            "ptr", hwnd,
-            "uint", 2, ; MONITOR_DEFAULTTONEAREST
-            "ptr"
-        )
-
-        if !WW_IsStretchStateCurrent(hwnd, state, current_monitor)
-            continue
-
-        original_visible_height :=
-            state["original_bottom"] - state["original_top"]
-
-        if original_visible_height > 0
-            WW_MoveWindowToVisibleVerticalBounds(
-                hwnd,
-                state["original_top"],
-                state["original_bottom"]
-            )
-    }
-
-    WW_vertical_stretch_windows := Map()
-}
-
-
 WW_ForgetHorizontalStretch(hwnd)
 {
     global WW_horizontal_stretch_windows
@@ -759,61 +708,6 @@ WW_PruneHorizontalStretchWindows()
     for hwnd in stale_hwnds
         WW_ForgetHorizontalStretch(hwnd)
 }
-
-WW_RestoreAllHorizontalStretches()
-{
-    global WW_horizontal_stretch_windows
-
-    windows := []
-
-    for hwnd in WW_horizontal_stretch_windows
-        windows.Push(hwnd)
-
-    for hwnd in windows {
-        if !DllCall("IsWindow", "ptr", hwnd, "int")
-            continue
-
-        state := WW_horizontal_stretch_windows[hwnd]
-
-        current_monitor := DllCall(
-            "MonitorFromWindow",
-            "ptr", hwnd,
-            "uint", 2, ; MONITOR_DEFAULTTONEAREST
-            "ptr"
-        )
-
-        ; If another action already moved the window to another monitor, do not
-        ; pull it back across monitors during script cleanup.
-        if !WW_IsStretchStateCurrent(hwnd, state, current_monitor)
-            continue
-
-        try {
-            if !WW_GetHorizontalStretchGeometry(
-                hwnd,
-                &raw_x,
-                &raw_y,
-                &raw_width,
-                &raw_height,
-                &visible_left,
-                &visible_right,
-                &inset_left,
-                &inset_right
-            ) {
-                continue
-            }
-
-            ; Cleanup owns only the edges this script actually stretched. Keep a
-            ; manual change to the opposite edge, just like Win+Shift+Down does.
-            restore_left := state["left_stretched"] ? state["original_left"] : visible_left
-            restore_right := state["right_stretched"] ? state["original_right"] : visible_right
-            if restore_right > restore_left
-                WW_MoveWindowToVisibleHorizontalBounds(hwnd, restore_left, restore_right)
-        }
-    }
-
-    WW_horizontal_stretch_windows := Map()
-}
-
 
 ; =============================================================================
 ; side-layout cycle and top/bottom tiles
@@ -939,7 +833,7 @@ WW_GetLayoutWorkArea(hwnd)
 
 WW_GetWindowLayoutRectangle(hwnd)
 {
-    if !WW_GetVisibleWindowBounds(hwnd, &x, &y, &width, &height)
+    if !GetVisibleWindowBounds(hwnd, &x, &y, &width, &height)
         WinGetPos(&x, &y, &width, &height, hwnd)
     return [x, y, width, height]
 }

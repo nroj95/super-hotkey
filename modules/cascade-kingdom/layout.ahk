@@ -192,16 +192,23 @@ GetCanonicalCascadeGeometry(monitor_index)
 
 BuildCanonicalCascadeGeometry(left, top, right, bottom)
 {
+    size := GetCascadeWindowSize(right - left, bottom - top)
+    return {
+        width: size[1], height: size[2],
+        slots: BuildCascadeSlots(left, top, right, bottom, size[1], size[2])
+    }
+}
+
+; The canonical cascade window size for a work area: a share of it, at least
+; the minimum size and never closer to its edges than the margin.
+GetCascadeWindowSize(work_width, work_height)
+{
     global window_width_ratio, window_height_ratio
     global edge_margin, minimum_width, minimum_height
-    width := Min(Max(minimum_width, Floor((right - left) * window_width_ratio)),
-        right - left - edge_margin * 2)
-    height := Min(Max(minimum_height, Floor((bottom - top) * window_height_ratio)),
-        bottom - top - edge_margin * 2)
-    return {
-        width: width, height: height,
-        slots: BuildCascadeSlots(left, top, right, bottom, width, height)
-    }
+    return [
+        Min(Max(minimum_width, Floor(work_width * window_width_ratio)), work_width - edge_margin * 2),
+        Min(Max(minimum_height, Floor(work_height * window_height_ratio)), work_height - edge_margin * 2)
+    ]
 }
 
 ; =============================================================================

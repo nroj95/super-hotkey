@@ -27,17 +27,9 @@ WW_RunWindowCommand(command, arguments*)
     }
 }
 
-WW_GetWindowProcessId(hwnd)
-{
-    process_id := 0
-    if !hwnd || !DllCall("GetWindowThreadProcessId", "ptr", hwnd, "uint*", &process_id, "uint")
-        return 0
-    return process_id
-}
-
 WW_WindowStateMatchesProcess(hwnd, saved)
 {
-    process_id := WW_GetWindowProcessId(hwnd)
+    process_id := WindowProcessId(hwnd)
     return process_id && saved.Has("pid") && process_id = saved["pid"]
 }
 
@@ -91,83 +83,18 @@ WW_IsWindowToggleCandidate(hwnd, include_minimized := false)
     if DllCall("GetWindow", "ptr", hwnd, "uint", 4, "ptr") ; GW_OWNER
         return false
 
-    if WW_IsWinKeyOverhaulShellClass(class_name)
+    if IsShellSurfaceClass(class_name)
         return false
 
-    if WW_IsWinKeyOverhaulCloaked(hwnd)
+    if IsWindowCloaked(hwnd)
         return false
 
     return true
 }
 
-WW_IsWinKeyOverhaulCloaked(hwnd)
-{
-    cloaked := 0
-
-    result := DllCall(
-        "dwmapi\DwmGetWindowAttribute",
-        "ptr", hwnd,
-        "uint", 14, ; DWMWA_CLOAKED
-        "uint*", &cloaked,
-        "uint", 4,
-        "int"
-    )
-
-    return result = 0 && cloaked != 0
-}
-
-WW_IsWinKeyOverhaulShellClass(class_name)
-{
-    return (
-        class_name = "Shell_TrayWnd"
-        || class_name = "Shell_SecondaryTrayWnd"
-        || class_name = "Progman"
-        || class_name = "WorkerW"
-        || class_name = "NotifyIconOverflowWindow"
-        || class_name = "tooltips_class32"
-    )
-}
-
 ; =============================================================================
-; visible frame and monitor geometry
+; monitor geometry
 ; =============================================================================
-
-WW_GetVisibleWindowBounds(
-    hwnd,
-    &x,
-    &y,
-    &width,
-    &height
-)
-{
-    static DWMWA_EXTENDED_FRAME_BOUNDS := 9
-
-    frame := Buffer(16, 0)
-
-    result := DllCall(
-        "dwmapi\DwmGetWindowAttribute",
-        "ptr", hwnd,
-        "uint", DWMWA_EXTENDED_FRAME_BOUNDS,
-        "ptr", frame,
-        "uint", frame.Size,
-        "int"
-    )
-
-    if result != 0
-        return false
-
-    left := NumGet(frame, 0, "int")
-    top := NumGet(frame, 4, "int")
-    right := NumGet(frame, 8, "int")
-    bottom := NumGet(frame, 12, "int")
-
-    x := left
-    y := top
-    width := right - left
-    height := bottom - top
-
-    return width > 0 && height > 0
-}
 
 WW_GetWindowMonitorBounds(hwnd, &left, &top, &right, &bottom)
 {
@@ -273,31 +200,6 @@ WW_ApplyWindowPlacement(hwnd, placement, show_command := unset)
     }
 }
 
-WW_RefreshWindowFrame(hwnd)
-{
-    static SWP_NOSIZE := 0x0001
-    static SWP_NOMOVE := 0x0002
-    static SWP_NOZORDER := 0x0004
-    static SWP_NOACTIVATE := 0x0010
-    static SWP_FRAMECHANGED := 0x0020
-
-    DllCall(
-        "SetWindowPos",
-        "ptr", hwnd,
-        "ptr", 0,
-        "int", 0,
-        "int", 0,
-        "int", 0,
-        "int", 0,
-        "uint",
-        SWP_NOSIZE
-        | SWP_NOMOVE
-        | SWP_NOZORDER
-        | SWP_NOACTIVATE
-        | SWP_FRAMECHANGED
-    )
-}
-
 ; =============================================================================
 ; activation and window-list lookup
 ; =============================================================================
@@ -380,7 +282,7 @@ WW_MoveWindowToVisibleRectangle(hwnd, target)
 
     try {
         WinGetPos(&raw_x, &raw_y, &raw_width, &raw_height, hwnd)
-        if !WW_GetVisibleWindowBounds(hwnd, &visible_x, &visible_y, &visible_width, &visible_height) {
+        if !GetVisibleWindowBounds(hwnd, &visible_x, &visible_y, &visible_width, &visible_height) {
             visible_x := raw_x
             visible_y := raw_y
             visible_width := raw_width

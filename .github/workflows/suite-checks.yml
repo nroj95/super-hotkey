@@ -24,22 +24,6 @@ jobs:
           if ((Get-FileHash $archive -Algorithm SHA256).Hash -ne $expected) { throw 'AutoHotkey checksum mismatch.' }
           Expand-Archive $archive $directory
           "AHK=$directory\AutoHotkey64.exe" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
-      - name: Test the committed runtime without regenerating source
+      - name: Run the suite checks
         shell: pwsh
         run: python tests/check.py --autohotkey "$env:AHK"
-      - name: Retain the checked source for review
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: suite-source
-          retention-days: 3
-          include-hidden-files: true
-          path: |
-            super-hotkey.ahk
-            core/
-            modules/
-            assets/
-            tests/
-            README.md
-            AGENTS.md
-            LICENSE

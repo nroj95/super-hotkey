@@ -1,237 +1,34 @@
-; Shared GUI identity and the small hand-off between manual and automatic layouts.
-SuiteGui(options := "", title := "") {
-    window := Gui(options, title)
-    SuiteIcons.Apply(window)
-    ; Mark before showing: the window-show hook must never adopt our own dialogs.
-    DllCall("SetPropW", "ptr", window.Hwnd, "str", "nroj.WindowCascade.Ignore", "ptr", 1, "int")
-    ; Only actual resizable windows need the native sizing grip.
-    ; Cascade focus tabs, DPI probes and other overlays are not resizable.
-    if DllCall("GetWindowLongPtrW", "ptr", window.Hwnd, "int", -16, "ptr") & 0x00040000 ; WS_THICKFRAME
-        SuiteSizeGrip.Attach(window)
-    return window
-}
-
-SuiteShowCentered(window, width, height, layoutCallback := 0, fitWorkArea := false) {
-    ; Size while hidden so the user only sees the correctly centered layout.
-    window.Show("Hide w" width " h" height)
-
-    rect := Buffer(16, 0)
-    point := Buffer(8, 0)
-    if !DllCall("GetWindowRect", "ptr", window.Hwnd, "ptr", rect, "int")
-        || !DllCall("GetCursorPos", "ptr", point, "int")
-        throw OSError(A_LastError, "Center Super Hotkey window")
-    outerWidth := NumGet(rect, 8, "int") - NumGet(rect, 0, "int")
-    outerHeight := NumGet(rect, 12, "int") - NumGet(rect, 4, "int")
-    cursorX := NumGet(point, 0, "int")
-    cursorY := NumGet(point, 4, "int")
-    selected := 1
-    loop MonitorGetCount() {
-        MonitorGet(A_Index, &left, &top, &right, &bottom)
-        if cursorX >= left && cursorX < right && cursorY >= top && cursorY < bottom {
-            selected := A_Index
-            break
-        }
-    }
-    MonitorGetWorkArea(selected, &left, &top, &right, &bottom)
-    if fitWorkArea {
-        fitted := SuiteFitClientSize(window, width, height, right - left, bottom - top)
-        window.Show("Hide w" fitted.width " h" fitted.height)
-        if !DllCall("GetWindowRect", "ptr", window.Hwnd, "ptr", rect, "int")
-            throw OSError(A_LastError, "Measure Super Hotkey window")
-        outerWidth := NumGet(rect, 8, "int") - NumGet(rect, 0, "int")
-        outerHeight := NumGet(rect, 12, "int") - NumGet(rect, 4, "int")
-    }
-    window.GetClientPos(, , &clientWidth, &clientHeight)
-    if HasMethod(layoutCallback, "Call")
-        layoutCallback.Call(window, 0, clientWidth, clientHeight)
-    x := left + Floor((right - left - outerWidth) / 2)
-    y := top + Floor((bottom - top - outerHeight) / 2)
-    if !DllCall("SetWindowPos", "ptr", window.Hwnd, "ptr", 0,
-        "int", x, "int", y, "int", 0, "int", 0, "uint", 0x15, "int")
-        throw OSError(A_LastError, "Position Super Hotkey window")
-    SuiteSizeGrip.Move(window)
-    window.Show()
-}
-
-SuiteFitClientSize(window, width, height, workWidth, workHeight) {
-    window.GetClientPos(, , &logicalWidth, &logicalHeight)
-    client := Buffer(16, 0)
-    outer := Buffer(16, 0)
-    if !logicalWidth || !logicalHeight
-        || !DllCall("GetClientRect", "ptr", window.Hwnd, "ptr", client, "int")
-        || !DllCall("GetWindowRect", "ptr", window.Hwnd, "ptr", outer, "int")
-        throw OSError(A_LastError, "Measure Super Hotkey client area")
-    physicalWidth := NumGet(client, 8, "int")
-    physicalHeight := NumGet(client, 12, "int")
-    borderWidth := NumGet(outer, 8, "int") - NumGet(outer, 0, "int") - physicalWidth
-    borderHeight := NumGet(outer, 12, "int") - NumGet(outer, 4, "int") - physicalHeight
-    ; Gui dimensions are DPI-scaled; the work area and native frame are not.
-    return {width: Max(1, Min(width, Floor((workWidth - borderWidth) * logicalWidth / physicalWidth))),
-        height: Max(1, Min(height, Floor((workHeight - borderHeight) * logicalHeight / physicalHeight)))}
-}
-
-class SuiteFullscreen {
-    static placements := Map()
-    static marker := "nroj.SuperHotkey.FullscreenAllowed"
-
-    static Enable(window) {
-        if !DllCall("SetPropW", "ptr", window.Hwnd, "str", this.marker, "ptr", 1, "int")
-            throw OSError(A_LastError, "Enable Super Hotkey fullscreen")
-    }
-
-    static Active(*) {
-        ; F11 remains assignable while the Keybindings recorder is active.
-        if IsObject(SuiteState.App) && IsObject(SuiteState.App.manager)
-            && IsObject(SuiteState.App.manager.recording)
-            return false
-        hwnd := WinActive("A")
-        return hwnd && !!DllCall("GetPropW", "ptr", hwnd, "str", this.marker, "ptr")
-    }
-
-    static IsFullscreen(window) => this.placements.Has(window.Hwnd)
-
-    static Forget(window) {
-        if this.placements.Has(window.Hwnd)
-            this.placements.Delete(window.Hwnd)
-    }
-
-    static Toggle(*) {
-        if !this.Active()
-            return
-        hwnd := WinActive("A")
-        window := GuiFromHwnd(hwnd)
-        if !IsObject(window)
-            return
-        target := "ahk_id " hwnd
-
-        if this.placements.Has(hwnd) {
-            saved := this.placements[hwnd]
-            WinSetStyle(saved.style, target)
-            WinSetExStyle(saved.exStyle, target)
-            if !DllCall("SetWindowPlacement", "ptr", hwnd, "ptr", saved.placement, "int")
-                throw OSError(A_LastError, "Restore Super Hotkey window")
-            if !DllCall("SetWindowPos", "ptr", hwnd, "ptr", 0,
-                "int", 0, "int", 0, "int", 0, "int", 0, "uint", 0x37, "int")
-                throw OSError(A_LastError, "Restore Super Hotkey frame")
-            this.placements.Delete(hwnd)
-            SuiteSizeGrip.Move(window, WinGetMinMax(target))
-            return
-        }
-
-        placement := Buffer(44, 0) ; WINDOWPLACEMENT
-        NumPut("uint", placement.Size, placement)
-        if !DllCall("GetWindowPlacement", "ptr", hwnd, "ptr", placement, "int")
-            throw OSError(A_LastError, "Save Super Hotkey placement")
-        monitor := DllCall("MonitorFromWindow", "ptr", hwnd, "uint", 2, "ptr")
-        info := Buffer(40, 0) ; MONITORINFO, including full display bounds
-        NumPut("uint", info.Size, info)
-        if !monitor || !DllCall("GetMonitorInfoW", "ptr", monitor, "ptr", info, "int")
-            throw OSError(A_LastError, "Find Super Hotkey monitor")
-
-        window.Restore()
-        style := WinGetStyle(target)
-        exStyle := WinGetExStyle(target)
-        this.placements[hwnd] := {placement: placement, style: style, exStyle: exStyle}
-        WinSetStyle((style & ~0xC40000) | 0x80000000, target) ; popup, no caption/resize border
-        WinSetExStyle(exStyle & ~0x300, target) ; no client/window edge
-        left := NumGet(info, 4, "int")
-        top := NumGet(info, 8, "int")
-        if !DllCall("SetWindowPos", "ptr", hwnd, "ptr", 0,
-            "int", left, "int", top,
-            "int", NumGet(info, 12, "int") - left,
-            "int", NumGet(info, 16, "int") - top,
-            "uint", 0x34, "int") ; FRAMECHANGED | NOACTIVATE | NOZORDER
-            throw OSError(A_LastError, "Enter Super Hotkey fullscreen")
-        SuiteSizeGrip.Move(window)
-    }
-}
-
-class SuiteSizeGrip {
-    static handles := Map()
-
-    static Attach(window) {
-        ; A native scroll-bar sizing grip gives the corner a familiar diagonal
-        ; indicator and lets Windows handle dragging the parent window.
-        dimension := DllCall("GetSystemMetrics", "int", 2, "int")
-        height := DllCall("GetSystemMetrics", "int", 3, "int")
-        grip := DllCall("CreateWindowExW", "uint", 0, "str", "SCROLLBAR",
-            "ptr", 0, "uint", 0x50000010, ; WS_CHILD | WS_VISIBLE | SBS_SIZEGRIP
-            "int", 0, "int", 0, "int", dimension, "int", height,
-            "ptr", window.Hwnd, "ptr", 0,
-            "ptr", DllCall("GetModuleHandleW", "ptr", 0, "ptr"),
-            "ptr", 0, "ptr")
-        if !grip
-            throw OSError(A_LastError, "Create Super Hotkey sizing grip")
-        this.handles[window.Hwnd] := grip
-    }
-
-    static Move(window, minMax := 0) {
-        if !this.handles.Has(window.Hwnd)
-            return
-        grip := this.handles[window.Hwnd]
-        if !DllCall("IsWindow", "ptr", grip, "int") {
-            this.handles.Delete(window.Hwnd)
-            return
-        }
-        if minMax = 1 || SuiteFullscreen.IsFullscreen(window) {
-            DllCall("ShowWindow", "ptr", grip, "int", 0, "int")
-            return
-        }
-        rect := Buffer(16, 0)
-        if !DllCall("GetClientRect", "ptr", window.Hwnd, "ptr", rect, "int")
-            return
-        width := DllCall("GetSystemMetrics", "int", 2, "int")
-        height := DllCall("GetSystemMetrics", "int", 3, "int")
-        DllCall("SetWindowPos", "ptr", grip, "ptr", 0,
-            "int", Max(0, NumGet(rect, 8, "int") - width),
-            "int", Max(0, NumGet(rect, 12, "int") - height),
-            "int", width, "int", height,
-            "uint", 0x54, "int") ; NOZORDER | NOACTIVATE | SHOWWINDOW
-    }
-
-    static Detach(window) {
-        if this.handles.Has(window.Hwnd)
-            this.handles.Delete(window.Hwnd)
-        ; Parent GUI destruction also destroys its child resizing grip.
-    }
-}
-
-class SuiteIcons {
-    static handles := []
-    static path := A_ScriptDir "\assets\super-hotkey.ico"
-
-    static Initialize() {
-        if this.handles.Length || !FileExist(this.path)
-            return
-        for size in [16, 32] {
-            handle := DllCall("LoadImageW", "ptr", 0, "str", this.path, "uint", 1,
-                "int", size, "int", size, "uint", 0x10, "ptr")
-            this.handles.Push(handle)
-        }
-        ; The same two HICONs live until process exit; individual windows do not own them.
-    }
-
-    static Apply(window) {
-        this.Initialize()
-        for index, handle in this.handles
-            if handle
-                SendMessage(0x0080, index - 1, handle, , window.Hwnd)
-    }
-}
-
+; Window ownership shared by the modules. Windows that Wonder Windows
+; positioned by hand are left alone by automatic placement until an explicit
+; adoption releases them. Modules react through handlers instead of core
+; reaching into their state.
 class SuiteWindowOwnership {
     static marker := "nroj.SuperHotkeyWorld.ManualLayout"
     static windows := Map()
+    static claimHandlers := []    ; handler(hwnd) after a window becomes manual
+    static releaseHandlers := []  ; handler(hwnd) before adoption; false keeps it manual
 
-    static ProcessId(hwnd) {
-        processId := 0
-        if hwnd
-            DllCall("GetWindowThreadProcessId", "ptr", hwnd, "uint*", &processId, "uint")
-        return processId
+    static OnClaim(handler) => this._AddHandler(this.claimHandlers, handler)
+    static OffClaim(handler) => this._RemoveHandler(this.claimHandlers, handler)
+    static OnRelease(handler) => this._AddHandler(this.releaseHandlers, handler)
+
+    static _AddHandler(handlers, handler) {
+        for existing in handlers
+            if existing = handler
+                return
+        handlers.Push(handler)
+    }
+
+    static _RemoveHandler(handlers, handler) {
+        for index, existing in handlers
+            if existing = handler {
+                handlers.RemoveAt(index)
+                return
+            }
     }
 
     static IsSuiteSurface(hwnd) {
-        return hwnd && (this.ProcessId(hwnd) = DllCall("GetCurrentProcessId", "uint")
+        return hwnd && (WindowProcessId(hwnd) = DllCall("GetCurrentProcessId", "uint")
             || DllCall("GetPropW", "ptr", hwnd, "str", "nroj.PaperPad.Notepad3Window", "ptr"))
     }
 
@@ -249,7 +46,7 @@ class SuiteWindowOwnership {
     static IsManual(hwnd) {
         if !this.windows.Has(hwnd)
             return false
-        matches := this.ProcessId(hwnd) = this.windows[hwnd]
+        matches := WindowProcessId(hwnd) = this.windows[hwnd]
             && DllCall("GetPropW", "ptr", hwnd, "str", this.marker, "ptr") = A_ScriptHwnd
         if !matches
             this.windows.Delete(hwnd)
@@ -259,7 +56,7 @@ class SuiteWindowOwnership {
     static Claim(hwnd) {
         if IsObject(SuiteState.App) && SuiteState.App.stopping
             return
-        processId := this.ProcessId(hwnd)
+        processId := WindowProcessId(hwnd)
         if !processId
             return
         ; A per-window property prevents a recycled HWND (even in the same process)
@@ -267,40 +64,17 @@ class SuiteWindowOwnership {
         if !DllCall("SetPropW", "ptr", hwnd, "str", this.marker, "ptr", A_ScriptHwnd, "int")
             throw OSError(A_LastError, "Mark manual window layout")
         this.windows[hwnd] := processId
-        if !IsObject(SuiteState.App) || !SuiteState.App.cascadeStarted
-            return
-        global pending_windows, placement_reservations, handled_windows
-        monitor := GetManagedCascadeMonitor(hwnd)
-        CancelPlacementStabilization(hwnd)
-        if pending_windows.Has(hwnd)
-            pending_windows.Delete(hwnd)
-        if placement_reservations.Has(hwnd)
-            placement_reservations.Delete(hwnd)
-        RemoveCascadeWindowFromHistory(hwnd)
-        RemoveWindowFromMinimizeState(hwnd)
-        handled_windows[hwnd] := true
-        if monitor
-            QueueCascadeCompaction(monitor)
-        QueueFocusCornerUpdate()
+        for handler in this.claimHandlers.Clone()
+            handler.Call(hwnd)
     }
 
     static Release(hwnd, forAdoption := true) {
         if !this.IsManual(hwnd)
             return false
-        if forAdoption {
-            global WW_horizontal_stretch_windows, WW_vertical_stretch_windows
-            global WW_layout_cycle_windows, WW_center_tile_next_sides, WW_normal_window_placements
-            global WW_full_stretch_windows
-            ; Never hand a fullscreen window to automatic placement if F11 cannot exit it.
-            if !WW_SetNativeFullscreen(hwnd, false)
-                return false
-            WW_ForgetSwapZone(hwnd)
-            for states in [WW_horizontal_stretch_windows, WW_vertical_stretch_windows,
-                WW_layout_cycle_windows, WW_center_tile_next_sides, WW_normal_window_placements,
-                WW_full_stretch_windows]
-                if states.Has(hwnd)
-                    states.Delete(hwnd)
-        }
+        if forAdoption
+            for handler in this.releaseHandlers.Clone()
+                if !handler.Call(hwnd)
+                    return false
         DllCall("RemovePropW", "ptr", hwnd, "str", this.marker, "ptr")
         this.windows.Delete(hwnd)
         return true
@@ -322,9 +96,70 @@ PaperPadWindowActive(*) {
     return hwnd && !!DllCall("GetPropW", "ptr", hwnd, "str", "nroj.PaperPad.Notepad3Window", "ptr")
 }
 
-#HotIf SuiteFullscreen.Active()
-F11::{
-    SuiteFullscreen.Toggle()
-    KeyWait "F11" ; ignore key repeat while held
+; =============================================================================
+; native window queries and DPI boundaries shared by the modules
+; =============================================================================
+
+WindowProcessId(hwnd) {
+    processId := 0
+    if hwnd
+        DllCall("GetWindowThreadProcessId", "ptr", hwnd, "uint*", &processId, "uint")
+    return processId
 }
-#HotIf
+
+; Cloaked windows (other virtual desktops, suspended apps) are invisible even
+; though IsWindowVisible reports them as visible.
+IsWindowCloaked(hwnd) {
+    cloaked := 0
+    result := DllCall("dwmapi\DwmGetWindowAttribute", "ptr", hwnd,
+        "uint", 14, "uint*", &cloaked, "uint", 4, "int") ; DWMWA_CLOAKED
+    return result = 0 && cloaked != 0
+}
+
+; The visible DWM frame in physical pixels, without invisible resize borders.
+GetVisibleWindowBounds(hwnd, &x, &y, &width, &height) {
+    frame := Buffer(16, 0)
+    if DllCall("dwmapi\DwmGetWindowAttribute", "ptr", hwnd,
+        "uint", 9, "ptr", frame, "uint", frame.Size, "int") != 0 ; DWMWA_EXTENDED_FRAME_BOUNDS
+        return false
+    x := NumGet(frame, 0, "int")
+    y := NumGet(frame, 4, "int")
+    width := NumGet(frame, 8, "int") - x
+    height := NumGet(frame, 12, "int") - y
+    return width > 0 && height > 0
+}
+
+; Taskbars, the desktop and tray popups are never arranged or focused.
+IsShellSurfaceClass(className) {
+    return className = "Shell_TrayWnd" || className = "Shell_SecondaryTrayWnd"
+        || className = "Progman" || className = "WorkerW"
+        || className = "NotifyIconOverflowWindow" || className = "tooltips_class32"
+}
+
+IsShellSurfaceWindow(hwnd) {
+    try return hwnd && IsShellSurfaceClass(WinGetClass("ahk_id " hwnd))
+    return false
+}
+
+; Geometry is in physical pixels. Scope the context to one native call:
+; AutoHotkey threads share one OS thread, so Sleep, dialogs and modal message
+; loops would let another thread run in a borrowed context.
+CallWithDpiContext(context, callback, args*) {
+    previousContext := DllCall("SetThreadDpiAwarenessContext", "ptr", context, "ptr")
+    if !previousContext
+        throw OSError(A_LastError, "SetThreadDpiAwarenessContext")
+    try return callback(args*)
+    finally {
+        ; Restoring the context must not replace a native operation's error code.
+        lastError := A_LastError
+        DllCall("SetThreadDpiAwarenessContext", "ptr", previousContext, "ptr")
+        DllCall("SetLastError", "uint", lastError)
+    }
+}
+
+WinGetPosPixels(args*) => CallWithDpiContext(-3, WinGetPos, args*)
+WinMovePixels(args*) => CallWithDpiContext(-3, WinMove, args*)
+MonitorGetPixels(args*) => CallWithDpiContext(-3, MonitorGet, args*)
+MonitorGetWorkAreaPixels(args*) => CallWithDpiContext(-3, MonitorGetWorkArea, args*)
+MouseGetPosPixels(args*) => CallWithDpiContext(-3, MouseGetPos, args*)
+PhysicalDllCall(args*) => CallWithDpiContext(-3, DllCall, args*)

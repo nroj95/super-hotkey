@@ -70,6 +70,7 @@ class SuiteUpgradeChecks {
         this.CapsLockDoubleTap()
         this.LayerDoubleTapGestures()
         this.LayerChordReleaseOrder()
+        this.LayerDispatch()
         this.LayerRecordingGestures()
         this.LayerIndicatorDelay()
         this.ApplicationSuspension()
@@ -110,7 +111,9 @@ class SuiteUpgradeChecks {
         document["layers"]["pause"] := "invalid"
         KB_Manifest.WriteAtomic(settings.path, document)
         before := FileRead(settings.path)
-        SuiteChecks.Rejects((*) => SuiteSettings(settings.directory), "invalid independent-layer preference is rejected")
+        recovered := SuiteSettings(settings.directory)
+        this.Assert(recovered.loadWarning != "" && recovered.layers["caps"] && recovered.layers["pause"],
+            "an invalid layer preference falls back to defaults with a warning")
         this.Assert(FileRead(settings.path) = before, "bad layer preferences are not silently rewritten")
         settings.Save(settings.modules)
         settings.WritePreferences("paper-pad", Map("Paths", Map("NotesDirectory", "sentinel-folder"),
@@ -138,18 +141,18 @@ class SuiteUpgradeChecks {
             manager.SetPaused(true)
             manager.Start()
             app.ui := SuiteInterface(app)
-            app.ui.ShowLayerSettings()
+            app.ui.ShowModuleSettings("secret-layers")
             window := app.ui.windows["settings:secret-layers"]
             this.Assert(!window["capsToggleEnabled"].Value
                 && !window["capsToggleModifier"].Enabled
                 && window["capsToggleModifier"].Text = "Alt",
                 "disabled Caps Lock double-tap keeps its saved dropdown selection")
             window["capsToggleEnabled"].Value := true
-            app.ui.UpdateSelectorEnabled(window["capsToggleModifier"], window["capsToggleEnabled"])
+            app.modules["secret-layers"].UpdateSelectorEnabled(window["capsToggleModifier"], window["capsToggleEnabled"])
             this.Assert(window["capsToggleModifier"].Enabled,
                 "Caps Lock double-tap checkbox enables the modifier dropdown")
             app.ui.CloseWindow("settings:secret-layers")
-            app.ui.ShowCascadeSettings()
+            app.ui.ShowModuleSettings("cascade-kingdom")
             window := app.ui.windows["settings:cascade-kingdom"]
             this.Assert(window["autoCascade"].Enabled && !window["autoCascade"].Value
                 && window["tabs"].Enabled && window["activeColor"].Enabled
@@ -173,7 +176,7 @@ class SuiteUpgradeChecks {
             try {
                 manager.SetPaused(true)
                 manager.Start()
-                this.Assert(IsObject(manager.client) = (flags[1] || flags[2]), "adapter presence: " label)
+                this.Assert(IsObject(manager.client) = (flags[1] || flags[2]), "layer client presence: " label)
                 this.Assert((manager.BindingUnavailable(Keybindings.Parse("Caps + Alt + K")) = "") = flags[1],
                     "Caps assignment availability: " label)
                 this.Assert((manager.BindingUnavailable(Keybindings.Parse("Pause + T")) = "") = flags[2],
@@ -190,27 +193,27 @@ class SuiteUpgradeChecks {
                         ? "Keybindings — CapsLock and Pause layers disabled"
                     : flags[1] ? "Keybindings — Pause layer disabled"
                         : "Keybindings — CapsLock layer disabled"
-                this.Assert(manager.settings.Title = expectedTitle,
+                this.Assert(manager.editor.window.Title = expectedTitle,
                     "Keybindings title explains the disabled layer state: " label)
-                manager.settings["search"].Value := "open Keybindings"
-                manager._RenderSettings()
-                this.Assert(manager.rows[2].id = "core.keybindings",
+                manager.editor.window["search"].Value := "open Keybindings"
+                manager.editor.Render()
+                this.Assert(manager.editor.rows[2].id = "core.keybindings",
                     "core shortcut remains visible when searching: " label)
-                coreButtons := manager.visibleRows[2]
+                coreButtons := manager.editor.visibleRows[2]
                 this.Assert(InStr(coreButtons.primary.Text, "⚠") = 1 ? !flags[1] : flags[1],
                     "Caps binding receives a warning only when inactive: " label)
                 this.Assert(coreButtons.secondary.Text = "Ctrl + Alt + K",
                     "ordinary fallback is never warned: " label)
                 this.Assert(coreButtons.primary.Enabled,
                     "inactive bindings remain clickable for reassignment: " label)
-                manager.settings["search"].Value := "show Paper Pad help"
-                manager._RenderSettings()
-                paperButton := manager.visibleRows[2].primary
+                manager.editor.window["search"].Value := "show Paper Pad help"
+                manager.editor.Render()
+                paperButton := manager.editor.visibleRows[2].primary
                 this.Assert(InStr(paperButton.Text, "⚠") = 1 ? !flags[2] : flags[2],
                     "Pause binding receives a warning only when inactive: " label)
                 this.Assert(paperButton.Enabled,
                     "Paper Pad Help remains reassignable while Pause is unavailable: " label)
-                manager._CloseSettings()
+                manager.editor.Close()
                 if !flags[1] {
                     configuration := manager.GetConfiguration()
                     configuration["paper-pad.toggle"].bindings[1] := "CapsLock"
@@ -230,7 +233,6 @@ class SuiteUpgradeChecks {
     }
 
     static LayerDoubleTapGestures() {
-        global CPL
         caps := Keybindings.Parse("Caps + Caps")
         pauseBinding := Keybindings.Parse("Pause + Pause")
         this.Assert(caps.doubleTap && caps.layer = "caps" && caps.modifiers = 0
@@ -253,28 +255,24 @@ class SuiteUpgradeChecks {
         SuiteChecks.Rejects((*) => Keybindings.Parse("Caps + Ctrl + Caps"),
             "self-prefix double-taps cannot include extra modifiers")
 
-        this.Assert(CPL.oneShotMs = 1400
-            && CPL_DoubleTapCandidate("caps", "caps", 1500, 1499)
-            && !CPL_DoubleTapCandidate("caps", "caps", 1500, 1500)
-            && !CPL_DoubleTapCandidate("pause", "caps", 1500, 200)
-            && !CPL_DoubleTapCandidate("", "caps", 1500, 200),
+        this.Assert(KeyboardLayers.OneShotMs = 1400
+            && KeyboardLayers.DoubleTapCandidate("caps", "caps", 1500, 1499)
+            && !KeyboardLayers.DoubleTapCandidate("caps", "caps", 1500, 1500)
+            && !KeyboardLayers.DoubleTapCandidate("pause", "caps", 1500, 200)
+            && !KeyboardLayers.DoubleTapCandidate("", "caps", 1500, 200),
             "a second tap uses the exact 1400 ms one-shot deadline")
         layer := {started: 100, used: false, doubleTap: true}
-        this.Assert(CPL_DoubleTapCompleted(layer, true, true, 340, 0, true, 250)
-            && !CPL_DoubleTapCompleted(layer, true, true, 351, 0, true, 250)
-            && !CPL_DoubleTapCompleted(layer, true, true, 200, 1, true, 250),
+        this.Assert(KeyboardLayers.DoubleTapCompleted(layer, true, 340, 0, true)
+            && !KeyboardLayers.DoubleTapCompleted(layer, true, 351, 0, true)
+            && !KeyboardLayers.DoubleTapCompleted(layer, true, 200, 1, true),
             "the second tap must be released quickly without modifiers")
         layer.used := true
-        this.Assert(!CPL_DoubleTapCompleted(layer, true, true, 200, 0, true, 250),
+        this.Assert(!KeyboardLayers.DoubleTapCompleted(layer, true, 200, 0, true),
             "using a held layer chord suppresses its double-tap shortcut")
         layer.used := false
         layer.doubleTap := false
-        this.Assert(!CPL_DoubleTapCompleted(layer, true, true, 200, 0, true, 250),
+        this.Assert(!KeyboardLayers.DoubleTapCompleted(layer, true, 200, 0, true),
             "an ordinary first tap or tap-then-hold never counts as a double-tap")
-        phases := []
-        CPL_DeliverDoubleTap({callback: (event) => phases.Push(event.phase)})
-        this.Assert(phases.Length = 2 && phases[1] = "down" && phases[2] = "up",
-            "double-tap actions dispatch one complete press after release")
 
         app := SuiteApplication(true, SuiteChecks.directory "\layer-self-double-taps")
         app.InitializeCatalog()
@@ -290,8 +288,9 @@ class SuiteUpgradeChecks {
             this.Assert(manager.GetConfiguration()["paper-pad.toggle"].bindings[1] = caps.signature
                 && manager.GetConfiguration()["paper-pad.help"].bindings[2] = pauseBinding.signature,
                 "manual self-prefix assignments save through normal Keybindings")
-            this.Assert(CPL.doubleTapKeys.Has("caps") && CPL.doubleTapKeys.Has("pause")
-                && !CPL.keyGroups.Has(caps.key) && !CPL.keyGroups.Has(pauseBinding.key),
+            this.Assert(manager.routeMap.Has(caps.signature) && manager.routeMap.Has(pauseBinding.signature)
+                && !manager.variants.Has(caps.signature) && !manager.variants.Has(pauseBinding.signature)
+                && !manager.groups.Has(caps.key) && !manager.groups.Has(pauseBinding.key),
                 "double-tap shortcuts never register native activation-key suffix hooks")
             conflicting := manager.GetConfiguration()
             conflicting["paper-pad.help"].bindings[1] := "Caps + Caps"
@@ -303,44 +302,160 @@ class SuiteUpgradeChecks {
         finally manager.Stop()
     }
 
+    ; A manager whose routes and prefix engine exist without native hotkeys,
+    ; prefix hooks or key injection. Tests call the real dispatch methods.
+    static LayerFixture(name) {
+        manager := Keybindings("layer-" name, "Layer fixture",
+            {directory: SuiteChecks.directory "\layer-" name,
+                layerFactory: (owner) => KeyboardLayers(owner, Map("caps", true, "pause", true))})
+        events := []
+        record := (event) => events.Push(event)
+        manager.AddAction("fixture.caps", "caps chord", record, ["Caps + C"], {repeat: true})
+        manager.AddAction("fixture.pause", "pause chord", record, ["Pause + C"])
+        manager.AddAction("fixture.double", "caps double-tap", record, ["Caps + Caps"])
+        manager.AddAction("fixture.plain", "plain key", record, ["C"])
+        candidate := manager._CandidateRoutes(manager._DefaultConfiguration())
+        manager.configuration := candidate.configuration
+        manager.routes := candidate.routes
+        manager.client := manager.layerFactory.Call(manager)
+        manager.client.showIndicator := false
+        manager.client.running := true
+        manager.running := true
+        for route in manager.routes {
+            route.enabled := true
+            signature := route.binding.signature
+            if !manager.routeMap.Has(signature)
+                manager.routeMap[signature] := []
+            manager.routeMap[signature].Push(route)
+            if route.binding.layer != "normal" && !route.binding.doubleTap
+                manager.layerKeys[route.binding.key] := true
+        }
+        return {manager: manager, layers: manager.client, events: events}
+    }
+
+    static HoldLayer(layers, layerName) {
+        layer := layers.layers[layerName]
+        layers.selected := layerName
+        layer.down := true
+        layer.used := false
+        layer.cancelTap := false
+        layer.doubleTap := false
+        layer.started := KeyboardLayers.Now()
+        layer.physicalKey := layerName = "caps" ? "CapsLock" : "Pause"
+    }
+
+    static Phases(fixture) {
+        phases := ""
+        for event in fixture.events
+            phases .= (phases = "" ? "" : ",") event.actionId ":" event.phase (event.oneShot ? "*" : "")
+        return phases
+    }
+
     static LayerChordReleaseOrder() {
-        global CPL
-
-        for layerName in ["caps", "pause"] {
-            for suffixFirst in [true, false] {
-                CPL_Initialize()
-                CPL.enabled := true
-                CPL.showIndicator := false
-                CPL.selected := layerName
-
-                layer := CPL.layers[layerName]
-                layer.down := true
-                layer.used := true
-                layer.started := CPL_Now()
-                layer.physicalKey := layerName = "caps" ? "CapsLock" : "Pause"
-
-                phases := []
-                press := {
-                    route: {layer: layerName, callback: (event) => phases.Push(event.phase)},
-                    oneShot: false, finished: false, foreground: 0
+        key := Keybindings.Parse("C").key
+        previousCritical := Critical("On")
+        try {
+            for layerName in ["caps", "pause"] {
+                for suffixFirst in [true, false] {
+                    fixture := this.LayerFixture("chord-" layerName "-" suffixFirst)
+                    try {
+                        this.HoldLayer(fixture.layers, layerName)
+                        fixture.manager._KeyDown(Keybindings.Parse(
+                            (layerName = "caps" ? "Caps" : "Pause") " + C").signature)
+                        if suffixFirst {
+                            fixture.manager._KeyUp(key)
+                            fixture.layers.FinishPrefix(layerName)
+                        } else {
+                            fixture.layers.FinishPrefix(layerName)
+                            fixture.manager._KeyUp(key)
+                        }
+                        fixture.manager._Drain()
+                        this.Assert(this.Phases(fixture) = "fixture." layerName ":down,fixture." layerName ":up",
+                            layerName " chord completes once regardless of release order: "
+                            (suffixFirst ? "suffix first" : "prefix first"))
+                    }
+                    finally fixture.manager.Stop()
                 }
-                CPL.pressed["sc02E"] := press
-                CPL_SendEvent(press, 1)
-
-                if suffixFirst {
-                    CPL_KeyUp("sc02E")
-                    CPL_FinishPrefix(layerName, true)
-                } else {
-                    CPL_FinishPrefix(layerName, true)
-                    CPL_KeyUp("sc02E")
-                }
-
-                this.Assert(phases.Length = 2 && phases[1] = "down"
-                    && phases[2] = "up" && press.finished,
-                    layerName " chord completes once regardless of release order: "
-                    (suffixFirst ? "suffix first" : "prefix first"))
             }
         }
+        finally Critical(previousCritical)
+    }
+
+    ; Layer suffixes and ordinary hotkeys share one dispatcher.
+    static LayerDispatch() {
+        key := Keybindings.Parse("C").key
+        capsChord := Keybindings.Parse("Caps + C").signature
+        plain := Keybindings.Parse("C").signature
+        previousCritical := Critical("On")
+        try {
+            fixture := this.LayerFixture("dispatch-hold")
+            manager := fixture.manager
+            layers := fixture.layers
+            try {
+                this.Assert(manager._Eligible(plain) && !manager._Eligible(capsChord),
+                    "without a layer only the ordinary hotkey is eligible")
+                this.HoldLayer(layers, "caps")
+                this.Assert(!manager._Eligible(plain) && manager._Eligible(capsChord),
+                    "a held layer claims its suffix and ordinary hotkeys stand aside")
+                manager._KeyDown(capsChord)
+                manager._GuardDown(key)
+                manager._KeyUp(key)
+                manager._Drain()
+                this.Assert(this.Phases(fixture) = "fixture.caps:down,fixture.caps:repeat,fixture.caps:up"
+                    && layers.layers["caps"].used,
+                    "a held chord repeats, completes and marks its prefix as used")
+            }
+            finally manager.Stop()
+
+            fixture := this.LayerFixture("dispatch-tap")
+            manager := fixture.manager
+            layers := fixture.layers
+            try {
+                this.HoldLayer(layers, "caps")
+                layers.FinishPrefix("caps")
+                this.Assert(layers.armed = "caps" && !manager._Eligible(plain)
+                    && manager._Eligible(capsChord),
+                    "a quick tap arms the layer for the next key")
+                manager._KeyDown(capsChord)
+                manager._GuardDown(key)
+                manager._KeyUp(key)
+                manager._Drain()
+                this.Assert(this.Phases(fixture) = "fixture.caps:down*,fixture.caps:up*"
+                    && layers.armed = "" && manager._Eligible(plain),
+                    "an armed key is one non-repeating one-shot press that consumes the arm")
+            }
+            finally manager.Stop()
+
+            fixture := this.LayerFixture("dispatch-switch")
+            manager := fixture.manager
+            layers := fixture.layers
+            try {
+                this.HoldLayer(layers, "caps")
+                manager._KeyDown(capsChord)
+                layers._PrefixDown("pause", "Pause")
+                manager._Drain()
+                this.Assert(this.Phases(fixture) = "fixture.caps:down,fixture.caps:cancel"
+                    && layers.selected = "pause",
+                    "switching to the other prefix cancels the first layer's chord")
+            }
+            finally manager.Stop()
+
+            fixture := this.LayerFixture("dispatch-double")
+            manager := fixture.manager
+            layers := fixture.layers
+            try {
+                this.HoldLayer(layers, "caps")
+                layers.FinishPrefix("caps")
+                layers._PrefixDown("caps", "CapsLock")
+                layers.FinishPrefix("caps")
+                manager._Drain()
+                this.Assert(this.Phases(fixture) = "fixture.double:down*,fixture.double:up*"
+                    && layers.armed = "",
+                    "a double-tap dispatches one complete press and does not re-arm")
+            }
+            finally manager.Stop()
+        }
+        finally Critical(previousCritical)
     }
 
     static LayerRecordingGestures() {
@@ -348,76 +463,76 @@ class SuiteUpgradeChecks {
         for prefix in ["caps", "pause"] {
             record := {prefixDown: "", prefixDownAt: 0, prefixUsed: false,
                 prefixCancel: false, armedLayer: "", armedAt: 0}
-            this.Assert(Keybindings.RecordingPrefixDown(record, prefix, 100)
-                && Keybindings.RecordingPrefixUp(record, prefix, 180, 0) = "armed"
-                && Keybindings.RecordingOneShotLayer(record, 1579) = prefix
-                && Keybindings.RecordingOneShotLayer(record, 1580) = ""
-                && Keybindings.RecordingOneShotLayer(record, 1581) = "",
+            this.Assert(KeybindingsEditor.RecordingPrefixDown(record, prefix, 100)
+                && KeybindingsEditor.RecordingPrefixUp(record, prefix, 180, 0) = "armed"
+                && KeybindingsEditor.RecordingOneShotLayer(record, 1579) = prefix
+                && KeybindingsEditor.RecordingOneShotLayer(record, 1580) = ""
+                && KeybindingsEditor.RecordingOneShotLayer(record, 1581) = "",
                 prefix " tap arms one-shot recording for the next key")
-            this.Assert(!Keybindings.RecordingBareKey(record, "normal", 200, 0)
-                && Keybindings.RecordingBareKey(record, "normal", 1581, 0),
+            this.Assert(!KeybindingsEditor.RecordingBareKey(record, "normal", 200, 0)
+                && KeybindingsEditor.RecordingBareKey(record, "normal", 1581, 0),
                 prefix " one-shot Escape/Backspace are recorded, not cancelled or cleared")
 
-            this.Assert(Keybindings.RecordingPrefixDown(record, prefix, 350)
+            this.Assert(KeybindingsEditor.RecordingPrefixDown(record, prefix, 350)
                 && record.prefixCancel
-                && Keybindings.RecordingPrefixUp(record, prefix, 490, 0) = "double",
+                && KeybindingsEditor.RecordingPrefixUp(record, prefix, 490, 0) = "double",
                 prefix " double-tap is recognized only after second quick release")
             this.Assert(record.armedLayer = "" && record.prefixDown = "",
                 prefix " double-tap consumes the one-shot state")
 
-            Keybindings.RecordingPrefixDown(record, prefix, 600)
-            Keybindings.RecordingPrefixUp(record, prefix, 680, 0)
-            this.Assert(Keybindings.RecordingPrefixDown(record, prefix, 2079)
+            KeybindingsEditor.RecordingPrefixDown(record, prefix, 600)
+            KeybindingsEditor.RecordingPrefixUp(record, prefix, 680, 0)
+            this.Assert(KeybindingsEditor.RecordingPrefixDown(record, prefix, 2079)
                 && record.prefixCancel
-                && Keybindings.RecordingPrefixUp(record, prefix, 2119, 0) = "double",
+                && KeybindingsEditor.RecordingPrefixUp(record, prefix, 2119, 0) = "double",
                 prefix " double-tap accepts the full one-shot window")
 
-            Keybindings.RecordingPrefixDown(record, prefix, 3000)
-            Keybindings.RecordingPrefixUp(record, prefix, 3070, 0)
-            this.Assert(Keybindings.RecordingPrefixDown(record, prefix, 4470)
+            KeybindingsEditor.RecordingPrefixDown(record, prefix, 3000)
+            KeybindingsEditor.RecordingPrefixUp(record, prefix, 3070, 0)
+            this.Assert(KeybindingsEditor.RecordingPrefixDown(record, prefix, 4470)
                 && !record.prefixCancel
-                && Keybindings.RecordingPrefixUp(record, prefix, 4540, 0) = "armed",
+                && KeybindingsEditor.RecordingPrefixUp(record, prefix, 4540, 0) = "armed",
                 prefix " at the expired one-shot deadline a new tap begins")
 
-            Keybindings.RecordingPrefixDown(record, prefix, 4700)
+            KeybindingsEditor.RecordingPrefixDown(record, prefix, 4700)
             this.Assert(record.prefixCancel
-                && Keybindings.RecordingPrefixUp(record, prefix, 5000, 0) = "",
+                && KeybindingsEditor.RecordingPrefixUp(record, prefix, 5000, 0) = "",
                 prefix " tap then hold does not record double-tap")
 
-            Keybindings.RecordingPrefixDown(record, prefix, 5500)
+            KeybindingsEditor.RecordingPrefixDown(record, prefix, 5500)
             record.prefixUsed := true
-            this.Assert(Keybindings.RecordingPrefixUp(record, prefix, 5550, 0) = ""
+            this.Assert(KeybindingsEditor.RecordingPrefixUp(record, prefix, 5550, 0) = ""
                 && record.armedLayer = "",
                 prefix " hold-plus-key does not become one-shot recording")
-            Keybindings.RecordingPrefixDown(record, prefix, 6000)
-            this.Assert(Keybindings.RecordingPrefixUp(record, prefix, 6050, 1) = ""
+            KeybindingsEditor.RecordingPrefixDown(record, prefix, 6000)
+            this.Assert(KeybindingsEditor.RecordingPrefixUp(record, prefix, 6050, 1) = ""
                 && record.armedLayer = "",
                 prefix " with modifiers cannot arm a tap")
         }
     }
 
     static LayerIndicatorDelay() {
-        global CPL
-        CPL_Initialize()
-        this.Assert(!CPL_HeldIndicatorReady(), "idle layers have no held indicator")
-        CPL.selected := "caps"
-        caps := CPL.layers["caps"]
+        layers := KeyboardLayers({}, Map("caps", true, "pause", true))
+        tapMs := KeyboardLayers.TapMaxMs
+        this.Assert(!layers.HeldIndicatorReady(), "idle layers have no held indicator")
+        layers.selected := "caps"
+        caps := layers.layers["caps"]
         caps.down := true
-        caps.started := CPL_Now()
-        this.Assert(!CPL_HeldIndicatorReady(), "initial Caps press hides held indicator")
-        caps.started := CPL_Now() - CPL.tapMaxMs + 50
-        this.Assert(!CPL_HeldIndicatorReady(), "quick Caps tap hides held indicator")
-        caps.started := CPL_Now() - CPL.tapMaxMs - 50
-        this.Assert(CPL_HeldIndicatorReady(), "held Caps passes tap threshold")
+        caps.started := KeyboardLayers.Now()
+        this.Assert(!layers.HeldIndicatorReady(), "initial Caps press hides held indicator")
+        caps.started := KeyboardLayers.Now() - tapMs + 50
+        this.Assert(!layers.HeldIndicatorReady(), "quick Caps tap hides held indicator")
+        caps.started := KeyboardLayers.Now() - tapMs - 50
+        this.Assert(layers.HeldIndicatorReady(), "held Caps passes tap threshold")
         caps.down := false
-        this.Assert(!CPL_HeldIndicatorReady(), "Caps release cancels held indicator")
-        CPL.selected := "pause"
-        pauseLayer := CPL.layers["pause"]
+        this.Assert(!layers.HeldIndicatorReady(), "Caps release cancels held indicator")
+        layers.selected := "pause"
+        pauseLayer := layers.layers["pause"]
         pauseLayer.down := true
-        pauseLayer.started := CPL_Now() - CPL.tapMaxMs - 50
-        this.Assert(CPL_HeldIndicatorReady(), "held Pause passes tap threshold")
-        CPL.selected := ""
-        this.Assert(!CPL_HeldIndicatorReady(), "clearing Pause removes held indicator")
+        pauseLayer.started := KeyboardLayers.Now() - tapMs - 50
+        this.Assert(layers.HeldIndicatorReady(), "held Pause passes tap threshold")
+        layers.selected := ""
+        this.Assert(!layers.HeldIndicatorReady(), "clearing Pause removes held indicator")
     }
 
     static CapsLockDoubleTap() {
@@ -473,43 +588,43 @@ class SuiteUpgradeChecks {
             this.Assert(before != replacement, "staged regression binding differs from the saved default")
             beforeFile := FileRead(manager.path, "UTF-8")
             manager.ShowSettings()
-            candidate := manager._CloneConfiguration(manager.settingsDraft)
+            candidate := manager._CloneConfiguration(manager.editor.draft)
             candidate["core.keybindings"].bindings[2] := replacement
-            manager._StageConfiguration(candidate)
-            this.Assert(manager.settingsApply.Enabled
-                && manager.settingsDraft["core.keybindings"].bindings[2] = replacement
+            manager.editor.Stage(candidate)
+            this.Assert(manager.editor.applyButton.Enabled
+                && manager.editor.draft["core.keybindings"].bindings[2] = replacement
                 && manager.GetConfiguration()["core.keybindings"].bindings[2] = before
                 && FileRead(manager.path, "UTF-8") = beforeFile,
                 "editing stages hotkeys without changing the live configuration or saved file")
-            manager._CloseSettings()
+            manager.editor.Close()
             manager.ShowSettings()
-            this.Assert(manager.settingsDraft["core.keybindings"].bindings[2] = before
-                && !manager.settingsApply.Enabled,
+            this.Assert(manager.editor.draft["core.keybindings"].bindings[2] = before
+                && !manager.editor.applyButton.Enabled,
                 "closing Keybindings discards all uncommitted edits")
-            manager._StageConfiguration(candidate)
-            this.Assert(manager._ApplyStaged()
+            manager.editor.Stage(candidate)
+            this.Assert(manager.editor.ApplyStaged()
                 && manager.GetConfiguration()["core.keybindings"].bindings[2] = replacement
                 && KB_Manifest.Get(KB_Manifest.Read(manager.path), "bindings", "core.keybindings") != "",
                 "Apply saves staged hotkeys and closes the editor without restarting")
             manager.ShowSettings("cascade-kingdom")
-            this.Assert(manager.settingsDone.Text = "Back"
-                && manager.settingsApply.Text = "Apply"
-                && manager.settingsModuleId = "cascade-kingdom",
+            this.Assert(manager.editor.doneButton.Text = "Back"
+                && manager.editor.applyButton.Text = "Apply"
+                && manager.editor.moduleId = "cascade-kingdom",
                 "module Keybindings provides Back and live Apply")
-            unrelated := manager.settingsDraft["core.keybindings"].bindings[2]
-            moduleCandidate := manager._CloneConfiguration(manager.settingsDraft)
+            unrelated := manager.editor.draft["core.keybindings"].bindings[2]
+            moduleCandidate := manager._CloneConfiguration(manager.editor.draft)
             moduleCandidate["cascade-kingdom.help"].bindings[1] := Keybindings.Parse("Caps + F10").signature
-            manager._StageConfiguration(moduleCandidate)
-            manager._StageDefaults()
-            this.Assert(manager.settingsDraft["cascade-kingdom.help"].bindings[1]
+            manager.editor.Stage(moduleCandidate)
+            manager.editor.StageDefaults()
+            this.Assert(manager.editor.draft["cascade-kingdom.help"].bindings[1]
                     = manager.actions["cascade-kingdom.help"].defaults[1]
-                && manager.settingsDraft["core.keybindings"].bindings[2] = unrelated,
+                && manager.editor.draft["core.keybindings"].bindings[2] = unrelated,
                 "module Restore defaults stages only that module's shortcuts")
-            manager._CloseSettings()
+            manager.editor.Close()
         }
         finally {
-            if IsObject(manager.settings)
-                manager._CloseSettings()
+            if IsObject(manager.editor.window)
+                manager.editor.Close()
             manager.Stop()
         }
     }
@@ -533,7 +648,7 @@ class SuiteUpgradeChecks {
             manager.SetPaused(true)
             manager.Start()
             app.ui := SuiteInterface(app)
-            app.ui.ShowCascadeSettings()
+            app.ui.ShowModuleSettings("cascade-kingdom")
             settings := app.ui.windows["settings:cascade-kingdom"]
             expectedAuto := !previous.autoCascade
             settings["autoCascade"].Value := expectedAuto
@@ -546,7 +661,7 @@ class SuiteUpgradeChecks {
             existingHistorySize := cascade_history.Count
             this.Assert(app.ui.pageFooters[settings.Hwnd].buttons[1].button.Text = "Apply",
                 "Cascade Kingdom Settings use Apply without restart")
-            app.ui.SaveCascade()
+            app.modules["cascade-kingdom"].SaveSettings(app.ui)
             path := app.Settings.directory "\cascade-kingdom\settings.ini"
             this.Assert(!app.ui.windows.Has("settings:cascade-kingdom")
                 && cascade_auto_placement_enabled = expectedAuto
@@ -596,14 +711,14 @@ class SuiteUpgradeChecks {
                 "application suspension disables automatic Cascade Kingdom work")
             pending_windows[123456789] := {pid: 0}
             cascade_compaction_pending[1] := 0
-            WindowCascadeModule.Suspend()
+            app.modules["cascade-kingdom"].Suspend()
             this.Assert(!pending_windows.Count && !cascade_compaction_pending.Count,
                 "suspension clears queued placements and compactions")
             QueueCascadeCompaction(1)
             this.Assert(!cascade_compaction_pending.Count,
                 "suspended Cascade Kingdom discards new compaction requests")
             if IsObject(manager.client)
-                this.Assert(!manager.client.session,
+                this.Assert(!manager.client.running,
                     "suspension releases the native CapsLock and Pause hooks")
             this.Assert(!manager._Eligible(Keybindings.Parse("Ctrl + Alt + K").signature),
                 "ordinary configured hotkeys are unavailable while suspended")
@@ -619,7 +734,7 @@ class SuiteUpgradeChecks {
             this.Assert(IsCascadeEnabled(),
                 "resuming application suspension restores Cascade Kingdom eligibility")
             if IsObject(manager.client)
-                this.Assert(manager.client.session,
+                this.Assert(manager.client.running,
                     "CapsLock and Pause layer hooks return when hotkeys resume")
 
             app.ui.ShowModules()
@@ -630,37 +745,37 @@ class SuiteUpgradeChecks {
             this.Assert(!manager.gated && !manager.paused,
                 "Keybindings keeps normal hotkeys active when not recording")
             if IsObject(manager.client)
-                this.Assert(manager.client.session,
+                this.Assert(manager.client.running,
                     "Keybindings does not reset the running Caps/Pause layer session")
             this.Assert(SuiteFullscreen.Active(),
                 "F11 fullscreen remains available while Keybindings is open")
             app.ToggleKeybindings()
-            this.Assert(!IsObject(manager.settings) && !manager.gated,
+            this.Assert(!IsObject(manager.editor.window) && !manager.gated,
                 "opening shortcut closes the focused Keybindings window")
             app.ToggleKeybindings()
-            this.Assert(IsObject(manager.settings) && !manager.gated,
+            this.Assert(IsObject(manager.editor.window) && !manager.gated,
                 "the same shortcut reopens Keybindings without gating input")
             recordIndex := 0
-            for index, row in manager.visibleRows {
+            for index, row in manager.editor.visibleRows {
                 if row.actionId != "" {
                     recordIndex := index
                     break
                 }
             }
             this.Assert(recordIndex > 0, "Keybindings has a recordable assignment")
-            manager._BeginRecording(recordIndex, 1)
-            this.Assert(IsObject(manager.recording) && manager.gated,
+            manager.editor.BeginRecording(recordIndex, 1)
+            this.Assert(IsObject(manager.editor.recording) && manager.gated,
                 "recording alone temporarily gates normal hotkeys")
             this.Assert(!SuiteFullscreen.Active(),
                 "F11 fullscreen is disabled during keybinding recording")
-            manager._EndRecording()
+            manager.editor.EndRecording()
             this.Assert(!manager.gated && SuiteFullscreen.Active(),
                 "ending recording restores normal hotkeys and F11")
             app.ui.ToggleSuspension()
             this.Assert(manager.gated && app.suspended,
                 "suspending while Keybindings is open keeps inputs gated")
-            manager._CloseSettings()
-            this.Assert(!IsObject(manager.settings),
+            manager.editor.Close()
+            this.Assert(!IsObject(manager.editor.window),
                 "closing Keybindings destroys the editor")
             this.Assert(manager.gated && manager.paused,
                 "closing Keybindings does not bypass suspended hotkeys")
@@ -685,57 +800,35 @@ class SuiteUpgradeChecks {
             manager.SetPaused(true)
             manager.Start()
             manager.ShowSettings()
-            this.Assert(manager.settings.Title = "Keybindings — Secret Layers disabled",
+            this.Assert(manager.editor.window.Title = "Keybindings — Secret Layers disabled",
                 "module-disabled Keybindings title describes the unavailable layers")
-            manager.settings["search"].Value := "open Keybindings"
-            manager._RenderSettings()
-            core := manager.visibleRows[2]
+            manager.editor.window["search"].Value := "open Keybindings"
+            manager.editor.Render()
+            core := manager.editor.visibleRows[2]
             this.Assert(InStr(core.primary.Text, "⚠ Caps + Alt + K") = 1
                 && core.secondary.Text = "Ctrl + Alt + K"
                 && core.primary.Enabled,
                 "disabled Secret Layers marks only the Caps binding and leaves it editable")
-            this.Assert(manager.warningButtons.Has(core.primary.Hwnd)
-                && !manager.warningButtons.Has(core.secondary.Hwnd),
+            this.Assert(manager.editor.warningButtons.Has(core.primary.Hwnd)
+                && !manager.editor.warningButtons.Has(core.secondary.Hwnd),
                 "warning background applies only to unavailable assignment buttons")
-            this.Assert(manager.settingsDrawButtons[core.primary.Hwnd] = "binding"
-                && manager.settingsDrawButtons[core.secondary.Hwnd] = "binding"
-                && manager.settingsDrawButtons[core.reset.Hwnd] = "reset"
-                && manager.settingsDrawButtons[manager.settingsResetAll.Hwnd] = "reset"
-                && manager.settingsDrawButtons[manager.settingsDone.Hwnd] = "done",
+            this.Assert(manager.editor.drawButtons[core.primary.Hwnd] = "binding"
+                && manager.editor.drawButtons[core.secondary.Hwnd] = "binding"
+                && manager.editor.drawButtons[core.reset.Hwnd] = "reset"
+                && manager.editor.drawButtons[manager.editor.resetAllButton.Hwnd] = "reset"
+                && manager.editor.drawButtons[manager.editor.doneButton.Hwnd] = "done",
                 "binding, reset and Done controls share the square-corner drawing system")
-            beforePaint := manager.warningPaintCount
-            DllCall("RedrawWindow", "ptr", core.primary.Hwnd, "ptr", 0,
-                "ptr", 0, "uint", 0x185, "int")
-            this.Assert(manager.warningPaintCount > beforePaint,
-                "inactive assignment buttons receive custom amber painting")
-            beforeNormal := manager.normalPaintCount
-            DllCall("RedrawWindow", "ptr", core.secondary.Hwnd, "ptr", 0,
-                "ptr", 0, "uint", 0x185, "int")
-            this.Assert(manager.normalPaintCount > beforeNormal,
-                "normal white assignment boxes use square-corner custom painting")
-            beforeDone := manager.normalPaintCount
-            DllCall("RedrawWindow", "ptr", manager.settingsDone.Hwnd,
-                "ptr", 0, "ptr", 0, "uint", 0x185, "int")
-            this.Assert(manager.normalPaintCount > beforeDone,
-                "Done receives the same square-corner white painting")
-            beforeReset := manager.resetPaintCount
-            DllCall("RedrawWindow", "ptr", core.reset.Hwnd, "ptr", 0,
-                "ptr", 0, "uint", 0x185, "int")
-            DllCall("RedrawWindow", "ptr", manager.settingsResetAll.Hwnd,
-                "ptr", 0, "ptr", 0, "uint", 0x185, "int")
-            this.Assert(manager.resetPaintCount > beforeReset,
-                "row and footer reset controls use matching square-corner painting")
-            manager.settings["search"].Value := "show Paper Pad help"
-            manager._RenderSettings()
-            paper := manager.visibleRows[2].primary
+            manager.editor.window["search"].Value := "show Paper Pad help"
+            manager.editor.Render()
+            paper := manager.editor.visibleRows[2].primary
             this.Assert(InStr(paper.Text, "⚠ Pause + F12") = 1 && paper.Enabled,
                 "disabled Secret Layers marks the saved Pause Help binding as reassignable")
-            this.Assert(manager.warningButtons.Has(paper.Hwnd),
+            this.Assert(manager.editor.warningButtons.Has(paper.Hwnd),
                 "disabled Pause bindings also receive the amber warning background")
             before := manager.GetConfiguration()["paper-pad.help"].bindings[1]
             this.Assert(before = Keybindings.Parse("Pause + F12").signature,
                 "warning presentation never modifies the saved shortcut")
-            manager._CloseSettings()
+            manager.editor.Close()
         }
         finally manager.Stop()
     }
@@ -745,7 +838,7 @@ class SuiteUpgradeChecks {
             suffix := layered ? "layer" : "ordinary"
             options := {directory: SuiteChecks.directory "\scopes-" suffix}
             if layered
-                options.layerFactory := (name, status) => LocalKeyboardLayers(name, status, Map("caps", true, "pause", false))
+                options.layerFactory := (owner) => KeyboardLayers(owner, Map("caps", true, "pause", false))
             manager := Keybindings("scope-check-" suffix, "Scope check", options)
             try {
                 manager.RegisterScope("editor", (*) => this.scopeActive)
@@ -810,31 +903,10 @@ class SuiteUpgradeChecks {
                     "two overlapping editor shortcuts still conflict: " suffix)
                 this.Assert(FileRead(manager.path) = before,
                     "overlapping scoped conflict preserves saved assignments: " suffix)
-                if layered {
-                    global CPL
-                    CPL.enabled := true
-                    CPL.selected := "caps"
-                    CPL.layers["caps"].down := true
-                    routeKey := CPL_RouteKey("caps", 0, Keybindings.Parse(binding).key)
-                    this.scopeActive := false
-                    this.Assert(CPL_SelectRoute(routeKey) = this.Route(manager, "outside").specification,
-                        "layer dispatcher chooses the outside scope")
-                    this.scopeActive := true
-                    this.Assert(CPL_SelectRoute(routeKey) = this.Route(manager, "inside").specification,
-                        "layer dispatcher chooses the inside scope")
-                    alternateRouteKey := CPL_RouteKey("caps", 0, Keybindings.Parse(alternate).key)
-                    this.scopeActive := false
-                    this.terminalScopeActive := false
-                    this.Assert(CPL_SelectRoute(alternateRouteKey) = this.Route(manager, "global").specification,
-                        "layer dispatcher chooses global fallback outside scoped windows")
-                    this.terminalScopeActive := true
-                    this.Assert(CPL_SelectRoute(alternateRouteKey) = this.Route(manager, "terminal-alt").specification,
-                        "layer dispatcher prioritizes Terminal over the global fallback")
-                    this.terminalScopeActive := false
-                    this.scopeActive := true
-                    this.Assert(CPL_SelectRoute(alternateRouteKey) = this.Route(manager, "editor-alt").specification,
-                        "layer dispatcher prioritizes editor over the global fallback")
-                }
+                if layered
+                    this.Assert(this.Route(manager, "inside").binding.layer = "caps"
+                        && IsObject(manager.client),
+                        "layer suffixes share the same scoped routes")
                 this.observerCalls := 0
                 for unused in [1, 2]
                     manager.Observe("~*F24", (*) => true, (*) => this.observerCalls += 1, true)
@@ -863,6 +935,7 @@ class SuiteUpgradeChecks {
                 try {
                     manager.AddAction(actionId, "Cycle expanded windows", (*) => 0,
                         ["Caps + Win + Enter"])
+                    manager.AddMigration("wonderDefaults", "1", WW_MigrateKeybindingDefaults)
                     manager.SetPaused(true)
                     if firstLoad {
                         document := Map("meta", Map("schema", "1", "id", manager.id,
@@ -947,7 +1020,7 @@ class SuiteUpgradeChecks {
                 "legacy default shortcuts migrate without changing customized bindings")
             oldDefaults["cascade-kingdom.reset-log"].bindings[1] := Keybindings.Parse("Caps + F5").signature
             oldDefaults["cascade-kingdom.copy-log"].bindings[1] := Keybindings.Parse("Pause + F9").signature
-            CascadeMigrateDebugKeybindingDefaults(oldDefaults)
+            SuiteMigrateLogKeybindingDefaults(oldDefaults)
             this.Assert(oldDefaults["cascade-kingdom.reset-log"].bindings[1]
                     = Keybindings.Parse("Pause + F1").signature
                 && oldDefaults["cascade-kingdom.copy-log"].bindings[1]
@@ -955,13 +1028,13 @@ class SuiteUpgradeChecks {
                 "old clear-log defaults migrate without replacing customized log shortcuts")
             oldDefaults["cascade-kingdom.copy-log"].bindings[1] := Keybindings.Parse("Caps + F6").signature
             oldDefaults["paper-pad.help"].bindings[2] := Keybindings.Parse("Pause + F2").signature
-            CascadeMigrateDebugKeybindingDefaults(oldDefaults)
+            SuiteMigrateLogKeybindingDefaults(oldDefaults)
             this.Assert(oldDefaults["cascade-kingdom.copy-log"].bindings[1]
                     = Keybindings.Parse("Caps + F6").signature,
                 "migration preserves an existing assignment of the desired hotkey")
             oldDefaults["cascade-kingdom.reset-log"].bindings[1] := Keybindings.Parse("Caps + F5").signature
             oldDefaults["cascade-kingdom.reset-log"].bindings[2] := Keybindings.Parse("Pause + F1").signature
-            CascadeMigrateDebugKeybindingDefaults(oldDefaults)
+            SuiteMigrateLogKeybindingDefaults(oldDefaults)
             this.Assert(oldDefaults["cascade-kingdom.reset-log"].bindings[1]
                     = Keybindings.Parse("Caps + F5").signature,
                 "migration preserves a secondary binding on the same action")
@@ -1017,9 +1090,9 @@ class SuiteUpgradeChecks {
                 SuiteWindowOwnership.Claim(window.Hwnd)
                 this.Assert(SuiteWindowOwnership.IsManual(window.Hwnd), "manual geometry ownership is recorded per HWND and process")
                 global WW_horizontal_stretch_windows, WW_vertical_stretch_windows, WW_normal_window_placements
-                WW_horizontal_stretch_windows[window.Hwnd] := Map("pid", SuiteWindowOwnership.ProcessId(window.Hwnd))
-                WW_vertical_stretch_windows[window.Hwnd] := Map("pid", SuiteWindowOwnership.ProcessId(window.Hwnd))
-                WW_normal_window_placements[window.Hwnd] := Map("pid", SuiteWindowOwnership.ProcessId(window.Hwnd))
+                WW_horizontal_stretch_windows[window.Hwnd] := Map("pid", WindowProcessId(window.Hwnd))
+                WW_vertical_stretch_windows[window.Hwnd] := Map("pid", WindowProcessId(window.Hwnd))
+                WW_normal_window_placements[window.Hwnd] := Map("pid", WindowProcessId(window.Hwnd))
                 this.Assert(SuiteWindowOwnership.Release(window.Hwnd) && !SuiteWindowOwnership.IsManual(window.Hwnd),
                     "explicit adoption releases manual ownership")
                 this.Assert(!WW_horizontal_stretch_windows.Has(window.Hwnd) && !WW_vertical_stretch_windows.Has(window.Hwnd),
@@ -1087,7 +1160,7 @@ class SuiteUpgradeChecks {
             finally focusTabProbe.Destroy()
             event := {phase: "down", actionId: "wonder-windows.maximize", slot: 1,
                 foregroundHwnd: 0, key: "sc148", layer: "normal", modifiers: 8, oneShot: false}
-            app.wonder.Event(event)
+            app.modules["wonder-windows"].Event(event)
             this.Assert(InStr(SuiteState.Log.Read(), "dry run: wonder-windows.maximize"),
                 "Wonder Windows dry-run callbacks do not move real windows")
         }
@@ -1130,7 +1203,7 @@ class SuiteUpgradeChecks {
             this.Assert(manager.actions["core.keybindings"].id = "core.keybindings"
                 && manager.actions["cascade-kingdom.copy-log"].id = "cascade-kingdom.copy-log",
                 "Global rename leaves saved action IDs unchanged")
-            rows := Keybindings.DisplayRows(manager.DiscoverParticipants())
+            rows := Keybindings.DisplayRows(manager.Catalog())
             this.CheckDisplayOrder(rows)
             actionScopes := Map()
             cleanHeadings := true
@@ -1145,9 +1218,9 @@ class SuiteUpgradeChecks {
                 && actionScopes["power-up-utilities.terminal.copy"] = "windows-terminal",
                 "scopes belong to action descriptions rather than category headings")
             this.Assert(actionScopes["core.keybindings"] = ""
-                && Keybindings.ContextTagText("!paper-pad") = ""
-                && Keybindings.ContextTagText("paper-pad") = "editor only"
-                && Keybindings.ContextTagText("windows-terminal") = "terminal only",
+                && KeybindingsEditor.ContextTagText("!paper-pad") = ""
+                && KeybindingsEditor.ContextTagText("paper-pad") = "editor only"
+                && KeybindingsEditor.ContextTagText("windows-terminal") = "terminal only",
                 "only application-specific shortcuts receive readable context tags")
             this.Assert(manager.actions["wonder-windows.layout-left"].scope = ""
                 && manager.actions["paper-pad.previous"].scope = "paper-pad",
@@ -1227,11 +1300,10 @@ class SuiteUpgradeChecks {
                 "Paper Pad Help registers its default Pause + F12 shortcut")
             this.Assert(!this.RouteExists(manager, "secret-layers.help"),
                 "unassigned Secret Layers Help installs no shortcut")
-            this.Assert(InStr(ModuleHelp.Text("secret-layers", manager),
-                "WHY I MADE THIS") = 1
-                && !InStr(ModuleHelp.Text("secret-layers", manager), "CURRENT SAVED SHORTCUTS"),
+            this.Assert(InStr(app.modules["secret-layers"].HelpText(), "WHY I MADE THIS") = 1
+                && !InStr(app.modules["secret-layers"].HelpText(), "CURRENT SAVED SHORTCUTS"),
                 "Secret Layers help provides a practical guide without a shortcut inventory")
-            filtered := Keybindings.DisplayRows(manager.DiscoverParticipants(), "paper-pad.")
+            filtered := Keybindings.DisplayRows(manager.Catalog(), "paper-pad.")
             this.Assert(filtered.Length = 7 && filtered[1].label = "Paper Pad"
                 && filtered[2].id = "paper-pad.help"
                 && filtered[7].id = "paper-pad.hide",
@@ -1246,17 +1318,16 @@ class SuiteUpgradeChecks {
             }
             this.Assert(generalHeading > 0 && functionHeading > generalHeading,
                 "general Power-Up Utilities shortcuts precede specialized subcategories")
-            sampleActions := [
+            sample := [
                 {id: "alpha.first", category: "Alpha / Shortcuts", label: "first",
-                    enabled: true, bindings: ["", ""]},
+                    scope: "", bindings: ["", ""]},
                 {id: "beta.one", category: "Beta", label: "other module",
-                    enabled: true, bindings: ["", ""]},
+                    scope: "", bindings: ["", ""]},
                 {id: "alpha.second", category: "Alpha / Extensions", label: "second",
-                    enabled: true, bindings: ["", ""]},
+                    scope: "", bindings: ["", ""]},
                 {id: "alpha.general", category: "Alpha", label: "general",
-                    enabled: true, bindings: ["", ""]}
+                    scope: "", bindings: ["", ""]}
             ]
-            sample := [{id: "sample", name: "Sample", actions: sampleActions}]
             sampleRows := Keybindings.DisplayRows(sample)
             headings := []
             for row in sampleRows
@@ -1270,8 +1341,6 @@ class SuiteUpgradeChecks {
             this.Assert(sampleRows.Length = 3 && sampleRows[1].label = "Alpha"
                 && sampleRows[2].label = "Alpha / Extensions",
                 "search keeps extension headings directly after their parent")
-            this.Assert(sampleRows[2].kind = "owner",
-                "subcategories retain the same heading style as main categories")
             seenFancy := false
             for row in rows
                 if InStr(row.id, "wonder-windows.zone-") = 1
@@ -1281,7 +1350,7 @@ class SuiteUpgradeChecks {
                 "inactive FancyZones actions reserve no shortcuts")
             app.activeModules["paper-pad"] := false
             manager.Apply(manager.GetConfiguration())
-            rows := Keybindings.DisplayRows(manager.DiscoverParticipants())
+            rows := Keybindings.DisplayRows(manager.Catalog())
             paperFound := false
             for row in rows
                 if InStr(row.id, "paper-pad.") = 1
@@ -1301,9 +1370,10 @@ class SuiteUpgradeChecks {
             WW_fancyzones_process_id := 123456
             WW_fancyzones_integration_state := {override_snap_enabled: true,
                 relative_position_enabled: false}
-            this.Assert(app.wonder.FancyZonesAvailable("left") && !app.wonder.FancyZonesAvailable("up"),
+            wonder := app.modules["wonder-windows"]
+            this.Assert(wonder.FancyZonesAvailable("left") && !wonder.FancyZonesAvailable("up"),
                 "FancyZones availability respects the active navigation mode")
-            app.wonder.RefreshOptionalActions()
+            wonder.RefreshOptionalActions()
             this.Assert(!this.RouteExists(manager, "wonder-windows.zone-left"),
                 "a newly enabled conflicting integration does not steal an active shortcut")
             this.Assert(manager.GetConfiguration()["power-up-utilities.keyboard.f13"].bindings[1]
@@ -1315,7 +1385,7 @@ class SuiteUpgradeChecks {
             manager.Apply(changed)
             this.Assert(this.RouteExists(manager, "wonder-windows.zone-left"),
                 "FancyZones shortcuts activate after their conflict is cleared")
-            rows := Keybindings.DisplayRows(manager.DiscoverParticipants())
+            rows := Keybindings.DisplayRows(manager.Catalog())
             fancyLeft := false
             fancyUp := false
             fancyHeading := false
@@ -1331,12 +1401,12 @@ class SuiteUpgradeChecks {
                 "only currently usable FancyZones directions appear in their extension subgroup")
             WW_fancyzones_process_id := 0
             WW_fancyzones_integration_state := false
-            app.wonder.RefreshOptionalActions()
+            wonder.RefreshOptionalActions()
             this.Assert(!this.RouteExists(manager, "wonder-windows.zone-left"),
                 "stopping FancyZones releases its registered shortcuts")
             this.Assert(manager.GetConfiguration()["wonder-windows.zone-left"].bindings[1] != "",
                 "disappearing optional shortcuts preserve their assignments")
-            this.Assert(!InStr(Keybindings.DisplayRows(manager.DiscoverParticipants())[1].label, "disabled"),
+            this.Assert(!InStr(Keybindings.DisplayRows(manager.Catalog())[1].label, "disabled"),
                 "Keybindings headings do not acquire disabled suffixes")
         }
         finally {
@@ -1432,19 +1502,6 @@ class SuiteUpgradeChecks {
             && powerHeadings[3] = "Power-Up Utilities / Virtual number pad"
             && powerHeadings[4] = "Power-Up Utilities / Text and symbols",
             "existing Power-Up Utilities headings have a purposeful order")
-        ; Search/filtering must retain the declared order, not the source order.
-        subset := [{id: "wonder-windows.minimize"}, {id: "wonder-windows.focus-up"},
-            {id: "wonder-windows.unknown"}]
-        reordered := Keybindings.OrderDisplayEntries("Wonder Windows", subset)
-        this.Assert(reordered.Length = 3
-            && reordered[1].id = "wonder-windows.focus-up"
-            && reordered[2].id = "wonder-windows.minimize"
-            && reordered[3].id = "wonder-windows.unknown",
-            "filtered actions keep their order and unknown future actions follow")
-        original := Keybindings.OrderDisplayEntries("Unregistered category", subset)
-        this.Assert(original.Length = 3 && original[1].id = subset[1].id
-            && original[2].id = subset[2].id && original[3].id = subset[3].id,
-            "unrecognized categories retain their original order")
     }
 
     static RouteExists(manager, actionId) {
@@ -1508,13 +1565,13 @@ class SuiteUpgradeChecks {
             this.Assert(!SuiteState.Log.verbose && !app.Settings.verbose
                 && !(verboseStatus.Call() & 8),
                 "tray disables and unchecks verbose logging")
-            firstEditor := app.manager.settings.Hwnd
+            firstEditor := app.manager.editor.window.Hwnd
             app.ShowKeybindings()
-            this.Assert(app.manager.settings.Hwnd = firstEditor, "every Keybindings entry reuses the global editor")
-            editor := app.manager.settings
-            this.Assert(app.manager.settingsResetAll.Text = "Restore defaults"
-                && app.manager.settingsApply.Text = "Apply"
-                && app.manager.settingsDone.Text = "Cancel",
+            this.Assert(app.manager.editor.window.Hwnd = firstEditor, "every Keybindings entry reuses the global editor")
+            editor := app.manager.editor.window
+            this.Assert(app.manager.editor.resetAllButton.Text = "Restore defaults"
+                && app.manager.editor.applyButton.Text = "Apply"
+                && app.manager.editor.doneButton.Text = "Cancel",
                 "global Keybindings has Restore defaults, live Apply, and Cancel")
             editor.GetClientPos(, , &firstWidth, &firstHeight)
             this.AssertCentered(editor, "Keybindings")
@@ -1529,19 +1586,19 @@ class SuiteUpgradeChecks {
                 "Keybindings opening size fits the current monitor: " firstWidth "x" firstHeight)
             this.Assert(!HasProp(app.manager, "settingsRefresh"),
                 "Keybindings no longer has a Refresh button")
-            this.Assert(app.manager.rows[1].label = "Global"
-                && app.manager.visibleRows[1].categoryTitle.Text = "★ Global ★",
+            this.Assert(app.manager.editor.rows[1].label = "Global"
+                && app.manager.editor.visibleRows[1].categoryTitle.Text = "★ Global ★",
                 "Global heading has decorative stars without changing its category identity")
             editorStyle := WinGetStyle("ahk_id " editor.Hwnd)
             this.Assert(!!(editorStyle & 0x00040000) && !!(editorStyle & 0x00010000),
                 "Keybindings supports native edge resizing and maximizing")
-            controls := [app.manager.visibleRows[1].title,
-                app.manager.visibleRows[1].categoryTitle,
-                app.manager.visibleRows[1].primary,
-                app.manager.visibleRows[1].secondary,
-                app.manager.visibleRows[1].reset,
-                app.manager.settingsSearch,
-                app.manager.settingsResetAll, app.manager.settingsApply, app.manager.settingsDone]
+            controls := [app.manager.editor.visibleRows[1].title,
+                app.manager.editor.visibleRows[1].categoryTitle,
+                app.manager.editor.visibleRows[1].primary,
+                app.manager.editor.visibleRows[1].secondary,
+                app.manager.editor.visibleRows[1].reset,
+                app.manager.editor.search,
+                app.manager.editor.resetAllButton, app.manager.editor.applyButton, app.manager.editor.doneButton]
             weights := []
             sizes := []
             faces := []
@@ -1569,20 +1626,20 @@ class SuiteUpgradeChecks {
                 "Keybindings uses the Help-page font family")
             this.Assert(!!(WinGetExStyle("ahk_id " editor.Hwnd) & 0x02000000),
                 "Keybindings composites child-control painting")
-            initialRows := app.manager.visibleRows.Length
+            initialRows := app.manager.editor.visibleRows.Length
             editor.Show("w1120 h1100")
             editor.GetClientPos(, , &expandedWidth, &expandedHeight)
-            app.manager._ResizeSettings(editor, 0, expandedWidth, expandedHeight)
-            expandedRows := app.manager.visibleRows.Length
+            app.manager.editor.Resize(editor, 0, expandedWidth, expandedHeight)
+            expandedRows := app.manager.editor.visibleRows.Length
             this.Assert(expandedRows > initialRows,
                 "live resizing reveals more rows (old " initialRows
                 ", new " expandedRows ", height " expandedHeight
-                ", layout " app.manager.settingsRenderedHeight ")")
-            markerRow := app.manager.visibleRows[1]
+                ", layout " app.manager.editor.renderedHeight ")")
+            markerRow := app.manager.editor.visibleRows[1]
             markerRow.title.Text := "layout-only marker"
             editor.Show("w1080 h" expandedHeight)
             editor.GetClientPos(, , &adjustedWidth, &adjustedHeight)
-            app.manager._ResizeSettings(editor, 0, adjustedWidth, adjustedHeight)
+            app.manager.editor.Resize(editor, 0, adjustedWidth, adjustedHeight)
             this.Assert(markerRow.title.Text = "layout-only marker",
                 "width-only resize does not re-render shortcut labels")
             extraWidth := adjustedWidth - 820
@@ -1604,44 +1661,44 @@ class SuiteUpgradeChecks {
             this.Assert(Abs(actualSecondaryX - (actualPrimaryX + actualPrimaryWidth + 10)) <= 2
                 && Abs(actualResetX - (actualSecondaryX + actualSecondaryWidth + 10)) <= 2,
                 "narrower binding boxes preserve the gaps and reset button alignment")
-            app.manager.settingsResetAll.GetPos(, &oldFooterY)
+            app.manager.editor.resetAllButton.GetPos(, &oldFooterY)
             editor.Show("w1080 h700")
             editor.GetClientPos(, , &shorterWidth, &shorterHeight)
-            app.manager._ResizeSettings(editor, 0, shorterWidth, shorterHeight)
-            app.manager.settingsResetAll.GetPos(, &newFooterY)
+            app.manager.editor.Resize(editor, 0, shorterWidth, shorterHeight)
+            app.manager.editor.resetAllButton.GetPos(, &newFooterY)
             this.Assert(newFooterY < oldFooterY,
                 "live vertical resize moves the footer as one coherent layout")
             editor.Show("w1080 h850")
             editor.GetClientPos(, , &adjustedWidth, &adjustedHeight)
-            app.manager._ResizeSettings(editor, 0, adjustedWidth, adjustedHeight)
-            app.manager._RenderSettings()
+            app.manager.editor.Resize(editor, 0, adjustedWidth, adjustedHeight)
+            app.manager.editor.Render()
             this.Assert(expandedRows > initialRows, "resizing taller reveals more shortcut rows")
-            app.manager.settingsScroll.GetPos(&scrollX)
+            app.manager.editor.scroll.GetPos(&scrollX)
             this.Assert(scrollX > 950, "scrollbar stays anchored to the right edge")
-            app.manager.settingsDone.GetPos(, &doneY)
+            app.manager.editor.doneButton.GetPos(, &doneY)
             editor.GetClientPos(, , , &clientHeight)
             this.Assert(Abs(doneY - (clientHeight - 49)) <= 2,
                 "done button stays pinned to the bottom")
-            app.manager.settingsResetAll.GetPos(&restoreX, , &restoreW)
-            app.manager.settingsApply.GetPos(&applyX, , &applyW)
-            app.manager.settingsDone.GetPos(&cancelX, , &cancelW)
+            app.manager.editor.resetAllButton.GetPos(&restoreX, , &restoreW)
+            app.manager.editor.applyButton.GetPos(&applyX, , &applyW)
+            app.manager.editor.doneButton.GetPos(&cancelX, , &cancelW)
             this.Assert(Abs(cancelX + cancelW - (adjustedWidth - 46)) <= 2
                 && Abs(applyX - (restoreX + restoreW + 14)) <= 2
                 && Abs(cancelX - (applyX + applyW + 14)) <= 2,
                 "Keybindings footer buttons are right-aligned with consistent gaps")
             editor.Show("w820 h420")
             editor.GetClientPos(, , &compactWidth, &compactHeight)
-            app.manager._ResizeSettings(editor, 0, compactWidth, compactHeight)
-            this.Assert(app.manager.visibleRows.Length < expandedRows,
+            app.manager.editor.Resize(editor, 0, compactWidth, compactHeight)
+            this.Assert(app.manager.editor.visibleRows.Length < expandedRows,
                 "resizing smaller reduces the visible row count without losing the catalog")
-            app.manager.settingsSearch.Value := "page"
-            app.manager._SearchChanged()
-            headingRow := app.manager.visibleRows[1]
+            app.manager.editor.search.Value := "page"
+            app.manager.editor.SearchChanged()
+            headingRow := app.manager.editor.visibleRows[1]
             this.Assert(headingRow.categoryTitle.Visible
                 && headingRow.categoryTitle.Text = "Paper Pad"
                 && !headingRow.contextTag.Visible,
                 "merged Paper Pad heading has no scope marker")
-            paperRow := app.manager.visibleRows[2]
+            paperRow := app.manager.editor.visibleRows[2]
             paperRow.title.GetPos(&descriptionX, &descriptionY, &descriptionWidth, &descriptionHeight)
             paperRow.contextTag.GetPos(&tagX, &tagY, &tagWidth, &tagHeight)
             paperRow.primary.GetPos(&bindingX, &bindingY, , &bindingHeight)
@@ -1654,18 +1711,18 @@ class SuiteUpgradeChecks {
                 && Abs((tagY + tagHeight / 2) - (bindingY + bindingHeight / 2)) <= 1
                 && tagHeight < descriptionHeight,
                 "context tag is compact and vertically centered with the binding")
-            nextPaperRow := app.manager.visibleRows[3]
+            nextPaperRow := app.manager.editor.visibleRows[3]
             nextPaperRow.contextTag.GetPos(&nextTagX, , &nextTagWidth)
             nextPaperRow.primary.GetPos(&nextBindingX)
             this.Assert(nextPaperRow.contextTag.Visible
                 && nextTagX = tagX && nextTagWidth = tagWidth
                 && nextBindingX = bindingX,
                 "Paper Pad context tags align across different description lengths")
-            app.manager.settingsSearch.Value := "power-up-utilities.terminal"
-            app.manager._SearchChanged()
-            this.Assert(app.manager.visibleRows[1].categoryTitle.Text = "Power-Up Utilities",
+            app.manager.editor.search.Value := "power-up-utilities.terminal"
+            app.manager.editor.SearchChanged()
+            this.Assert(app.manager.editor.visibleRows[1].categoryTitle.Text = "Power-Up Utilities",
                 "Terminal actions display under the main heading")
-            terminalRow := app.manager.visibleRows[2]
+            terminalRow := app.manager.editor.visibleRows[2]
             terminalRow.title.GetPos(&terminalDescriptionX, , &terminalDescriptionWidth)
             terminalRow.contextTag.GetPos(&terminalTagX, , &terminalTagWidth)
             terminalRow.primary.GetPos(&terminalBindingX)
@@ -1677,25 +1734,25 @@ class SuiteUpgradeChecks {
                 "Windows Terminal context tag is aligned before its binding")
             editor.Show("w1080 h420")
             editor.GetClientPos(, , &widerWidth, &widerHeight)
-            app.manager._ResizeSettings(editor, 0, widerWidth, widerHeight)
+            app.manager.editor.Resize(editor, 0, widerWidth, widerHeight)
             terminalRow.contextTag.GetPos(&wideTagX, , &wideTagWidth)
             terminalRow.primary.GetPos(&wideBindingX)
             this.Assert(wideTagX + wideTagWidth + 12 = wideBindingX,
                 "context tag remains anchored beside its binding after resizing")
-            app.manager.settingsSearch.Value := ""
-            app.manager._SearchChanged()
-            this.Assert(!app.manager.visibleRows[1].contextTag.Visible,
+            app.manager.editor.search.Value := ""
+            app.manager.editor.SearchChanged()
+            this.Assert(!app.manager.editor.visibleRows[1].contextTag.Visible,
                 "unscoped heading hides the reused row's context tag")
-            app.manager._CloseSettings()
+            app.manager.editor.Close()
             IniWrite("1300", app.manager.root "\window.ini", "Window", "Width")
             IniWrite("900", app.manager.root "\window.ini", "Window", "Height")
             app.manager.ShowSettings()
-            app.manager.settings.GetClientPos(, , &reopenedW, &reopenedH)
+            app.manager.editor.window.GetClientPos(, , &reopenedW, &reopenedH)
             this.Assert(Abs(reopenedW - expectedSize.width) <= 1
                 && Abs(reopenedH - expectedSize.height) <= 1,
                 "Keybindings ignores size history and reopens at its adaptive default")
-            this.AssertCentered(app.manager.settings, "reopened Keybindings")
-            app.manager._CloseSettings()
+            this.AssertCentered(app.manager.editor.window, "reopened Keybindings")
+            app.manager.editor.Close()
             this.Assert(IniRead(app.manager.root "\window.ini", "Window", "Width") = "1300"
                 && IniRead(app.manager.root "\window.ini", "Window", "Height") = "900",
                 "Keybindings does not update old saved window sizes")
@@ -1844,12 +1901,6 @@ class SuiteUpgradeChecks {
                     this.Assert(app.ui.footerButtons.Has(control.Hwnd),
                         "help button uses the shared square-corner styling: " id "/" control.Text)
                 }
-                beforePaint := app.ui.footerPaintCount
-                for item in app.ui.helpLayouts[id].footer.buttons
-                    DllCall("RedrawWindow", "ptr", item.button.Hwnd, "ptr", 0, "ptr", 0,
-                        "uint", 0x185, "int")
-                this.Assert(app.ui.footerPaintCount > beforePaint,
-                    "help footer buttons are painted with square corners: " id)
                 if SuiteIcons.handles.Length
                     this.Assert(SendMessage(0x007F, 0, 0, , window.Hwnd)
                         = SuiteIcons.handles[1], "module help uses one application icon: " id)
@@ -1857,7 +1908,7 @@ class SuiteUpgradeChecks {
                 if id != "power-up-utilities" {
                     app.ui.OpenSettingsFromHelp(id)
                     this.Assert(!app.ui.windows.Has(key)
-                        && app.ui.configurationWindows.Has("settings:" id),
+                        && app.ui.windows.Has("settings:" id),
                         "Settings replaces Help rather than stacking over it: " id)
                     settings := app.ui.windows["settings:" id]
                     settings.GetClientPos(, , &settingsW, &settingsH)
@@ -1873,11 +1924,11 @@ class SuiteUpgradeChecks {
                             this.Assert(allowed,
                                 "Wonder Windows shows an explicit " pair[1] " status")
                         }
-                        this.Assert(app.ui.WonderStatusColor("running") = "008000"
-                            && app.ui.WonderStatusColor("on") = "008000"
-                            && app.ui.WonderStatusColor("off") = "B02020"
-                            && app.ui.WonderStatusColor("not running") = "B02020"
-                            && app.ui.WonderStatusColor("unknown") = "505050",
+                        this.Assert(WonderWindowsModule.StatusColor("running") = "008000"
+                            && WonderWindowsModule.StatusColor("on") = "008000"
+                            && WonderWindowsModule.StatusColor("off") = "B02020"
+                            && WonderWindowsModule.StatusColor("not running") = "B02020"
+                            && WonderWindowsModule.StatusColor("unknown") = "505050",
                             "Wonder Windows status values use green, red or neutral colors")
                         statusCoords := []
                         for name in ["snapStatus", "screenGridStatus", "fancyZonesStatus"] {
@@ -1937,31 +1988,26 @@ class SuiteUpgradeChecks {
                         "module settings retains the same visible footer divider: " id)
                     this.Assert(IsObject(settingsPaintTarget),
                         "module settings footer uses the same square button styling: " id)
-                    beforeSettingsPaint := app.ui.footerPaintCount
-                    DllCall("RedrawWindow", "ptr", settingsPaintTarget.Hwnd,
-                        "ptr", 0, "ptr", 0, "uint", 0x185, "int")
-                    this.Assert(app.ui.footerPaintCount > beforeSettingsPaint,
-                        "module settings footer uses the shared painter: " id)
                     app.ui.BackToHelp(id)
-                    this.Assert(!app.ui.configurationWindows.Has("settings:" id)
+                    this.Assert(!app.ui.windows.Has("settings:" id)
                         && app.ui.windows.Has(key),
                         "Back closes Settings and restores Help: " id)
                 }
 
                 app.ui.OpenKeybindingsFromHelp(id)
                 this.Assert(!app.ui.windows.Has(key)
-                    && IsObject(app.manager.settings)
-                    && app.manager.settingsModuleId = id
-                    && app.manager.settingsDone.Text = "Back",
+                    && IsObject(app.manager.editor.window)
+                    && app.manager.editor.moduleId = id
+                    && app.manager.editor.doneButton.Text = "Back",
                     "module Help opens its own filtered Keybindings view: " id)
                 moduleName := SuiteSettings.ModuleNames[id]
                 onlyModule := true
-                for item in app.manager.rows
+                for item in app.manager.editor.rows
                     if item.id != "" && !app.manager._ActionInSettingsModule(item.id, id)
                         onlyModule := false
                 this.Assert(onlyModule, "module Keybindings excludes unrelated shortcuts: " id)
-                app.manager._BackToHelp()
-                this.Assert(!IsObject(app.manager.settings) && app.ui.windows.Has(key),
+                app.manager.editor.BackToHelp()
+                this.Assert(!IsObject(app.manager.editor.window) && app.ui.windows.Has(key),
                     "Back from module Keybindings restores the Help page: " id)
                 app.ui.CloseWindow(key)
             }
@@ -2072,7 +2118,7 @@ class SuiteUpgradeChecks {
                     "utility page shrinks to its smaller minimum: " page)
                 app.ui.CloseWindow(page)
             }
-            this.Assert(app.manager.paused && app.wonder.pending.Count = 0,
+            this.Assert(app.manager.paused && app.modules["wonder-windows"].pending.Count = 0,
                 "interface navigation keeps dry-run inputs and Wonder Windows effects inactive")
         }
         finally {

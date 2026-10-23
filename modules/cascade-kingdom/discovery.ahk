@@ -117,7 +117,7 @@ ConsumeExplorerSpaceIntentForNewWindow(hwnd, source_hwnd, target_pid)
     }
 
     explorer_space_reshow_hint := 0
-    if SuiteState.Log.verbose && SuiteState.Log.verbose {
+    if SuiteState.Log.verbose {
         DebugLog(
             "Explorer Space re-show intent consumed by new window."
             . " | target=" DebugDescribeWindow(hwnd)
@@ -167,7 +167,7 @@ GetHandledWindowReshowIntent(hwnd, trigger := "show")
         return 0
 
     hint := cascade_launch_hint
-    if hint.HasOwnProp("placement_hwnd") || hint.HasOwnProp("placement_cancelled")
+    if hint.HasOwnProp("placement_cancelled")
         return 0
     hint_age := (A_TickCount - hint.tick) & 0xFFFFFFFF
     if hint_age > handled_reshow_hint_max_age_ms
@@ -474,7 +474,7 @@ WatchForMissedWindows()
         ; reconsidered every polling cycle.
         known_windows[hwnd] := true
 
-        if SuiteState.Log.verbose && SuiteState.Log.verbose {
+        if SuiteState.Log.verbose {
             DebugLog(
                 "Poll discovered HWND."
                 . " | " DebugDescribeWindow(hwnd)
@@ -485,7 +485,7 @@ WatchForMissedWindows()
             continue
 
         if !IsPlausibleTopLevelWindow(hwnd) {
-            if SuiteState.Log.verbose && SuiteState.Log.verbose {
+            if SuiteState.Log.verbose {
                 DebugLog(
                     "Poll rejected by top-level prefilter."
                     . " | " DebugDescribeWindow(hwnd)
@@ -750,13 +750,10 @@ HandleWinEvent(
         if event = EVENT_OBJECT_DESTROY {
             was_managed := !!GetManagedCascadeMonitor(hwnd)
 
-            ; Filter logging, not cleanup. The first event clears tracking, so
-            ; repeated/unrelated destroys are quiet unless verbose logging is on.
-            if (
-                SuiteState.Log.verbose
-                && (SuiteState.Log.verbose || was_managed
-                    || pending_windows.Has(hwnd) || handled_windows.Has(hwnd))
-            ) {
+            ; Filter logging, not cleanup: unrelated system-wide destroys stay quiet.
+            if SuiteState.Log.verbose
+                && (was_managed || pending_windows.Has(hwnd) || handled_windows.Has(hwnd))
+            {
                 DebugLog(
                     "Destroy event."
                     . " | " DebugDescribeWindow(hwnd)
@@ -807,7 +804,7 @@ HandleWinEvent(
         if GetManagedCascadeMonitor(hwnd)
             QueueFocusCornerUpdate()
 
-        if SuiteState.Log.verbose && SuiteState.Log.verbose {
+        if SuiteState.Log.verbose {
             DebugLog(
                 "Show event."
                 . " | pending=" pending_windows.Has(hwnd)
@@ -827,7 +824,7 @@ HandleWinEvent(
         if startup_windows.Has(hwnd) {
             explicit_monitor := CascadeTakeHiddenStartupExplorerReveal(hwnd)
             if !explicit_monitor {
-                if SuiteState.Log.verbose && SuiteState.Log.verbose {
+                if SuiteState.Log.verbose {
                     DebugLog(
                         "Show event skipped: window existed at script startup."
                         . " | " DebugDescribeWindow(hwnd)

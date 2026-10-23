@@ -502,8 +502,6 @@ ToggleFocusCornerVisibility(*)
 
         try SetFocusCornerOpacity(overlay, transparency)
     }
-
-    UpdateTrayMenu()
 }
 
 

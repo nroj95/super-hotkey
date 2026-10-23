@@ -5,64 +5,7 @@
 ; debug logging
 ; =============================================================================
 
-InitializeDebugLogging() {
-    DebugLogSession("enabled")
-}
-
-
-
-
-
-CopyDebugLogToClipboard()
-{
-    global debug_log_path
-
-    try {
-        log_text := ""
-        if FileExist(debug_log_path)
-            log_text := FileRead(debug_log_path, "UTF-8")
-        if log_text != "" {
-            log_text := RegExReplace(log_text, "\R+$")
-            code_fence := Chr(96) Chr(96) Chr(96)
-            A_Clipboard := code_fence "text`n" log_text "`n" code_fence
-        } else {
-            A_Clipboard := "Cascade Kingdom debug log is empty."
-        }
-        return true
-    }
-    catch {
-        ; Clipboard access itself may be what failed. Do not retry the same
-        ; operation or write to the debug log and contaminate the snapshot.
-        return false
-    }
-}
-
-
-ResetDebugLog() {
-    SuiteState.Log.Clear()
-    return true
-}
-
-DebugLogSession(reason)
-{
-    process_id := DllCall(
-        "GetCurrentProcessId",
-        "uint"
-    )
-
-    DebugLog(
-        "Debug session " reason "."
-        . " | pid=" process_id
-        . " | ahk=" A_AhkVersion
-        . ' | script="' A_ScriptFullPath '"'
-    )
-}
-
-
-
-
 DebugLog(message) => SuiteState.Log.Debug("Cascade Kingdom", message)
-
 
 ; =============================================================================
 ; error reporting and window diagnostics
@@ -72,12 +15,9 @@ DebugError(context, failure) {
     SuiteState.Log.Error("Cascade Kingdom / " context, failure)
 }
 
-
-
 DebugDescribeWindow(hwnd)
 {
-
-    if !SuiteState.Log.verbose || !SuiteState.Log.verbose
+    if !SuiteState.Log.verbose
         return "hwnd=" hwnd
 
     if !hwnd
@@ -160,7 +100,7 @@ DebugFocusCornerAppearance(active_hwnd, active_slot_targets)
     global focus_corner_overlays, focus_corner_visible
     static previous_snapshot := ""
 
-    if !SuiteState.Log.verbose || !SuiteState.Log.verbose
+    if !SuiteState.Log.verbose
         return
 
     snapshot := (
@@ -220,8 +160,6 @@ DebugFocusCornerAppearance(active_hwnd, active_slot_targets)
 
 DebugDescribeForegroundState()
 {
-
-
     if !SuiteState.Log.verbose
         return ""
 
@@ -233,7 +171,7 @@ DebugDescribeForegroundState()
     foreground := DllCall("GetForegroundWindow", "ptr")
     result := (
         "foreground=" foreground
-        . " | foreground-pid=" DebugGetWindowProcessId(foreground)
+        . " | foreground-pid=" WindowProcessId(foreground)
     )
 
     if DllCall("GetGUIThreadInfo", "uint", 0, "ptr", info, "int") {
@@ -249,26 +187,10 @@ DebugDescribeForegroundState()
             " | thread-active=" thread_active
             . " | keyboard-focus=" keyboard_focus
             . " | keyboard-focus-root=" keyboard_focus_root
-            . " | keyboard-focus-pid=" DebugGetWindowProcessId(keyboard_focus)
+            . " | keyboard-focus-pid=" WindowProcessId(keyboard_focus)
             . " | focus-root-is-foreground=" (keyboard_focus_root = foreground)
         )
     }
 
     return result
-}
-
-
-DebugGetWindowProcessId(hwnd)
-{
-    if !hwnd
-        return 0
-
-    pid := 0
-    DllCall(
-        "GetWindowThreadProcessId",
-        "ptr", hwnd,
-        "uint*", &pid,
-        "uint"
-    )
-    return pid
 }

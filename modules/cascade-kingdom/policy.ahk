@@ -20,15 +20,9 @@ CascadeGestureHeld()
 
 CascadeConsumeGesture()
 {
-    global CPL, cascade_gesture_key
+    global cascade_gesture_key
     ; A mouse gesture is not an unused prefix tap or a speaker-wake double tap.
-    if !IsSet(CPL) || !CPL.enabled
-        return
-    layer := cascade_gesture_key = "Pause" ? "pause" : "caps"
-    if CPL.layers[layer].down {
-        CPL.layers[layer].used := true
-        CPL.layers[layer].cancelTap := true
-    }
+    SuiteState.App.modules["secret-layers"].ConsumeGesture(cascade_gesture_key = "Pause" ? "pause" : "caps")
 }
 
 CascadeShouldLaunch(automatic_enabled, gesture_held)

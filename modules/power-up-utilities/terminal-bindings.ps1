@@ -1,8 +1,9 @@
 #requires -Version 5.1
-# Read-only Windows Terminal keybinding resolver for Super Hotkey.
+# Read-only Windows Terminal keybinding resolver for Super Hotkey. Defaults come
+# from the running release's defaults.json, so Terminal updates need no table.
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory)] [string] $TerminalVersion,
+    [Parameter(Mandatory)] [string] $DefaultsPath,
     [Parameter(Mandatory)] [string] $SettingsPath,
     [Parameter(Mandatory)] [string] $ResultPath
 )
@@ -72,67 +73,88 @@ function Convert-ToSend([string] $shortcut) {
     return $prefix + $key
 }
 
+# Terminal accepts comments and trailing commas, without altering quoted strings.
+function Read-TerminalJson([string] $path) {
+    $source = [System.IO.File]::ReadAllText($path)
+    $source = [regex]::Replace($source, '(?s)"(?:\\.|[^"\\])*"|//[^\r\n]*|/\*.*?\*/',
+        [System.Text.RegularExpressions.MatchEvaluator]{
+            param($match)
+            if ($match.Value.StartsWith('"')) { return $match.Value }
+            return ''
+        })
+    $source = [regex]::Replace($source, '"(?:\\.|[^"\\])*"|,\s*(?=[}\]])',
+        [System.Text.RegularExpressions.MatchEvaluator]{
+            param($match)
+            if ($match.Value.StartsWith('"')) { return $match.Value }
+            return $match.Value.Substring(1)
+        })
+    $settings = $source | ConvertFrom-Json
+    if ($settings -isnot [pscustomobject]) { throw "$path must be a JSON object." }
+    return $settings
+}
+
+function Get-Entries($settings, [string] $name) {
+    if ($null -eq $settings.PSObject.Properties[$name]) { return @() }
+    return @($settings.$name | Where-Object { $null -ne $_ })
+}
+
 try {
-    # Defaults established from Terminal v1.22-1.24. Unknown releases fail closed.
-    if ($TerminalVersion -notmatch '^1\.(22|23|24)\.\d+\.\d+$') {
-        throw "Unsupported Windows Terminal version: $TerminalVersion."
+    $tracked = @('Terminal.ClearBuffer', 'Terminal.CopyToClipboard', 'Terminal.SelectAll')
+    $known = @{}    # action ID -> the tracked action it is equivalent to, or '<other>'
+    $bindings = @{} # shortcut -> action; '' is an explicitly unbound shortcut
+
+    # The running release's defaults. Their definitions are verified like custom
+    # actions; shortcuts that the macros could never send are irrelevant here.
+    $defaults = Read-TerminalJson $DefaultsPath
+    foreach ($entry in Get-Entries $defaults 'actions') {
+        if ($entry -isnot [pscustomobject] -or $null -eq $entry.PSObject.Properties['id'] -or
+            $null -eq $entry.PSObject.Properties['command']) { continue }
+        $resolved = Resolve-EquivalentAction $entry.command
+        $known[[string] $entry.id] = if ($resolved) { $resolved } else { '<other>' }
     }
-    $bindings = @{
-        'ctrl+shift+c' = 'Terminal.CopyToClipboard'
-        'ctrl+shift+a' = 'Terminal.SelectAll'
-        'ctrl+c' = 'Terminal.CopyToClipboard' # userDefaults.json in these releases
-        'enter' = 'Terminal.CopyToClipboard'
+    foreach ($name in @('actions', 'keybindings')) {
+        foreach ($entry in Get-Entries $defaults $name) {
+            if ($entry -isnot [pscustomobject] -or $null -eq $entry.PSObject.Properties['keys']) { continue }
+            $id = if ($null -ne $entry.PSObject.Properties['id']) { [string] $entry.id } else { '' }
+            if ($null -ne $entry.PSObject.Properties['command']) {
+                $id = Resolve-EquivalentAction $entry.command
+                if (!$id) { $id = '<other>' }
+            }
+            elseif ($id -ne '') {
+                $id = if ($known.ContainsKey($id)) { $known[$id] } else { '<other>' }
+            }
+            foreach ($rawKey in @($entry.keys)) {
+                $key = Normalize-Shortcut ([string] $rawKey)
+                if ($key) { $bindings[$key] = $id }
+            }
+        }
     }
-    if ($TerminalVersion -match '^1\.24\.') {
-        $bindings['ctrl+shift+k'] = 'Terminal.ClearBuffer'
-    }
-    $builtinIds = @('Terminal.ClearBuffer', 'Terminal.CopyToClipboard', 'Terminal.SelectAll')
-    $customActions = @{}
+    # settings.json starts with this binding from Terminal's userDefaults.json.
+    $bindings['ctrl+c'] = 'Terminal.CopyToClipboard'
+
     $userBindings = @{}
     $userOrder = New-Object 'System.Collections.Generic.List[string]'
-
     if (Test-Path -LiteralPath $SettingsPath) {
-        $source = [System.IO.File]::ReadAllText($SettingsPath)
-        # Terminal accepts comments and trailing commas, without altering quoted strings.
-        $source = [regex]::Replace($source, '(?s)"(?:\\.|[^"\\])*"|//[^\r\n]*|/\*.*?\*/',
-            [System.Text.RegularExpressions.MatchEvaluator]{
-                param($match)
-                if ($match.Value.StartsWith('"')) { return $match.Value }
-                return ''
-            })
-        $source = [regex]::Replace($source, '"(?:\\.|[^"\\])*"|,\s*(?=[}\]])',
-            [System.Text.RegularExpressions.MatchEvaluator]{
-                param($match)
-                if ($match.Value.StartsWith('"')) { return $match.Value }
-                return $match.Value.Substring(1)
-            })
-        $settings = $source | ConvertFrom-Json
-        if ($settings -isnot [pscustomobject]) { throw 'Terminal settings must be a JSON object.' }
-        if ($null -ne $settings.PSObject.Properties['import'] -and
-            @($settings.import | Where-Object { $null -ne $_ }).Count) {
+        $settings = Read-TerminalJson $SettingsPath
+        if (@(Get-Entries $settings 'import').Count) {
             throw 'Imported Terminal configuration is not supported.'
         }
-
-        if ($null -ne $settings.PSObject.Properties['actions']) {
-            foreach ($entry in @($settings.actions)) {
-                if ($null -eq $entry) { continue }
-                if ($entry -isnot [pscustomobject]) { throw 'Malformed Terminal action.' }
-                if ($null -eq $entry.PSObject.Properties['id'] -or
-                    $null -eq $entry.PSObject.Properties['command']) { continue }
-                $id = [string] $entry.id
-                if ($builtinIds -ccontains $id) { throw "Built-in action $id was redefined." }
-                if ($customActions.ContainsKey($id)) { throw "Duplicate action ID: $id." }
-                $resolved = Resolve-EquivalentAction $entry.command
-                $customActions[$id] = $resolved
-                if (!$resolved) { $customActions[$id] = '<other>' }
-            }
+        $customIds = @{}
+        foreach ($entry in Get-Entries $settings 'actions') {
+            if ($entry -isnot [pscustomobject]) { throw 'Malformed Terminal action.' }
+            if ($null -eq $entry.PSObject.Properties['id'] -or
+                $null -eq $entry.PSObject.Properties['command']) { continue }
+            $id = [string] $entry.id
+            if ($tracked -ccontains $id) { throw "Built-in action $id was redefined." }
+            if ($customIds.ContainsKey($id)) { throw "Duplicate action ID: $id." }
+            $customIds[$id] = $true
+            $resolved = Resolve-EquivalentAction $entry.command
+            $known[$id] = if ($resolved) { $resolved } else { '<other>' }
         }
         # The later layer wins only for identical definitions; conflicting ones
         # are rejected instead of guessing Terminal's precedence.
         foreach ($name in @('actions', 'keybindings')) {
-            if ($null -eq $settings.PSObject.Properties[$name]) { continue }
-            foreach ($entry in @($settings.$name)) {
-                if ($null -eq $entry) { continue }
+            foreach ($entry in Get-Entries $settings $name) {
                 if ($entry -isnot [pscustomobject]) { throw 'Malformed Terminal keybinding.' }
                 if ($null -eq $entry.PSObject.Properties['keys']) { continue }
                 $keys = @($entry.keys)
@@ -147,15 +169,13 @@ try {
                 if (!$key) { continue }
                 $id = if ($null -ne $entry.PSObject.Properties['id']) { [string]$entry.id } else { '' }
                 if ($null -ne $entry.PSObject.Properties['command']) {
-                    if ($builtinIds -ccontains $id) { throw "Built-in action $id was redefined." }
+                    if ($tracked -ccontains $id) { throw "Built-in action $id was redefined." }
                     $id = Resolve-EquivalentAction $entry.command
                     if (!$id) { $id = '<other>' }
                 }
-                elseif ($customActions.ContainsKey($id)) {
-                    $id = $customActions[$id]
-                }
-                elseif ($id -ne '' -and $builtinIds -cnotcontains $id) {
-                    $id = '<other>' # Unknown actions shadow defaults, but aren't safe Ctrl+C/Enter.
+                elseif ($id -ne '') {
+                    # Unknown actions shadow defaults, but aren't safe Ctrl+C/Enter.
+                    $id = if ($known.ContainsKey($id)) { $known[$id] } else { '<other>' }
                 }
                 if ($userBindings.ContainsKey($key) -and $userBindings[$key] -cne $id) {
                     throw "Conflicting Terminal definitions for $key."

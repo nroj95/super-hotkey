@@ -1,21 +1,4 @@
-; Cascade Kingdom navigation is owned by the suite interface.
-
-ShowCascadeStatusTip(text)
-{
-    CoordMode "Mouse", "Screen"
-    CoordMode "ToolTip", "Screen"
-    MouseGetPos &mouse_x, &mouse_y
-
-    ; Every new status replaces the previous one and owns a fresh timeout.
-    SetTimer HideCascadeStatusTip, 0
-    ToolTip text, mouse_x + 14, mouse_y + 18, 3
-    SetTimer HideCascadeStatusTip, -1400
-}
-
-HideCascadeStatusTip()
-{
-    ToolTip , , , 3
-}
+; One-time startup check for settings in other tools that compete with cascading.
 
 CheckCompatibilitySettings(*)
 {
@@ -27,7 +10,6 @@ CheckCompatibilitySettings(*)
 
         fancyzones_settings_path :=
             EnvGet("LOCALAPPDATA") "\Microsoft\PowerToys\FancyZones\settings.json"
-
 
         if FileExist(fancyzones_settings_path) {
             fancyzones_settings := FileRead(
@@ -63,23 +45,4 @@ CheckCompatibilitySettings(*)
     catch {
         return
     }
-}
-
-UpdateTrayMenu() {
-    SuiteState.CascadeStatus := "Cascade Kingdom"
-}
-
-ToggleWindowCascadeHelp(*) {
-    if IsObject(SuiteState.App.ui)
-        SuiteState.App.ui.ToggleHelp("cascade-kingdom")
-}
-
-CloseWindowCascadeHelp(*) {
-    if IsObject(SuiteState.App.ui)
-        SuiteState.App.ui.CloseWindow("help:cascade-kingdom")
-}
-
-RefreshCascadeHelpBindings(*) {
-    if IsObject(SuiteState.App.ui)
-        SuiteState.App.ui.RefreshHelp()
 }

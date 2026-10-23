@@ -18,7 +18,6 @@ CaptureExplorerSpaceReshowIntent()
 {
     global explorer_space_reshow_hint
 
-
     ; Modifier/Caps chords belong to Explorer, another app, or CapsLock Layer.
     ; Only the native plain-Space action may become a re-show intent.
     for modifier in ["CapsLock", "Shift", "Ctrl", "Alt", "LWin", "RWin"] {
@@ -46,7 +45,7 @@ CaptureExplorerSpaceReshowIntent()
         monitor_device: GetCascadeMonitorDevice(monitor)
     }
 
-    if SuiteState.Log.verbose && SuiteState.Log.verbose {
+    if SuiteState.Log.verbose {
         DebugLog(
             "Explorer Space re-show intent captured."
             . " | monitor=" monitor
@@ -124,7 +123,7 @@ ActiveWindowBlocksCascadeCommands(allow_maximized := false)
 ; deferred, local command dispatch
 ; =============================================================================
 
-QueueCascadeCommand(commandId, parameter := 0, foregroundHwnd := 0)
+QueueCascadeCommand(command, foregroundHwnd := 0)
 {
     global cascade_command_queue, cascade_command_draining
 
@@ -140,11 +139,9 @@ QueueCascadeCommand(commandId, parameter := 0, foregroundHwnd := 0)
     try {
         ; Revalidate the originating window's HWND/PID before moving or closing.
         cascade_command_queue.Push({
-            id: commandId,
-            parameter: parameter,
+            name: command,
             foreground_hwnd: foregroundHwnd,
-            foreground_pid: foregroundPid,
-            queued: true
+            foreground_pid: foregroundPid
         })
         if !cascade_command_draining
             SetTimer(DrainCascadeCommandQueue, -1)
@@ -182,118 +179,73 @@ DrainCascadeCommandQueue(*)
 
 DispatchCascadeCommand(command)
 {
-    global cascade_command_focus_previous, cascade_command_focus_next
-    global cascade_command_rotate_slot_previous, cascade_command_rotate_slot_next
-    global cascade_command_swap_window_up, cascade_command_swap_window_down
-    global cascade_command_adopt_active, cascade_command_rotate_layers
-    global cascade_command_toggle_minimize, cascade_command_bring_forward
-    global cascade_command_close_active, cascade_command_close_scope
-    global cascade_command_gather_to_monitor, cascade_command_show_help
     global cascade_minimize_toggle_in_progress
 
-    command_id := command.id
-    parameter := command.parameter
-
+    name := command.name
     if cascade_minimize_toggle_in_progress
         return
 
-    if command_id = cascade_command_toggle_minimize {
+    if name = "minimize" {
         ToggleCascadeMinimize()
         return
     }
 
     ; A command delayed behind a slower one must still belong to the exact
-    ; foreground window that owned it. Context-free help is safe regardless.
-    if command.queued && command_id != cascade_command_show_help {
-        actual_foreground := DllCall("GetForegroundWindow", "ptr")
-        foreground_matches := actual_foreground = command.foreground_hwnd
-
-        if foreground_matches && command.foreground_hwnd {
-            if !command.foreground_pid {
+    ; foreground window that owned it.
+    actual_foreground := DllCall("GetForegroundWindow", "ptr")
+    foreground_matches := actual_foreground = command.foreground_hwnd
+    if foreground_matches && command.foreground_hwnd {
+        if !command.foreground_pid {
+            foreground_matches := false
+        } else {
+            try foreground_matches :=
+                WinGetPID(command.foreground_hwnd) = command.foreground_pid
+            catch
                 foreground_matches := false
-            } else {
-                try foreground_matches :=
-                    WinGetPID(command.foreground_hwnd) = command.foreground_pid
-                catch
-                    foreground_matches := false
-            }
         }
-
-        if !foreground_matches {
-            DebugLog(
-                "Queued cascade command skipped."
-                . " | reason=foreground-identity-changed"
-                . " | command=" command_id
-                . " | expected-foreground=" command.foreground_hwnd
-                . " | expected-pid=" command.foreground_pid
-                . " | actual-foreground=" actual_foreground
-            )
-            return
-        }
+    }
+    if !foreground_matches {
+        DebugLog(
+            "Queued cascade command skipped."
+            . " | reason=foreground-identity-changed"
+            . " | command=" name
+            . " | expected-foreground=" command.foreground_hwnd
+            . " | expected-pid=" command.foreground_pid
+            . " | actual-foreground=" actual_foreground
+        )
+        return
     }
 
     CancelNewWindowFocus()
 
-    ; Help should still toggle when its own window is maximized.
-    if command_id = cascade_command_show_help {
-        ToggleWindowCascadeHelp()
-        return
-    }
-
     ; Closing the active window is not a cascade layout operation. In
-    ; particular, maximized applications should still respond to Caps + Delete.
-    if command_id = cascade_command_close_active {
+    ; particular, maximized applications should still respond to it.
+    if name = "close-active" {
         if HasCascadeWindowDrag() || IsCascadeDisplayTransition()
             return
-    } else if ActiveWindowBlocksCascadeCommands(command_id = cascade_command_adopt_active)
+    } else if ActiveWindowBlocksCascadeCommands(name = "adopt")
         return
 
-    if command_id != cascade_command_adopt_active
+    if name != "adopt"
         CancelPendingAdoptionUndo()
 
-    switch command_id {
-        case cascade_command_focus_previous:
-            FocusCascadeLayerWindow(-1)
-
-        case cascade_command_focus_next:
-            FocusCascadeLayerWindow(1)
-
-        case cascade_command_rotate_slot_previous:
-            RotateCurrentCascadeSlot(-1)
-
-        case cascade_command_rotate_slot_next:
-            RotateCurrentCascadeSlot(1)
-
-        case cascade_command_swap_window_up:
-            SwapActiveCascadeWindow(-1)
-
-        case cascade_command_swap_window_down:
-            SwapActiveCascadeWindow(1)
-
-        case cascade_command_adopt_active:
-            AdoptActiveWindow()
-
-        case cascade_command_rotate_layers:
-            ; OnMessage exposes -1 as 0xFFFFFFFF in a 32-bit receiver.
-            ; Zero remains forward so the existing one-shot sender still works.
-            direction := (parameter = -1 || parameter = 0xFFFFFFFF) ? -1 : 1
-            RotateCascadeLayers(direction)
-
-        case cascade_command_bring_forward:
-            BringCommandMonitorCascadeForward()
-
-        case cascade_command_close_active:
+    switch name {
+        case "focus-previous": FocusCascadeLayerWindow(-1)
+        case "focus-next": FocusCascadeLayerWindow(1)
+        case "slot-previous": RotateCurrentCascadeSlot(-1)
+        case "slot-next": RotateCurrentCascadeSlot(1)
+        case "swap-up": SwapActiveCascadeWindow(-1)
+        case "swap-down": SwapActiveCascadeWindow(1)
+        case "rotate-next": RotateCascadeLayers(1)
+        case "adopt": AdoptActiveWindow()
+        case "bring-forward": BringCommandMonitorCascadeForward()
+        case "gather": GatherCascadesToCommandMonitor()
+        case "close-active":
             ; A delayed command must not close whichever window was focused later.
             if command.foreground_hwnd
                 && DllCall("GetForegroundWindow", "ptr") = command.foreground_hwnd
                 CloseActiveCascadeWindow(command.foreground_hwnd, command.foreground_pid)
-
-        case cascade_command_close_scope:
-            CloseCommandMonitorCascade()
-
-        case cascade_command_gather_to_monitor:
-            GatherCascadesToCommandMonitor()
-
+        case "close-monitor": CloseCommandMonitorCascade()
     }
 }
 

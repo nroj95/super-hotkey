@@ -12,7 +12,7 @@ class CascadeSettingsChecks {
         global cascade_gesture_key, cascade_target_display, cascade_displays, cascade_history
         global cascade_auto_placement_enabled, cascade_opt_in_intent, cascade_titlebar_click
         app := SuiteApplication(true, SuiteChecks.directory "\cascade-policy")
-        InitializeCascadeState()
+        app.modules["cascade-kingdom"] := CascadeKingdomModule(app)
         previousCritical := Critical("On")
         try {
             for automatic in [false, true]
@@ -76,13 +76,11 @@ class CascadeSettingsChecks {
             cascade_opt_in_intent := {tick: A_TickCount, monitor_device: "left",
                 source_hwnd: 10, cascade: true}
             cascade_titlebar_click := {hwnd: 10}
-            app.cascadeStarted := true
             app.CancelInputs()
             this.Assert(!IsObject(cascade_opt_in_intent) && !IsObject(cascade_titlebar_click),
                 "input cancellation expires launch and caption gestures")
         }
         finally {
-            app.cascadeStarted := false
             InitializeCascadeState()
             Critical(previousCritical)
         }
@@ -91,7 +89,9 @@ class CascadeSettingsChecks {
     static Settings() {
         global cascade_gesture_key, cascade_target_display, cascade_drop_guide_color_name
         app := SuiteApplication(true, SuiteChecks.directory "\cascade-settings")
-        InitializeCascadeState()
+        cascade := CascadeKingdomModule(app)
+        app.modules["cascade-kingdom"] := cascade
+        app.modules["paper-pad"] := PaperPadModule(app)
         app.ui := SuiteInterface(app)
         try {
             choices := app.ui.DisplayChoices("Primary")
@@ -108,7 +108,7 @@ class CascadeSettingsChecks {
             this.Assert(missing.values[missing.selected] = "disconnected"
                 && InStr(missing.names[missing.selected], "unavailable"),
                 "missing saved displays remain visible without silently changing the preference")
-            app.ui.ShowCascadeSettings()
+            app.ui.ShowModuleSettings("cascade-kingdom")
             window := app.ui.windows["settings:cascade-kingdom"]
             this.Assert(window["cascadeKey"].Text = "CapsLock"
                 && window["activeColor"].Text = "Yellow"
@@ -122,8 +122,8 @@ class CascadeSettingsChecks {
             window["autoCascade"].Value := true
             ; Use a real device, not the dropdown index, in the saved preference.
             window["display"].Choose(2)
-            expectedDisplay := app.ui.cascadeMonitors[2]
-            app.ui.SaveCascade()
+            expectedDisplay := cascade.displayChoices[2]
+            cascade.SaveSettings(app.ui)
             path := app.Settings.directory "\cascade-kingdom\settings.ini"
             this.Assert(!app.ui.windows.Has("settings:cascade-kingdom")
                 && IniRead(path, "Controls", "CascadeKey") = "Pause"
@@ -134,14 +134,15 @@ class CascadeSettingsChecks {
             this.Assert(cascade_gesture_key = "Pause" && cascade_target_display = expectedDisplay
                 && cascade_drop_guide_color_name = "Cyan",
                 "cascade choices survive state initialization")
-            app.Settings.ResetModulePreferences()
+            app.Settings.ResetModulePreferences(Map("cascade-kingdom", cascade.resetSections))
             this.Assert(IniRead(path, "DropGuides", "Color", "missing") = "missing",
                 "factory reset includes the new guide preference")
             InitializeCascadeState()
-            app.ui.ShowPaperSettings()
+            app.ui.ShowModuleSettings("paper-pad")
             window := app.ui.windows["settings:paper-pad"]
-            this.Assert(app.ui.padMonitors.Length = MonitorGetCount()
-                && app.ui.padMonitors[window["display"].Value] = MonitorGetName(MonitorGetPrimary()),
+            displays := app.modules["paper-pad"].displayChoices
+            this.Assert(displays.Length = MonitorGetCount()
+                && displays[window["display"].Value] = MonitorGetName(MonitorGetPrimary()),
                 "the Paper Pad dropdown uses the deduplicated primary selection")
         }
         finally app.ui.CloseAll()
@@ -149,7 +150,7 @@ class CascadeSettingsChecks {
 
     static Guides() {
         app := SuiteApplication(true, SuiteChecks.directory "\cascade-guide-tests")
-        InitializeCascadeState()
+        cascade := CascadeKingdomModule(app)
         MonitorGetWorkAreaPixels(MonitorGetPrimary(), &left, &top, &right, &bottom)
         slots := [[left + 30, top + 30], [left + 58, top + 54]]
         foreground := DllCall("GetForegroundWindow", "ptr")
@@ -186,7 +187,7 @@ class CascadeSettingsChecks {
             CascadeDropGuides.Show(slots, 144, "00BCD4")
             this.Assert(CascadeDropGuides.windows[1].Hwnd = first,
                 "DPI and color changes reuse the guide windows")
-            WindowCascadeModule.Suspend()
+            cascade.Suspend()
             this.Assert(!DllCall("IsWindowVisible", "ptr", first, "int"),
                 "suspension hides all drag guides")
             CascadeDropGuides.Destroy()

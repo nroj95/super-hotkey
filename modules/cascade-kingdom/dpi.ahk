@@ -2,31 +2,9 @@
 ; All shared geometry is in physical virtual-screen pixels, never system-DPI units.
 
 ; =============================================================================
-; short, exception-safe DPI boundaries
+; physical-pixel GUIs (core/windows.ahk owns the shared DPI boundaries)
 ; =============================================================================
 
-CallWithDpiContext(context, callback, args*)
-{
-    previous_context := DllCall("SetThreadDpiAwarenessContext", "ptr", context, "ptr")
-    if !previous_context
-        throw OSError(A_LastError, "SetThreadDpiAwarenessContext")
-    try return callback(args*)
-    finally {
-        ; Restoring the context must not replace a native operation's error code.
-        last_error := A_LastError
-        DllCall("SetThreadDpiAwarenessContext", "ptr", previous_context, "ptr")
-        DllCall("SetLastError", "uint", last_error)
-    }
-}
-
-; Scope each API, not a whole timer/hotkey: modal message dispatch can temporarily
-; select the DPI context of the receiving HWND. Always restore the caller's mode.
-WinGetPosPixels(args*) => CallWithDpiContext(-3, WinGetPos, args*)
-WinMovePixels(args*) => CallWithDpiContext(-3, WinMove, args*)
-MonitorGetPixels(args*) => CallWithDpiContext(-3, MonitorGet, args*)
-MonitorGetWorkAreaPixels(args*) => CallWithDpiContext(-3, MonitorGetWorkArea, args*)
-MouseGetPosPixels(args*) => CallWithDpiContext(-3, MouseGetPos, args*)
-PhysicalDllCall(args*) => CallWithDpiContext(-3, DllCall, args*)
 CreatePhysicalGui(options, title) => CallWithDpiContext(-3, SuiteGui, options, title)
 ShowPhysicalGui(gui_object, options) => CallWithDpiContext(-3, ObjBindMethod(gui_object, "Show"), options)
 ScaleForDpi(value, dpi) => Round(value * dpi / 96)

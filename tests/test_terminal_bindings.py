@@ -9,24 +9,47 @@ import unittest
 
 HELPER = Path(__file__).resolve().parents[1] / 'modules/power-up-utilities/terminal-bindings.ps1'
 
+# The tracked subset of a real Terminal 1.24 defaults.json, including a binding
+# that the macros can never send. 1.23 had no Clear buffer shortcut.
+DEFAULTS = {
+    'actions': [
+        {'command': {'action': 'copy', 'singleLine': False}, 'id': 'Terminal.CopyToClipboard'},
+        {'command': 'paste', 'id': 'Terminal.PasteFromClipboard'},
+        {'command': 'selectAll', 'id': 'Terminal.SelectAll'},
+        {'command': {'action': 'clearBuffer', 'clear': 'all'}, 'id': 'Terminal.ClearBuffer'},
+        {'command': 'quakeMode', 'id': 'Terminal.QuakeMode'}],
+    'keybindings': [
+        {'keys': 'ctrl+shift+c', 'id': 'Terminal.CopyToClipboard'},
+        {'keys': 'ctrl+insert', 'id': 'Terminal.CopyToClipboard'},
+        {'keys': 'enter', 'id': 'Terminal.CopyToClipboard'},
+        {'keys': 'ctrl+shift+v', 'id': 'Terminal.PasteFromClipboard'},
+        {'keys': 'ctrl+shift+a', 'id': 'Terminal.SelectAll'},
+        {'keys': 'ctrl+shift+k', 'id': 'Terminal.ClearBuffer'},
+        {'keys': 'win+sc(41)', 'id': 'Terminal.QuakeMode'}]}
+DEFAULTS_1_23 = {'actions': DEFAULTS['actions'],
+                 'keybindings': [entry for entry in DEFAULTS['keybindings'] if entry['keys'] != 'ctrl+shift+k']}
+
 
 @unittest.skipUnless(sys.platform == 'win32', 'requires Windows PowerShell 5.1')
 class TerminalBindingsTests(unittest.TestCase):
-    def check(self, version='1.24.12741.0', settings=None, raw=None):
+    def check(self, defaults=DEFAULTS, settings=None, raw=None):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             path, result = root / 'settings.json', root / 'result.txt'
+            if defaults is not None:
+                (root / 'defaults.json').write_text(json.dumps(defaults), encoding='utf-8')
             if settings is not None or raw is not None:
                 path.write_text(raw if raw is not None else json.dumps(settings), encoding='utf-8')
             process = subprocess.run([
                 str(Path(os.environ['SystemRoot']) / 'System32/WindowsPowerShell/v1.0/powershell.exe'),
                 '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', str(HELPER),
-                '-TerminalVersion', version, '-SettingsPath', str(path), '-ResultPath', str(result)
+                '-DefaultsPath', str(root / 'defaults.json'), '-SettingsPath', str(path),
+                '-ResultPath', str(result)
             ], capture_output=True, text=True, timeout=20)
             return process.returncode, result.read_text(encoding='utf-8-sig')
 
-    def bindings(self, settings=None, version='1.24.12741.0', raw=None):
-        code, output = self.check(version, settings, raw)
+    def bindings(self, settings=None, defaults=DEFAULTS, raw=None):
+        code, output = self.check(defaults, settings, raw)
         self.assertEqual(code, 0, output)
         lines = output.splitlines()
         self.assertEqual(lines[0], 'OK', output)
@@ -35,8 +58,9 @@ class TerminalBindingsTests(unittest.TestCase):
     def test_defaults(self):
         self.assertEqual(self.bindings(), {
             'CLEAR': '^+k', 'COPY': '^+c', 'SELECT': '^+a', 'SAFE_CLEAR_STEPS': '1'})
-        self.assertEqual(self.bindings(version='1.23.10353.0')['CLEAR'], '')
-        self.assertEqual(self.bindings(version='1.22.11141.0')['COPY'], '^+c')
+        older = self.bindings(defaults=DEFAULTS_1_23)
+        self.assertEqual(older['CLEAR'], '')
+        self.assertEqual(older['COPY'], '^+c')
 
     def test_alt_bindings_override_defaults(self):
         settings = {'keybindings': [
@@ -56,7 +80,7 @@ class TerminalBindingsTests(unittest.TestCase):
                         {'id': '', 'keys': 'ctrl+shift+k'},
                         {'id': 'User.clearBuffer.87C324ED', 'keys': 'ctrl+shift+l'}]}
         self.assertEqual(self.bindings(settings)['CLEAR'], '^+l')
-        self.assertEqual(self.bindings(settings, version='1.23.10353.0')['CLEAR'], '^+l')
+        self.assertEqual(self.bindings(settings, defaults=DEFAULTS_1_23)['CLEAR'], '^+l')
 
     def test_custom_equivalent_actions(self):
         settings = {'actions': [
@@ -142,10 +166,17 @@ class TerminalBindingsTests(unittest.TestCase):
                 self.assertNotEqual(code, 0)
                 self.assertTrue(output.startswith('ERROR:'), output)
 
-    def test_unknown_version_fails_closed(self):
-        code, output = self.check(version='1.25.0.0')
+    def test_missing_defaults_fail_closed(self):
+        code, output = self.check(defaults=None)
         self.assertNotEqual(code, 0)
-        self.assertIn('Unsupported Windows Terminal version', output)
+        self.assertTrue(output.startswith('ERROR:'), output)
+
+    def test_changed_default_definitions_are_not_trusted(self):
+        defaults = json.loads(json.dumps(DEFAULTS))
+        defaults['actions'][3]['command']['clear'] = 'screen'
+        result = self.bindings(defaults=defaults)
+        self.assertEqual(result['CLEAR'], '')
+        self.assertEqual(result['COPY'], '^+c')
 
     def test_comments_and_trailing_commas(self):
         output = self.bindings(raw='''{

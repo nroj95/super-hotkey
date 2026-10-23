@@ -70,7 +70,7 @@ class CapsLockModifierToggle {
             return
         }
         if this.HandleUp(vk, sc, A_TickCount, this.OtherModifiersHeld())
-            SuiteState.App.ToggleCapsLock()
+            SecretLayersModule.ToggleCapsLock()
     }
 
     HandleDown(vk, sc, tick, otherHeld) {

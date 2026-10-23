@@ -30,12 +30,13 @@ class PH_Terminal {
         executable := WinGetProcessPath("ahk_id " job.event.foregroundHwnd)
         if !RegExMatch(executable, "i)\\Microsoft\.WindowsTerminal_\d+\.\d+\.\d+\.\d+_[^\\]+\\WindowsTerminal\.exe$")
             throw Error("This Windows Terminal installation is not supported by the shortcut checker. No keys were sent.")
-        version := FileGetVersion(executable)
+        SplitPath(executable, , &packageDirectory)
         settingsPath := EnvGet("LOCALAPPDATA") "\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json"
         ; Compare file contents, not second-resolution timestamps: users can
         ; edit and restore bindings within the same second.
         settingsSnapshot := FileExist(settingsPath) ? FileRead(settingsPath, "UTF-8") : "<defaults>"
-        cacheKey := executable "|" version "|" settingsSnapshot
+        ; The package path names its version, and package files are immutable.
+        cacheKey := executable "|" settingsSnapshot
 
         if cacheKey != this.bindingsCacheKey {
             helper := A_ScriptDir "\modules\power-up-utilities\terminal-bindings.ps1"
@@ -46,7 +47,7 @@ class PH_Terminal {
                 . DllCall("GetCurrentProcessId", "uint") "-" A_TickCount ".txt"
             command := '"' powershell '" -NoLogo -NoProfile -NonInteractive'
                 . ' -WindowStyle Hidden -ExecutionPolicy Bypass -File "' helper '"'
-                . ' -TerminalVersion "' version '" -SettingsPath "' settingsPath '"'
+                . ' -DefaultsPath "' packageDirectory '\defaults.json" -SettingsPath "' settingsPath '"'
                 . ' -ResultPath "' resultPath '"'
             try {
                 exitCode := RunWait(command, , "Hide")

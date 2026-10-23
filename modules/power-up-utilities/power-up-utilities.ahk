@@ -1,81 +1,103 @@
-; Existing command dispatch and safety checks, using the suite-owned manager.
+; Power-Up Utilities: extra keys, text and Terminal macros, and system actions.
+; Macros run after their trigger keys are released, outside input callbacks.
 
-class PowerUpUtilities {
-    static Version := "suite-preview.1"
-
-    __New(manager, dryRun := false) {
-        this.manager := manager
-        this.dryRun := dryRun
-        this.name := "Power-Up Utilities"
+class PowerUpUtilities extends SuiteModule {
+    __New(app) {
+        super.__New(app, "power-up-utilities")
+        this.manager := 0
         this.stopping := false
-        this.systemSuspended := false
         this.pending := Map()
         this.generation := 0
         this.activeJob := 0
-        this.enabledActions := Map()
         this.catalog := Map()
-        this.modules := PH_Modules.Catalog()
         this.pollCallback := ObjBindMethod(this, "CheckPending")
+        this.powerCallback := ObjBindMethod(this, "PowerEvent")
         this.keyboard := PH_Keyboard(this)
         this.terminal := PH_Terminal(this)
         this.utilities := PH_Utilities(this)
-        PH_Modules.RegisterActions(this)
     }
 
-    AddAction(moduleId, actionId, label, kind, value, defaultBinding, needsFocus := false) {
+    dryRun => this.app.dryRun
+
+    ; Registration order is the Keybindings display order.
+    Register(manager) {
+        this.manager := manager
+        this.AddAction("interface", "interface.open", "show Power-Up Utilities help",
+            "interface", "", "Pause + H")
+        this.AddAction("speaker-wake", "system.wake-speakers", "wake speakers",
+            "speaker-wake", "", "Pause + Pause")
+        this.AddAction("sleep", "system.sleep", "put computer to sleep", "sleep", "", "Pause + Escape")
+        ; Terminal copy shares Caps + C with F23: the Terminal scope wins there.
+        this.AddAction("terminal", "terminal.copy", "copy terminal buffer as Markdown",
+            "terminal-copy", "", "Caps + C", true)
+        this.AddAction("terminal", "terminal.clear", "clear terminal buffer",
+            "terminal-clear", "", "Caps + K", true)
+        for index, key in ["Q", "W", "E", "R", "A", "S", "D", "F", "Z", "X", "C", "V"] {
+            output := "F" (12 + index)
+            this.AddAction("function-keys", "keyboard." StrLower(output), "send " output,
+                "virtual", output, "Caps + " key)
+        }
+        loop 10 {
+            digit := A_Index - 1
+            this.AddAction("number-pad", "keyboard.numpad" digit, "send Numpad" digit,
+                "virtual", "Numpad" digit, "Caps + " digit)
+        }
+        this.AddAction("text", "text.apostrophe", "insert curly apostrophe", "text", "’", "Pause + '", true)
+        this.AddAction("text", "text.en-dash", "insert en dash", "text", "–", "Pause + -", true)
+        this.AddAction("text", "text.nbsp", "insert literal &nbsp;", "text", "&nbsp;", "Pause + N", true)
+        this.AddAction("text", "text.sharp-s", "insert ß", "text", "ß", "Pause + S", true)
+        this.AddAction("text", "text.timestamp", "insert timestamp", "timestamp", "", "Pause + T", true)
+    }
+
+    AddAction(group, actionId, label, kind, value, defaultBinding, needsFocus := false) {
         static subcategories := Map("function-keys", "Extra function keys",
-            "number-pad", "Virtual number pad", "text", "Text and symbols",
-            "timestamp", "Text and symbols")
-        category := subcategories.Has(moduleId)
-            ? "Power-Up Utilities / " subcategories[moduleId] : "Power-Up Utilities"
+            "number-pad", "Virtual number pad", "text", "Text and symbols")
+        category := subcategories.Has(group)
+            ? "Power-Up Utilities / " subcategories[group] : "Power-Up Utilities"
         actionId := "power-up-utilities." actionId
-        this.catalog[actionId] := {id: actionId, moduleId: moduleId, kind: kind,
-            value: value, needsFocus: needsFocus}
+        this.catalog[actionId] := {id: actionId, kind: kind, value: value, needsFocus: needsFocus}
         this.manager.AddAction(actionId, label, ObjBindMethod(this, "Dispatch"),
-            [defaultBinding], {category: category, help: moduleId = "interface",
-                scope: moduleId = "terminal" ? "windows-terminal" : "",
-                available: (*) => SuiteState.App.ModuleActive("power-up-utilities")})
+            [defaultBinding], {category: category,
+                scope: group = "terminal" ? "windows-terminal" : "",
+                available: (*) => this.app.ModuleActive(this.id)})
     }
 
-    Start(*) {
-        this.SyncEnabledActions()
-        if !this.dryRun {
-            try this.utilities.sleepPolicy.Recover()
-            catch Error as failure {
-                SuiteState.Log.Error("Power-Up Utilities / sleep recovery", failure)
-                TrayTip("Could not restore the previous Away Mode settings: " failure.Message,
-                    this.name, 2)
-            }
+    Start() {
+        OnMessage(0x0218, this.powerCallback) ; WM_POWERBROADCAST
+        try this.utilities.sleepPolicy.Recover()
+        catch Error as failure {
+            SuiteState.Log.Error("Power-Up Utilities / sleep recovery", failure)
+            TrayTip("Could not restore the previous Away Mode settings: " failure.Message,
+                this.Name, 2)
         }
     }
 
+    ; An interrupted sleep transaction is restored at the latest on exit.
     Stop(*) {
         if this.stopping
             return
         this.stopping := true
+        OnMessage(0x0218, this.powerCallback, 0)
         this.CancelWork()
         if !this.dryRun
             this.utilities.sleepPolicy.Restore()
     }
 
-    SyncEnabledActions() {
-        this.enabledActions := Map()
-        for actionId, setting in this.manager.GetConfiguration()
-            this.enabledActions[actionId] := setting.enabled
+    PowerEvent(event, *) {
+        this.utilities.sleepPolicy.OnPowerEvent(event)
     }
 
     Enabled(actionId) {
-        return SuiteState.App.ModuleActive("power-up-utilities")
-            && this.enabledActions.Has(actionId) && this.enabledActions[actionId]
+        configuration := this.manager.configuration
+        return this.app.ModuleActive(this.id)
+            && configuration.Has(actionId) && configuration[actionId].enabled
     }
 
     CanDispatch(actionId) {
-        return !this.stopping && !this.systemSuspended && this.Enabled(actionId)
+        return !this.stopping && this.Enabled(actionId)
             && this.manager.running && !this.manager.gated && !this.manager.paused
             && !this.manager.applying
     }
-
-
 
     CancelWork() {
         this.generation += 1
@@ -104,8 +126,6 @@ class PowerUpUtilities {
             return
         }
         if event.phase = "up" {
-            ; Layer events remain authoritative when another process consumed
-            ; the physical key before our local keyboard hook could observe it.
             if this.pending.Has(token)
                 this.pending[token].completed := true
             return
@@ -116,7 +136,7 @@ class PowerUpUtilities {
             return
         targetPid := 0
         if action.needsFocus {
-            targetPid := this.WindowPid(event.foregroundHwnd)
+            targetPid := WindowProcessId(event.foregroundHwnd)
             if !targetPid || !this.TargetActive(event.foregroundHwnd, targetPid)
                 return
         }
@@ -153,11 +173,6 @@ class PowerUpUtilities {
             return false
         if job.action.needsFocus && !this.TargetActive(job.event.foregroundHwnd, job.pid)
             return false
-        if job.event.layer != "normal" {
-            client := this.manager.client
-            if !IsObject(client) || !client.session || !client.ServiceMatches()
-                return false
-        }
         return true
     }
 
@@ -184,8 +199,7 @@ class PowerUpUtilities {
         }
         catch Error as commandError {
             SuiteState.Log.Error("Power-Up Utilities", commandError)
-            this.Report(job.action.id ": " commandError.Message)
-            TrayTip(commandError.Message, this.name, 2)
+            TrayTip(commandError.Message, this.Name, 2)
         }
         finally {
             if this.activeJob = job
@@ -206,35 +220,31 @@ class PowerUpUtilities {
         return true
     }
 
-    WindowPid(hwnd) {
-        processId := 0
-        if hwnd
-            DllCall("GetWindowThreadProcessId", "ptr", hwnd, "uint*", &processId, "uint")
-        return processId
-    }
-
     TargetActive(hwnd, pid) {
         return hwnd && pid && DllCall("GetForegroundWindow", "ptr") = hwnd
-            && this.WindowPid(hwnd) = pid
+            && WindowProcessId(hwnd) = pid
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     Report(text) => SuiteState.Log.Write("Power-Up Utilities", text)
 
-
+    HelpText() {
+        return "WHY I MADE THIS"
+            . "`r`nI wanted a collection of practical shortcuts for everyday tasks that "
+            . "didn't fit into the other modules."
+            . "`r`n`r`nMORE KEYS WITHOUT A NEW KEYBOARD"
+            . "`r`nSend F13-F24 or Numpad 0-9 using shortcuts, even if your keyboard "
+            . "doesn't have those keys. The virtual numpad is especially useful on "
+            . "compact keyboards without a number pad, while F13-F24 provides extra "
+            . "keys for shortcuts in compatible applications. Held virtual keys are "
+            . "released when you release their triggering hotkey."
+            . "`r`n`r`nTEXT AND TERMINAL ACTIONS"
+            . "`r`nInsert punctuation, special spaces or a yyyyMMdd-HHmmss timestamp. "
+            . "Terminal copy and clear operate only in Windows Terminal. "
+            . "Required Terminal shortcuts are checked before keys are sent; "
+            . "incompatible settings are reported without being changed. "
+            . "Text commands wait for your triggering keys to be released before typing."
+            . "`r`n`r`nSYSTEM UTILITIES"
+            . "`r`nWake speakers that automatically enter standby, or put your computer "
+            . "to sleep."
+    }
 }

@@ -135,10 +135,10 @@ WW_IsWindowSwapCandidate(hwnd, monitor_handle)
     if DllCall("GetWindow", "ptr", hwnd, "uint", 4, "ptr") ; GW_OWNER
         return false
 
-    if WW_IsWinKeyOverhaulShellClass(class_name)
+    if IsShellSurfaceClass(class_name)
         return false
 
-    if WW_IsWinKeyOverhaulCloaked(hwnd)
+    if IsWindowCloaked(hwnd)
         return false
 
     candidate_monitor := DllCall(

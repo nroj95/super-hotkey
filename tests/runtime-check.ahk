@@ -31,9 +31,11 @@ class SuiteChecks {
         this.CheckCatalog()
         this.CheckNoLayers()
         this.CheckLogging()
+        this.CheckRecovery()
         this.CheckExitVeto()
         this.CheckAutosavePolicy()
         this.CheckDryRunLifecycle()
+        this.CheckModuleStartFailure()
         SuiteUpgradeChecks.Run()
         SuiteReleaseChecks.Run()
     }
@@ -53,8 +55,15 @@ class SuiteChecks {
         document["modules"]["paper-pad"] := "invalid"
         KB_Manifest.WriteAtomic(settings.path, document)
         before := FileRead(settings.path, "UTF-8")
-        this.Rejects((*) => SuiteSettings(settings.directory), "invalid module configuration is rejected")
-        this.Assert(before = FileRead(settings.path, "UTF-8"), "invalid configuration is not rewritten")
+        recovered := SuiteSettings(settings.directory)
+        this.Assert(recovered.loadWarning != "" && recovered.modules["paper-pad"]
+            && recovered.modules["secret-layers"],
+            "invalid module configuration falls back to defaults with a warning")
+        this.Assert(before = FileRead(settings.path, "UTF-8"), "loading never rewrites an invalid configuration")
+        damagedCopy := false
+        loop files settings.path ".damaged-*"
+            damagedCopy := FileRead(A_LoopFileFullPath, "UTF-8") = before
+        this.Assert(damagedCopy, "an unreadable settings file is kept as a timestamped copy")
         settings.Save(choices)
         folder := settings.directory "\paper-pad"
         DirCreate folder
@@ -66,7 +75,7 @@ class SuiteChecks {
         FileAppend("editor preference", folder "\Notepad3.ini", "UTF-8-RAW")
         FileAppend("page state", folder "\state.ini", "UTF-8-RAW")
         backup := settings.Backup([path])
-        settings.ResetModulePreferences()
+        settings.ResetModulePreferences(Map("paper-pad", ["Window"]))
         this.Assert(IniRead(path, "Window", "WidthPercent", "missing") = "missing", "factory reset removes only whitelisted preferences")
         this.Assert(IniRead(path, "Paths", "NotesDirectory") = "sentinel-notes-folder", "factory reset retains the notes folder")
         this.Assert(IniRead(path, "Paths", "Notepad3Executable") = "sentinel-editor.exe", "factory reset retains the editor path")
@@ -79,15 +88,15 @@ class SuiteChecks {
         app := SuiteApplication(true, this.directory "\catalog")
         app.InitializeCatalog()
         manager := app.manager
+        power := app.modules["power-up-utilities"]
         try {
             manager.SetPaused(true)
             manager.Start()
-            app.power.Start()
             this.Assert(manager.actions.Count > 50 && manager.actions.Count < 128, "all modules share one action catalog")
             this.Rejects((*) => Keybindings("second", "Second", {directory: this.directory}), "a second manager is rejected")
             this.Assert(!manager.client.hooksInstalled, "paused startup does not capture native CapsLock or Pause")
-            for status in manager.GetStatus()
-                this.Assert(!InStr(status.state, "error:"), "registration: " status.actionId " / " status.slot)
+            for route in manager.routes
+                this.Assert(!InStr(route.state, "error:"), "registration: " route.action.id " / " route.slot)
             configuration := manager.GetConfiguration()
             this.Assert(configuration["core.keybindings"].bindings[1] = Keybindings.Parse("Caps + Alt + K").signature, "Caps + Alt + K opens the shared editor")
             this.Assert(configuration["power-up-utilities.terminal.copy"].bindings[1] = Keybindings.Parse("Caps + C").signature, "Terminal copy defaults to Caps + C")
@@ -129,8 +138,8 @@ class SuiteChecks {
             this.Assert(!manager.ContextActive(manager.actions["paper-pad.delete"]),
                 "Paper Pad commands are inactive outside its editor")
             manager.ShowSettings()
-            this.Assert(IsObject(manager.settings) && manager.rows.Length > 50, "shared editor renders the complete catalog")
-            manager._CloseSettings()
+            this.Assert(IsObject(manager.editor.window) && manager.editor.rows.Length > 50, "shared editor renders the complete catalog")
+            manager.editor.Close()
 
             app.activeModules["power-up-utilities"] := false
             manager.Apply(configuration)
@@ -141,7 +150,7 @@ class SuiteChecks {
             this.Assert(this.HasRoute(manager, "power-up-utilities.keyboard.toggle-caps"),
                 "Caps Lock shortcut works with Power-Up Utilities disabled")
             manager.Apply(configuration)
-            rows := Keybindings.DisplayRows(manager.DiscoverParticipants())
+            rows := Keybindings.DisplayRows(manager.Catalog())
             found := false
             for row in rows
                 if row.id = "power-up-utilities.keyboard.f13"
@@ -170,27 +179,28 @@ class SuiteChecks {
             manager.actions[event.actionId].callback.Call(event)
             event.actionId := "paper-pad.toggle"
             manager.actions[event.actionId].callback.Call(event)
-            app.power.keyboard.SendOutput("F13", " down")
-            app.power.keyboard.SendOutput("F13", " up")
+            power.keyboard.SendOutput("F13", " down")
+            power.keyboard.SendOutput("F13", " up")
             diagnosticLog := FileRead(SuiteState.Log.path, "UTF-8")
             this.Assert(InStr(diagnosticLog, "dry run: cascade-kingdom.minimize") && InStr(diagnosticLog, "dry run: toggle") && InStr(diagnosticLog, "dry run: send F13"), "feature callbacks use dry-run guards")
 
-            global CPL
-            CPL.showIndicator := false
-            CPL.armed := "caps"
-            CPL.armedUntil := CPL_Now() + 1000
-            CPL.enabled := true
-            this.Assert(manager.client.OwnsInput("sc024"), "one-shot layer input excludes ordinary bindings")
-            CPL.armedUntil := CPL_Now() - 1
-            this.Assert(!manager.client.OwnsInput("sc024"), "expired one-shot input releases ordinary bindings")
-            CPL.armed := ""
-            CPL.enabled := false
+            layers := manager.client
+            layers.showIndicator := false
+            layers.armed := "caps"
+            layers.armedUntil := KeyboardLayers.Now() + 1000
+            layers.running := true
+            this.Assert(layers.Busy() && layers.Active("caps") && !layers.Active("pause"),
+                "an armed one-shot layer excludes ordinary bindings")
+            layers.armedUntil := KeyboardLayers.Now() - 1
+            this.Assert(!layers.Busy(), "an expired one-shot arm releases ordinary bindings")
+            layers.armed := ""
+            layers.running := false
             manager.Observe("~*F24", (*) => false, (*) => 0)
             this.Assert(manager.observers.Length = 1, "native observers are owned by the shared manager")
         }
         finally {
             manager.Stop()
-            app.power.Stop()
+            power.Stop()
         }
         this.Assert(!IsObject(Keybindings.Current) && !manager.running, "manager shutdown releases singleton ownership")
     }
@@ -205,12 +215,12 @@ class SuiteChecks {
         try {
             manager.SetPaused(true)
             manager.Start()
-            this.Assert(!IsObject(manager.client), "disabled keyboard layers create no adapter or prefix hooks")
+            this.Assert(!IsObject(manager.client), "disabled keyboard layers create no layer client or prefix hooks")
             configuration := manager.GetConfiguration()
             this.Assert(configuration["core.keybindings"].bindings[1] != "", "inactive layer assignments remain saved")
             unavailable := 0
-            for status in manager.GetStatus()
-                if InStr(status.state, "unavailable:")
+            for route in manager.routes
+                if InStr(route.state, "unavailable:")
                     unavailable += 1
             this.Assert(unavailable > 20, "layer bindings are explicitly unavailable without the module")
             configuration["paper-pad.toggle"].bindings[1] := "CapsLock"
@@ -244,15 +254,110 @@ class SuiteChecks {
         this.Assert(InStr(FileRead(diagnosticLog.path, "UTF-8"), "previous log retained"), "clearing the log retains one previous segment")
     }
 
+    ; Damaged files fall back to defaults with a kept copy; unchanged
+    ; configurations are never rewritten; backups are bounded.
+    static CheckRecovery() {
+        directory := this.directory "\recovery"
+        DirCreate directory
+        loop 3 {
+            stage := A_Index
+            manager := Keybindings("recovery", "Recovery", {directory: directory})
+            try {
+                manager.AddAction("fixture.one", "first", (*) => 0, ["Ctrl + Alt + F21"])
+                manager.AddAction("fixture.two", "second", (*) => 0, ["Ctrl + Alt + F22"])
+                manager.SetPaused(true)
+                if stage = 1 {
+                    FileAppend("not a manifest", manager.path, "UTF-8-RAW")
+                    manager.Start()
+                    this.Assert(manager.loadWarnings.Length = 1
+                        && manager.GetConfiguration()["fixture.one"].bindings[1]
+                            = Keybindings.Parse("Ctrl + Alt + F21").signature,
+                        "an unreadable keybindings file starts with defaults and a warning")
+                    copies := 0
+                    loop files manager.path ".damaged-*"
+                        copies += FileRead(A_LoopFileFullPath) = "not a manifest"
+                    this.Assert(copies = 1, "the unreadable keybindings file is kept as a timestamped copy")
+                    configuration := manager.GetConfiguration()
+                    configuration["fixture.two"].bindings[1] := Keybindings.Parse("Ctrl + Alt + F23").signature
+                    manager.Apply(configuration)
+                } else if stage = 2 {
+                    document := KB_Manifest.Read(manager.path)
+                    document["bindings"]["fixture.one"] := "1`tnot|a|binding`t"
+                    KB_Manifest.WriteAtomic(manager.path, document)
+                    manager.Start()
+                    this.Assert(manager.loadWarnings.Length = 1
+                        && InStr(manager.loadWarnings[1], "first")
+                        && manager.GetConfiguration()["fixture.two"].bindings[1]
+                            = Keybindings.Parse("Ctrl + Alt + F23").signature,
+                        "one unreadable assignment falls back alone; the others survive")
+                } else {
+                    FileAppend("; marker`n", manager.path, "UTF-8-RAW")
+                    manager.Start()
+                    manager.Apply(manager.GetConfiguration())
+                    this.Assert(!manager.loadWarnings.Length && InStr(FileRead(manager.path, "UTF-8"), "; marker"),
+                        "applying an unchanged configuration does not rewrite the file")
+                }
+            }
+            finally manager.Stop()
+        }
+
+        ; An exclusive handle prevents copying: recovery must fail without
+        ; changing the source. Both settings loaders must enforce this boundary.
+        lockedDirectory := directory "\locked"
+        DirCreate lockedDirectory
+        lockedSettings := lockedDirectory "\settings.ini"
+        FileAppend("damaged preferences", lockedSettings, "UTF-8-RAW")
+        lockedManager := Keybindings("locked", "Locked", {directory: lockedDirectory})
+        FileAppend("damaged hotkeys", lockedManager.path, "UTF-8-RAW")
+        for path in [lockedSettings, lockedManager.path] {
+            handle := DllCall("CreateFileW", "str", path, "uint", 0x80000000,
+                "uint", 0, "ptr", 0, "uint", 3, "uint", 0, "ptr", 0, "ptr")
+            this.Assert(handle != -1, "fixture exclusively locks the damaged file")
+            try {
+                if path = lockedSettings
+                    this.Rejects(() => SuiteSettings(lockedDirectory),
+                        "suite settings cannot recover when preservation fails")
+                else
+                    this.Rejects(() => lockedManager.Start(),
+                        "keybindings cannot recover when preservation fails")
+            }
+            finally DllCall("CloseHandle", "ptr", handle)
+        }
+        lockedManager.Stop()
+        this.Assert(FileRead(lockedSettings) = "damaged preferences"
+            && FileRead(lockedManager.path) = "damaged hotkeys",
+            "failed recovery retains both original files")
+        firstCopy := KB_Manifest.KeepDamagedFile(lockedSettings)
+        secondCopy := KB_Manifest.KeepDamagedFile(lockedSettings)
+        this.Assert(firstCopy != secondCopy && FileRead(firstCopy) = "damaged preferences"
+            && FileRead(secondCopy) = "damaged preferences",
+            "repeated recovery preserves separate copies without overwriting")
+
+        settings := SuiteSettings(this.directory "\backups")
+        DirCreate settings.directory "\backups\keep-me"
+        loop SuiteSettings.BackupsKept + 5 {
+            FileAppend("x", settings.directory "\backup-source-" A_Index ".ini")
+            settings.Backup([settings.directory "\backup-source-" A_Index ".ini"])
+        }
+        folders := 0
+        loop files settings.directory "\backups\*", "D"
+            folders += 1
+        this.Assert(folders = SuiteSettings.BackupsKept + 1 && DirExist(settings.directory "\backups\keep-me"),
+            "backups keep only the newest folders and never touch other folders")
+        this.Assert(settings.Backup([settings.directory "\missing.ini"]) = "",
+            "a backup of missing files creates no empty folder")
+    }
+
     static CheckDryRunLifecycle() {
         app := SuiteApplication(true, this.directory "\startup")
         try {
             app.Start()
             this.Assert(app.manager.running && app.manager.paused, "dry-run startup keeps every shortcut inactive")
-            this.Assert(!app.cascadeStarted && !app.paperPadStarted, "dry-run startup does not start native feature modules")
-            this.Assert(IsObject(app.ui) && IsObject(app.manager.settings), "dry-run startup creates the shared tray and editor")
+            this.Assert(!app.modules["cascade-kingdom"].started && !app.modules["paper-pad"].started,
+                "dry-run startup does not start native feature modules")
+            this.Assert(IsObject(app.ui) && IsObject(app.manager.editor.window), "dry-run startup creates the shared tray and editor")
             app.ui.ShowModules()
-            this.Assert(IsObject(app.ui.modulesWindow), "module settings window opens")
+            this.Assert(app.ui.windows.Has("modules"), "module settings window opens")
             app.ui.CloseModules()
             this.Assert(app.manager.paused, "closing module settings keeps dry-run inputs inactive")
         }
@@ -263,6 +368,29 @@ class SuiteChecks {
         }
         this.Assert(!app.manager.running && !app.mutex, "suite shutdown releases manager and process ownership")
         this.Assert(!InStr(FileRead(SuiteState.Log.path, "UTF-8"), "ERROR:"), "dry-run startup and shutdown emit no errors")
+    }
+
+    static CheckModuleStartFailure() {
+        app := SuiteApplication(true, this.directory "\module-failure")
+        module := SuiteFailingModule(app, "paper-pad")
+        manager := Keybindings("failure", "Failure", {directory: app.Settings.directory})
+        try {
+            manager.AddAction("fixture.action", "fixture", (*) => 0, ["Ctrl + Alt + F24"],
+                {available: (*) => app.ModuleActive("paper-pad")})
+            manager.SetPaused(true)
+            manager.Start()
+            signature := Keybindings.Parse("Ctrl + Alt + F24").signature
+            this.Assert(IsObject(manager._SelectedRoute(signature)),
+                "fixture action is routed before its module fails")
+            app.StartModule(module)
+            this.Assert(!module.started && module.cleaned && !app.ModuleActive("paper-pad")
+                && !IsObject(manager._SelectedRoute(signature)),
+                "failed module startup releases resources and stops claiming its hotkeys")
+            this.Assert(app.Settings.modules["paper-pad"] && app.ModuleActive("cascade-kingdom")
+                && app.startupWarnings.Length = 1,
+                "startup failure keeps saved choices and other modules enabled with a warning")
+        }
+        finally manager.Stop()
     }
 
     static CheckExitVeto() {
@@ -303,6 +431,18 @@ class SuiteChecks {
             "continuous edits receive a ten-second fallback")
         this.Assert(PaperPadController.ShouldAutosave(false, 0, 10000, 1000),
             "encoding-only changes retain periodic save attempts")
+    }
+}
+
+class SuiteFailingModule extends SuiteModule {
+    cleaned := false
+
+    Start() {
+        throw Error("Expected module startup failure")
+    }
+
+    Stop(*) {
+        this.cleaned := true
     }
 }
 

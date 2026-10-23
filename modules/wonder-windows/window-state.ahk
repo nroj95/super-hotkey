@@ -123,7 +123,7 @@ WW_GetWindowControlTarget(restore_minimized := true)
     hwnd := WinExist("A")
     if !SuiteWindowOwnership.AllowsWonderWindows(hwnd)
         return 0
-    try return WW_IsWinKeyOverhaulShellClass(WinGetClass(hwnd)) ? 0 : hwnd
+    try return IsShellSurfaceClass(WinGetClass(hwnd)) ? 0 : hwnd
     catch
         return 0
 }

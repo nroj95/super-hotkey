@@ -1,13 +1,11 @@
 ; =============================================================================
-; One flat tray. Module entries open help; settings and diagnostics live in GUIs.
-; Every Keybindings button returns to the same manager-owned editor.
+; One flat tray. Module entries open their guides; module settings, the log and
+; module selection are pages built with the shared helpers below.
 ; =============================================================================
 class SuiteInterface {
     __New(app) {
         this.app := app
         this.windows := Map()
-        this.configurationWindows := Map()
-        this.modulesWindow := 0
         this.moduleControls := Map()
         this.helpLayouts := Map()
         this.helpWindowIds := Map()
@@ -18,7 +16,6 @@ class SuiteInterface {
         this.footerButtons := Map()
         this.footerDrawCallback := ObjBindMethod(this, "DrawFooterButton")
         this.footerDrawInstalled := false
-        this.footerPaintCount := 0
         this.logColorCallback := ObjBindMethod(this, "ColorLog")
         OnMessage(0x0138, this.logColorCallback) ; WM_CTLCOLORSTATIC for read-only Edit
         this.startupPath := A_Startup "\Super Hotkey.lnk"
@@ -78,10 +75,9 @@ class SuiteInterface {
         window.OnEvent("Close", ObjBindMethod(this, "CloseWindow", key))
         window.OnEvent("Escape", ObjBindMethod(this, "CloseWindow", key))
         this.windows[key] := window
-        if configuration {
-            this.configurationWindows[key] := true
+        ; Settings pages change what pending input would do; drop it.
+        if configuration
             this.app.CancelInputs()
-        }
         return window
     }
 
@@ -161,7 +157,7 @@ class SuiteInterface {
                 y: height - 49, w: item.width, h: 30})
             x += item.width + 10
         }
-        this.MoveHelpControls(window, positions)
+        SuiteMoveControls(window, positions, true)
         layout.renderedWidth := width
         layout.renderedHeight := height
     }
@@ -169,61 +165,8 @@ class SuiteInterface {
     DrawFooterButton(wParam, lParam, messageId, receiverHwnd) {
         hwnd := NumGet(lParam, 0, "ptr")
         if !this.footerButtons.Has(hwnd) || this.footerButtons[hwnd] != receiverHwnd
-            || NumGet(lParam, 16, "int") != -12 ; NM_CUSTOMDRAW
-            || NumGet(lParam, 24, "uint") != 1 ; CDDS_PREPAINT
             return
-
-        hdc := NumGet(lParam, 32, "ptr")
-        state := NumGet(lParam, 64, "uint")
-        pressed := !!(state & 0x1)
-        hovered := !!(state & 0x40)
-        enabled := !!DllCall("IsWindowEnabled", "ptr", hwnd, "int")
-        fillColor := pressed ? 0xE5E5E5 : hovered ? 0xF5F5F5 : 0xFFFFFF
-        frameColor := 0xC9C9C9
-        textColor := enabled ? 0x202020 : 0x999999
-        fillBrush := DllCall("CreateSolidBrush", "uint", fillColor, "ptr")
-        frameBrush := DllCall("CreateSolidBrush", "uint", frameColor, "ptr")
-        if !fillBrush || !frameBrush {
-            if fillBrush
-                DllCall("DeleteObject", "ptr", fillBrush)
-            if frameBrush
-                DllCall("DeleteObject", "ptr", frameBrush)
-            return
-        }
-
-        bounds := Buffer(16, 0)
-        DllCall("RtlMoveMemory", "ptr", bounds, "ptr", lParam + 40, "uptr", 16)
-        try {
-            DllCall("FillRect", "ptr", hdc, "ptr", bounds, "ptr", fillBrush, "int")
-            DllCall("FrameRect", "ptr", hdc, "ptr", bounds, "ptr", frameBrush, "int")
-            inner := Buffer(16, 0)
-            DllCall("RtlMoveMemory", "ptr", inner, "ptr", bounds, "uptr", 16)
-            DllCall("InflateRect", "ptr", inner, "int", -5, "int", -3, "int")
-            length := DllCall("GetWindowTextLengthW", "ptr", hwnd, "int")
-            label := Buffer((length + 1) * 2, 0)
-            DllCall("GetWindowTextW", "ptr", hwnd, "ptr", label, "int", length + 1, "int")
-            font := DllCall("SendMessageW", "ptr", hwnd, "uint", 0x31,
-                "uptr", 0, "ptr", 0, "ptr")
-            originalFont := font ? DllCall("SelectObject", "ptr", hdc, "ptr", font, "ptr") : 0
-            originalMode := DllCall("SetBkMode", "ptr", hdc, "int", 1, "int")
-            originalText := DllCall("SetTextColor", "ptr", hdc, "uint", textColor, "uint")
-            try DllCall("DrawTextW", "ptr", hdc, "ptr", label, "int", -1,
-                "ptr", inner, "uint", 0x8825, "int")
-            finally {
-                DllCall("SetTextColor", "ptr", hdc, "uint", originalText)
-                DllCall("SetBkMode", "ptr", hdc, "int", originalMode)
-                if originalFont
-                    DllCall("SelectObject", "ptr", hdc, "ptr", originalFont)
-            }
-            if state & 0x10
-                DllCall("DrawFocusRect", "ptr", hdc, "ptr", inner, "int")
-            this.footerPaintCount += 1
-        }
-        finally {
-            DllCall("DeleteObject", "ptr", fillBrush)
-            DllCall("DeleteObject", "ptr", frameBrush)
-        }
-        return 4 ; CDRF_SKIPDEFAULT
+        return SuitePaintButton(lParam, "normal")
     }
 
     CloseWindow(key, *) {
@@ -244,10 +187,6 @@ class SuiteInterface {
             this.windows[key].Destroy()
             this.windows.Delete(key)
         }
-        if this.configurationWindows.Has(key)
-            this.configurationWindows.Delete(key)
-        if key = "modules"
-            this.modulesWindow := 0
     }
 
     CloseAll() {
@@ -266,7 +205,6 @@ class SuiteInterface {
         OnMessage(0x0138, this.logColorCallback, 0)
     }
 
-    HasSettingsOpen() => this.configurationWindows.Count != 0
     CloseModules(*) => this.CloseWindow("modules")
 
     Report(failure, area) {
@@ -293,7 +231,8 @@ class SuiteInterface {
         key := "help:" id
         if this.Existing(key)
             return
-        name := SuiteSettings.ModuleNames[id]
+        module := this.app.modules[id]
+        name := module.Name
         window := this.NewWindow(key, name " - Getting started", false,
             "+Resize +MinSize560x400 +0x02000000")
         state := this.app.ModuleActive(id) ? "enabled" : "disabled"
@@ -307,12 +246,9 @@ class SuiteInterface {
         window.SetFont("s10 c" statusColor, "Cascadia Mono")
         status := window.AddText("x420 y18 w250 h25", state)
         window.SetFont("s10 cDefault", "Cascadia Mono")
-        content := window.AddText("x20 y55 w860 h455 vhelpText",
-            ModuleHelp.Text(id, this.app.manager))
-        buttons := []
-        if id = "paper-pad"
-            buttons.Push(["Open pad", ObjBindMethod(this, "OpenPad"), 110])
-        if id != "power-up-utilities"
+        content := window.AddText("x20 y55 w860 h455 vhelpText", module.HelpText())
+        buttons := module.HelpButtons()
+        if module.hasSettings
             buttons.Push(["Settings...", ObjBindMethod(this, "OpenSettingsFromHelp", id), 120])
         buttons.Push(["Keybindings...", ObjBindMethod(this, "OpenKeybindingsFromHelp", id), 135])
         buttons.Push(["Close", ObjBindMethod(this, "CloseWindow", key), 100])
@@ -365,7 +301,7 @@ class SuiteInterface {
                 w: item.width, h: 30})
             x += item.width + 10
         }
-        this.MoveHelpControls(window, positions)
+        SuiteMoveControls(window, positions, true)
         layout.renderedWidth := width
         layout.renderedHeight := height
     }
@@ -461,36 +397,6 @@ class SuiteInterface {
         return true
     }
 
-    MoveHelpControls(window, positions) {
-        window.GetClientPos(, , &logicalWidth)
-        dimensions := Buffer(16, 0)
-        if !logicalWidth || !DllCall("GetClientRect", "ptr", window.Hwnd,
-            "ptr", dimensions, "int")
-            throw Error("Cannot measure the Help window client area.")
-        scale := NumGet(dimensions, 8, "int") / logicalWidth
-
-        batch := DllCall("BeginDeferWindowPos", "int", positions.Length, "ptr")
-        if !batch
-            throw OSError(A_LastError, "Begin Help window resize")
-        for entry in positions {
-            batch := DllCall("DeferWindowPos", "ptr", batch, "ptr", entry.control.Hwnd,
-                "ptr", 0, "int", Round(entry.x * scale), "int", Round(entry.y * scale),
-                "int", Round(entry.w * scale), "int", Round(entry.h * scale),
-                "uint", 0x114, "ptr") ; SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOCOPYBITS
-            if !batch
-                throw OSError(A_LastError, "Position Help control")
-        }
-        if !DllCall("EndDeferWindowPos", "ptr", batch, "int")
-            throw OSError(A_LastError, "Finish Help window resize")
-
-        ; Batch movement avoids intermediate paint states. Explicitly invalidate
-        ; the moved buttons so they do not retain stale fragments after dragging.
-        for entry in positions
-            if entry.control.Type = "Button"
-                DllCall("RedrawWindow", "ptr", entry.control.Hwnd, "ptr", 0,
-                    "ptr", 0, "uint", 0x105, "int")
-    }
-
     OpenSettingsFromHelp(id, *) {
         this.CloseWindow("help:" id)
         this.ShowModuleSettings(id)
@@ -507,19 +413,10 @@ class SuiteInterface {
         this.app.manager.ShowSettings(id)
     }
 
-    RefreshHelp(*) {
-        for id in SuiteSettings.ModuleOrder {
-            key := "help:" id
-            if this.windows.Has(key)
-                this.windows[key]["helpText"].Value := ModuleHelp.Text(id, this.app.manager)
-        }
-    }
-
     ShowModules(*) {
         if this.Existing("modules")
             return
         window := this.NewWindow("modules", SuiteApplication.Name " - Modules", true)
-        this.modulesWindow := window
         window.AddText("x20 y18 w560", "Module changes take effect after restarting.")
         this.moduleControls := Map()
         y := 60
@@ -548,157 +445,13 @@ class SuiteInterface {
             this.Report(failure, "Core / module settings")
     }
 
-    ShowModuleSettings(id, *) {
-        switch id {
-            case "secret-layers": this.ShowLayerSettings()
-            case "cascade-kingdom": this.ShowCascadeSettings()
-            case "paper-pad": this.ShowPaperSettings()
-            case "wonder-windows": this.ShowWonderSettings()
-        }
-    }
+    ShowModuleSettings(id, *) => this.app.modules[id].ShowSettings(this)
 
     ; =========================================================================
-    ; Secret Layers: persistent, independent layer choices; restart-based hooks
+    ; shared helpers for module settings pages
     ; =========================================================================
 
-    UpdateSelectorEnabled(selector, checkbox, *) {
-        selector.Enabled := checkbox.Value != 0
-    }
-
-    ShowLayerSettings(*) {
-        key := "settings:secret-layers"
-        if this.Existing(key)
-            return
-        window := this.NewWindow(key, "Secret Layers - Settings", true)
-        window.AddText("x20 y20 w560", "Modules is the master switch. These choices control each layer independently.")
-        window.AddCheckbox("x20 y70 w540 vpause", "Enable Pause layer").Value := this.app.Settings.layers["pause"]
-        window.AddCheckbox("x20 y115 w540 vcaps", "Enable CapsLock layer").Value := this.app.Settings.layers["caps"]
-        toggle := window.AddCheckbox("x20 y160 w415 vcapsToggleEnabled",
-            "Double-tap a modifier to toggle Caps Lock")
-        toggle.Value := this.app.Settings.capsToggleModifier != "Disabled"
-        selector := window.AddDropDownList("x445 y158 w135 vcapsToggleModifier", ["Shift", "Ctrl", "Alt"])
-        selector.Choose(this.app.Settings.capsToggleModifierChoice)
-        toggle.OnEvent("Click", ObjBindMethod(this, "UpdateSelectorEnabled", selector))
-        this.UpdateSelectorEnabled(selector, toggle)
-        window.AddText("x20 y235 w560", "Only works while the CapsLock layer is enabled."
-            . "`nAn optional shortcut is available in Keybindings.")
-        this.Footer(window, [["Apply and restart", ObjBindMethod(this, "SaveLayers"), 160],
-            ["Back", ObjBindMethod(this, "BackToHelp", "secret-layers"), 100]], 300, 600)
-        this.ShowPage(key, 600, 350, 560, 325)
-    }
-
-    SaveLayers(*) {
-        key := "settings:secret-layers"
-        window := this.windows[key]
-        try {
-            this.app.Settings.Save(this.app.Settings.modules,
-                Map("caps", window["caps"].Value != 0, "pause", window["pause"].Value != 0),
-                this.app.Settings.verbose,
-                window["capsToggleEnabled"].Value != 0 ? window["capsToggleModifier"].Text : "Disabled",
-                window["capsToggleModifier"].Text)
-            this.CloseWindow(key)
-            Reload()
-        }
-        catch Error as failure
-            this.Report(failure, "Secret Layers / settings")
-    }
-
-    ; =========================================================================
-    ; Cascade Kingdom settings replace the old tray submenus
-    ; =========================================================================
-
-    ShowCascadeSettings(*) {
-        key := "settings:cascade-kingdom"
-        if this.Existing(key)
-            return
-        global cascade_auto_placement_enabled, cascade_gesture_key, cascade_target_display
-        global cascade_drop_guide_color_name
-        global focus_corner_visible, focus_tab_color_presets
-        global focus_corner_active_slot_color_name, focus_corner_inactive_slot_color_name
-        window := this.NewWindow(key, "Cascade Kingdom - Settings", true)
-        window.AddText("x20 y18 w560", "Hold the cascade key to reverse automatic cascading."
-            . "`nKey + double-click a title bar always adopts a window."
-            . "`nThe key must be enabled in Secret Layers.")
-        window.AddCheckbox("x20 y86 w550 vautoCascade",
-            "Automatically cascade newly opened windows").Value := cascade_auto_placement_enabled
-        window.AddText("x20 y132 w200", "Cascade key")
-        window.AddDropDownList("x240 y127 w210 vcascadeKey", ["CapsLock", "Pause"]).Choose(cascade_gesture_key)
-        choices := this.DisplayChoices(cascade_target_display, true)
-        this.cascadeMonitors := choices.values
-        window.AddText("x20 y177 w200", "Cascade on")
-        window.AddDropDownList("x240 y172 w300 vdisplay", choices.names).Choose(choices.selected)
-        window.AddCheckbox("x20 y215 w550 vtabs", "Show focus tabs").Value := focus_corner_visible
-        colors := []
-        for name in focus_tab_color_presets
-            colors.Push(name)
-        window.AddText("x20 y260 w200", "Active-slot tab color")
-        window.AddDropDownList("x240 y255 w210 vactiveColor", colors).Choose(focus_corner_active_slot_color_name)
-        window.AddText("x20 y305 w200", "Inactive-slot tab color")
-        window.AddDropDownList("x240 y300 w210 vinactiveColor", colors).Choose(focus_corner_inactive_slot_color_name)
-        window.AddText("x20 y350 w200", "Drop-guide color")
-        window.AddDropDownList("x240 y345 w210 vguideColor", colors).Choose(cascade_drop_guide_color_name)
-        window.AddText("x20 y380 w520", "Display changes release other displays without moving windows."
-            . "`nClick Apply to use these settings.")
-        this.Footer(window, [["Apply", ObjBindMethod(this, "SaveCascade"), 120],
-            ["Back", ObjBindMethod(this, "BackToHelp", "cascade-kingdom"), 100]], 465, 600)
-        this.ShowPage(key, 600, 515, 560, 490)
-    }
-
-    SaveCascade(*) {
-        global cascade_auto_placement_enabled, cascade_gesture_key, cascade_target_display
-        global cascade_drop_guide_color_name
-        global focus_corner_visible, focus_tab_color_presets
-        global focus_corner_active_slot_color_name, focus_corner_inactive_slot_color_name
-        global focus_corner_active_slot_color, focus_corner_inactive_slot_color
-        key := "settings:cascade-kingdom"
-        window := this.windows[key]
-        try {
-            autoCascade := window["autoCascade"].Value != 0
-            gestureKey := window["cascadeKey"].Text
-            display := this.cascadeMonitors[window["display"].Value]
-            visible := window["tabs"].Value != 0
-            activeName := window["activeColor"].Text
-            inactiveName := window["inactiveColor"].Text
-            guideName := window["guideColor"].Text
-            if !focus_tab_color_presets.Has(activeName) || !focus_tab_color_presets.Has(inactiveName)
-                || !focus_tab_color_presets.Has(guideName)
-                throw ValueError("Select valid tab and drop-guide colors.")
-            if gestureKey != "CapsLock" && gestureKey != "Pause"
-                throw ValueError("Select CapsLock or Pause as the cascade key.")
-            this.app.Settings.WritePreferences("cascade-kingdom", Map(
-                "Controls", Map("AutoCascadeNewWindows", autoCascade ? 1 : 0,
-                    "CascadeKey", gestureKey, "Display", display),
-                "DropGuides", Map("Color", guideName),
-                "FocusTabs", Map("Visible", visible ? 1 : 0,
-                    "ActiveSlotColor", activeName, "InactiveSlotColor", inactiveName)))
-            routingChanged := cascade_auto_placement_enabled != autoCascade
-                || cascade_gesture_key != gestureKey || cascade_target_display != display
-            if routingChanged {
-                this.app.CancelInputs()
-                WindowCascadeModule.Suspend()
-            }
-            cascade_auto_placement_enabled := autoCascade
-            cascade_gesture_key := gestureKey
-            cascade_target_display := display
-            cascade_drop_guide_color_name := guideName
-            if routingChanged
-                CascadeReleaseExcludedDisplays()
-            if focus_corner_visible != visible
-                ToggleFocusCornerVisibility()
-            focus_corner_active_slot_color_name := activeName
-            focus_corner_inactive_slot_color_name := inactiveName
-            focus_corner_active_slot_color := focus_tab_color_presets[activeName]
-            focus_corner_inactive_slot_color := focus_tab_color_presets[inactiveName]
-            CascadeDropGuides.Hide()
-            if routingChanged && this.app.cascadeStarted && IsCascadeEnabled()
-                WindowCascadeModule.Resume()
-            QueueFocusCornerUpdate()
-            this.CloseWindow(key)
-        }
-        catch Error as failure
-            this.Report(failure, "Cascade Kingdom / settings")
-    }
-
+    ; Display dropdown entries; the stored value is the Windows device name.
     DisplayChoices(selected, includeAll := false) {
         values := includeAll ? ["All"] : []
         names := includeAll ? ["All displays"] : []
@@ -725,42 +478,6 @@ class SuiteInterface {
             selectedIndex := names.Length
         }
         return {values: values, names: names, selected: selectedIndex}
-    }
-
-    ; =========================================================================
-    ; Paper Pad: checked preference changes, never moving or deleting note files
-    ; =========================================================================
-
-    ShowPaperSettings(*) {
-        key := "settings:paper-pad"
-        if this.Existing(key)
-            return
-        path := this.app.Settings.directory "\paper-pad\settings.ini"
-        window := this.NewWindow(key, "Paper Pad - Settings", true)
-        window.AddText("x20 y18 w740", "Changing the notes folder does not move or delete existing notes.")
-        window.AddText("x20 y60 w150", "Notes folder")
-        window.AddEdit("x180 y55 w590 vfolder", IniRead(path, "Paths", "NotesDirectory", EnvGet("USERPROFILE") "\Paper Pad"))
-        window.AddText("x20 y105 w150", "Notepad3 executable")
-        window.AddEdit("x180 y100 w590 veditor", IniRead(path, "Paths", "Notepad3Executable", ""))
-        window.AddText("x180 y132 w590", "Leave the executable blank for automatic detection.")
-        selected := IniRead(path, "Window", "Monitor", "Primary")
-        choices := this.DisplayChoices(selected)
-        this.padMonitors := choices.values
-        window.AddText("x20 y180 w150", "Display")
-        window.AddDropDownList("x180 y175 w380 vdisplay", choices.names).Choose(choices.selected)
-        fields := [["width", "Width (%)", "Window", "WidthPercent", 45],
-            ["height", "Height (%)", "Window", "HeightPercent", 35],
-            ["animation", "Animation (ms)", "Window", "AnimationDurationMs", 180]]
-        y := 225
-        for item in fields {
-            window.AddText("x20 y" (y + 5) " w150", item[2])
-            window.AddEdit("x180 y" y " w140 v" item[1], IniRead(path, item[3], item[4], item[5]))
-            y += 43
-        }
-        this.Footer(window, [["Open notes folder", ObjBindMethod(this, "OpenNotesFolder"), 165],
-            ["Apply and restart", ObjBindMethod(this, "SavePaper"), 160],
-            ["Back", ObjBindMethod(this, "BackToHelp", "paper-pad"), 100]], 392)
-        this.ShowPage(key, 800, 442, 760, 417)
     }
 
     GetDisplayModels() {
@@ -813,121 +530,6 @@ class SuiteInterface {
         if !IsInteger(text) || Integer(text) < minimum || Integer(text) > maximum
             throw ValueError(name " must be an integer from " minimum " to " maximum ".")
         return Integer(text)
-    }
-
-    SavePaper(*) {
-        global paperPad
-        key := "settings:paper-pad"
-        window := this.windows[key]
-        path := this.app.Settings.directory "\paper-pad\settings.ini"
-        try {
-            folder := Trim(window["folder"].Value)
-            editor := Trim(window["editor"].Value)
-            if !RegExMatch(folder, "i)^(?:[a-z]:\\|\\\\)") || RegExMatch(folder, "[\r\n]")
-                throw ValueError("Use an absolute Windows path for the notes folder.")
-            if editor != "" && (!RegExMatch(editor, "i)^(?:[a-z]:\\|\\\\)") || !FileExist(editor))
-                throw ValueError("Select an existing Notepad3 executable, or leave the field blank.")
-            changes := Map("Paths", Map("NotesDirectory", folder, "Notepad3Executable", editor),
-                "Window", Map("Monitor", this.padMonitors[window["display"].Value],
-                    "WidthPercent", this.NumberField(window, "width", 30, 100),
-                    "HeightPercent", this.NumberField(window, "height", 20, 100),
-                    "AnimationDurationMs", this.NumberField(window, "animation", 0, 1000)))
-            pathsChanged := folder != IniRead(path, "Paths", "NotesDirectory", EnvGet("USERPROFILE") "\Paper Pad")
-                || editor != IniRead(path, "Paths", "Notepad3Executable", "")
-            if pathsChanged && this.app.paperPadStarted && IsSet(paperPad) {
-                editorOpen := paperPad.HasWindow() || paperPad.AttachExistingWindow()
-                if editorOpen && MsgBox("Changing these paths requires saving and closing the Paper Pad editor."
-                    . "`n`nExisting notes will not be moved or deleted.",
-                    "Paper Pad", "OKCancel Default2 Icon?") != "OK"
-                    return
-                paperPad.PrepareSuiteExit("Exit")
-            }
-            this.app.Settings.WritePreferences("paper-pad", changes)
-            this.CloseWindow(key)
-            Reload()
-        }
-        catch Error as failure
-            this.Report(failure, "Paper Pad / settings")
-    }
-
-    OpenNotesFolder(*) {
-        path := this.app.Settings.directory "\paper-pad\settings.ini"
-        folder := IniRead(path, "Paths", "NotesDirectory", EnvGet("USERPROFILE") "\Paper Pad")
-        if DirExist(folder)
-            Run('explorer.exe "' folder '"')
-        else
-            MsgBox("The notes folder does not exist yet: " folder, "Paper Pad", "Iconi")
-    }
-
-    OpenPad(*) {
-        global paperPad
-        if this.app.dryRun || !this.app.paperPadStarted || !IsSet(paperPad) {
-            MsgBox("Enable Paper Pad and use a normal launch to open the editor.", SuiteApplication.Name, "Iconi")
-            return
-        }
-        this.CloseWindow("help:paper-pad")
-        paperPad.QueueCommand("show")
-    }
-
-    ; =========================================================================
-    ; Wonder Windows: explicit external compatibility actions, never startup writes
-    ; =========================================================================
-
-    ShowWonderSettings(*) {
-        key := "settings:wonder-windows"
-        if this.Existing(key)
-            return
-        window := this.NewWindow(key, "Wonder Windows - Settings", true)
-        snap := WW_GetNativeWindowsSnapState()
-        window.AddText("x20 y20 w760",
-            "Use one drag-snapping tool at a time. ScreenGrid is optional; FancyZones remains supported.")
-        this.WonderStatus(window, "Windows Snap", snap < 0 ? "unknown" : snap ? "on" : "off",
-            80, "snapStatus")
-        this.WonderStatus(window, "ScreenGrid", WW_IsScreenGridRunning() ? "running" : "not running",
-            105, "screenGridStatus")
-        this.WonderStatus(window, "FancyZones", WW_IsFancyZonesRunning() ? "running" : "not running",
-            130, "fancyZonesStatus")
-        window.AddText("x20 y180 w760", "Windows and PowerToys preferences are not changed at startup."
-            . "`nThe actions below either open settings or ask for confirmation before applying changes."
-            . "`nFancyZones owns its zone-window switching hotkeys; they are not registered twice here.")
-        this.Footer(window, [["Windows Snap...", ObjBindMethod(this, "WonderAction", "snap"), 145],
-            ["Disable Snap...", ObjBindMethod(this, "WonderAction", "disable"), 140],
-            ["ScreenGrid...", ObjBindMethod(this, "WonderAction", "screengrid"), 125],
-            ["FancyZones...", ObjBindMethod(this, "WonderAction", "fancyzones"), 135],
-            ["Back", ObjBindMethod(this, "BackToHelp", "wonder-windows"), 90]], 290)
-        this.ShowPage(key, 800, 340, 740, 320)
-    }
-
-    WonderStatusColor(value) {
-        switch value {
-            case "on", "running": return "008000"
-            case "off", "not running": return "B02020"
-            default: return "505050"
-        }
-    }
-
-    WonderStatus(window, label, value, y, controlName) {
-        window.AddText("x20 y" y " w150 h23", label ":")
-        window.SetFont("s10 c" this.WonderStatusColor(value), "Cascadia Mono")
-        window.AddText("x175 y" y " w220 h23 v" controlName, value)
-        window.SetFont("s10 cDefault", "Cascadia Mono")
-    }
-
-    WonderAction(action, *) {
-        if this.app.dryRun {
-            MsgBox("Compatibility actions are inactive in the dry run.", SuiteApplication.Name, "Iconi")
-            return
-        }
-        try {
-            switch action {
-                case "snap": WW_OpenWindowsSnapSettings()
-                case "disable": WW_PromptToDisableNativeWindowsSnap()
-                case "screengrid": WW_OpenScreenGridReleases()
-                case "fancyzones": WW_CheckFancyZonesIntegration()
-            }
-        }
-        catch Error as failure
-            this.Report(failure, "Wonder Windows / compatibility")
     }
 
     ; =========================================================================
@@ -1078,14 +680,19 @@ class SuiteInterface {
         root := app.Settings.directory
         backup := ""
         try {
-            backup := app.Settings.Backup([app.Settings.path, app.manager.path,
-                root "\cascade-kingdom\settings.ini", root "\paper-pad\settings.ini"])
+            paths := [app.Settings.path, app.manager.path]
+            sections := Map()
+            for id, module in app.modules {
+                paths.Push(root "\" id "\settings.ini")
+                sections[id] := module.resetSections
+            }
+            backup := app.Settings.Backup(paths)
             app.manager.Apply(app.manager._DefaultConfiguration())
             choices := Map()
             for id in SuiteSettings.ModuleOrder
                 choices[id] := true
             app.Settings.Save(choices, Map("caps", true, "pause", true), false, "Shift")
-            app.Settings.ResetModulePreferences()
+            app.Settings.ResetModulePreferences(sections)
             SuiteState.Log.Write("Core", "defaults restored; backup: " backup)
             Reload()
         }

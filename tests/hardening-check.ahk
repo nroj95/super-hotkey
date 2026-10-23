@@ -11,6 +11,10 @@ class SuiteHardeningChecks {
 
     static Assert(condition, label) => SuiteChecks.Assert(condition, label)
 
+    ; Apply a fixture's changed frame styles (SWP_FRAMECHANGED without moving).
+    static RefreshFrame(hwnd) => DllCall("SetWindowPos", "ptr", hwnd, "ptr", 0,
+        "int", 0, "int", 0, "int", 0, "int", 0, "uint", 0x37, "int")
+
     static ExpandedWindowCycle() {
         cycle := [101, 102, 103]
         this.Assert(WW_NextMaximizedFullscreenWindow([], 0, 0) = 0,
@@ -69,7 +73,7 @@ class SuiteHardeningChecks {
             ; A native-style borderless fixture, without SuiteFullscreen.placements.
             WinSetStyle((WinGetStyle(fullscreen) & ~0xC40000) | 0x80000000, fullscreen)
             WinSetExStyle(WinGetExStyle(fullscreen) & ~0x300, fullscreen)
-            WW_RefreshWindowFrame(fullscreen)
+            SuiteHardeningChecks.RefreshFrame(fullscreen)
             WW_GetWindowMonitorBounds(fullscreen, &left, &top, &right, &bottom)
             WinMove(left, top, right - left, bottom - top, fullscreen)
             this.Assert(WW_IsNativeFullscreen(fullscreen), "borderless fixture is native fullscreen")
@@ -163,7 +167,7 @@ class SuiteHardeningChecks {
 
             WinSetStyle((WinGetStyle(hwnd) & ~0xC40000) | 0x80000000, hwnd)
             WinSetExStyle(WinGetExStyle(hwnd) & ~0x300, hwnd)
-            WW_RefreshWindowFrame(hwnd)
+            SuiteHardeningChecks.RefreshFrame(hwnd)
             WW_GetWindowMonitorBounds(hwnd, &left, &top, &right, &bottom)
             WinMove(left, top, right - left, bottom - top, hwnd)
             this.Assert(WW_IsNativeFullscreen(hwnd) && ActiveWindowBlocksCascadeCommands(true),
