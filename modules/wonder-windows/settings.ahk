@@ -25,7 +25,6 @@ WW_last_maximized_fullscreen_hwnd := 0
 WW_focus_navigation_active := false
 WW_focus_navigation_hwnd := 0
 
-WW_close_focus_request := 0
 WW_zone_cycle := 0
 WW_zone_cycle_unit := "fourths"
 

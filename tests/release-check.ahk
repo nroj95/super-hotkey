@@ -404,15 +404,15 @@ class SuiteReleaseChecks {
                 && !CascadeWasMaximizeRestore(0, -1)
                 && !CascadeWasMaximizeRestore(-1, 0),
                 "custom title-bar adoption requires a genuine maximize/restore transition")
-            this.Assert(WW_CloseFocusDecision(true, false) = "preserve"
-                && WW_CloseFocusDecision(true, true) = "preserve"
-                && WW_CloseFocusDecision(false, true) = "wait"
-                && WW_CloseFocusDecision(false, false) = "recover",
+            this.Assert(SuiteCloseWindow.Decision(true, false) = "preserve"
+                && SuiteCloseWindow.Decision(true, true) = "preserve"
+                && SuiteCloseWindow.Decision(false, true) = "wait"
+                && SuiteCloseWindow.Decision(false, false) = "recover",
                 "closing preserves genuine focus and recovers only after closing")
-            this.Assert(WW_ShouldHighlightCloseFocus("preserve", false)
-                && !WW_ShouldHighlightCloseFocus("preserve", true)
-                && !WW_ShouldHighlightCloseFocus("wait", true)
-                && !WW_ShouldHighlightCloseFocus("recover", false),
+            this.Assert(SuiteCloseWindow.ShouldHighlight("preserve", false)
+                && !SuiteCloseWindow.ShouldHighlight("preserve", true)
+                && !SuiteCloseWindow.ShouldHighlight("wait", true)
+                && !SuiteCloseWindow.ShouldHighlight("recover", false),
                 "closing highlights native focus only after the close completes")
             clip := (rect) => (clipped := SuiteFocusBorder.Clip(rect, [0, 0, 1920, 1080]))
                 ? clipped[1] "," clipped[2] "," clipped[3] "," clipped[4] : "hidden"
@@ -426,8 +426,8 @@ class SuiteReleaseChecks {
                 && SuiteFocusBorder.thickness = 12
                 && SuiteFocusBorder.overlap = 2
                 && SuiteFocusBorder.CanHide("wonder-windows", "wonder-windows")
-                && !SuiteFocusBorder.CanHide("wonder-windows", "wonder-windows-close")
-                && SuiteFocusBorder.CanHide("", "wonder-windows-close"),
+                && !SuiteFocusBorder.CanHide("wonder-windows", "close-window")
+                && SuiteFocusBorder.CanHide("", "close-window"),
                 "shared core border preserves appearance and respects module ownership")
             hwnd := 987654321
             RememberUnmanagedCascadeWindow(hwnd)

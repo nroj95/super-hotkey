@@ -1011,7 +1011,7 @@ class SuiteUpgradeChecks {
             this.Assert(!Keybindings.MigrateDefault(oldDefaults, "wonder-windows.minimize", 2, "", "Win + Delete")
                 && oldDefaults["wonder-windows.minimize"].bindings[2] = "",
                 "a migration never takes a hotkey another global action uses")
-            oldDefaults["wonder-windows.close-active"].bindings[1] := ""
+            oldDefaults["core.close-active"].bindings[2] := ""
             this.Assert(Keybindings.MigrateDefault(oldDefaults, "wonder-windows.minimize", 2, "", "Win + Delete")
                 && oldDefaults["wonder-windows.minimize"].bindings[2]
                     = Keybindings.Parse("Win + Delete").signature,
@@ -1495,7 +1495,6 @@ class SuiteUpgradeChecks {
             "wonder-windows.focus-down", "wonder-windows.cycle-stacked",
             "wonder-windows.cycle-expanded",
             "wonder-windows.maximize", "wonder-windows.restore", "wonder-windows.minimize",
-            "wonder-windows.close-active",
             "wonder-windows.move-monitor",
             "wonder-windows.zones-from-left", "wonder-windows.zones-from-right",
             "wonder-windows.stretch-left", "wonder-windows.stretch-right",

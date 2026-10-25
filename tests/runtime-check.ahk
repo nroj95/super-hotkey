@@ -108,12 +108,14 @@ class SuiteChecks {
                 && !manager.actions.Has("wonder-windows.focus-right"),
                 "focus moves up and down with Win + PgUp/PgDn")
             this.Assert(configuration["wonder-windows.isolate"].bindings[1] = Keybindings.Parse("Win + Home").signature
-                && configuration["wonder-windows.close-active"].bindings[1]
-                    = Keybindings.Parse("Win + Delete").signature
-                && configuration["wonder-windows.close-active"].bindings[2]
+                && configuration["core.close-active"].bindings[1]
                     = Keybindings.Parse("Caps + Delete").signature
-                && !manager.actions.Has("cascade-kingdom.close-active"),
-                "isolate uses Win + Home; Wonder Windows closes with Win + Delete or Caps + Delete")
+                && configuration["core.close-active"].bindings[2]
+                    = Keybindings.Parse("Win + Delete").signature
+                && !manager.actions.Has("cascade-kingdom.close-active")
+                && !manager.actions.Has("wonder-windows.close-active")
+                && manager.actions["core.close-active"].category = "Global",
+                "isolate uses Win + Home; a Global action closes with Caps + Delete or Win + Delete")
             for name in ["layout-left", "layout-right", "tile-top-left", "tile-top", "tile-top-right",
                 "tile-bottom-left", "tile-bottom", "tile-bottom-right"]
                 this.Assert(!manager.actions.Has("wonder-windows." name),

@@ -320,6 +320,147 @@ ActivateWindow(hwnd) {
     return false
 }
 
+; Closes a window, then makes sure a sensible window has focus. Windows picks
+; the next foreground; some apps leave the taskbar or desktop active instead,
+; so the eligible Z-order is captured BEFORE closing and used as a fallback
+; across all monitors. Save prompts and other genuine handoffs are left alone.
+class SuiteCloseWindow {
+    static request := 0
+    static owner := "close-window"
+
+    ; Closes hwnd only while it is still the foreground window of process pid.
+    static Close(hwnd, pid) {
+        if !hwnd || !pid || DllCall("GetForegroundWindow", "ptr") != hwnd
+            return
+        try {
+            if WinGetPID("ahk_id " hwnd) != pid
+                return
+            targets := []
+            for candidate in WinGetList()
+                if candidate != hwnd && IsSwitchableWindow(candidate)
+                    try targets.Push({hwnd: candidate, pid: WinGetPID("ahk_id " candidate)})
+            ; Invalidate an earlier close request even if this was the last window.
+            this.request := 0
+            WinClose("ahk_id " hwnd)
+            ; Watch even with no fallback targets: Windows may still focus a valid
+            ; window that became available during the close.
+            request := {hwnd: hwnd, pid: pid, targets: targets, started: A_TickCount}
+            this.request := request
+            SetTimer(ObjBindMethod(this, "Watch", request), -130)
+        }
+        catch Error as err
+            SuiteState.Log.Error("Core / close window", err)
+    }
+
+    static Cancel() => this.request := 0
+
+    ; Preserve ordinary focus handoffs, including modal save/confirmation dialogs.
+    ; Unlike the fallback candidate test, a real foreground dialog may be owned.
+    static HasUsableForeground(hwnd, closing_hwnd, closing_pid) {
+        if !hwnd || !DllCall("IsWindow", "ptr", hwnd, "int")
+            return false
+        if hwnd = closing_hwnd {
+            try {
+                if WinGetPID("ahk_id " hwnd) = closing_pid
+                    return false
+            }
+            catch
+                return false
+        }
+        if !DllCall("IsWindowVisible", "ptr", hwnd, "int")
+            || DllCall("IsIconic", "ptr", hwnd, "int")
+            || IsWindowCloaked(hwnd) || IsShellSurfaceWindow(hwnd)
+            || !SuiteWindowOwnership.AllowsWonderWindows(hwnd)
+            return false
+        try return !(WinGetExStyle("ahk_id " hwnd) & 0x08000000) ; WS_EX_NOACTIVATE
+        catch
+            return false
+    }
+
+    static OriginStillVisible(hwnd, pid) {
+        if !hwnd || !DllCall("IsWindow", "ptr", hwnd, "int")
+            return false
+        try return WinGetPID("ahk_id " hwnd) = pid
+            && DllCall("IsWindowVisible", "ptr", hwnd, "int")
+            && !DllCall("IsIconic", "ptr", hwnd, "int")
+            && !IsWindowCloaked(hwnd)
+        catch
+            return false
+    }
+
+    static Decision(other_focused, origin_visible) {
+        return other_focused ? "preserve" : (origin_visible ? "wait" : "recover")
+    }
+
+    ; The accent border belongs to a completed close, never to a pending save dialog.
+    static ShouldHighlight(outcome, origin_visible) => outcome = "preserve" && !origin_visible
+
+    static Watch(request) {
+        if this.request != request
+            return
+        foreground := DllCall("GetForegroundWindow", "ptr")
+        origin_visible := this.OriginStillVisible(request.hwnd, request.pid)
+        outcome := this.Decision(this.HasUsableForeground(foreground, request.hwnd, request.pid),
+            origin_visible)
+        elapsed := (A_TickCount - request.started) & 0xFFFFFFFF
+        keepWatching := elapsed < 3500
+
+        if outcome = "preserve" && !this.ShouldHighlight(outcome, origin_visible) {
+            ; Keep native focus untouched, including save dialogs. If the close
+            ; completes shortly afterward, the next poll highlights its result.
+            return this._Again(request, keepWatching)
+        }
+        if outcome = "preserve" {
+            this.request := 0
+            ; Focus may have changed while the timer ran: highlight only the real
+            ; current foreground, never an earlier snapshot.
+            foreground := DllCall("GetForegroundWindow", "ptr")
+            if this.HasUsableForeground(foreground, request.hwnd, request.pid) {
+                SuiteFocusBorder.Show(foreground, this.owner)
+                SuiteState.Log.Debug("Core", "Close native focus highlighted. | target=" DescribeWindow(foreground))
+            }
+            return
+        }
+        ; WinClose can be asynchronous. Do not steal focus from an application
+        ; that is still visible, or while it is waiting for a save prompt.
+        if outcome = "wait"
+            return this._Again(request, keepWatching)
+        ; Don't race a manual mouse/keyboard action during the shell handoff.
+        for key in ["LButton", "RButton", "MButton", "LWin", "RWin", "Alt", "Ctrl"]
+            if GetKeyState(key, "P")
+                return this._Again(request, keepWatching)
+
+        this.request := 0
+        for target in request.targets {
+            try {
+                if !WinExist("ahk_id " target.hwnd)
+                    || WinGetPID("ahk_id " target.hwnd) != target.pid
+                    || !IsSwitchableWindow(target.hwnd)
+                    continue
+                ; Never override a real foreground switch while evaluating choices.
+                if this.HasUsableForeground(DllCall("GetForegroundWindow", "ptr"), request.hwnd, request.pid)
+                    return
+                if ActivateWindow(target.hwnd) {
+                    ; Outline the window actually focused, including on other monitors.
+                    if DllCall("GetForegroundWindow", "ptr") = target.hwnd
+                        SuiteFocusBorder.Show(target.hwnd, this.owner)
+                    SuiteState.Log.Debug("Core", "Close focus fallback. | target=" DescribeWindow(target.hwnd))
+                    return
+                }
+            }
+            catch Error as err
+                SuiteState.Log.Error("Core / close focus fallback", err)
+        }
+    }
+
+    static _Again(request, keepWatching) {
+        if keepWatching
+            SetTimer(ObjBindMethod(this, "Watch", request), -140)
+        else
+            this.request := 0
+    }
+}
+
 ; A WINDOWPLACEMENT snapshot, including a maximized window's restore rectangle.
 CaptureWindowPlacement(hwnd) {
     placement := Buffer(44, 0)

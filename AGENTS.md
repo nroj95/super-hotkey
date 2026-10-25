@@ -12,7 +12,7 @@ Super Hotkey is one AutoHotkey v2 64-bit process: a launcher, a small core and f
 | `core/keybindings-editor.ahk` | the Keybindings window |
 | `core/settings.ahk`, `core/logging.ahk` | suite preferences, backups and the shared log |
 | `core/ui.ahk`, `core/tray.ahk` | every GUI, on-screen notices and the only tray |
-| `core/windows.ahk`, `core/focus-border.ahk` | window queries, activation, DPI boundaries, the working display, and manual and managed window ownership |
+| `core/windows.ahk`, `core/focus-border.ahk` | window queries, activation, closing, DPI boundaries, the working display, and manual and managed window ownership |
 | `modules/<id>/module.ahk` | a module's lifecycle, actions, settings page and guide |
 
 ## design rules

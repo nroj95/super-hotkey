@@ -290,16 +290,16 @@ class SuiteHardeningChecks {
                 this.Assert(probe.visible && probe.showCritical > 0,
                     "each reused border segment is shown inside the critical section")
 
-            SuiteFocusBorder.Show(window.Hwnd, "wonder-windows-close")
+            SuiteFocusBorder.Show(window.Hwnd, "close-window")
             this.Assert(!SuiteFocusBorder.Hide("wonder-windows")
-                && SuiteFocusBorder.owner = "wonder-windows-close",
+                && SuiteFocusBorder.owner = "close-window",
                 "old module cleanup cannot hide another module's outline")
             SuiteFocusBorder.Expire()
             for probe in probes
                 this.Assert(!probe.visible && probe.hideCritical > 0,
                     "timer expiry hides border segments inside the critical section")
 
-            SuiteFocusBorder.Show(window.Hwnd, "wonder-windows-close")
+            SuiteFocusBorder.Show(window.Hwnd, "close-window")
             app.CancelInputs()
             this.Assert(SuiteFocusBorder.owner = "", "input cancellation clears the shared border owner")
             for probe in probes

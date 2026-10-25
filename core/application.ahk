@@ -163,6 +163,10 @@ class SuiteApplication {
         this.manager.RegisterDisjointScopes("paper-pad", "windows-terminal")
         this.manager.AddAction("core.keybindings", "open Keybindings", ObjBindMethod(this, "OpenBindingsEvent"),
             ["Caps + Alt + K", "Ctrl + Alt + K"], {category: "Global"})
+        ; Global so that closing works whichever modules are enabled.
+        this.manager.AddAction("core.close-active", "close active window", ObjBindMethod(this, "CloseWindowEvent"),
+            ["Caps + Delete", "Win + Delete"], {category: "Global",
+                context: (*) => SuiteWindowOwnership.AllowsWonderWindows(DllCall("GetForegroundWindow", "ptr"))})
         ; The log actions keep their original IDs so saved assignments survive.
         this.manager.AddAction("cascade-kingdom.copy-log", "copy debug log",
             ObjBindMethod(this, "LogShortcutEvent", "copy"), ["Pause + F2"], {category: "Global"})
@@ -182,6 +186,18 @@ class SuiteApplication {
     OpenBindingsEvent(event) {
         if event.phase = "down"
             this.QueueInput(ObjBindMethod(this, "ToggleKeybindings"))
+    }
+
+    ; Capture the target at the press; a delayed close never hits a later window.
+    CloseWindowEvent(event) {
+        if event.phase != "down"
+            return
+        if this.dryRun {
+            SuiteState.Log.Write("Core", "dry run: " event.actionId)
+            return
+        }
+        hwnd := event.foregroundHwnd
+        this.QueueInput(ObjBindMethod(SuiteCloseWindow, "Close", hwnd, WindowProcessId(hwnd)))
     }
 
     LogShortcutEvent(kind, event) {
@@ -235,6 +251,7 @@ class SuiteApplication {
         this.inputGeneration += 1
         for id, module in this.modules
             module.CancelWork()
+        SuiteCloseWindow.Cancel()
         SuiteFocusBorder.Hide()
     }
 
