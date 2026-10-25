@@ -26,8 +26,8 @@ WW_last_maximized_fullscreen_hwnd := 0
 WW_focus_navigation_active := false
 WW_focus_navigation_hwnd := 0
 
-WW_screengrid_releases_url := "https://github.com/TtesseractT/ScreenGrid/releases/latest"
+WW_zone_cycle := 0
+WW_zone_cycle_unit := "fourths"
+
 WW_fancyzones_process_id := 0
-WW_fancyzones_integration_state := false
-WW_fancyzones_check_in_progress := false
 }

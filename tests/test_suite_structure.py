@@ -110,10 +110,9 @@ class SuiteStructureTests(unittest.TestCase):
 
     def test_wonder_has_no_automatic_setup_writes(self):
         text = source(ROOT / 'modules/wonder-windows/module.ahk')
-        # Snap and FancyZones changes are reachable only from the Settings page.
+        # Snap changes are reachable only from the Settings page.
         lifecycle = text[text.index('    Start() {'):text.index('    ShowSettings(ui) {')]
         self.assertNotIn('WW_PromptToDisableNativeWindowsSnap()', lifecycle)
-        self.assertNotIn('WW_CheckFancyZonesIntegration()', lifecycle)
 
     def test_sources_are_utf8_with_lf(self):
         for path in [*RUNTIME, *ROOT.glob('tests/*'), *ROOT.glob('modules/*/*.ps1')]:

@@ -70,15 +70,15 @@ WW_GetNextCycleIndex(current_index, count, backwards := false)
 
 ; Apps such as Discord cannot shrink to every layout, so their cycles skip the
 ; ones they refuse. When none fits, the normal step is placed as best it can.
-WW_GetNextFittingIndex(current_index, layouts, minimum)
+WW_GetNextFittingIndex(current_index, layouts, minimum, backwards := false)
 {
     candidate := current_index
     Loop layouts.Length {
-        candidate := WW_GetNextCycleIndex(candidate, layouts.Length)
+        candidate := WW_GetNextCycleIndex(candidate, layouts.Length, backwards)
         if WW_LayoutFitsMinimum(layouts[candidate], minimum)
             return candidate
     }
-    return WW_GetNextCycleIndex(current_index, layouts.Length)
+    return WW_GetNextCycleIndex(current_index, layouts.Length, backwards)
 }
 
 WW_LayoutFitsMinimum(layout, minimum, tolerance := 2)

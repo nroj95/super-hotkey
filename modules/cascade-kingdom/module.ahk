@@ -34,8 +34,6 @@ class CascadeKingdomModule extends SuiteModule {
         manager.Observe("~*Space", IsExplorerSpaceReshowIntentContext,
             (*) => CaptureExplorerSpaceReshowIntent())
         SuiteWindowOwnership.OnClaim(CascadeForgetManualWindow)
-        ; Wait until the suite is ready before showing any conflict warning.
-        SetTimer(CheckCompatibilitySettings, -500)
     }
 
     Suspend() {
@@ -103,7 +101,6 @@ class CascadeKingdomModule extends SuiteModule {
         CascadeDropGuides.Destroy()
         cascade_command_queue := []
         SetTimer(DrainCascadeCommandQueue, 0)
-        SetTimer(CheckCompatibilitySettings, 0)
         StopFocusTabClick()
         StopWindowHooks()
         StopCascadeDisplays()

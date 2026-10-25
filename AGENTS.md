@@ -30,7 +30,7 @@ Super Hotkey is one AutoHotkey v2 64-bit process: a launcher, a small core and f
 
 - settings live in `%LOCALAPPDATA%\nroj\SuperHotkey`. never delete user data automatically and never import old configuration directories. damaged files are kept as `.damaged-yyyyMMdd-HHmmss` copies. internal mutex and ownership identifiers keep legacy names for compatibility.
 - **Restore defaults** in Keybindings and **Reset to defaults...** in the tray stay separate, ask for confirmation and never touch notes, note paths, editor preferences or page state.
-- never change another application's settings automatically. Windows Snap and FancyZones changes require explicit consent. the Windows Terminal resolver only reads; Paper Pad runs Notepad3 with its own settings file and sends menu commands only while the running editor's menu has them.
+- never change another application's settings automatically. Windows Snap changes require explicit consent. FancyZones is not supported; Wonder Windows only reports that it is running. the Windows Terminal resolver only reads; Paper Pad runs Notepad3 with its own settings file and sends menu commands only while the running editor's menu has them.
 
 ## checks
 

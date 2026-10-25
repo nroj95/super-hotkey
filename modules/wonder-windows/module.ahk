@@ -2,10 +2,16 @@
 ; settings page and guide. Window commands themselves live in the other files.
 class WonderWindowsModule extends SuiteModule {
     hasSettings := true
+    resetSections := ["Zones"]
+    static ZoneUnits := [["fourths", "Fourths and halves"], ["thirds", "Thirds"]]
 
     __New(app) {
+        global WW_zone_cycle_unit
         super.__New(app, "wonder-windows")
         WW_InitializeState()
+        this.settingsPath := app.Settings.directory "\wonder-windows\settings.ini"
+        unit := IniRead(this.settingsPath, "Zones", "Cycle", "fourths")
+        WW_zone_cycle_unit := unit = "thirds" ? "thirds" : "fourths"
         this.manager := 0
         this.stopping := false
         this.generation := 0
@@ -13,7 +19,6 @@ class WonderWindowsModule extends SuiteModule {
         this.catalog := Map()
         this.drainCallback := ObjBindMethod(this, "Drain")
         this.pollCallback := ObjBindMethod(this, "PollCompatibility")
-        this.optionalAvailability := "0000"
         ; Adoption by Cascade Kingdom must first undo Wonder Windows' own state.
         SuiteWindowOwnership.OnRelease(WW_PrepareWindowForAdoption)
     }
@@ -48,6 +53,10 @@ class WonderWindowsModule extends SuiteModule {
             else
                 this.Add("tile-" tile[1], "cycle " tile[1] "-center tiles", WW_PlaceCenterTile, ["Win + " tile[2]], [tile[1]])
         }
+        this.Add("zones-from-left", "cycle zones, starting from the left", WW_CycleZone,
+            ["Win + WheelDown", "Caps + Win + PgDn"], ["down"])
+        this.Add("zones-from-right", "cycle zones, starting from the right", WW_CycleZone,
+            ["Win + WheelUp", "Caps + Win + PgUp"], ["up"])
         for side in ["left", "right"]
             this.Add("stretch-" side, "stretch " side " to obstacle / restore", WW_ToggleHorizontalStretch,
                 ["Win + Shift + " side], [side])
@@ -59,59 +68,21 @@ class WonderWindowsModule extends SuiteModule {
                 WW_SwapWindow, ["Caps + Win + " direction], [direction])
         this.Add("isolate", "isolate active window / restore", WW_ToggleOtherWindows, ["Win + Shift + Home"])
         this.Add("minimize-all", "minimize / restore all windows", WW_ToggleAllWindows, ["Win + M"])
-        for direction in ["up", "down", "left", "right"]
-            this.Add("zone-" direction, "FancyZones: move " direction, WW_MoveWindowThroughFancyZones,
-                ["Ctrl + Alt + " direction], [direction], true)
         manager.AddMigration("wonderDefaults", "1", WW_MigrateKeybindingDefaults)
     }
 
-    Add(id, label, command, bindings, arguments := unset, fancyZones := false) {
+    Add(id, label, command, bindings, arguments := unset) {
         actionId := "wonder-windows." id
         arguments := IsSet(arguments) ? arguments : []
-        this.catalog[actionId] := {command: command, arguments: arguments, fancyZones: fancyZones}
+        this.catalog[actionId] := {command: command, arguments: arguments}
         this.manager.AddAction(actionId, label, ObjBindMethod(this, "Event"), bindings,
-            {category: fancyZones ? "Wonder Windows / FancyZones" : "Wonder Windows",
-                available: fancyZones ? ObjBindMethod(this, "FancyZonesAvailable", arguments[1])
-                    : ObjBindMethod(this, "Available"),
-                context: fancyZones ? ObjBindMethod(this, "FancyZonesContext", arguments[1])
-                    : ObjBindMethod(this, "WindowContext")})
+            {category: "Wonder Windows", available: ObjBindMethod(this, "Available"),
+                context: ObjBindMethod(this, "WindowContext")})
     }
 
     Available(*) => this.app.ModuleActive(this.id)
 
-    ; Zone index navigation uses only left/right; relative position uses all four.
-    static FancyZonesReady(direction) {
-        global WW_fancyzones_process_id, WW_fancyzones_integration_state
-        state := WW_fancyzones_integration_state
-        return WW_fancyzones_process_id && IsObject(state) && state.override_snap_enabled
-            && (state.relative_position_enabled || direction = "left" || direction = "right")
-    }
-
-    FancyZonesAvailable(direction, *) => this.Available() && WonderWindowsModule.FancyZonesReady(direction)
-
     WindowContext(*) => SuiteWindowOwnership.AllowsWonderWindows(DllCall("GetForegroundWindow", "ptr"))
-
-    FancyZonesContext(direction, *) => this.WindowContext() && WonderWindowsModule.FancyZonesReady(direction)
-
-    ; FancyZones hotkeys are registered only while it can receive them.
-    RefreshOptionalActions(*) {
-        signature := ""
-        for direction in ["left", "right", "up", "down"]
-            signature .= this.FancyZonesAvailable(direction) ? "1" : "0"
-        if signature = this.optionalAvailability || !this.manager.running
-            return
-        this.optionalAvailability := signature
-        try {
-            this.manager.Apply(this.manager.GetConfiguration())
-            this.manager.editor.Render()
-        }
-        catch Error as failure {
-            SuiteState.Log.Error("Wonder Windows / optional hotkeys", failure)
-            if !this.app.dryRun
-                TrayTip("FancyZones hotkeys could not activate. Resolve the hotkey conflict in Keybindings.",
-                    SuiteApplication.Name, 2)
-        }
-    }
 
     Start() {
         ; The observer is passive and shares its callback group with Cascade Kingdom.
@@ -124,10 +95,9 @@ class WonderWindowsModule extends SuiteModule {
     PollCompatibility(*) {
         if this.stopping || this.app.dryRun
             return
-        try WW_CheckFancyZonesStartup()
+        try WW_CheckFancyZones()
         catch Error as failure
             SuiteState.Log.Error("Wonder Windows / compatibility", failure)
-        this.RefreshOptionalActions()
         SuiteWindowOwnership.Prune()
     }
 
@@ -144,11 +114,6 @@ class WonderWindowsModule extends SuiteModule {
                 this.pending.Delete(token)
             return
         }
-        if event.phase = "up" {
-            if this.pending.Has(token)
-                this.pending[token].released := true
-            return
-        }
         if event.phase != "down" || !this.catalog.Has(event.actionId)
             return
         if this.app.dryRun {
@@ -159,17 +124,8 @@ class WonderWindowsModule extends SuiteModule {
             return
         this.pending[token] := {action: this.catalog[event.actionId], event: event.Clone(),
             pid: WindowProcessId(event.foregroundHwnd), generation: this.generation,
-            created: A_TickCount, released: false}
+            created: A_TickCount}
         SetTimer(this.drainCallback, 15)
-    }
-
-    static InputsReleased(event) {
-        if !InStr(event.key, "Wheel") && GetKeyState(event.key, "P")
-            return false
-        for key in ["Ctrl", "Alt", "Shift", "LWin", "RWin", "CapsLock", "Pause", "CtrlBreak"]
-            if GetKeyState(key, "P")
-                return false
-        return true
     }
 
     Drain(*) {
@@ -182,10 +138,6 @@ class WonderWindowsModule extends SuiteModule {
                 this.pending.Delete(token)
                 continue
             }
-            ; Forwarding waits for release of the actual configurable trigger,
-            ; rather than blocking the shared process with the old KeyWait(arrow).
-            if job.action.fancyZones && (!job.released || !WonderWindowsModule.InputsReleased(job.event))
-                continue
             this.pending.Delete(token)
             try WW_RunWindowCommand(job.action.command, job.action.arguments*)
             catch Error as failure
@@ -200,46 +152,66 @@ class WonderWindowsModule extends SuiteModule {
         this.pending.Clear()
         SetTimer(this.drainCallback, 0)
         WW_EndFocusNavigationSession()
+        WW_EndZoneCycle()
     }
 
     Stop(*) {
         this.stopping := true
         this.CancelWork()
         SetTimer(this.pollCallback, 0)
-        SetTimer(WW_ReassertFancyZonesKeyboardHook, 0)
         WW_RunWindowCommand(WW_ClearSwapZones)
     }
 
-    ; Explicit compatibility actions only; nothing is changed at startup.
+    ; Windows Snap changes need explicit confirmation; nothing changes at startup.
     ShowSettings(ui) {
+        global WW_zone_cycle_unit
         key := "settings:wonder-windows"
         if ui.Existing(key)
             return
         window := ui.NewWindow(key, "Wonder Windows - Settings", true)
+        names := []
+        selected := 1
+        for index, unit in WonderWindowsModule.ZoneUnits {
+            names.Push(unit[2])
+            if unit[1] = WW_zone_cycle_unit
+                selected := index
+        }
+        window.AddText("x20 y25 w150", "Zone cycle")
+        window.AddDropDownList("x175 y20 w260 vzoneUnit", names).Choose(selected)
+        window.AddText("x175 y55 w600", "Full height first, then the upper and lower halves of the display."
+            . " Thirds skips the halves.")
         snap := WW_GetNativeWindowsSnapState()
-        window.AddText("x20 y20 w760",
-            "Use one drag-snapping tool at a time. ScreenGrid is optional; FancyZones remains supported.")
         WonderWindowsModule.AddStatus(window, "Windows Snap", snap < 0 ? "unknown" : snap ? "on" : "off",
-            80, "snapStatus")
-        WonderWindowsModule.AddStatus(window, "ScreenGrid", WW_IsScreenGridRunning() ? "running" : "not running",
-            105, "screenGridStatus")
-        WonderWindowsModule.AddStatus(window, "FancyZones", WW_IsFancyZonesRunning() ? "running" : "not running",
-            130, "fancyZonesStatus")
-        window.AddText("x20 y180 w760", "Windows and PowerToys preferences are not changed at startup."
-            . "`nThe actions below either open settings or ask for confirmation before applying changes."
-            . "`nFancyZones owns its zone-window switching hotkeys; they are not registered twice here.")
-        ui.Footer(window, [["Windows Snap...", ObjBindMethod(this, "CompatibilityAction", ui, "snap"), 145],
+            110, "snapStatus")
+        WonderWindowsModule.AddStatus(window, "FancyZones",
+            WW_IsFancyZonesRunning() ? "running, not supported" : "not running", 135, "fancyZonesStatus")
+        window.AddText("x20 y185 w760", "Use one window-snapping tool at a time. Windows Snap is only"
+            . " changed after you confirm. FancyZones is not supported; close it in PowerToys.")
+        ui.Footer(window, [["Apply", ObjBindMethod(this, "SaveSettings", ui), 100],
+            ["Windows Snap...", ObjBindMethod(this, "CompatibilityAction", ui, "snap"), 145],
             ["Disable Snap...", ObjBindMethod(this, "CompatibilityAction", ui, "disable"), 140],
-            ["ScreenGrid...", ObjBindMethod(this, "CompatibilityAction", ui, "screengrid"), 125],
-            ["FancyZones...", ObjBindMethod(this, "CompatibilityAction", ui, "fancyzones"), 135],
-            ["Back", ObjBindMethod(ui, "BackToHelp", this.id), 90]], 290)
-        ui.ShowPage(key, 800, 340, 740, 320)
+            ["Back", ObjBindMethod(ui, "BackToHelp", this.id), 90]], 260)
+        ui.ShowPage(key, 800, 310, 740, 290)
+    }
+
+    SaveSettings(ui, *) {
+        global WW_zone_cycle_unit
+        key := "settings:wonder-windows"
+        try {
+            unit := WonderWindowsModule.ZoneUnits[ui.windows[key]["zoneUnit"].Value][1]
+            this.app.Settings.WritePreferences(this.id, Map("Zones", Map("Cycle", unit)))
+            WW_zone_cycle_unit := unit
+            WW_EndZoneCycle()
+            ui.CloseWindow(key)
+        }
+        catch Error as failure
+            ui.Report(failure, "Wonder Windows / settings")
     }
 
     static StatusColor(value) {
         switch value {
-            case "on", "running": return "008000"
-            case "off", "not running": return "B02020"
+            case "on", "not running": return "008000"
+            case "off", "running, not supported": return "B02020"
             default: return "505050"
         }
     }
@@ -260,8 +232,6 @@ class WonderWindowsModule extends SuiteModule {
             switch action {
                 case "snap": WW_OpenWindowsSnapSettings()
                 case "disable": WW_PromptToDisableNativeWindowsSnap()
-                case "screengrid": WW_OpenScreenGridReleases()
-                case "fancyzones": WW_CheckFancyZonesIntegration()
             }
         }
         catch Error as failure
@@ -278,6 +248,12 @@ class WonderWindowsModule extends SuiteModule {
             . "quarter-width, half-width and near-center. Corner and top/bottom tiles offer "
             . "more precise placement. Stretch toward neighboring windows or cycle "
             . "between full-height and full-width. Restore brings back the original shape."
+            . "`r`n`r`nCYCLE ZONES"
+            . "`r`nHold Win and scroll, or hold Caps + Win and press PgDn or PgUp, to walk the "
+            . "window through fourths and halves: full height first, then upper and lower "
+            . "fourths, then upper and lower halves. Scroll down starts at the left, scroll up at the right; the "
+            . "other direction steps back. Release the keys to start over next time. Settings "
+            . "can switch the cycle to thirds. Sizes an app cannot shrink to are skipped."
             . "`r`n`r`nFOCUS, SWAP AND FULLSCREEN"
             . "`r`nMove focus to the nearest window in a direction, swap with a nearby window, "
             . "or temporarily minimize a group. Cycle the windows on the active monitor without moving them, "

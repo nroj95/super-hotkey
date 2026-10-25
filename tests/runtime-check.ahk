@@ -122,6 +122,18 @@ class SuiteChecks {
             this.Assert(!manager.actions.Has("wonder-windows.swap-next")
                 && !manager.actions.Has("wonder-windows.swap-previous"),
                 "old clockwise swap actions are removed")
+            this.Assert(configuration["wonder-windows.zones-from-left"].bindings[1]
+                    = Keybindings.Parse("Win + WheelDown").signature
+                && configuration["wonder-windows.zones-from-left"].bindings[2]
+                    = Keybindings.Parse("Caps + Win + PgDn").signature
+                && configuration["wonder-windows.zones-from-right"].bindings[1]
+                    = Keybindings.Parse("Win + WheelUp").signature
+                && configuration["wonder-windows.zones-from-right"].bindings[2]
+                    = Keybindings.Parse("Caps + Win + PgUp").signature,
+                "zone cycling defaults to Win + wheel and Caps + Win + PgDn/PgUp")
+            for direction in ["up", "down", "left", "right"]
+                this.Assert(!manager.actions.Has("wonder-windows.zone-" direction),
+                    "FancyZones forwarding is removed: " direction)
             this.Assert(configuration["wonder-windows.move-monitor"].bindings[1]
                     = Keybindings.Parse("Caps + Win + Backspace").signature,
                 "Wonder Windows defaults to one monitor-cycle shortcut")

@@ -1073,6 +1073,44 @@ class SuiteUpgradeChecks {
                 && WW_GetNextFittingIndex(1, side, [900, 500]) = 2
                 && WW_GetNextFittingIndex(0, side, [900, 500]) = 1,
                 "a single fitting size repeats; when none fits the normal cycle continues")
+            work := [0, 0, 1600, 900]
+            zones := WW_BuildZoneSequence(work, "fourths")
+            this.Assert(zones.Length = 21
+                && WW_RectanglesMatch(zones[1], [0, 0, 400, 900], 0)
+                && WW_RectanglesMatch(zones[4], [1200, 0, 400, 900], 0)
+                && WW_RectanglesMatch(zones[6], [400, 0, 800, 900], 0)
+                && WW_RectanglesMatch(zones[8], [0, 0, 400, 450], 0)
+                && WW_RectanglesMatch(zones[11], [1200, 0, 400, 450], 0)
+                && WW_RectanglesMatch(zones[12], [0, 450, 400, 450], 0)
+                && WW_RectanglesMatch(zones[16], [0, 0, 800, 450], 0)
+                && WW_RectanglesMatch(zones[19], [0, 450, 800, 450], 0)
+                && WW_RectanglesMatch(zones[21], [800, 450, 800, 450], 0),
+                "fourths: full quarters and halves, then upper and lower quarters, then halves")
+            mirrored := WW_BuildZoneSequence(work, "fourths", true)
+            this.Assert(WW_RectanglesMatch(mirrored[1], [1200, 0, 400, 900], 0)
+                && WW_RectanglesMatch(mirrored[5], [800, 0, 800, 900], 0)
+                && WW_RectanglesMatch(mirrored[21], [0, 450, 800, 450], 0),
+                "starting from the right mirrors the walk")
+            thirds := WW_BuildZoneSequence(work, "thirds")
+            this.Assert(thirds.Length = 9 && WW_RectanglesMatch(thirds[2], [533, 0, 534, 900], 0)
+                && WW_RectanglesMatch(thirds[4], [0, 0, 533, 450], 0)
+                && WW_RectanglesMatch(thirds[9], [1067, 450, 533, 450], 0),
+                "thirds skip the halves")
+            session := WW_StartZoneSession(1, 2, work, "fourths", "down")
+            steps := []
+            for direction in ["down", "down", "up", "up", "up"]
+                steps.Push(WW_AdvanceZoneSession(session, direction, [0, 0]))
+            this.Assert(steps[1] = 1 && steps[2] = 2 && steps[3] = 1 && steps[4] = 21 && steps[5] = 20,
+                "the other key steps back one zone, wrapping at the ends")
+            session := WW_StartZoneSession(1, 2, work, "fourths", "up")
+            this.Assert(WW_AdvanceZoneSession(session, "up", [0, 0]) = 1
+                && WW_RectanglesMatch(session.zones[1], [1200, 0, 400, 900], 0)
+                && WW_AdvanceZoneSession(session, "up", [0, 0]) = 2
+                && WW_AdvanceZoneSession(session, "down", [0, 0]) = 1,
+                "a walk started from the right steps forward with the same key")
+            session := WW_StartZoneSession(1, 2, work, "fourths", "down")
+            this.Assert(WW_AdvanceZoneSession(session, "down", [600, 0]) = 5,
+                "zones an app cannot shrink to are skipped")
             this.Assert(WW_GetCollisionLimitedEdge("left", [400, 0, 200, 300], [[100, 0, 200, 300]], 0) = 300,
                 "horizontal stretch stops at the nearest facing edge")
             this.Assert(WW_GetCollisionLimitedEdge("left", [400, 0, 200, 300], [[450, 0, 200, 300]], 0) = 0,
@@ -1340,13 +1378,9 @@ class SuiteUpgradeChecks {
             this.Assert(sampleRows.Length = 3 && sampleRows[1].label = "Alpha"
                 && sampleRows[2].label = "Alpha / Extensions",
                 "search keeps extension headings directly after their parent")
-            seenFancy := false
-            for row in rows
-                if InStr(row.id, "wonder-windows.zone-") = 1
-                    seenFancy := true
-            this.Assert(!seenFancy, "FancyZones actions are hidden while integration is inactive")
-            this.Assert(!this.RouteExists(manager, "wonder-windows.zone-left"),
-                "inactive FancyZones actions reserve no shortcuts")
+            this.Assert(!manager.actions.Has("wonder-windows.zone-left")
+                && this.RouteExists(manager, "wonder-windows.zones-from-left"),
+                "FancyZones forwarding is gone and zone cycling is registered")
             app.activeModules["paper-pad"] := false
             manager.Apply(manager.GetConfiguration())
             rows := Keybindings.DisplayRows(manager.Catalog())
@@ -1363,55 +1397,11 @@ class SuiteUpgradeChecks {
             changed["power-up-utilities.keyboard.f13"].bindings[1] := "Ctrl + Alt + Left"
             manager.Apply(changed)
             this.Assert(this.RouteExists(manager, "power-up-utilities.keyboard.f13"),
-                "an unused FancyZones shortcut can be reassigned without conflict")
-
-            global WW_fancyzones_process_id, WW_fancyzones_integration_state
-            WW_fancyzones_process_id := 123456
-            WW_fancyzones_integration_state := {override_snap_enabled: true,
-                relative_position_enabled: false}
-            wonder := app.modules["wonder-windows"]
-            this.Assert(wonder.FancyZonesAvailable("left") && !wonder.FancyZonesAvailable("up"),
-                "FancyZones availability respects the active navigation mode")
-            wonder.RefreshOptionalActions()
-            this.Assert(!this.RouteExists(manager, "wonder-windows.zone-left"),
-                "a newly enabled conflicting integration does not steal an active shortcut")
-            this.Assert(manager.GetConfiguration()["power-up-utilities.keyboard.f13"].bindings[1]
-                = Keybindings.Parse("Ctrl + Alt + Left").signature,
-                "optional activation conflicts leave saved bindings untouched")
-
-            changed := manager.GetConfiguration()
-            changed["power-up-utilities.keyboard.f13"].bindings[1] := "Caps + Q"
-            manager.Apply(changed)
-            this.Assert(this.RouteExists(manager, "wonder-windows.zone-left"),
-                "FancyZones shortcuts activate after their conflict is cleared")
-            rows := Keybindings.DisplayRows(manager.Catalog())
-            fancyLeft := false
-            fancyUp := false
-            fancyHeading := false
-            for row in rows {
-                if row.id = "" && row.label = "Wonder Windows / FancyZones"
-                    fancyHeading := true
-                if row.id = "wonder-windows.zone-left"
-                    fancyLeft := true
-                if row.id = "wonder-windows.zone-up"
-                    fancyUp := true
-            }
-            this.Assert(fancyLeft && !fancyUp && fancyHeading,
-                "only currently usable FancyZones directions appear in their extension subgroup")
-            WW_fancyzones_process_id := 0
-            WW_fancyzones_integration_state := false
-            wonder.RefreshOptionalActions()
-            this.Assert(!this.RouteExists(manager, "wonder-windows.zone-left"),
-                "stopping FancyZones releases its registered shortcuts")
-            this.Assert(manager.GetConfiguration()["wonder-windows.zone-left"].bindings[1] != "",
-                "disappearing optional shortcuts preserve their assignments")
+                "the old FancyZones shortcuts are free for other actions")
             this.Assert(!InStr(Keybindings.DisplayRows(manager.Catalog())[1].label, "disabled"),
                 "Keybindings headings do not acquire disabled suffixes")
         }
         finally {
-            global WW_fancyzones_process_id, WW_fancyzones_integration_state
-            WW_fancyzones_process_id := 0
-            WW_fancyzones_integration_state := false
             manager.Stop()
         }
     }
@@ -1913,8 +1903,8 @@ class SuiteUpgradeChecks {
                     settings.GetClientPos(, , &settingsW, &settingsH)
                     if id = "wonder-windows" {
                         for pair in [["snapStatus", ["on", "off", "unknown"]],
-                            ["screenGridStatus", ["running", "not running"]],
-                            ["fancyZonesStatus", ["running", "not running"]]] {
+                            ["fancyZonesStatus", ["running, not supported", "not running"]],
+                            ["zoneUnit", ["Fourths and halves", "Thirds"]]] {
                             statusValue := settings[pair[1]].Text
                             allowed := false
                             for permitted in pair[2]
@@ -1923,14 +1913,14 @@ class SuiteUpgradeChecks {
                             this.Assert(allowed,
                                 "Wonder Windows shows an explicit " pair[1] " status")
                         }
-                        this.Assert(WonderWindowsModule.StatusColor("running") = "008000"
+                        this.Assert(WonderWindowsModule.StatusColor("not running") = "008000"
                             && WonderWindowsModule.StatusColor("on") = "008000"
                             && WonderWindowsModule.StatusColor("off") = "B02020"
-                            && WonderWindowsModule.StatusColor("not running") = "B02020"
+                            && WonderWindowsModule.StatusColor("running, not supported") = "B02020"
                             && WonderWindowsModule.StatusColor("unknown") = "505050",
                             "Wonder Windows status values use green, red or neutral colors")
                         statusCoords := []
-                        for name in ["snapStatus", "screenGridStatus", "fancyZonesStatus"] {
+                        for name in ["zoneUnit", "snapStatus", "fancyZonesStatus"] {
                             settings[name].GetPos(&statusX, &statusY)
                             statusCoords.Push(statusY)
                             this.Assert(statusX = 175,
@@ -1938,7 +1928,7 @@ class SuiteUpgradeChecks {
                         }
                         this.Assert(statusCoords[1] < statusCoords[2]
                             && statusCoords[2] < statusCoords[3],
-                            "Wonder Windows status rows are spaced in reading order")
+                            "Wonder Windows settings rows are spaced in reading order")
                     }
                     this.Assert(app.ui.pageLayouts.Has("settings:" id)
                         && !!(WinGetStyle("ahk_id " settings.Hwnd) & 0x00040000),

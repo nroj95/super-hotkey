@@ -50,17 +50,22 @@ WW_OpenWindowsSnapSettings(*)
     Run("ms-settings:multitasking")
 }
 
-WW_IsScreenGridRunning()
+WW_IsFancyZonesRunning()
 {
-    for executable in ["ScreenGrid.exe", "ScreenGrid-standalone.exe", "ScreenGrid-small.exe"] {
-        if ProcessExist(executable)
-            return true
-    }
-    return false
+    return !!ProcessExist("PowerToys.FancyZones.exe")
 }
 
-WW_OpenScreenGridReleases(*)
+; FancyZones is not supported: its zones and hotkeys compete with Wonder
+; Windows. Say so once per FancyZones process and never touch its settings.
+WW_CheckFancyZones()
 {
-    global WW_screengrid_releases_url
-    Run(WW_screengrid_releases_url)
+    global WW_fancyzones_process_id
+    process_id := ProcessExist("PowerToys.FancyZones.exe")
+    if process_id = WW_fancyzones_process_id
+        return
+    WW_fancyzones_process_id := process_id
+    if !process_id
+        return
+    SuiteState.Log.Write("Wonder Windows", "FancyZones is running; it is not supported")
+    SuiteNotice.Show("status", "FancyZones isn't supported with Wonder Windows", 5000)
 }

@@ -8,7 +8,6 @@
 #Include "%A_ScriptDir%\modules\cascade-kingdom\policy.ahk"
 #Include "%A_ScriptDir%\modules\cascade-kingdom\focus-corners.ahk"
 #Include "%A_ScriptDir%\modules\cascade-kingdom\focus-tab-clicks.ahk"
-#Include "%A_ScriptDir%\modules\cascade-kingdom\interface.ahk"
 #Include "%A_ScriptDir%\modules\cascade-kingdom\keybindings.ahk"
 #Include "%A_ScriptDir%\modules\cascade-kingdom\layout.ahk"
 #Include "%A_ScriptDir%\modules\cascade-kingdom\navigation.ahk"
