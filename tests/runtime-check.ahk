@@ -116,8 +116,9 @@ class SuiteChecks {
                 && !manager.actions.Has("wonder-windows.close-active")
                 && manager.actions["core.close-active"].category = "Global",
                 "isolate uses Win + Home; a Global action closes with Caps + Delete or Win + Delete")
-            this.Assert(configuration["wonder-windows.help"].bindings[2] = Keybindings.Parse("Ctrl + Alt + H").signature,
-                "Wonder Windows help also opens with Ctrl + Alt + H")
+            this.Assert(configuration["wonder-windows.help"].bindings[1] = Keybindings.Parse("Ctrl + Alt + H").signature
+                && configuration["wonder-windows.help"].bindings[2] = Keybindings.Parse("Caps + Win + H").signature,
+                "Wonder Windows help opens with Ctrl + Alt + H, or Caps + Win + H")
             for name in ["layout-left", "layout-right", "tile-top-left", "tile-top", "tile-top-right",
                 "tile-bottom-left", "tile-bottom", "tile-bottom-right"]
                 this.Assert(!manager.actions.Has("wonder-windows." name),
@@ -132,7 +133,9 @@ class SuiteChecks {
                 && configuration["wonder-windows.reset-stretch"].bindings[2] = "",
                 "full stretch cycling and undo have revised defaults")
             this.Assert(configuration["wonder-windows.cycle-expanded"].bindings[1]
-                = Keybindings.Parse("Caps + Win + Enter").signature
+                    = Keybindings.Parse("Win + Alt + Enter").signature
+                && configuration["wonder-windows.cycle-expanded"].bindings[2]
+                    = Keybindings.Parse("Caps + Win + Enter").signature
                 && configuration["wonder-windows.cycle-stacked"].bindings[1]
                     = Keybindings.Parse("Win + Enter").signature,
                 "expanded and stacked window cycling use separate default shortcuts")
@@ -151,9 +154,12 @@ class SuiteChecks {
             for direction in ["up", "down", "left", "right"]
                 this.Assert(!manager.actions.Has("wonder-windows.zone-" direction),
                     "FancyZones forwarding is removed: " direction)
-            this.Assert(configuration["wonder-windows.move-monitor"].bindings[1]
-                    = Keybindings.Parse("Caps + Win + Backspace").signature,
-                "Wonder Windows defaults to one monitor-cycle shortcut")
+            this.Assert(configuration["wonder-windows.move-monitor-left"].bindings[1]
+                    = Keybindings.Parse("Win + Alt + Left").signature
+                && configuration["wonder-windows.move-monitor-right"].bindings[1]
+                    = Keybindings.Parse("Win + Alt + Right").signature
+                && !manager.actions.Has("wonder-windows.move-monitor"),
+                "moving between displays uses Win + Alt + Left/Right")
             this.Assert(!manager.actions.Has("cascade-kingdom.auto-placement"),
                 "old pause-cascading keybinding is removed")
             this.Assert(!manager.actions.Has("cascade-kingdom.rotate-previous")

@@ -960,9 +960,13 @@ class SuiteUpgradeChecks {
             this.Assert(WW_GetNextCycleIndex(4, 4) = 1 && WW_GetNextCycleIndex(1, 4, true) = 4
                 && WW_GetNextCycleIndex(0, 4) = 1 && WW_GetNextCycleIndex(0, 4, true) = 4,
                 "layout cycling wraps in both directions and starts from either end")
-            this.Assert(WW_NextMonitorIndex(1, 2) = 2 && WW_NextMonitorIndex(2, 2) = 1
-                && WW_NextMonitorIndex(3, 3) = 1 && WW_NextMonitorIndex(1, 1) = 0,
-                "monitor cycling wraps and does nothing with one monitor")
+            ; Display 1 is in the middle, 2 on the right, 3 on the left.
+            lefts := [0, 1920, -1920]
+            this.Assert(WW_NextSpatialMonitor(1, lefts) = 2 && WW_NextSpatialMonitor(2, lefts) = 3
+                && WW_NextSpatialMonitor(1, lefts, true) = 3 && WW_NextSpatialMonitor(3, lefts, true) = 2
+                && WW_NextSpatialMonitor(1, [0, 1920]) = 2 && WW_NextSpatialMonitor(1, [0, 1920], true) = 2
+                && WW_NextSpatialMonitor(1, [0]) = 0,
+                "monitor moves follow the physical layout, wrap, and do nothing with one display")
             this.Assert(WW_RectanglesMatch(
                 WW_RelocateWindowRectangle([150, 130, 500, 300], [0, 0, 1000, 800],
                     [-1920, 0, 0, 1040]), [-1770, 130, 500, 300], 0),
@@ -1377,7 +1381,7 @@ class SuiteUpgradeChecks {
             this.Assert(saved["cascade-kingdom.help"].bindings[1]
                 = Keybindings.Parse("Caps + H").signature
                 && saved["wonder-windows.help"].bindings[1]
-                    = Keybindings.Parse("Caps + Win + H").signature
+                    = Keybindings.Parse("Ctrl + Alt + H").signature
                 && saved["power-up-utilities.interface.open"].bindings[1]
                     = Keybindings.Parse("Pause + H").signature,
                 "existing module Help shortcuts retain their original defaults")
@@ -1495,7 +1499,7 @@ class SuiteUpgradeChecks {
             "wonder-windows.focus-down", "wonder-windows.cycle-stacked",
             "wonder-windows.cycle-expanded",
             "wonder-windows.maximize", "wonder-windows.restore", "wonder-windows.minimize",
-            "wonder-windows.move-monitor",
+            "wonder-windows.move-monitor-left", "wonder-windows.move-monitor-right",
             "wonder-windows.zones-from-left", "wonder-windows.zones-from-right",
             "wonder-windows.stretch-left", "wonder-windows.stretch-right",
             "wonder-windows.stretch-height", "wonder-windows.stretch-full-cycle",

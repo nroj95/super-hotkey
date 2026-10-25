@@ -1,9 +1,22 @@
-; Cycle the active window across connected displays without adopting manual
-; windows into Cascade Kingdom. Managed windows use destination smart placement.
+; Move the active window to the display on its left or right without adopting
+; manual windows into Cascade Kingdom. Managed windows use destination smart placement.
 
-WW_NextMonitorIndex(source, count)
+; The display to the right of source, or to the left when backwards, wrapping
+; at the ends; 0 with one display. lefts[i] is display i's left edge, so the
+; order follows the physical layout rather than Windows' display numbers.
+WW_NextSpatialMonitor(source, lefts, backwards := false)
 {
-    return count < 2 || source < 1 || source > count ? 0 : Mod(source, count) + 1
+    order := []
+    for index, left in lefts {
+        position := order.Length + 1
+        while position > 1 && left < lefts[order[position - 1]]
+            position -= 1
+        order.InsertAt(position, index)
+    }
+    current := WW_FindWindowIndex(order, source)
+    if order.Length < 2 || !current
+        return 0
+    return order[WW_GetNextCycleIndex(current, order.Length, backwards)]
 }
 
 WW_RelocateWindowRectangle(rect, source, target)
@@ -15,7 +28,7 @@ WW_RelocateWindowRectangle(rect, source, target)
     return [x, y, width, height]
 }
 
-WW_CycleWindowMonitor()
+WW_MoveWindowToAdjacentMonitor(direction)
 {
     Critical "On"
     hwnd := WinExist("A")
@@ -24,7 +37,12 @@ WW_CycleWindowMonitor()
 
     try {
         source := WindowMonitorIndex(hwnd)
-        target := WW_NextMonitorIndex(source, MonitorGetCount())
+        lefts := []
+        Loop MonitorGetCount() {
+            MonitorGet(A_Index, &left)
+            lefts.Push(left)
+        }
+        target := WW_NextSpatialMonitor(source, lefts, direction = "left")
         if !target || !WW_SetNativeFullscreen(hwnd, false)
             return
 
@@ -61,5 +79,5 @@ WW_CycleWindowMonitor()
             WinMaximize(hwnd)
     }
     catch Error as err
-        WW_DebugError("Move window to next monitor", err)
+        WW_DebugError("Move window to adjacent monitor", err)
 }
