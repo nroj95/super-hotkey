@@ -168,7 +168,6 @@ cascade_compaction_timer_pending := false
 cascade_restore_batches := Map()
 cascade_restore_request_depth := 0
 cascade_close_batches := Map()
-cascade_close_focus_request := 0
 cascade_auto_placement_enabled := IniRead(settings_path, "Controls", "AutoCascadeNewWindows", "0") = "1"
 cascade_gesture_key := IniRead(settings_path, "Controls", "CascadeKey", "CapsLock")
 if cascade_gesture_key != "CapsLock" && cascade_gesture_key != "Pause"

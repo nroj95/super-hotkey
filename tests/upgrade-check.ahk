@@ -1007,16 +1007,15 @@ class SuiteUpgradeChecks {
                 && oldDefaults["wonder-windows.focus-down"].bindings[1]
                     = Keybindings.Parse("Pause + Z").signature,
                 "zone-era defaults move stock focus and isolate hotkeys, sharing Paper Pad's editor keys")
-            oldDefaults["cascade-kingdom.close-active"].bindings[2] := ""
-            oldDefaults["power-up-utilities.keyboard.f13"].bindings[1] := Keybindings.Parse("Win + Delete").signature
-            this.Assert(!Keybindings.MigrateDefault(oldDefaults, "cascade-kingdom.close-active", 2, "", "Win + Delete")
-                && oldDefaults["cascade-kingdom.close-active"].bindings[2] = "",
+            oldDefaults["wonder-windows.minimize"].bindings[2] := ""
+            this.Assert(!Keybindings.MigrateDefault(oldDefaults, "wonder-windows.minimize", 2, "", "Win + Delete")
+                && oldDefaults["wonder-windows.minimize"].bindings[2] = "",
                 "a migration never takes a hotkey another global action uses")
-            oldDefaults["power-up-utilities.keyboard.f13"].bindings[1] := ""
-            this.Assert(Keybindings.MigrateDefault(oldDefaults, "cascade-kingdom.close-active", 2, "", "Win + Delete")
-                && oldDefaults["cascade-kingdom.close-active"].bindings[2]
+            oldDefaults["wonder-windows.close-active"].bindings[1] := ""
+            this.Assert(Keybindings.MigrateDefault(oldDefaults, "wonder-windows.minimize", 2, "", "Win + Delete")
+                && oldDefaults["wonder-windows.minimize"].bindings[2]
                     = Keybindings.Parse("Win + Delete").signature,
-                "closing gains Win + Delete when it is free")
+                "a migration takes a new hotkey once it is free")
             oldDefaults["cascade-kingdom.reset-log"].bindings[1] := Keybindings.Parse("Caps + F5").signature
             oldDefaults["cascade-kingdom.copy-log"].bindings[1] := Keybindings.Parse("Pause + F9").signature
             SuiteMigrateLogKeybindingDefaults(oldDefaults)
@@ -1489,13 +1488,14 @@ class SuiteUpgradeChecks {
             "cascade-kingdom.rotate-next",
             "cascade-kingdom.adopt", "cascade-kingdom.bring-forward", "cascade-kingdom.minimize",
             "cascade-kingdom.gather",
-            "cascade-kingdom.close-active", "cascade-kingdom.close-monitor"],
+            "cascade-kingdom.close-monitor"],
             "Cascade Kingdom groups navigation, rotation and management")
         this.AssertDisplaySequence(rows, [
             "wonder-windows.help", "wonder-windows.focus-up",
             "wonder-windows.focus-down", "wonder-windows.cycle-stacked",
             "wonder-windows.cycle-expanded",
             "wonder-windows.maximize", "wonder-windows.restore", "wonder-windows.minimize",
+            "wonder-windows.close-active",
             "wonder-windows.move-monitor",
             "wonder-windows.zones-from-left", "wonder-windows.zones-from-right",
             "wonder-windows.stretch-left", "wonder-windows.stretch-right",

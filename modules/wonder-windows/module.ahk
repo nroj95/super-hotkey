@@ -37,6 +37,7 @@ class WonderWindowsModule extends SuiteModule {
         this.Add("maximize", "cycle maximized / upper half / lower half", WW_MaximizeWindowTarget, ["Win + Up"])
         this.Add("restore", "restore normal size / minimize", WW_RestoreOrMinimizeWindow, ["Win + Down"])
         this.Add("minimize", "minimize / restore last minimized window", WW_MinimizeActiveWindow, ["Win + Backspace"])
+        this.Add("close-active", "close active window", WW_CloseActiveWindow, ["Win + Delete", "Caps + Delete"])
         this.Add("move-monitor", "cycle active window to next monitor", WW_CycleWindowMonitor, ["Caps + Win + Backspace"])
         this.Add("zones-from-left", "cycle zones from the left", WW_CycleZone,
             ["Win + WheelDown", "Win + Left"], ["down"])
@@ -134,6 +135,8 @@ class WonderWindowsModule extends SuiteModule {
     }
 
     CancelWork() {
+        global WW_close_focus_request
+        WW_close_focus_request := 0
         this.generation += 1
         this.pending.Clear()
         SetTimer(this.drainCallback, 0)
@@ -240,7 +243,8 @@ class WonderWindowsModule extends SuiteModule {
             . "`r`n`r`nARRANGE YOUR WINDOWS"
             . "`r`nStretch toward neighboring windows or cycle between full-height and "
             . "full-width. Win + Down restores a placed window's original shape; pressed "
-            . "again it minimizes the window, and once more it brings it back."
+            . "again it minimizes the window, and once more it brings it back. Win + Delete "
+            . "closes the active window and outlines the window that receives focus."
             . "`r`n`r`nFOCUS, SWAP AND FULLSCREEN"
             . "`r`nWin + PgDn and PgUp step focus through every window on screen in reading "
             . "order: displays left to right, columns left to right, top before bottom. "
