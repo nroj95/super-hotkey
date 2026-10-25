@@ -17,12 +17,8 @@ CascadeRememberLaunchIntent(monitor := 0, source := 0)
     global cascade_opt_in_intent, cascade_auto_placement_enabled
     if !IsCascadeEnabled() || !CascadeGestureHeld()
         return
-    if !monitor {
-        MouseGetPosPixels(&x, &y)
-        monitor := GetMonitorForPoint(x, y)
-    }
     if !monitor
-        return
+        monitor := SuiteWorkingMonitor.Get()
     CascadeConsumeGesture()
     cascade_opt_in_intent := {tick: A_TickCount,
         monitor_device: GetCascadeMonitorDevice(monitor),
@@ -113,14 +109,12 @@ CascadeTakeOptInMonitor(hwnd, &reason := "")
         }
         return 0
     }
-    MouseGetPosPixels(&x, &y)
-    monitor := GetMonitorForPoint(x, y)
     if held {
         CascadeConsumeGesture()
         reason := "gesture-held-at-show"
     } else
-        reason := monitor ? "automatic-pointer" : "automatic-fallback"
-    return ResolveCascadeDestination(monitor ? monitor : MonitorGetPrimary())
+        reason := "automatic-working-monitor"
+    return ResolveCascadeDestination(SuiteWorkingMonitor.Get(hwnd))
 }
 
 ; Prefer a real OS caption hit. Custom title bars can report client-area hits,

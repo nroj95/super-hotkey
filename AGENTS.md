@@ -12,7 +12,7 @@ Super Hotkey is one AutoHotkey v2 64-bit process: a launcher, a small core and f
 | `core/keybindings-editor.ahk` | the Keybindings window |
 | `core/settings.ahk`, `core/logging.ahk` | suite preferences, backups and the shared log |
 | `core/ui.ahk`, `core/tray.ahk` | every GUI and the only tray |
-| `core/windows.ahk`, `core/focus-border.ahk` | window queries, activation, DPI boundaries, and manual and managed window ownership |
+| `core/windows.ahk`, `core/focus-border.ahk` | window queries, activation, DPI boundaries, the working display, and manual and managed window ownership |
 | `modules/<id>/module.ahk` | a module's lifecycle, actions, settings page and guide |
 
 ## design rules
@@ -22,6 +22,7 @@ Super Hotkey is one AutoHotkey v2 64-bit process: a launcher, a small core and f
 - Keybindings owns every configurable hotkey, including CapsLock and Pause layer suffixes. Secret Layers' `KeyboardLayers` owns only the two prefix keys. only registered complementary scopes may share a hotkey; Paper Pad editor navigation works only in its editor.
 - native input callbacks only queue work. cancel queued work on reconfiguration, suspension and exit, and always release held output.
 - disabled modules and layers release their inputs and keep their assignments editable. CapsLock and Pause behave normally unless reassigned.
+- every feature must make sense to a keyboard-only user whose pointer is parked on another display. the pointer chooses a display only through a click; otherwise the active app window decides. choose displays with `SuiteWorkingMonitor` in `core/windows.ahk`, never the raw pointer position. tooltips stay beside the pointer.
 - AutoHotkey threads share one OS thread. scope DPI awareness to single native calls with the `*Pixels` helpers, never across `Sleep` or dialogs in a thread that is not `Critical`.
 - errors and lifecycle events are always logged; verbose logging is the only debug switch.
 

@@ -10,6 +10,7 @@ class SuiteReleaseChecks {
         this.LargeDebugLog()
         this.CascadeOptInLaunch()
         this.CascadeLaunchMonitors()
+        this.WorkingMonitor()
         this.DeferredInputsAndSessions()
         this.WindowSizingAndCloaking()
         this.PaperPadTopmostRestoration()
@@ -137,6 +138,45 @@ class SuiteReleaseChecks {
         finally app.ui.CloseAll()
     }
 
+    ; Keyboard-only users never see a parked pointer choose a display.
+    static WorkingMonitor() {
+        app := SuiteApplication(true, SuiteChecks.directory "\release-working-monitor")
+        work := SuiteGui(, "Working monitor app")
+        older := SuiteGui(, "Working monitor older app")
+        passage := SuiteGui("+ToolWindow", "Working monitor shell surface")
+        try {
+            SuiteShowCentered(older, 320, 240)
+            SuiteShowCentered(work, 320, 240)
+            passage.Show("NoActivate w200 h100")
+            workMonitor := WindowMonitorIndex(work.Hwnd)
+            olderMonitor := WindowMonitorIndex(older.Hwnd)
+            last := MonitorGetCount()
+            MonitorGetPixels(last, &left, &top, &right, &bottom)
+            press := {tick: A_TickCount, x: left + (right - left) // 2, y: top + (bottom - top) // 2}
+            this.Assert(SuiteWorkingMonitor.IsWorkWindow(work.Hwnd)
+                && !SuiteWorkingMonitor.IsWorkWindow(passage.Hwnd),
+                "app windows are work windows; tool surfaces are passed through")
+            this.Assert(SuiteWorkingMonitor.Choose([{hwnd: work.Hwnd, click: 0}]) = workMonitor,
+                "the active app window chooses its display")
+            this.Assert(SuiteWorkingMonitor.Choose([{hwnd: passage.Hwnd, click: 0},
+                {hwnd: older.Hwnd, click: 0}]) = olderMonitor,
+                "a surface opened from the keyboard defers to the previous app window")
+            this.Assert(SuiteWorkingMonitor.Choose([{hwnd: passage.Hwnd, click: press},
+                {hwnd: older.Hwnd, click: 0}]) = last,
+                "a surface opened by a click chooses the clicked display")
+            this.Assert(SuiteWorkingMonitor.Choose([{hwnd: work.Hwnd, click: 0},
+                {hwnd: older.Hwnd, click: 0}], work.Hwnd) = olderMonitor,
+                "a window being placed never chooses its own display")
+            this.Assert(SuiteWorkingMonitor.Choose([{hwnd: 987654321, click: press}]) = MonitorGetPrimary()
+                && SuiteWorkingMonitor.Choose([]) = MonitorGetPrimary(),
+                "closed windows are skipped and the primary display is the last resort")
+        }
+        finally {
+            for window in [work, older, passage]
+                window.Destroy()
+        }
+    }
+
     static CascadeLaunchMonitors() {
         global cascade_displays, cascade_launch_hint, new_window_focus_timeout_ms
         global cascade_opt_in_intent, pending_windows, handled_windows
@@ -262,11 +302,9 @@ class SuiteReleaseChecks {
             this.Assert(!CascadeIsOptInIntentFresh(0) && !cascade_auto_placement_enabled,
                 "normal launches default to no cascading")
             cascade_auto_placement_enabled := true
-            MouseGetPosPixels(&mouse_x, &mouse_y)
-            expectedMonitor := GetMonitorForPoint(mouse_x, mouse_y)
-            this.Assert(CascadeTakeOptInMonitor(987654321, &reason) = expectedMonitor
-                && reason = "automatic-pointer",
-                "optional automatic cascading targets the pointer monitor")
+            this.Assert(CascadeTakeOptInMonitor(987654321, &reason) = SuiteWorkingMonitor.Get(987654321)
+                && reason = "automatic-working-monitor",
+                "optional automatic cascading targets the working monitor, not the pointer")
             cascade_auto_placement_enabled := false
             intent := {tick: A_TickCount, monitor_device: "unused", source_hwnd: 98765}
             this.Assert(CascadeIsOptInIntentFresh(intent)

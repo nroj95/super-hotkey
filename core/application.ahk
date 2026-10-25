@@ -109,6 +109,7 @@ class SuiteApplication {
         for warning in this.manager.loadWarnings
             this.startupWarnings.Push(warning)
         if !this.dryRun {
+            SuiteWorkingMonitor.Start(this.manager)
             for id in SuiteSettings.ModuleOrder
                 if this.ModuleActive(id)
                     this.StartModule(this.modules[id])
@@ -359,6 +360,7 @@ class SuiteApplication {
             if this.modules.Has(id)
                 this.Cleanup(SuiteSettings.ModuleNames[id], ObjBindMethod(this.modules[id], "Stop", reason, code))
         this.Cleanup("Core / focus border", (*) => SuiteFocusBorder.Hide("", true))
+        this.Cleanup("Core / working monitor", (*) => SuiteWorkingMonitor.Stop())
         SuiteWindowOwnership.Clear()
         OnMessage(0x0218, this.powerCallback, 0)
         OnMessage(0x02B1, this.sessionCallback, 0)

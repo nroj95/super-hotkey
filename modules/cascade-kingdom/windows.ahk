@@ -96,22 +96,7 @@ TryGetWindowCenter(hwnd, &center_x, &center_y)
 ; monitor selection and lookup
 ; =============================================================================
 
-GetCommandMonitor()
-{
-    active_hwnd := WinExist("A")
-
-    if active_hwnd
-        && !IsShellSurfaceWindow(active_hwnd)
-    {
-        monitor_index := GetMonitorForWindow(active_hwnd)
-
-        if monitor_index
-            return monitor_index
-    }
-
-    MouseGetPosPixels(&mouse_x, &mouse_y)
-    return GetMonitorForPoint(mouse_x, mouse_y)
-}
+GetCommandMonitor() => SuiteWorkingMonitor.Get()
 
 ResolveCascadePlacementMonitor(request, fallback_monitor)
 {

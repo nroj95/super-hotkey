@@ -17,23 +17,11 @@ SuiteShowCentered(window, width, height, layoutCallback := 0, fitWorkArea := fal
     window.Show("Hide w" width " h" height)
 
     rect := Buffer(16, 0)
-    point := Buffer(8, 0)
     if !DllCall("GetWindowRect", "ptr", window.Hwnd, "ptr", rect, "int")
-        || !DllCall("GetCursorPos", "ptr", point, "int")
         throw OSError(A_LastError, "Center Super Hotkey window")
     outerWidth := NumGet(rect, 8, "int") - NumGet(rect, 0, "int")
     outerHeight := NumGet(rect, 12, "int") - NumGet(rect, 4, "int")
-    cursorX := NumGet(point, 0, "int")
-    cursorY := NumGet(point, 4, "int")
-    selected := 1
-    loop MonitorGetCount() {
-        MonitorGet(A_Index, &left, &top, &right, &bottom)
-        if cursorX >= left && cursorX < right && cursorY >= top && cursorY < bottom {
-            selected := A_Index
-            break
-        }
-    }
-    MonitorGetWorkArea(selected, &left, &top, &right, &bottom)
+    MonitorGetWorkArea(SuiteWorkingMonitor.Get(window.Hwnd), &left, &top, &right, &bottom)
     if fitWorkArea {
         fitted := SuiteFitClientSize(window, width, height, right - left, bottom - top)
         window.Show("Hide w" fitted.width " h" fitted.height)

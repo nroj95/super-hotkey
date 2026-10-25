@@ -31,21 +31,9 @@ class SuiteUpgradeChecks {
     }
     static AssertCentered(window, label) {
         rect := Buffer(16, 0)
-        point := Buffer(8, 0)
-        this.Assert(!!DllCall("GetWindowRect", "ptr", window.Hwnd, "ptr", rect, "int")
-            && !!DllCall("GetCursorPos", "ptr", point, "int"),
+        this.Assert(!!DllCall("GetWindowRect", "ptr", window.Hwnd, "ptr", rect, "int"),
             "window geometry is available: " label)
-        cursorX := NumGet(point, 0, "int")
-        cursorY := NumGet(point, 4, "int")
-        monitor := 1
-        loop MonitorGetCount() {
-            MonitorGet(A_Index, &left, &top, &right, &bottom)
-            if cursorX >= left && cursorX < right && cursorY >= top && cursorY < bottom {
-                monitor := A_Index
-                break
-            }
-        }
-        MonitorGetWorkArea(monitor, &left, &top, &right, &bottom)
+        MonitorGetWorkArea(SuiteWorkingMonitor.Get(window.Hwnd), &left, &top, &right, &bottom)
         x := NumGet(rect, 0, "int")
         y := NumGet(rect, 4, "int")
         w := NumGet(rect, 8, "int") - x
@@ -53,7 +41,7 @@ class SuiteUpgradeChecks {
         expectedX := left + Floor((right - left - w) / 2)
         expectedY := top + Floor((bottom - top - h) / 2)
         this.Assert(Abs(x - expectedX) <= 2 && Abs(y - expectedY) <= 2,
-            "window opens centered on the current monitor: " label)
+            "window opens centered on the working monitor: " label)
     }
 
     static Route(manager, actionId, slot := 1) {
