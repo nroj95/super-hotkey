@@ -32,7 +32,7 @@ class WonderWindowsModule extends SuiteModule {
         for direction in ["up", "down", "left", "right"]
             this.Add("focus-" direction, focusLabels[direction], WW_FocusNearestWindow,
                 ["Win + Alt + " direction], [direction])
-        this.Add("cycle-stacked", "cycle overlapping windows", WW_CycleStackedWindows, ["Win + Enter"])
+        this.Add("cycle-stacked", "cycle windows on this monitor", WW_CycleMonitorWindows, ["Win + Enter"])
         this.Add("cycle-expanded", "cycle maximized / fullscreen windows", WW_CycleMaximizedFullscreenWindows,
             ["Caps + Win + Enter"])
         this.Add("maximize", "cycle maximized / upper half / lower half", WW_MaximizeWindowTarget, ["Win + Up"])
@@ -280,7 +280,7 @@ class WonderWindowsModule extends SuiteModule {
             . "between full-height and full-width. Restore brings back the original shape."
             . "`r`n`r`nFOCUS, SWAP AND FULLSCREEN"
             . "`r`nMove focus to the nearest window in a direction, swap with a nearby window, "
-            . "or temporarily minimize a group. Cycle overlapping windows without moving them, "
+            . "or temporarily minimize a group. Cycle the windows on the active monitor without moving them, "
             . "and cycle a window between maximized and half-height positions. Moving a "
             . "window to another display preserves cascade membership only where cascading "
             . "is allowed. Layout actions exit F11 fullscreen before repositioning a window. "

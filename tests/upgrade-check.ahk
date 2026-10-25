@@ -989,12 +989,6 @@ class SuiteUpgradeChecks {
                 WW_RelocateWindowRectangle([0, 0, 1200, 900], [0, 0, 1200, 900],
                     [0, 0, 800, 600]), [0, 0, 800, 600], 0),
                 "cross-monitor movement constrains windows that exceed the destination")
-            this.Assert(WW_WindowsSubstantiallyOverlap([0, 0, 200, 200], [20, 10, 200, 200])
-                && WW_WindowsSubstantiallyOverlap([0, 0, 200, 200], [0, 0, 200, 200])
-                && !WW_WindowsSubstantiallyOverlap([0, 0, 200, 200], [120, 0, 200, 200])
-                && !WW_WindowsSubstantiallyOverlap([0, 0, 200, 200], [400, 0, 200, 200])
-                && !WW_WindowsSubstantiallyOverlap([0, 0, 200, 200], [0, 0, 40, 40]),
-                "stack cycling selects substantially overlapping windows, not unrelated windows")
             this.Assert(WW_DirectionalSwapScore(-80, 0, "left") = 80
                 && WW_DirectionalSwapScore(80, 0, "left") = -1
                 && WW_DirectionalSwapScore(80, 30, "right") = 140

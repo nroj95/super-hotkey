@@ -2,10 +2,10 @@
 ; Included into the same script; functions share the existing global state.
 
 ; =============================================================================
-; overlapping-window switcher
+; same-monitor window switcher
 ; =============================================================================
 
-WW_CycleStackedWindows()
+WW_CycleMonitorWindows()
 {
     Critical "On"
     active := WinExist("A")
@@ -13,39 +13,22 @@ WW_CycleStackedWindows()
         return
 
     monitor := DllCall("MonitorFromWindow", "ptr", active, "uint", 2, "ptr")
-    activeRect := WW_GetWindowLayoutRectangle(active)
     backmost := 0
 
-    ; WinGetList lists front to back. Bringing the last overlapping window
-    ; forward rotates even a large stack without tracking activation history.
+    ; WinGetList lists front to back. Bringing the last window on this monitor
+    ; forward rotates through all of them without tracking activation history.
     for hwnd in WinGetList() {
         if hwnd = active || !IsSwitchableWindow(hwnd)
             || SuiteManagedWindows.Monitor(hwnd)
             continue
-        if DllCall("MonitorFromWindow", "ptr", hwnd, "uint", 2, "ptr") != monitor
-            continue
-        try {
-            if WW_WindowsSubstantiallyOverlap(activeRect, WW_GetWindowLayoutRectangle(hwnd))
-                backmost := hwnd
-        }
+        if DllCall("MonitorFromWindow", "ptr", hwnd, "uint", 2, "ptr") = monitor
+            backmost := hwnd
     }
     if backmost {
         WW_ForgetLastMinimizedWindow()
         WW_EndFocusNavigationSession()
         ActivateWindow(backmost)
     }
-}
-
-WW_WindowsSubstantiallyOverlap(first, second)
-{
-    if first[3] <= 0 || first[4] <= 0 || second[3] <= 0 || second[4] <= 0
-        return false
-    width := Min(first[1] + first[3], second[1] + second[3]) - Max(first[1], second[1])
-    height := Min(first[2] + first[4], second[2] + second[4]) - Max(first[2], second[2])
-    if width <= 0 || height <= 0
-        return false
-    overlap := width * height * 2
-    return overlap >= first[3] * first[4] && overlap >= second[3] * second[4]
 }
 
 ; =============================================================================
