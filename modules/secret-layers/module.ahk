@@ -80,11 +80,12 @@ class SecretLayersModule extends SuiteModule {
         selector.Choose(settings.capsToggleModifierChoice)
         toggle.OnEvent("Click", ObjBindMethod(this, "UpdateSelectorEnabled", selector))
         this.UpdateSelectorEnabled(selector, toggle)
-        window.AddText("x20 y235 w560", "Only works while the CapsLock layer is enabled."
+        ; A caption for the toggle above, aligned with its checkbox text.
+        window.AddText("x38 y192 w542", "Only works while the CapsLock layer is enabled."
             . "`nAn optional shortcut is available in Keybindings.")
         ui.Footer(window, [["Apply and restart", ObjBindMethod(this, "SaveSettings", ui), 160],
-            ["Back", ObjBindMethod(ui, "BackToHelp", this.id), 100]], 300, 600)
-        ui.ShowPage(key, 600, 350, 560, 325)
+            ["Back", ObjBindMethod(ui, "BackToHelp", this.id), 100]], 260, 600)
+        ui.ShowPage(key, 600, 310, 560, 285)
     }
 
     UpdateSelectorEnabled(selector, checkbox, *) {
