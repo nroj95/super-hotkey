@@ -314,17 +314,83 @@ SuiteMoveControls(window, positions, redrawButtons := false) {
                     "ptr", 0, "uint", 0x105, "int") ; RDW_INVALIDATE | RDW_ERASE | RDW_UPDATENOW
 }
 
-; A short status message beside the pointer. Each new message replaces the last.
-SuiteStatusTip(text) {
-    CoordMode("Mouse", "Screen")
-    CoordMode("ToolTip", "Screen")
-    MouseGetPos(&x, &y)
-    SetTimer(SuiteHideStatusTip, 0)
-    ToolTip(text, x + 14, y + 18, 3)
-    SetTimer(SuiteHideStatusTip, -1400)
-}
+; Large, click-through notices centered on the working display, so keyboard
+; users see them wherever the pointer rests, even over fullscreen windows.
+; Each slot shows one message; a newer message replaces it.
+class SuiteNotice {
+    static order := ["layer", "status"] ; top to bottom when both show
+    static notices := Map()
 
-SuiteHideStatusTip() => ToolTip(, , , 3)
+    ; Shows text in slot until Hide, or for durationMs when given.
+    static Show(slot, text, durationMs := 0) {
+        if !this.notices.Has(slot)
+            this.notices[slot] := {window: 0, text: "", timer: ObjBindMethod(this, "Hide", slot)}
+        notice := this.notices[slot]
+        SetTimer(notice.timer, 0)
+        if notice.text != text || !notice.window {
+            if notice.window
+                notice.window.Destroy()
+            notice.window := this._Build(text)
+            notice.text := text
+        }
+        notice.window.GetPos(, , &width, &height)
+        MonitorGetWorkArea(SuiteWorkingMonitor.Get(), &left, &top, &right, &bottom)
+        ; Centered unless an earlier notice is showing; then directly below it.
+        offset := 0
+        for name in this.order {
+            if name = slot
+                break
+            if this.notices.Has(name) && (earlier := this.notices[name].window)
+                && DllCall("IsWindowVisible", "ptr", earlier.Hwnd, "int") {
+                earlier.GetPos(, , , &earlierHeight)
+                offset += earlierHeight + 12
+            }
+        }
+        x := left + (right - left - width) // 2
+        y := top + (bottom - top - height) // 2 + offset
+        ; HWND_TOPMOST raises it above other topmost windows such as fullscreen video.
+        DllCall("SetWindowPos", "ptr", notice.window.Hwnd, "ptr", -1, "int", x, "int", y,
+            "int", 0, "int", 0, "uint", 0x51, "int") ; SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW
+        if durationMs
+            SetTimer(notice.timer, -durationMs)
+    }
+
+    static Hide(slot, *) {
+        if !this.notices.Has(slot)
+            return
+        notice := this.notices[slot]
+        SetTimer(notice.timer, 0)
+        if notice.window
+            notice.window.Hide()
+    }
+
+    static Destroy() {
+        for slot, notice in this.notices {
+            SetTimer(notice.timer, 0)
+            if notice.window
+                try notice.window.Destroy()
+        }
+        this.notices := Map()
+    }
+
+    static _Build(text) {
+        ; WS_EX_LAYERED and WS_EX_TRANSPARENT pass clicks through; never activate.
+        window := SuiteGui("+AlwaysOnTop -Caption +ToolWindow +E0x80020 +E0x08000000")
+        window.BackColor := "202020"
+        window.MarginX := 24
+        window.MarginY := 12
+        window.SetFont("s16 cFFFFFF", "Segoe UI Semibold")
+        window.AddText("Center", text)
+        DllCall("SetLayeredWindowAttributes", "ptr", window.Hwnd, "uint", 0, "uchar", 235, "uint", 2)
+        ; Windows 11 rounds the corners; older versions ignore the request.
+        corners := Buffer(4, 0)
+        NumPut("int", 2, corners) ; DWMWCP_ROUND
+        DllCall("dwmapi\DwmSetWindowAttribute", "ptr", window.Hwnd, "uint", 33, ; DWMWA_WINDOW_CORNER_PREFERENCE
+            "ptr", corners, "uint", 4)
+        window.Show("Hide AutoSize")
+        return window
+    }
+}
 
 #HotIf SuiteFullscreen.Active()
 F11::{

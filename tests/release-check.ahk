@@ -12,6 +12,7 @@ class SuiteReleaseChecks {
         this.CascadeLaunchMonitors()
         this.WorkingMonitor()
         this.OversizedTile()
+        this.CenteredNotices()
         this.DeferredInputsAndSessions()
         this.WindowSizingAndCloaking()
         this.PaperPadTopmostRestoration()
@@ -209,6 +210,48 @@ class SuiteReleaseChecks {
             SuiteSizeGrip.Detach(window)
             window.Destroy()
         }
+    }
+
+    ; Keyboard users read notices in the middle of the working display.
+    static CenteredNotices() {
+        app := SuiteApplication(true, SuiteChecks.directory "\release-notices")
+        try {
+            SuiteNotice.Show("layer", "Caps held")
+            SuiteNotice.Show("status", "Debug log copied", 150)
+            layer := SuiteNotice.notices["layer"].window
+            status := SuiteNotice.notices["status"].window
+            layer.GetPos(&x, &y, &width, &height)
+            status.GetPos(, &statusY)
+            MonitorGetWorkArea(SuiteWorkingMonitor.Get(), &left, &top, &right, &bottom)
+            this.Assert(Abs(x + width // 2 - (left + right) // 2) <= 2
+                && Abs(y + height // 2 - (top + bottom) // 2) <= 2,
+                "a notice is centered on the working display")
+            this.Assert(statusY >= y + height,
+                "a status notice stacks below the layer indicator")
+            exStyle := WinGetExStyle(layer.Hwnd)
+            this.Assert(DllCall("IsWindowVisible", "ptr", layer.Hwnd, "int")
+                && (exStyle & 0x08080028) = 0x08080028 && !WinActive(layer.Hwnd),
+                "notices are topmost, click-through and never take focus")
+            SuiteNotice.Show("layer", "Pause - next key")
+            this.Assert(SuiteNotice.notices["layer"].window != layer,
+                "new notice text rebuilds the notice at its own size")
+            ; Timers cannot interrupt a critical thread; let the expiry run.
+            previousCritical := Critical("Off")
+            Sleep 300
+            Critical(previousCritical)
+            this.Assert(!DllCall("IsWindowVisible", "ptr", status.Hwnd, "int"),
+                "a timed notice hides itself")
+            SuiteNotice.Hide("layer")
+            this.Assert(!DllCall("IsWindowVisible", "ptr", SuiteNotice.notices["layer"].window.Hwnd, "int"),
+                "hiding a notice removes it from the screen")
+            ; Tap Pause, then F2: the one-shot indicator hides before the status shows.
+            SuiteNotice.Show("status", "Debug log copied")
+            SuiteNotice.notices["status"].window.GetPos(, &statusY, , &statusHeight)
+            this.Assert(Abs(statusY + statusHeight // 2 - (top + bottom) // 2) <= 2,
+                "a status notice takes the center when no indicator shows")
+        }
+        finally SuiteNotice.Destroy()
+        this.Assert(!SuiteNotice.notices.Count, "notices release every window")
     }
 
     static CascadeLaunchMonitors() {

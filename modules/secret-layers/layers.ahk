@@ -120,7 +120,7 @@ class KeyboardLayers {
         SetTimer(this.expireCallback, 0)
         SetTimer(this.indicatorCallback, 0)
         this.observer.Stop()
-        ToolTip(, , , 2)
+        SuiteNotice.Hide("layer")
     }
 
     Reset() {
@@ -310,47 +310,14 @@ class KeyboardLayers {
 
     _UpdateIndicator(*) {
         ready := this.selected != "" ? this.HeldIndicatorReady() : this.armed != ""
-        if !this.showIndicator || !ready || KeyboardLayers.ForegroundHidesIndicator() {
-            ToolTip(, , , 2)
+        if !this.showIndicator || !ready {
+            SuiteNotice.Hide("layer")
             return
         }
-        text := this.selected != "" ? this.selected " held" : this.armed " - next key"
-        try {
-            CoordMode "Mouse", "Screen"
-            CoordMode "ToolTip", "Screen"
-            MouseGetPos &mouseX, &mouseY
-            ToolTip(text, mouseX + 14, mouseY + 18, 2)
-        }
-    }
-
-    ; No tooltip over fullscreen or maximized windows such as games and videos.
-    static ForegroundHidesIndicator() {
-        hwnd := DllCall("GetForegroundWindow", "ptr")
-        if !hwnd
-            return false
-        previousDpiContext := 0
-        try {
-            if DllCall("IsZoomed", "ptr", hwnd, "int")
-                return true
-            previousDpiContext := DllCall("SetThreadDpiAwarenessContext", "ptr", -4, "ptr")
-            windowRect := Buffer(16, 0)
-            monitorInfo := Buffer(40, 0)
-            NumPut("uint", 40, monitorInfo)
-            monitor := DllCall("MonitorFromWindow", "ptr", hwnd, "uint", 2, "ptr")
-            if !DllCall("GetWindowRect", "ptr", hwnd, "ptr", windowRect, "int")
-                || !DllCall("GetMonitorInfoW", "ptr", monitor, "ptr", monitorInfo, "int")
-                return false
-            loop 4
-                if Abs(NumGet(windowRect, (A_Index - 1) * 4, "int")
-                    - NumGet(monitorInfo, A_Index * 4, "int")) > 2
-                    return false
-            return true
-        }
-        catch
-            return false
-        finally {
-            if previousDpiContext
-                DllCall("SetThreadDpiAwarenessContext", "ptr", previousDpiContext, "ptr")
-        }
+        layer := this.selected != "" ? this.selected : this.armed
+        text := StrUpper(SubStr(layer, 1, 1)) SubStr(layer, 2) (this.selected != "" ? " held" : " - next key")
+        try SuiteNotice.Show("layer", text)
+        catch Error as failure
+            SuiteState.Log.Error("Secret Layers / indicator", failure)
     }
 }

@@ -92,7 +92,6 @@ class SuiteApplication {
         SetStoreCapsLockMode false
         A_MenuMaskKey := "vkE8"
         CoordMode "Mouse", "Screen"
-        CoordMode "ToolTip", "Screen"
         SuiteState.Log.Write("Core", "starting " SuiteApplication.Version " / AutoHotkey " A_AhkVersion)
         if !FileExist(this.Settings.path)
             this.Settings.Save(this.Settings.modules)
@@ -199,9 +198,9 @@ class SuiteApplication {
         if !IsObject(this.ui)
             return
         if kind = "copy"
-            SuiteStatusTip(this.ui.CopyLog() ? "debug log copied" : "debug log copy failed")
+            SuiteNotice.Show("status", this.ui.CopyLog() ? "Debug log copied" : "Debug log copy failed", 1400)
         else
-            SuiteStatusTip(this.ui.ClearLogNow() ? "debug log cleared" : "debug log clear failed")
+            SuiteNotice.Show("status", this.ui.ClearLogNow() ? "Debug log cleared" : "Debug log clear failed", 1400)
     }
 
     HelpShortcutEvent(moduleId, event) {
@@ -361,6 +360,7 @@ class SuiteApplication {
                 this.Cleanup(SuiteSettings.ModuleNames[id], ObjBindMethod(this.modules[id], "Stop", reason, code))
         this.Cleanup("Core / focus border", (*) => SuiteFocusBorder.Hide("", true))
         this.Cleanup("Core / working monitor", (*) => SuiteWorkingMonitor.Stop())
+        this.Cleanup("Core / notices", (*) => SuiteNotice.Destroy())
         SuiteWindowOwnership.Clear()
         OnMessage(0x0218, this.powerCallback, 0)
         OnMessage(0x02B1, this.sessionCallback, 0)
