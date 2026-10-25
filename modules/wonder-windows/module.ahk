@@ -23,37 +23,38 @@ class WonderWindowsModule extends SuiteModule {
         SuiteWindowOwnership.OnRelease(WW_PrepareWindowForAdoption)
     }
 
-    ; Registration order is the Keybindings display order.
+    ; Registration order is the Keybindings display order, grouped by modifier:
+    ; place (Win + arrows), resize (Shift), relocate (Alt), switch, minimize.
     Register(manager) {
         this.manager := manager
         manager.AddAction("wonder-windows.help", "show Wonder Windows help",
             ObjBindMethod(this.app, "HelpShortcutEvent", this.id), ["Ctrl + Alt + H", "Caps + Win + H"],
             {category: "Wonder Windows", available: ObjBindMethod(this, "Available")})
-        this.Add("focus-up", "focus previous window on screen", WW_CycleWindowFocus, ["Win + PgUp"], ["up"])
-        this.Add("focus-down", "focus next window on screen", WW_CycleWindowFocus, ["Win + PgDn"], ["down"])
-        this.Add("cycle-stacked", "cycle windows on this monitor", WW_CycleMonitorWindows, ["Win + Enter"])
-        this.Add("cycle-expanded", "cycle maximized / fullscreen windows", WW_CycleMaximizedFullscreenWindows,
-            ["Win + Alt + Enter", "Caps + Win + Enter"])
-        this.Add("maximize", "cycle maximized / upper half / lower half", WW_MaximizeWindowTarget, ["Win + Up"])
-        this.Add("restore", "restore normal size / minimize", WW_RestoreOrMinimizeWindow, ["Win + Down"])
-        this.Add("minimize", "minimize / restore last minimized window", WW_MinimizeActiveWindow, ["Win + Backspace"])
-        this.Add("move-monitor-left", "move active window to the display on the left",
-            WW_MoveWindowToAdjacentMonitor, ["Ctrl + Win + Alt + Left"], ["left"])
-        this.Add("move-monitor-right", "move active window to the display on the right",
-            WW_MoveWindowToAdjacentMonitor, ["Ctrl + Win + Alt + Right"], ["right"])
         this.Add("zones-from-left", "cycle zones from the left", WW_CycleZone,
             ["Win + WheelDown", "Win + Left"], ["down"])
         this.Add("zones-from-right", "cycle zones from the right", WW_CycleZone,
             ["Win + WheelUp", "Win + Right"], ["up"])
+        this.Add("maximize", "cycle maximized / upper half / lower half", WW_MaximizeWindowTarget, ["Win + Up"])
+        this.Add("restore", "restore normal size / minimize", WW_RestoreOrMinimizeWindow, ["Win + Down"])
         for side in ["left", "right"]
             this.Add("stretch-" side, "stretch " side " to obstacle / restore", WW_ToggleHorizontalStretch,
                 ["Win + Shift + " side], [side])
         this.Add("stretch-height", "stretch vertically until obstacles", WW_StretchWindowVertically, ["Win + Shift + Up"])
         this.Add("stretch-full-cycle", "cycle full-height / full-width stretch", WW_CycleFullStretch, ["Shift + Win + Enter"])
         this.Add("reset-stretch", "undo window stretch", WW_ResetWindowStretch, ["Win + Shift + Down"])
-        for direction in ["up", "down", "left", "right"]
-            this.Add("swap-" direction, "swap with nearest window to the " direction,
-                WW_SwapWindow, ["Win + Alt + " direction, "Caps + Win + " direction], [direction])
+        for swap in [["up", "above"], ["down", "below"], ["left", "to the left"], ["right", "to the right"]]
+            this.Add("swap-" swap[1], "swap with nearest window " swap[2],
+                WW_SwapWindow, ["Win + Alt + " swap[1], "Caps + Win + " swap[1]], [swap[1]])
+        this.Add("move-monitor-left", "move active window to the display on the left",
+            WW_MoveWindowToAdjacentMonitor, ["Ctrl + Win + Alt + Left"], ["left"])
+        this.Add("move-monitor-right", "move active window to the display on the right",
+            WW_MoveWindowToAdjacentMonitor, ["Ctrl + Win + Alt + Right"], ["right"])
+        this.Add("focus-up", "focus previous window on screen", WW_CycleWindowFocus, ["Win + PgUp"], ["up"])
+        this.Add("focus-down", "focus next window on screen", WW_CycleWindowFocus, ["Win + PgDn"], ["down"])
+        this.Add("cycle-stacked", "cycle windows on this monitor", WW_CycleMonitorWindows, ["Win + Enter"])
+        this.Add("cycle-expanded", "cycle maximized / fullscreen windows", WW_CycleMaximizedFullscreenWindows,
+            ["Win + Alt + Enter", "Caps + Win + Enter"])
+        this.Add("minimize", "minimize / restore last minimized window", WW_MinimizeActiveWindow, ["Win + Backspace"])
         this.Add("isolate", "isolate active window / restore", WW_ToggleOtherWindows, ["Win + Home"])
         this.Add("minimize-all", "minimize / restore all windows", WW_ToggleAllWindows, ["Win + M"])
         manager.AddMigration("wonderDefaults", "1", WW_MigrateKeybindingDefaults)

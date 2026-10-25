@@ -1352,7 +1352,8 @@ class SuiteUpgradeChecks {
                 }
             this.Assert(paperSection > 0 && rows[paperSection + 1].id = "paper-pad.help"
                 && rows[paperSection + 2].id = "paper-pad.toggle"
-                && rows[paperSection + 3].id = "paper-pad.delete",
+                && rows[paperSection + 3].id = "paper-pad.hide"
+                && rows[paperSection + 6].id = "paper-pad.delete",
                 "Paper Pad keeps all actions under one heading")
             expectedHelp := Map("Paper Pad", "paper-pad.help",
                 "Cascade Kingdom", "cascade-kingdom.help",
@@ -1398,7 +1399,7 @@ class SuiteUpgradeChecks {
             filtered := Keybindings.DisplayRows(manager.Catalog(), "paper-pad.")
             this.Assert(filtered.Length = 7 && filtered[1].label = "Paper Pad"
                 && filtered[2].id = "paper-pad.help"
-                && filtered[7].id = "paper-pad.hide",
+                && filtered[7].id = "paper-pad.delete",
                 "filtered Paper Pad actions share one heading")
             generalHeading := 0
             functionHeading := 0
@@ -1482,12 +1483,12 @@ class SuiteUpgradeChecks {
 
     static CheckDisplayOrder(rows) {
         this.AssertDisplaySequence(rows, [
-            "core.keybindings", "cascade-kingdom.copy-log", "cascade-kingdom.reset-log"],
+            "core.keybindings", "core.close-active", "cascade-kingdom.copy-log", "cascade-kingdom.reset-log"],
             "Global shortcuts group application first and logs together")
         this.AssertDisplaySequence(rows, [
-            "paper-pad.help", "paper-pad.toggle", "paper-pad.delete",
-            "paper-pad.previous", "paper-pad.next", "paper-pad.hide"],
-            "Paper Pad groups document operations and page navigation")
+            "paper-pad.help", "paper-pad.toggle", "paper-pad.hide",
+            "paper-pad.previous", "paper-pad.next", "paper-pad.delete"],
+            "Paper Pad shows and hides, then navigates, then deletes")
         this.AssertDisplaySequence(rows, [
             "cascade-kingdom.help", "cascade-kingdom.focus-previous", "cascade-kingdom.focus-next",
             "cascade-kingdom.slot-previous", "cascade-kingdom.slot-next",
@@ -1498,19 +1499,19 @@ class SuiteUpgradeChecks {
             "cascade-kingdom.close-monitor"],
             "Cascade Kingdom groups navigation, rotation and management")
         this.AssertDisplaySequence(rows, [
-            "wonder-windows.help", "wonder-windows.focus-up",
-            "wonder-windows.focus-down", "wonder-windows.cycle-stacked",
-            "wonder-windows.cycle-expanded",
-            "wonder-windows.maximize", "wonder-windows.restore", "wonder-windows.minimize",
-            "wonder-windows.move-monitor-left", "wonder-windows.move-monitor-right",
+            "wonder-windows.help",
             "wonder-windows.zones-from-left", "wonder-windows.zones-from-right",
+            "wonder-windows.maximize", "wonder-windows.restore",
             "wonder-windows.stretch-left", "wonder-windows.stretch-right",
             "wonder-windows.stretch-height", "wonder-windows.stretch-full-cycle",
             "wonder-windows.reset-stretch",
             "wonder-windows.swap-up", "wonder-windows.swap-down",
             "wonder-windows.swap-left", "wonder-windows.swap-right",
-            "wonder-windows.isolate", "wonder-windows.minimize-all"],
-            "Wonder Windows groups focus, positioning, stretching and grouping")
+            "wonder-windows.move-monitor-left", "wonder-windows.move-monitor-right",
+            "wonder-windows.focus-up", "wonder-windows.focus-down",
+            "wonder-windows.cycle-stacked", "wonder-windows.cycle-expanded",
+            "wonder-windows.minimize", "wonder-windows.isolate", "wonder-windows.minimize-all"],
+            "Wonder Windows groups placing, resizing, relocating, switching and minimizing")
         this.AssertDisplaySequence(rows, [
             "power-up-utilities.interface.open", "power-up-utilities.system.wake-speakers",
             "power-up-utilities.system.sleep",
