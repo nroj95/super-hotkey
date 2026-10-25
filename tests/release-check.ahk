@@ -11,6 +11,7 @@ class SuiteReleaseChecks {
         this.CascadeOptInLaunch()
         this.CascadeLaunchMonitors()
         this.WorkingMonitor()
+        this.OversizedTile()
         this.DeferredInputsAndSessions()
         this.WindowSizingAndCloaking()
         this.PaperPadTopmostRestoration()
@@ -174,6 +175,39 @@ class SuiteReleaseChecks {
         finally {
             for window in [work, older, passage]
                 window.Destroy()
+        }
+    }
+
+    ; Apps such as Discord refuse a quarter-screen tile. They must grow toward
+    ; the middle of the display instead of past its edges.
+    static OversizedTile() {
+        global WW_layout_cycle_windows
+        if !IsSet(WW_layout_cycle_windows)
+            WW_InitializeState()
+        app := SuiteApplication(true, SuiteChecks.directory "\release-oversized-tile")
+        window := SuiteGui("+Resize -DPIScale", "Oversized tile target")
+        try {
+            window.Show("NA w300 h200")
+            work_area := WW_GetLayoutWorkArea(window.Hwnd)
+            for position in ["top-right", "bottom-right", "bottom-left"] {
+                parts := StrSplit(position, "-")
+                tile := WW_BuildRatioLayout(work_area, WW_GetSideCycleRatios(parts[2])[1], parts[1])
+                window.Opt("+MinSize" (tile[3] + 200) "x" (tile[4] + 150))
+                minimum := WW_GetMinimumVisibleSize(window.Hwnd)
+                this.Assert(minimum[1] >= tile[3] + 200 && minimum[2] >= tile[4] + 150,
+                    "the app's minimum size is known before the " position " tile moves it")
+                WW_ApplyTrackedLayout(window.Hwnd, "corner-" position, work_area, [tile], 1)
+                rect := WW_GetWindowLayoutRectangle(window.Hwnd)
+                this.Assert(rect[3] > tile[3] && rect[4] > tile[4]
+                    && rect[1] >= work_area[1] - 2 && rect[2] >= work_area[2] - 2
+                    && rect[1] + rect[3] <= work_area[3] + 2 && rect[2] + rect[4] <= work_area[4] + 2,
+                    "an app larger than its " position " tile grows inward and stays on-screen")
+            }
+        }
+        finally {
+            SuiteWindowOwnership.Release(window.Hwnd, false)
+            SuiteSizeGrip.Detach(window)
+            window.Destroy()
         }
     }
 

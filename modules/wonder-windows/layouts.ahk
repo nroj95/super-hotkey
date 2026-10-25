@@ -675,8 +675,24 @@ WW_FindCurrentLayoutIndex(hwnd, family, work_area, layouts)
 WW_ApplyTrackedLayout(hwnd, family, work_area, layouts, target_index)
 {
     global WW_layout_cycle_windows
-    if !WW_MoveWindowToVisibleRectangle(hwnd, layouts[target_index])
+    target := layouts[target_index]
+    ; An app whose minimum size exceeds the tile would grow past the tile's
+    ; outer edges. Place it once at that size, growing toward the middle.
+    minimum := WW_GetMinimumVisibleSize(hwnd)
+    if minimum[1] > target[3] || minimum[2] > target[4] {
+        fitted := WW_FitAcceptedRectangle(target, [0, 0, Max(target[3], minimum[1]),
+            Max(target[4], minimum[2])], work_area)
+        if IsObject(fitted)
+            target := fitted
+    }
+    if !WW_MoveWindowToVisibleRectangle(hwnd, target)
         return false
+
+    ; Some apps enforce their size only after moving. Slide those back too.
+    actual := WW_GetWindowLayoutRectangle(hwnd)
+    fitted := WW_FitAcceptedRectangle(target, actual, work_area)
+    if IsObject(fitted) && !WW_RectanglesMatch(actual, fitted, 2)
+        WW_MoveWindowToVisibleRectangle(hwnd, fitted)
 
     ; Store the actual result: an app may enforce a minimum size larger than a
     ; quarter-screen tile. That must not strand the cycle on its first step.

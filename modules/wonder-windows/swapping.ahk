@@ -301,8 +301,8 @@ WW_TryBestEffortSwap(first_hwnd, second_hwnd,
     Sleep 30
     first_accepted := WW_GetWindowLayoutRectangle(first_hwnd)
     second_accepted := WW_GetWindowLayoutRectangle(second_hwnd)
-    first_target := WW_FitSwapRectangle(second_zone, first_accepted, work_area)
-    second_target := WW_FitSwapRectangle(first_zone, second_accepted, work_area)
+    first_target := WW_FitAcceptedRectangle(second_zone, first_accepted, work_area)
+    second_target := WW_FitAcceptedRectangle(first_zone, second_accepted, work_area)
     if !IsObject(first_target) || !IsObject(second_target)
         return false
 

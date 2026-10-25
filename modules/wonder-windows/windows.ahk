@@ -146,6 +146,20 @@ WW_MoveWindowToVisibleRectangle(hwnd, target)
     }
 }
 
+; The smallest visible size an app accepts, from its own WM_GETMINMAXINFO
+; answer, which Windows marshals across processes. [0, 0] when unknown.
+WW_GetMinimumVisibleSize(hwnd)
+{
+    info := Buffer(40, 0) ; MINMAXINFO
+    if !DllCall("SendMessageTimeoutW", "ptr", hwnd, "uint", 0x24, "ptr", 0, "ptr", info,
+        "uint", 0x2, "uint", 100, "ptr", 0, "ptr") ; WM_GETMINMAXINFO, SMTO_ABORTIFHUNG
+        return [0, 0]
+    frame := GetWindowFrame(hwnd)
+    width := NumGet(info, 24, "int") - (frame ? frame.left + frame.right : 0)
+    height := NumGet(info, 28, "int") - (frame ? frame.top + frame.bottom : 0)
+    return [Max(0, width), Max(0, height)]
+}
+
 ; Confirm the visible result, not merely that WinMove accepted the request.
 WW_WindowMatchesVisibleRectangle(hwnd, target, tolerance := 2)
 {

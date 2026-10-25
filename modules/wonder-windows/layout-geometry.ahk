@@ -117,9 +117,9 @@ WW_FullStretchRectangle(original, work_area, mode)
     throw ValueError("Unknown full stretch mode: " mode)
 }
 
-; Keep each window's accepted dimensions, placing it as near as possible to
-; the other window's original top-left corner. Refuse truly unfittable sizes.
-WW_FitSwapRectangle(destination, accepted, work_area)
+; Keep a window's accepted dimensions, placing it inside the work area as near
+; as possible to the destination's top-left corner. Refuse truly unfittable sizes.
+WW_FitAcceptedRectangle(destination, accepted, work_area)
 {
     width := accepted[3]
     height := accepted[4]

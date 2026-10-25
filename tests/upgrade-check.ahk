@@ -1042,20 +1042,27 @@ class SuiteUpgradeChecks {
                     [0, 200, 900, 200], 0),
                 "full stretch modes retain the untouched dimension")
             this.Assert(WW_RectanglesMatch(
-                WW_FitSwapRectangle([100, 150, 800, 500], [100, 150, 800, 500], [0, 0, 1600, 900]),
+                WW_FitAcceptedRectangle([100, 150, 800, 500], [100, 150, 800, 500], [0, 0, 1600, 900]),
                 [100, 150, 800, 500], 0),
                 "best-effort swap does not alter a fitting destination")
             this.Assert(WW_RectanglesMatch(
-                WW_FitSwapRectangle([900, 600, 400, 300], [900, 600, 820, 520], [0, 0, 1600, 900]),
+                WW_FitAcceptedRectangle([900, 600, 400, 300], [900, 600, 820, 520], [0, 0, 1600, 900]),
                 [780, 380, 820, 520], 0),
                 "size-constrained swaps keep accepted dimensions on-screen")
             this.Assert(WW_RectanglesMatch(
-                WW_FitSwapRectangle([-100, -80, 400, 300], [-100, -80, 820, 520], [-1600, -900, 0, 0]),
+                WW_FitAcceptedRectangle([-100, -80, 400, 300], [-100, -80, 820, 520], [-1600, -900, 0, 0]),
                 [-820, -520, 820, 520], 0),
                 "best-effort swap handles negative desktop coordinates")
-            this.Assert(!IsObject(WW_FitSwapRectangle([100, 100, 400, 300],
+            this.Assert(!IsObject(WW_FitAcceptedRectangle([100, 100, 400, 300],
                 [100, 100, 1800, 300], [0, 0, 1600, 900])),
                 "unfittable window dimensions require swapping rollback")
+            this.Assert(WW_RectanglesMatch(
+                WW_FitAcceptedRectangle([1200, 0, 400, 450], [1200, 0, 600, 500], [0, 0, 1600, 900]),
+                [1000, 0, 600, 500], 0)
+                && WW_RectanglesMatch(
+                WW_FitAcceptedRectangle([0, 450, 400, 450], [0, 450, 600, 520], [0, 0, 1600, 900]),
+                [0, 380, 600, 520], 0),
+                "a tile too small for its app grows inward instead of off-screen")
             this.Assert(WW_GetCollisionLimitedEdge("left", [400, 0, 200, 300], [[100, 0, 200, 300]], 0) = 300,
                 "horizontal stretch stops at the nearest facing edge")
             this.Assert(WW_GetCollisionLimitedEdge("left", [400, 0, 200, 300], [[450, 0, 200, 300]], 0) = 0,
