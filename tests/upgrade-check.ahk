@@ -593,7 +593,10 @@ class SuiteUpgradeChecks {
             this.Assert(manager.editor.ApplyStaged()
                 && manager.GetConfiguration()["core.keybindings"].bindings[2] = replacement
                 && KB_Manifest.Get(KB_Manifest.Read(manager.path), "bindings", "core.keybindings") != "",
-                "Apply saves staged hotkeys and closes the editor without restarting")
+                "Apply saves staged hotkeys without restarting")
+            this.Assert(IsObject(manager.editor.window) && !manager.editor.HasPending()
+                && !manager.editor.applyButton.Enabled,
+                "Apply keeps Keybindings open and greys out once nothing is pending")
             manager.ShowSettings("cascade-kingdom")
             this.Assert(manager.editor.doneButton.Text = "Back"
                 && manager.editor.applyButton.Text = "Apply"
@@ -804,8 +807,8 @@ class SuiteUpgradeChecks {
                 && manager.editor.drawButtons[core.secondary.Hwnd] = "binding"
                 && manager.editor.drawButtons[core.reset.Hwnd] = "reset"
                 && manager.editor.drawButtons[manager.editor.resetAllButton.Hwnd] = "reset"
-                && manager.editor.drawButtons[manager.editor.doneButton.Hwnd] = "done",
-                "binding, reset and Done controls share the square-corner drawing system")
+                && manager.editor.drawButtons[manager.editor.applyButton.Hwnd] = "done",
+                "binding, reset and Apply controls share the square-corner drawing system")
             manager.editor.window["search"].Value := "show Paper Pad help"
             manager.editor.Render()
             paper := manager.editor.visibleRows[2].primary
@@ -1608,8 +1611,8 @@ class SuiteUpgradeChecks {
             editor := app.manager.editor.window
             this.Assert(app.manager.editor.resetAllButton.Text = "Restore defaults"
                 && app.manager.editor.applyButton.Text = "Apply"
-                && app.manager.editor.doneButton.Text = "Cancel",
-                "global Keybindings has Restore defaults, live Apply, and Cancel")
+                && !app.manager.editor.doneButton,
+                "global Keybindings has Restore defaults and Apply; the title bar closes it")
             editor.GetClientPos(, , &firstWidth, &firstHeight)
             this.AssertCentered(editor, "Keybindings")
             this.AssertResizeGrip(editor, "Keybindings")
@@ -1635,7 +1638,7 @@ class SuiteUpgradeChecks {
                 app.manager.editor.visibleRows[1].secondary,
                 app.manager.editor.visibleRows[1].reset,
                 app.manager.editor.search,
-                app.manager.editor.resetAllButton, app.manager.editor.applyButton, app.manager.editor.doneButton]
+                app.manager.editor.resetAllButton, app.manager.editor.applyButton]
             weights := []
             sizes := []
             faces := []
@@ -1712,16 +1715,14 @@ class SuiteUpgradeChecks {
             this.Assert(expandedRows > initialRows, "resizing taller reveals more shortcut rows")
             app.manager.editor.scroll.GetPos(&scrollX)
             this.Assert(scrollX > 950, "scrollbar stays anchored to the right edge")
-            app.manager.editor.doneButton.GetPos(, &doneY)
+            app.manager.editor.applyButton.GetPos(, &doneY)
             editor.GetClientPos(, , , &clientHeight)
             this.Assert(Abs(doneY - (clientHeight - 49)) <= 2,
-                "done button stays pinned to the bottom")
+                "footer buttons stay pinned to the bottom")
             app.manager.editor.resetAllButton.GetPos(&restoreX, , &restoreW)
             app.manager.editor.applyButton.GetPos(&applyX, , &applyW)
-            app.manager.editor.doneButton.GetPos(&cancelX, , &cancelW)
-            this.Assert(Abs(cancelX + cancelW - (adjustedWidth - 46)) <= 2
-                && Abs(applyX - (restoreX + restoreW + 14)) <= 2
-                && Abs(cancelX - (applyX + applyW + 14)) <= 2,
+            this.Assert(Abs(applyX + applyW - (adjustedWidth - 46)) <= 2
+                && Abs(applyX - (restoreX + restoreW + 14)) <= 2,
                 "Keybindings footer buttons are right-aligned with consistent gaps")
             editor.Show("w820 h420")
             editor.GetClientPos(, , &compactWidth, &compactHeight)

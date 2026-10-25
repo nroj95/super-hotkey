@@ -76,8 +76,8 @@ class KeybindingsEditor {
         this.divider := window.AddText("x22 y300 w752 h2 +0x10", "")
         this.resetAllButton := this._AddButton("x244 y320 w180 h31", "Restore defaults", "reset", "_ResetAll")
         this.applyButton := this._AddButton("x438 y320 w120 h31", "Apply", "done", "ApplyStaged")
-        this.doneButton := this._AddButton("x572 y320 w110 h31", moduleId = "" ? "Cancel" : "Back", "done",
-            moduleId = "" ? "RequestClose" : "BackToHelp")
+        ; The title bar and Escape close the window; a module view adds Back to its Help.
+        this.doneButton := moduleId = "" ? 0 : this._AddButton("x572 y320 w110 h31", "Back", "done", "BackToHelp")
         window.OnEvent("Size", ObjBindMethod(this, "Resize"))
         window.OnEvent("ContextMenu", ObjBindMethod(this, "_EditBindingText"))
         window.OnEvent("Close", ObjBindMethod(this, "RequestClose"))
@@ -246,13 +246,15 @@ class KeybindingsEditor {
             if widthChanged || heightChanged {
                 positions.Push({control: this.divider,
                     x: 22, y: height - 64, w: width - 68, h: 2})
-                footerX := width - 484 ; 438px button group, 46px right margin
+                ; A 314px or 438px button group with a 46px right margin.
+                footerX := width - (this.doneButton ? 484 : 360)
                 positions.Push({control: this.resetAllButton,
                     x: footerX, y: height - 49, w: 180, h: 31})
                 positions.Push({control: this.applyButton,
                     x: footerX + 194, y: height - 49, w: 120, h: 31})
-                positions.Push({control: this.doneButton,
-                    x: footerX + 328, y: height - 49, w: 110, h: 31})
+                if this.doneButton
+                    positions.Push({control: this.doneButton,
+                        x: footerX + 328, y: height - 49, w: 110, h: 31})
             }
             SuiteMoveControls(window, positions)
             if rowsChanged
@@ -484,7 +486,8 @@ class KeybindingsEditor {
         try {
             this.manager.Apply(this.draft)
             this.manager._Report("keybinding changes saved")
-            this.Close()
+            ; Stay open for further edits; Apply turns grey once nothing is pending.
+            this.Stage(this.manager.GetConfiguration())
             return true
         }
         catch Error as failure {
@@ -495,23 +498,31 @@ class KeybindingsEditor {
     }
 
     BackToHelp(*) {
-        if IsObject(this.recording) {
-            this.EndRecording()
-            return
-        }
+        if !this.CanLeave()
+            return true
         moduleId := this.moduleId
         this.Close()
         if moduleId != "" && IsObject(SuiteState.App) && IsObject(SuiteState.App.ui)
             SuiteState.App.ui.ShowHelp(moduleId)
     }
 
-    ; Escape and Close first cancel a recording in progress.
+    ; The title bar, Escape and the opening hotkey close the window. Returning
+    ; true keeps it open, because Gui Close otherwise hides it.
     RequestClose(*) {
+        if !this.CanLeave()
+            return true
+        this.Close()
+    }
+
+    ; Leaving first cancels a recording in progress, then asks before
+    ; discarding changes that were never applied.
+    CanLeave() {
         if IsObject(this.recording) {
             this.EndRecording()
-            return
+            return false
         }
-        this.Close()
+        return !this.HasPending() || MsgBox("Discard keybinding changes that were not applied?",
+            this.manager.name, "YesNo Default2 Icon? Owner" this.window.Hwnd) = "Yes"
     }
 
     Close(*) {
