@@ -27,7 +27,7 @@ class WonderWindowsModule extends SuiteModule {
     Register(manager) {
         this.manager := manager
         manager.AddAction("wonder-windows.help", "show Wonder Windows help",
-            ObjBindMethod(this.app, "HelpShortcutEvent", this.id), ["Caps + Win + H"],
+            ObjBindMethod(this.app, "HelpShortcutEvent", this.id), ["Caps + Win + H", "Ctrl + Alt + H"],
             {category: "Wonder Windows", available: ObjBindMethod(this, "Available")})
         this.Add("focus-up", "focus previous window on screen", WW_CycleWindowFocus, ["Win + PgUp"], ["up"])
         this.Add("focus-down", "focus next window on screen", WW_CycleWindowFocus, ["Win + PgDn"], ["down"])

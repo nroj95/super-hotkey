@@ -116,6 +116,8 @@ class SuiteChecks {
                 && !manager.actions.Has("wonder-windows.close-active")
                 && manager.actions["core.close-active"].category = "Global",
                 "isolate uses Win + Home; a Global action closes with Caps + Delete or Win + Delete")
+            this.Assert(configuration["wonder-windows.help"].bindings[2] = Keybindings.Parse("Ctrl + Alt + H").signature,
+                "Wonder Windows help also opens with Ctrl + Alt + H")
             for name in ["layout-left", "layout-right", "tile-top-left", "tile-top", "tile-top-right",
                 "tile-bottom-left", "tile-bottom", "tile-bottom-right"]
                 this.Assert(!manager.actions.Has("wonder-windows." name),
