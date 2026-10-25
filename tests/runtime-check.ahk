@@ -125,8 +125,10 @@ class SuiteChecks {
                     "zone cycling replaces " name)
             for direction in ["left", "right", "up", "down"] {
                 this.Assert(configuration["wonder-windows.swap-" direction].bindings[1]
+                    = Keybindings.Parse("Win + Alt + " direction).signature
+                    && configuration["wonder-windows.swap-" direction].bindings[2]
                     = Keybindings.Parse("Caps + Win + " direction).signature,
-                    "directional swap defaults to Caps + Win + " direction)
+                    "directional swap defaults to Win + Alt + " direction ", then Caps + Win")
             }
             this.Assert(configuration["wonder-windows.stretch-full-cycle"].bindings[1]
                 = Keybindings.Parse("Shift + Win + Enter").signature
@@ -155,11 +157,18 @@ class SuiteChecks {
                 this.Assert(!manager.actions.Has("wonder-windows.zone-" direction),
                     "FancyZones forwarding is removed: " direction)
             this.Assert(configuration["wonder-windows.move-monitor-left"].bindings[1]
-                    = Keybindings.Parse("Win + Alt + Left").signature
+                    = Keybindings.Parse("Ctrl + Win + Alt + Left").signature
                 && configuration["wonder-windows.move-monitor-right"].bindings[1]
-                    = Keybindings.Parse("Win + Alt + Right").signature
+                    = Keybindings.Parse("Ctrl + Win + Alt + Right").signature
                 && !manager.actions.Has("wonder-windows.move-monitor"),
-                "moving between displays uses Win + Alt + Left/Right")
+                "moving between displays uses Ctrl + Win + Alt + Left/Right")
+            ; Wonder Windows works without the Caps layer: Caps only appears in second slots.
+            capsPrimaries := ""
+            for actionId, action in manager.actions
+                if InStr(actionId, "wonder-windows.") = 1 && action.defaults[1] != ""
+                    && StrSplit(action.defaults[1], "|")[1] != "normal"
+                    capsPrimaries .= actionId " "
+            this.Assert(capsPrimaries = "", "no Wonder Windows primary default needs a layer: " capsPrimaries)
             this.Assert(!manager.actions.Has("cascade-kingdom.auto-placement"),
                 "old pause-cascading keybinding is removed")
             this.Assert(!manager.actions.Has("cascade-kingdom.rotate-previous")

@@ -38,9 +38,9 @@ class WonderWindowsModule extends SuiteModule {
         this.Add("restore", "restore normal size / minimize", WW_RestoreOrMinimizeWindow, ["Win + Down"])
         this.Add("minimize", "minimize / restore last minimized window", WW_MinimizeActiveWindow, ["Win + Backspace"])
         this.Add("move-monitor-left", "move active window to the display on the left",
-            WW_MoveWindowToAdjacentMonitor, ["Win + Alt + Left"], ["left"])
+            WW_MoveWindowToAdjacentMonitor, ["Ctrl + Win + Alt + Left"], ["left"])
         this.Add("move-monitor-right", "move active window to the display on the right",
-            WW_MoveWindowToAdjacentMonitor, ["Win + Alt + Right"], ["right"])
+            WW_MoveWindowToAdjacentMonitor, ["Ctrl + Win + Alt + Right"], ["right"])
         this.Add("zones-from-left", "cycle zones from the left", WW_CycleZone,
             ["Win + WheelDown", "Win + Left"], ["down"])
         this.Add("zones-from-right", "cycle zones from the right", WW_CycleZone,
@@ -53,7 +53,7 @@ class WonderWindowsModule extends SuiteModule {
         this.Add("reset-stretch", "undo window stretch", WW_ResetWindowStretch, ["Win + Shift + Down"])
         for direction in ["up", "down", "left", "right"]
             this.Add("swap-" direction, "swap with nearest window to the " direction,
-                WW_SwapWindow, ["Caps + Win + " direction], [direction])
+                WW_SwapWindow, ["Win + Alt + " direction, "Caps + Win + " direction], [direction])
         this.Add("isolate", "isolate active window / restore", WW_ToggleOtherWindows, ["Win + Home"])
         this.Add("minimize-all", "minimize / restore all windows", WW_ToggleAllWindows, ["Win + M"])
         manager.AddMigration("wonderDefaults", "1", WW_MigrateKeybindingDefaults)
