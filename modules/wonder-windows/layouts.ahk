@@ -540,7 +540,7 @@ WW_CycleWindowSnap(side)
             layouts.Push(WW_BuildRatioLayout(work_area, ratios))
 
         index := fresh_entry ? 0 : WW_FindCurrentLayoutIndex(hwnd, family, work_area, layouts)
-        target_index := WW_GetNextCycleIndex(index, layouts.Length)
+        target_index := WW_GetNextFittingIndex(index, layouts, WW_GetMinimumVisibleSize(hwnd))
         WW_ApplyTrackedLayout(hwnd, family, work_area, layouts, target_index)
     }
     catch Error as err {
@@ -567,7 +567,8 @@ WW_PlaceCornerTile(position)
             WW_BuildRatioLayout(work_area, side_ratios[2], vertical_position)]
         family := "corner-" position
         index := fresh_entry ? 0 : WW_FindCurrentLayoutIndex(hwnd, family, work_area, layouts)
-        WW_ApplyTrackedLayout(hwnd, family, work_area, layouts, WW_GetNextCycleIndex(index, 2))
+        WW_ApplyTrackedLayout(hwnd, family, work_area, layouts,
+            WW_GetNextFittingIndex(index, layouts, WW_GetMinimumVisibleSize(hwnd)))
     }
     catch Error as err {
         WW_DebugError("Place corner tile", err)
@@ -590,6 +591,11 @@ WW_PlaceCenterTile(vertical_position)
         index := fresh_entry ? 0 : WW_FindCurrentLayoutIndex(hwnd, family, work_area, layouts)
         next_side := WW_GetNextCenterTileSide(hwnd, vertical_position)
         target_index := index = 1 ? (next_side = "left" ? 2 : 3) : 1
+        ; An app too wide for the narrow tiles stays on the wide center tile.
+        minimum := WW_GetMinimumVisibleSize(hwnd)
+        if target_index != 1 && !WW_LayoutFitsMinimum(layouts[target_index], minimum)
+            && WW_LayoutFitsMinimum(layouts[1], minimum)
+            target_index := 1
 
         if !WW_ApplyTrackedLayout(hwnd, family, work_area, layouts, target_index)
             return

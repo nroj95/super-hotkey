@@ -68,6 +68,24 @@ WW_GetNextCycleIndex(current_index, count, backwards := false)
     return current_index = count ? 1 : current_index + 1
 }
 
+; Apps such as Discord cannot shrink to every layout, so their cycles skip the
+; ones they refuse. When none fits, the normal step is placed as best it can.
+WW_GetNextFittingIndex(current_index, layouts, minimum)
+{
+    candidate := current_index
+    Loop layouts.Length {
+        candidate := WW_GetNextCycleIndex(candidate, layouts.Length)
+        if WW_LayoutFitsMinimum(layouts[candidate], minimum)
+            return candidate
+    }
+    return WW_GetNextCycleIndex(current_index, layouts.Length)
+}
+
+WW_LayoutFitsMinimum(layout, minimum, tolerance := 2)
+{
+    return minimum[1] <= layout[3] + tolerance && minimum[2] <= layout[4] + tolerance
+}
+
 WW_RectanglesMatch(first, second, tolerance := 4)
 {
     Loop 4 {

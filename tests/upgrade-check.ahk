@@ -1063,6 +1063,16 @@ class SuiteUpgradeChecks {
                 WW_FitAcceptedRectangle([0, 450, 400, 450], [0, 450, 600, 520], [0, 0, 1600, 900]),
                 [0, 380, 600, 520], 0),
                 "a tile too small for its app grows inward instead of off-screen")
+            side := [[0, 0, 400, 1000], [0, 0, 800, 1000], [400, 0, 400, 1000], [400, 0, 800, 1000]]
+            this.Assert(WW_GetNextFittingIndex(0, side, [600, 500]) = 2
+                && WW_GetNextFittingIndex(2, side, [600, 500]) = 4
+                && WW_GetNextFittingIndex(4, side, [600, 500]) = 2
+                && WW_GetNextFittingIndex(1, side, [0, 0]) = 2,
+                "layout cycles skip sizes an app refuses and keep the rest")
+            this.Assert(WW_GetNextFittingIndex(2, [[0, 0, 400, 500], [0, 0, 800, 500]], [600, 400]) = 2
+                && WW_GetNextFittingIndex(1, side, [900, 500]) = 2
+                && WW_GetNextFittingIndex(0, side, [900, 500]) = 1,
+                "a single fitting size repeats; when none fits the normal cycle continues")
             this.Assert(WW_GetCollisionLimitedEdge("left", [400, 0, 200, 300], [[100, 0, 200, 300]], 0) = 300,
                 "horizontal stretch stops at the nearest facing edge")
             this.Assert(WW_GetCollisionLimitedEdge("left", [400, 0, 200, 300], [[450, 0, 200, 300]], 0) = 0,
