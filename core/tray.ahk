@@ -184,7 +184,7 @@ class SuiteInterface {
                 this.pageFooters.Delete(this.windows[key].Hwnd)
             SuiteFullscreen.Forget(this.windows[key])
             SuiteSizeGrip.Detach(this.windows[key])
-            this.windows[key].Destroy()
+            SuiteFocusReturn.Destroy(this.windows[key])
             this.windows.Delete(key)
         }
     }

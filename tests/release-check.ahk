@@ -13,6 +13,7 @@ class SuiteReleaseChecks {
         this.WorkingMonitor()
         this.OversizedTile()
         this.CenteredNotices()
+        this.FocusReturn()
         this.DeferredInputsAndSessions()
         this.WindowSizingAndCloaking()
         this.PaperPadTopmostRestoration()
@@ -172,6 +173,27 @@ class SuiteReleaseChecks {
             this.Assert(SuiteWorkingMonitor.Choose([{hwnd: 987654321, click: press}]) = MonitorGetPrimary()
                 && SuiteWorkingMonitor.Choose([]) = MonitorGetPrimary(),
                 "closed windows are skipped and the primary display is the last resort")
+            ; The desktop spans every display: clicking it elsewhere keeps it in
+            ; front, so the newer click must replace the one that opened it.
+            savedRecent := SuiteWorkingMonitor.recent, savedClick := SuiteWorkingMonitor.click
+            MonitorGetPixels(1, &firstLeft, &firstTop, &firstRight, &firstBottom)
+            SuiteWorkingMonitor.recent := [{hwnd: passage.Hwnd,
+                click: {tick: A_TickCount, x: firstLeft + 10, y: firstTop + 10}}]
+            SuiteWorkingMonitor.NoteClick(press, passage.Hwnd)
+            refreshed := SuiteWorkingMonitor.Choose(SuiteWorkingMonitor.recent)
+            SuiteWorkingMonitor.NoteClick({tick: A_TickCount, x: firstLeft + 10, y: firstTop + 10}, work.Hwnd)
+            this.Assert(refreshed = last && SuiteWorkingMonitor.Choose(SuiteWorkingMonitor.recent) = last,
+                "a click that keeps the same window in front updates where it was clicked")
+            ; Closing a suite page hands focus back to the clicked desktop; the
+            ; later foreground event must not erase where it was clicked.
+            SuiteWorkingMonitor.recent := [{hwnd: work.Hwnd, click: 0}, {hwnd: passage.Hwnd, click: press}]
+            SuiteWorkingMonitor.Return(passage.Hwnd)
+            SuiteWorkingMonitor._RecordForeground(0, 3, passage.Hwnd)
+            this.Assert(SuiteWorkingMonitor.recent[1].hwnd = passage.Hwnd
+                && SuiteWorkingMonitor.recent[1].click = press
+                && SuiteWorkingMonitor.Choose(SuiteWorkingMonitor.recent, work.Hwnd) = last,
+                "focus handed back by the suite keeps the click that chose the display")
+            SuiteWorkingMonitor.recent := savedRecent, SuiteWorkingMonitor.click := savedClick
         }
         finally {
             for window in [work, older, passage]
@@ -209,6 +231,39 @@ class SuiteReleaseChecks {
             SuiteWindowOwnership.Release(window.Hwnd, false)
             SuiteSizeGrip.Detach(window)
             window.Destroy()
+        }
+    }
+
+    ; Closing a suite window gives focus back to where the user was, instead of
+    ; letting Windows pick an app that may sit on another display. Windows may
+    ; refuse focus changes to a background test run, so each step checks first.
+    static FocusReturn() {
+        app := SuiteApplication(true, SuiteChecks.directory "\release-focus-return")
+        desktop := WinExist("ahk_class Progman")
+        if !desktop
+            return
+        page := SuiteGui(, "Focus return page")
+        try {
+            WinActivate(desktop)
+            Sleep 100
+            if DllCall("GetForegroundWindow", "ptr") != desktop
+                return
+            SuiteShowCentered(page, 300, 200)
+            this.Assert(SuiteFocusReturn.target = desktop,
+                "opening a suite window remembers the window that had focus")
+            WinActivate(page.Hwnd)
+            Sleep 100
+            if DllCall("GetForegroundWindow", "ptr") != page.Hwnd
+                return
+            SuiteFocusReturn.Destroy(page)
+            page := 0
+            Sleep 100
+            this.Assert(DllCall("GetForegroundWindow", "ptr") = desktop,
+                "closing a suite window returns focus to that window")
+        }
+        finally {
+            if IsObject(page)
+                page.Destroy()
         }
     }
 

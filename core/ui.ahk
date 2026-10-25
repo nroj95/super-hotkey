@@ -13,6 +13,7 @@ SuiteGui(options := "", title := "") {
 }
 
 SuiteShowCentered(window, width, height, layoutCallback := 0, fitWorkArea := false) {
+    SuiteFocusReturn.Remember()
     ; Size while hidden so the user only sees the correctly centered layout.
     window.Show("Hide w" width " h" height)
 

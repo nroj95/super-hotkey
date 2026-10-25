@@ -139,21 +139,34 @@ class SuiteWorkingMonitor {
         foreground := DllCall("GetForegroundWindow", "ptr")
         if foreground && (!this.recent.Length || this.recent[1].hwnd != foreground)
             this._RecordForeground(0, 3, foreground)
-        return this.Choose(this.recent, ignore)
+        monitor := this.Choose(this.recent, ignore, &reason, &source)
+        if IsObject(SuiteState.Log) && SuiteState.Log.verbose
+            SuiteState.Log.Debug("Core", "Working monitor chosen. | monitor=" monitor " | reason=" reason
+                . " | source=" DescribeWindow(source) " | foreground=" DescribeWindow(foreground)
+                . " | ignored=" ignore " | recent=" this.recent.Length)
+        return monitor
     }
 
-    ; The display that foreground entries, newest first, choose.
-    static Choose(entries, ignore := 0) {
+    ; The display that foreground entries, newest first, choose. reason and
+    ; source report which entry decided, for verbose logs.
+    static Choose(entries, ignore := 0, &reason := "", &source := 0) {
         for entry in entries {
             if entry.hwnd = ignore || !DllCall("IsWindow", "ptr", entry.hwnd, "int")
                 continue
-            if this.IsWorkWindow(entry.hwnd)
+            source := entry.hwnd
+            if this.IsWorkWindow(entry.hwnd) {
+                reason := "work window"
                 return WindowMonitorIndex(entry.hwnd) || MonitorGetPrimary()
-            if entry.click
+            }
+            if entry.click {
+                reason := "click at " entry.click.x "," entry.click.y
                 return MonitorHandleIndex(PhysicalDllCall("MonitorFromPoint",
                     "int64", (entry.click.y << 32) | (entry.click.x & 0xFFFFFFFF), "uint", 2, "ptr"))
                     || MonitorGetPrimary()
+            }
         }
+        source := 0
+        reason := "primary fallback"
         return MonitorGetPrimary()
     }
 
@@ -171,15 +184,40 @@ class SuiteWorkingMonitor {
 
     static _RecordClick(*) {
         MouseGetPosPixels(&x, &y)
-        this.click := {tick: A_TickCount, x: x, y: y}
+        this.NoteClick({tick: A_TickCount, x: x, y: y}, DllCall("GetForegroundWindow", "ptr"))
+    }
+
+    ; The desktop is one window across every display, so clicking it on
+    ; another display changes no foreground: the front entry takes the newer
+    ; click. A click that activates another window gets its own entry anyway.
+    static NoteClick(click, foreground) {
+        this.click := click
+        if this.recent.Length && this.recent[1].hwnd = foreground
+            this.recent[1].click := click
     }
 
     ; A window that takes the foreground after a click newer than any
     ; keystroke was brought there by that click.
+    ; Focus handed back by the suite is not a new choice: the window's entry,
+    ; including the click that brought it forward, returns to the front.
+    static Return(hwnd) {
+        for index, entry in this.recent
+            if entry.hwnd = hwnd {
+                this.recent.RemoveAt(index)
+                this.recent.InsertAt(1, entry)
+                return
+            }
+        this._RecordForeground(0, 3, hwnd)
+    }
+
     static _RecordForeground(hook, event, hwnd, *) {
-        if !hwnd
+        ; Get() and Return() may already have put this window in front.
+        if !hwnd || this.recent.Length && this.recent[1].hwnd = hwnd
             return
         clicked := this.click && this.click.tick > A_TickCount - A_TimeIdleKeyboard
+        if IsObject(SuiteState.Log) && SuiteState.Log.verbose
+            SuiteState.Log.Debug("Core", "Foreground recorded. | by-click=" (clicked ? 1 : 0)
+                . " | work=" this.IsWorkWindow(hwnd) " | " DescribeWindow(hwnd))
         recent := [{hwnd: hwnd, click: clicked ? this.click : 0}]
         for entry in this.recent
             if entry.hwnd != hwnd && recent.Length < 16
@@ -458,6 +496,34 @@ class SuiteCloseWindow {
             SetTimer(ObjBindMethod(this, "Watch", request), -140)
         else
             this.request := 0
+    }
+}
+
+; Closing a suite window returns focus to the window the user was in before
+; the suite opened it. Otherwise Windows hands focus to the next app in
+; Z-order, which may sit on another display: keystrokes would land there, and
+; the next suite window would open there too.
+class SuiteFocusReturn {
+    static target := 0 ; the last non-suite foreground seen when a suite window opened
+
+    static Remember() {
+        hwnd := DllCall("GetForegroundWindow", "ptr")
+        if hwnd && !SuiteWindowOwnership.IsSuiteSurface(hwnd)
+            this.target := hwnd
+    }
+
+    ; Destroys a suite window. When it has focus, focus moves back first, while
+    ; the suite still owns the foreground and Windows allows the switch.
+    static Destroy(window) {
+        hwnd := window.Hwnd
+        target := this.target
+        if DllCall("GetForegroundWindow", "ptr") = hwnd && target && target != hwnd
+            && DllCall("IsWindow", "ptr", target, "int") && DllCall("IsWindowVisible", "ptr", target, "int")
+            && !DllCall("IsIconic", "ptr", target, "int") && !IsWindowCloaked(target)
+            && DllCall("SetForegroundWindow", "ptr", target, "int")
+            && DllCall("GetForegroundWindow", "ptr") = target
+            SuiteWorkingMonitor.Return(target)
+        window.Destroy()
     }
 }
 

@@ -536,7 +536,7 @@ class KeybindingsEditor {
         if IsObject(this.window) {
             SuiteFullscreen.Forget(this.window)
             SuiteSizeGrip.Detach(this.window)
-            this.window.Destroy()
+            SuiteFocusReturn.Destroy(this.window)
         }
         this.window := 0
         this.draft := 0
