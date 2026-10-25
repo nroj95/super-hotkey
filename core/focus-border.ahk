@@ -51,8 +51,15 @@ class SuiteFocusBorder {
                     this.guis.Push(borderGui)
                 }
             }
+            ; Keep the outline on the window's display; a window touching a
+            ; display edge must not paint a strip onto the neighbouring one.
+            bounds := this.MonitorBounds(hwnd)
             for index, rect in rects {
                 borderGui := this.guis[index]
+                if !(rect := this.Clip(rect, bounds)) {
+                    borderGui.Hide()
+                    continue
+                }
                 if borderGui.BackColor != color
                     borderGui.BackColor := color
                 borderGui.Show("NA x" rect[1] " y" rect[2] " w" rect[3] " h" rect[4])
@@ -95,6 +102,25 @@ class SuiteFocusBorder {
             this.guis := []
         this.owner := ""
         return true
+    }
+
+    ; The display rectangle [left, top, right, bottom] in physical pixels, or 0.
+    static MonitorBounds(hwnd) {
+        info := Buffer(40, 0) ; MONITORINFO
+        NumPut("uint", info.Size, info)
+        monitor := DllCall("MonitorFromWindow", "ptr", hwnd, "uint", 2, "ptr") ; MONITOR_DEFAULTTONEAREST
+        if !monitor || !PhysicalDllCall("GetMonitorInfoW", "ptr", monitor, "ptr", info, "int")
+            return 0
+        return [NumGet(info, 4, "int"), NumGet(info, 8, "int"), NumGet(info, 12, "int"), NumGet(info, 16, "int")]
+    }
+
+    ; The part of [x, y, width, height] inside bounds, or 0 when none remains.
+    static Clip(rect, bounds) {
+        if !bounds
+            return rect
+        left := Max(rect[1], bounds[1]), top := Max(rect[2], bounds[2])
+        right := Min(rect[1] + rect[3], bounds[3]), bottom := Min(rect[2] + rect[4], bounds[4])
+        return right > left && bottom > top ? [left, top, right - left, bottom - top] : 0
     }
 
     static CanHide(expectedOwner, activeOwner) {

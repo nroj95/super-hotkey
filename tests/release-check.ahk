@@ -337,6 +337,14 @@ class SuiteReleaseChecks {
                 && !CascadeShouldHighlightCloseFocus("wait", true)
                 && !CascadeShouldHighlightCloseFocus("recover", false),
                 "Caps+Delete highlights native focus only after the close completes")
+            clip := (rect) => (clipped := SuiteFocusBorder.Clip(rect, [0, 0, 1920, 1080]))
+                ? clipped[1] "," clipped[2] "," clipped[3] "," clipped[4] : "hidden"
+            this.Assert(clip([-10, 100, 12, 300]) = "0,100,2,300"
+                && clip([1918, 100, 12, 300]) = "1918,100,2,300"
+                && clip([1920, 100, 12, 300]) = "hidden"
+                && clip([90, -10, 500, 12]) = "90,0,500,2"
+                && clip([90, 90, 500, 12]) = "90,90,500,12",
+                "the focus border keeps only the part on its window's display")
             this.Assert(SuiteFocusBorder.durationMs = 1500
                 && SuiteFocusBorder.thickness = 12
                 && SuiteFocusBorder.overlap = 2
