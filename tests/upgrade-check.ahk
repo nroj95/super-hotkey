@@ -953,15 +953,13 @@ class SuiteUpgradeChecks {
         app := SuiteApplication(true, SuiteChecks.directory "\geometry")
         app.InitializeCatalog()
         try {
-            ratios := WW_GetSideCycleRatios("left")
-            this.Assert(ratios.Length = 4 && ratios[1][2] = 2 && ratios[2][2] = 4,
-                "Wonder Windows retains the four quarter/half-width layout steps")
-            top := WW_BuildRatioLayout([-1001, -501, 0, 500], [0, 4, 4], "top")
+            top :=WW_BuildRatioLayout([-1001, -501, 0, 500], [0, 4, 4], "top")
             bottom := WW_BuildRatioLayout([-1001, -501, 0, 500], [0, 4, 4], "bottom")
             this.Assert(top[1] = -1001 && top[2] + top[4] = bottom[2]
                 && bottom[2] + bottom[4] = 500, "odd negative-coordinate layouts retain exact shared boundaries")
-            this.Assert(WW_GetNextCycleIndex(4, 4) = 1 && WW_GetNextCycleIndex(1, 4, true) = 4,
-                "layout cycling wraps in both directions")
+            this.Assert(WW_GetNextCycleIndex(4, 4) = 1 && WW_GetNextCycleIndex(1, 4, true) = 4
+                && WW_GetNextCycleIndex(0, 4) = 1 && WW_GetNextCycleIndex(0, 4, true) = 4,
+                "layout cycling wraps in both directions and starts from either end")
             this.Assert(WW_NextMonitorIndex(1, 2) = 2 && WW_NextMonitorIndex(2, 2) = 1
                 && WW_NextMonitorIndex(3, 3) = 1 && WW_NextMonitorIndex(1, 1) = 0,
                 "monitor cycling wraps and does nothing with one monitor")
@@ -988,7 +986,7 @@ class SuiteUpgradeChecks {
             oldDefaults["wonder-windows.stretch-full-cycle"].bindings[1] := Keybindings.Parse("Caps + Win + Enter").signature
             oldDefaults["wonder-windows.reset-stretch"].bindings[2] := Keybindings.Parse("Caps + Win + Backspace").signature
             oldDefaults["wonder-windows.cycle-expanded"].bindings[1] := Keybindings.Parse("Win + Shift + Tab").signature
-            oldDefaults["wonder-windows.focus-left"].bindings[1] := Keybindings.Parse("Pause + Z").signature
+            oldDefaults["wonder-windows.focus-down"].bindings[1] := Keybindings.Parse("Pause + Z").signature
             WW_MigrateKeybindingDefaults(oldDefaults)
             this.Assert(oldDefaults["wonder-windows.focus-up"].bindings[1]
                     = Keybindings.Parse("Win + Alt + Up").signature
@@ -997,9 +995,28 @@ class SuiteUpgradeChecks {
                 && oldDefaults["wonder-windows.reset-stretch"].bindings[2] = ""
                 && oldDefaults["wonder-windows.cycle-expanded"].bindings[1]
                     = Keybindings.Parse("Caps + Win + Enter").signature
-                && oldDefaults["wonder-windows.focus-left"].bindings[1]
+                && oldDefaults["wonder-windows.focus-down"].bindings[1]
                     = Keybindings.Parse("Pause + Z").signature,
                 "legacy default shortcuts migrate without changing customized bindings")
+            oldDefaults["wonder-windows.isolate"].bindings[1] := Keybindings.Parse("Win + Shift + Home").signature
+            WW_MigrateZoneKeybindingDefaults(oldDefaults)
+            this.Assert(oldDefaults["wonder-windows.focus-up"].bindings[1]
+                    = Keybindings.Parse("Win + PgUp").signature
+                && oldDefaults["wonder-windows.isolate"].bindings[1]
+                    = Keybindings.Parse("Win + Home").signature
+                && oldDefaults["wonder-windows.focus-down"].bindings[1]
+                    = Keybindings.Parse("Pause + Z").signature,
+                "zone-era defaults move stock focus and isolate hotkeys, sharing Paper Pad's editor keys")
+            oldDefaults["cascade-kingdom.close-active"].bindings[2] := ""
+            oldDefaults["power-up-utilities.keyboard.f13"].bindings[1] := Keybindings.Parse("Win + Delete").signature
+            this.Assert(!Keybindings.MigrateDefault(oldDefaults, "cascade-kingdom.close-active", 2, "", "Win + Delete")
+                && oldDefaults["cascade-kingdom.close-active"].bindings[2] = "",
+                "a migration never takes a hotkey another global action uses")
+            oldDefaults["power-up-utilities.keyboard.f13"].bindings[1] := ""
+            this.Assert(Keybindings.MigrateDefault(oldDefaults, "cascade-kingdom.close-active", 2, "", "Win + Delete")
+                && oldDefaults["cascade-kingdom.close-active"].bindings[2]
+                    = Keybindings.Parse("Win + Delete").signature,
+                "closing gains Win + Delete when it is free")
             oldDefaults["cascade-kingdom.reset-log"].bindings[1] := Keybindings.Parse("Caps + F5").signature
             oldDefaults["cascade-kingdom.copy-log"].bindings[1] := Keybindings.Parse("Pause + F9").signature
             SuiteMigrateLogKeybindingDefaults(oldDefaults)
@@ -1086,28 +1103,60 @@ class SuiteUpgradeChecks {
                 && WW_RectanglesMatch(zones[19], [0, 450, 800, 450], 0)
                 && WW_RectanglesMatch(zones[21], [800, 450, 800, 450], 0),
                 "fourths: full quarters and halves, then upper and lower quarters, then halves")
-            mirrored := WW_BuildZoneSequence(work, "fourths", true)
-            this.Assert(WW_RectanglesMatch(mirrored[1], [1200, 0, 400, 900], 0)
-                && WW_RectanglesMatch(mirrored[5], [800, 0, 800, 900], 0)
-                && WW_RectanglesMatch(mirrored[21], [0, 450, 800, 450], 0),
-                "starting from the right mirrors the walk")
             thirds := WW_BuildZoneSequence(work, "thirds")
             this.Assert(thirds.Length = 9 && WW_RectanglesMatch(thirds[2], [533, 0, 534, 900], 0)
                 && WW_RectanglesMatch(thirds[4], [0, 0, 533, 450], 0)
                 && WW_RectanglesMatch(thirds[9], [1067, 450, 533, 450], 0),
                 "thirds skip the halves")
+            mirrored := WW_BuildZoneSequence(work, "fourths", true)
+            this.Assert(WW_RectanglesMatch(mirrored[1], [1200, 0, 400, 900], 0)
+                && WW_RectanglesMatch(mirrored[5], [800, 0, 800, 900], 0)
+                && WW_RectanglesMatch(mirrored[21], [0, 450, 800, 450], 0),
+                "starting from the right mirrors the walk")
             session := WW_StartZoneSession(1, 2, work, "fourths", "down")
             steps := []
             for direction in ["down", "down", "up", "up", "up"]
                 steps.Push(WW_AdvanceZoneSession(session, direction, [0, 0]))
             this.Assert(steps[1] = 1 && steps[2] = 2 && steps[3] = 1 && steps[4] = 21 && steps[5] = 20,
                 "the other key steps back one zone, wrapping at the ends")
+            ; Each walk starts on the side its key names; one press of the other
+            ; key wraps to the last zone on the opposite side.
             session := WW_StartZoneSession(1, 2, work, "fourths", "up")
-            this.Assert(WW_AdvanceZoneSession(session, "up", [0, 0]) = 1
-                && WW_RectanglesMatch(session.zones[1], [1200, 0, 400, 900], 0)
-                && WW_AdvanceZoneSession(session, "up", [0, 0]) = 2
+            this.Assert(WW_RectanglesMatch(session.zones[WW_AdvanceZoneSession(session, "up", [0, 0])],
+                    [1200, 0, 400, 900], 0)
+                && WW_RectanglesMatch(session.zones[WW_AdvanceZoneSession(session, "up", [0, 0])],
+                    [800, 0, 400, 900], 0)
                 && WW_AdvanceZoneSession(session, "down", [0, 0]) = 1,
-                "a walk started from the right steps forward with the same key")
+                "Right starts at the right fourth and Left steps back")
+            session := WW_StartZoneSession(1, 2, work, "fourths", "down")
+            WW_AdvanceZoneSession(session, "down", [0, 0])
+            this.Assert(WW_RectanglesMatch(session.zones[WW_AdvanceZoneSession(session, "up", [0, 0])],
+                    [800, 450, 800, 450], 0),
+                "Left then Right reaches the lower-right half in two presses")
+            ; Two displays: a left column split top/bottom (hwnds 40 and 30), a
+            ; right column (10) and two windows stacked exactly (60 and 20).
+            entries := [{hwnd: 10, monitor: 0, x: 960, y: 0},
+                {hwnd: 60, monitor: 1920, x: 1920, y: 0},
+                {hwnd: 30, monitor: 0, x: 3, y: 540},
+                {hwnd: 20, monitor: 1920, x: 1920, y: 0},
+                {hwnd: 40, monitor: 0, x: 0, y: 0}]
+            order := ""
+            for entry in WW_SortFocusEntries(entries)
+                order .= entry.hwnd " "
+            this.Assert(order = "40 30 10 20 60 ",
+                "focus cycles displays, then columns, then top to bottom")
+            ; Activating a stacked window must not change its place in the cycle.
+            entries.RemoveAt(4), entries.InsertAt(1, {hwnd: 20, monitor: 1920, x: 1920, y: 0})
+            order := ""
+            for entry in WW_SortFocusEntries(entries)
+                order .= entry.hwnd " "
+            this.Assert(order = "40 30 10 20 60 ",
+                "stacked windows keep their order when one comes to the front")
+            this.Assert(WW_IsAtNormalPlacement(0, false, false)
+                && !WW_IsAtNormalPlacement(1, false, false)
+                && !WW_IsAtNormalPlacement(0, true, false)
+                && !WW_IsAtNormalPlacement(0, false, true),
+                "Win + Down restores placed, maximized and fullscreen windows before minimizing")
             session := WW_StartZoneSession(1, 2, work, "fourths", "down")
             this.Assert(WW_AdvanceZoneSession(session, "down", [600, 0]) = 5,
                 "zones an app cannot shrink to are skipped")
@@ -1259,7 +1308,7 @@ class SuiteUpgradeChecks {
                 && KeybindingsEditor.ContextTagText("paper-pad") = "editor only"
                 && KeybindingsEditor.ContextTagText("windows-terminal") = "terminal only",
                 "only application-specific shortcuts receive readable context tags")
-            this.Assert(manager.actions["wonder-windows.layout-left"].scope = ""
+            this.Assert(manager.actions["wonder-windows.zones-from-left"].scope = ""
                 && manager.actions["paper-pad.previous"].scope = "paper-pad",
                 "Wonder Windows is a global fallback for Paper Pad editor shortcuts")
             this.Assert(manager.actions["power-up-utilities.terminal.clear"].scope = "windows-terminal"
@@ -1444,15 +1493,11 @@ class SuiteUpgradeChecks {
             "Cascade Kingdom groups navigation, rotation and management")
         this.AssertDisplaySequence(rows, [
             "wonder-windows.help", "wonder-windows.focus-up",
-            "wonder-windows.focus-down", "wonder-windows.focus-left",
-            "wonder-windows.focus-right", "wonder-windows.cycle-stacked",
+            "wonder-windows.focus-down", "wonder-windows.cycle-stacked",
             "wonder-windows.cycle-expanded",
             "wonder-windows.maximize", "wonder-windows.restore", "wonder-windows.minimize",
             "wonder-windows.move-monitor",
-            "wonder-windows.layout-left", "wonder-windows.layout-right",
-            "wonder-windows.tile-top-left", "wonder-windows.tile-top",
-            "wonder-windows.tile-top-right", "wonder-windows.tile-bottom-left",
-            "wonder-windows.tile-bottom", "wonder-windows.tile-bottom-right",
+            "wonder-windows.zones-from-left", "wonder-windows.zones-from-right",
             "wonder-windows.stretch-left", "wonder-windows.stretch-right",
             "wonder-windows.stretch-height", "wonder-windows.stretch-full-cycle",
             "wonder-windows.reset-stretch",

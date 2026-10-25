@@ -414,21 +414,6 @@ class SuiteApplication {
 ; bindings and never take a hotkey another action already uses.
 SuiteMigrateLogKeybindingDefaults(configuration, meta := 0)
 {
-    for change in [
-        ["cascade-kingdom.reset-log", "Caps + F5", "Pause + F1"],
-        ["cascade-kingdom.copy-log", "Caps + F6", "Pause + F2"]
-    ] {
-        actionId := change[1]
-        if !configuration.Has(actionId)
-            || configuration[actionId].bindings[1] != Keybindings.Parse(change[2]).signature
-            continue
-        target := Keybindings.Parse(change[3]).signature
-        occupied := false
-        for otherId, setting in configuration
-            for slot, binding in setting.bindings
-                if binding = target && (otherId != actionId || slot != 1)
-                    occupied := true
-        if !occupied
-            configuration[actionId].bindings[1] := target
-    }
+    Keybindings.MigrateDefault(configuration, "cascade-kingdom.reset-log", 1, "Caps + F5", "Pause + F1")
+    Keybindings.MigrateDefault(configuration, "cascade-kingdom.copy-log", 1, "Caps + F6", "Pause + F2")
 }

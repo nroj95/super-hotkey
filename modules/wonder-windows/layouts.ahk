@@ -522,97 +522,6 @@ WW_PruneHorizontalStretchWindows()
 }
 
 ; =============================================================================
-; side-layout cycle and top/bottom tiles
-; =============================================================================
-
-WW_CycleWindowSnap(side)
-{
-    Critical "On"
-    hwnd := WW_GetPlacementTarget(&fresh_entry)
-    if !hwnd
-        return
-
-    try {
-        work_area := WW_GetLayoutWorkArea(hwnd)
-        family := "side-" side
-        layouts := []
-        for ratios in WW_GetSideCycleRatios(side)
-            layouts.Push(WW_BuildRatioLayout(work_area, ratios))
-
-        index := fresh_entry ? 0 : WW_FindCurrentLayoutIndex(hwnd, family, work_area, layouts)
-        target_index := WW_GetNextFittingIndex(index, layouts, WW_GetMinimumVisibleSize(hwnd))
-        WW_ApplyTrackedLayout(hwnd, family, work_area, layouts, target_index)
-    }
-    catch Error as err {
-        WW_DebugError("Cycle side layout", err)
-    }
-}
-
-WW_PlaceCornerTile(position)
-{
-    Critical "On"
-    hwnd := WW_GetPlacementTarget(&fresh_entry)
-    if !hwnd
-        return
-
-    try {
-        parts := StrSplit(position, "-")
-        if parts.Length != 2
-            throw ValueError("Unknown corner tile: " position)
-        vertical_position := parts[1]
-        side := parts[2]
-        work_area := WW_GetLayoutWorkArea(hwnd)
-        side_ratios := WW_GetSideCycleRatios(side)
-        layouts := [WW_BuildRatioLayout(work_area, side_ratios[1], vertical_position),
-            WW_BuildRatioLayout(work_area, side_ratios[2], vertical_position)]
-        family := "corner-" position
-        index := fresh_entry ? 0 : WW_FindCurrentLayoutIndex(hwnd, family, work_area, layouts)
-        WW_ApplyTrackedLayout(hwnd, family, work_area, layouts,
-            WW_GetNextFittingIndex(index, layouts, WW_GetMinimumVisibleSize(hwnd)))
-    }
-    catch Error as err {
-        WW_DebugError("Place corner tile", err)
-    }
-}
-
-WW_PlaceCenterTile(vertical_position)
-{
-    Critical "On"
-    hwnd := WW_GetPlacementTarget(&fresh_entry)
-    if !hwnd
-        return
-
-    try {
-        work_area := WW_GetLayoutWorkArea(hwnd)
-        family := "center-" vertical_position
-        layouts := [WW_BuildRatioLayout(work_area, [2, 4, 2], vertical_position),
-            WW_BuildRatioLayout(work_area, [2, 2, 4], vertical_position),
-            WW_BuildRatioLayout(work_area, [4, 2, 2], vertical_position)]
-        index := fresh_entry ? 0 : WW_FindCurrentLayoutIndex(hwnd, family, work_area, layouts)
-        next_side := WW_GetNextCenterTileSide(hwnd, vertical_position)
-        target_index := index = 1 ? (next_side = "left" ? 2 : 3) : 1
-        ; An app too wide for the narrow tiles stays on the wide center tile.
-        minimum := WW_GetMinimumVisibleSize(hwnd)
-        if target_index != 1 && !WW_LayoutFitsMinimum(layouts[target_index], minimum)
-            && WW_LayoutFitsMinimum(layouts[1], minimum)
-            target_index := 1
-
-        if !WW_ApplyTrackedLayout(hwnd, family, work_area, layouts, target_index)
-            return
-
-        ; Each window remembers an independent next narrow side for top and
-        ; bottom. Switching shortcuts does not restart every narrow tile at left.
-        if target_index = 2 || (target_index = 1 && index = 2)
-            WW_SetNextCenterTileSide(hwnd, vertical_position, "right")
-        else if target_index = 3 || (target_index = 1 && index = 3)
-            WW_SetNextCenterTileSide(hwnd, vertical_position, "left")
-    }
-    catch Error as err {
-        WW_DebugError("Place center tile", err)
-    }
-}
-
-; =============================================================================
 ; placement state and geometry matching
 ; =============================================================================
 
@@ -708,25 +617,6 @@ WW_ApplyTrackedLayout(hwnd, family, work_area, layouts, target_index)
     return true
 }
 
-WW_GetNextCenterTileSide(hwnd, vertical_position)
-{
-    global WW_center_tile_next_sides
-    process_id := WinGetPID(hwnd)
-    if !WW_center_tile_next_sides.Has(hwnd)
-        || WW_center_tile_next_sides[hwnd]["pid"] != process_id
-    {
-        WW_center_tile_next_sides[hwnd] := Map("pid", process_id, "top", "left", "bottom", "left")
-    }
-    return WW_center_tile_next_sides[hwnd][vertical_position]
-}
-
-WW_SetNextCenterTileSide(hwnd, vertical_position, side)
-{
-    global WW_center_tile_next_sides
-    WW_GetNextCenterTileSide(hwnd, vertical_position)
-    WW_center_tile_next_sides[hwnd][vertical_position] := side
-}
-
 WW_ForgetWindowLayoutCycle(hwnd)
 {
     global WW_layout_cycle_windows
@@ -735,10 +625,8 @@ WW_ForgetWindowLayoutCycle(hwnd)
 
 WW_PruneLayoutStates()
 {
-    global WW_layout_cycle_windows, WW_center_tile_next_sides, WW_normal_window_placements
-    global WW_full_stretch_windows
-    for states in [WW_layout_cycle_windows, WW_center_tile_next_sides,
-        WW_normal_window_placements, WW_full_stretch_windows] {
+    global WW_layout_cycle_windows, WW_normal_window_placements, WW_full_stretch_windows
+    for states in [WW_layout_cycle_windows, WW_normal_window_placements, WW_full_stretch_windows] {
         stale_hwnds := []
         for hwnd, entry in states {
             stale := !DllCall("IsWindow", "ptr", hwnd, "int")

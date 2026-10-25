@@ -4,8 +4,10 @@
 ; zone cycling
 ; =============================================================================
 ; A session walks one zone sequence while any modifier stays held. The first
-; key picks the walk: from the left, or its mirror image from the right. The
-; other key steps back. Releasing every modifier starts the next session over.
+; zone is on the side the key names: down/Left walks from the left fourth,
+; up/Right walks the mirror image from the right fourth. The key that started
+; the session keeps going; the other one steps back, wrapping to the last zone.
+; Releasing every modifier starts the next session over.
 
 ; Zone groups, each left to right as left space : width : right space.
 WW_GetZoneGroups(unit)
@@ -40,15 +42,13 @@ WW_BuildZoneSequence(work_area, unit, from_right := false)
 
 WW_StartZoneSession(hwnd, pid, work_area, unit, direction)
 {
-    from_right := direction = "up"
-    return {hwnd: hwnd, pid: pid, work_area: work_area, index: 0, from_right: from_right,
-        zones: WW_BuildZoneSequence(work_area, unit, from_right)}
+    return {hwnd: hwnd, pid: pid, work_area: work_area, index: 0, direction: direction,
+        zones: WW_BuildZoneSequence(work_area, unit, direction = "up")}
 }
 
-; The key that started the session steps forward; the other one steps back.
 WW_AdvanceZoneSession(session, direction, minimum)
 {
-    backwards := (direction = "up") != session.from_right
+    backwards := direction != session.direction
     session.index := WW_GetNextFittingIndex(session.index, session.zones, minimum, backwards)
     return session.index
 }

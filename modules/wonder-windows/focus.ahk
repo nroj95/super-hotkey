@@ -2,24 +2,24 @@
 ; Included into the same script; functions share the existing global state.
 
 ; =============================================================================
-; directional focus
+; focus cycling
 ; =============================================================================
 
-WW_FocusNearestWindow(direction)
+; Down steps to the next visible window in reading order, up to the previous
+; one, wrapping at both ends: displays left to right, then columns left to
+; right, then top before bottom. Exactly stacked windows keep a fixed order;
+; ordering them front to back would change with every activation and loop.
+WW_CycleWindowFocus(direction)
 {
     global WW_focus_navigation_active, WW_focus_navigation_hwnd
 
     active_hwnd := WinExist("A")
-
     if !active_hwnd
         return
 
-    ; The first directional-focus press starts on the current window instead
-    ; of immediately leaving it. A manual focus change also starts a new
-    ; session from that newly focused window.
-    if !WW_focus_navigation_active
-        || active_hwnd != WW_focus_navigation_hwnd
-    {
+    ; The first press outlines the current window instead of leaving it. A
+    ; manual focus change also starts a new session from that window.
+    if !WW_focus_navigation_active || active_hwnd != WW_focus_navigation_hwnd {
         WW_ForgetLastMinimizedWindow()
         WW_focus_navigation_active := true
         WW_focus_navigation_hwnd := active_hwnd
@@ -27,98 +27,64 @@ WW_FocusNearestWindow(direction)
         return
     }
 
-    try {
-        WinGetPos(&active_x, &active_y, &active_width, &active_height, "ahk_id " active_hwnd)
-    }
-    catch {
+    windows := []
+    for entry in WW_SortFocusEntries(WW_GetFocusEntries())
+        windows.Push(entry.hwnd)
+    if !windows.Length
         return
-    }
-
-    active_center_x := active_x + active_width / 2
-    active_center_y := active_y + active_height / 2
-
-    target_hwnd := 0
-    best_score := 0
-
-    for hwnd in WinGetList() {
-        if hwnd = active_hwnd
-            continue
-
-        if !IsSwitchableWindow(hwnd)
-            continue
-
-        try {
-            WinGetPos(&candidate_x, &candidate_y, &candidate_width, &candidate_height,
-                "ahk_id " hwnd)
-        }
-        catch {
-            continue
-        }
-
-        candidate_center_x :=
-            candidate_x + candidate_width / 2
-
-        candidate_center_y :=
-            candidate_y + candidate_height / 2
-
-        delta_x := candidate_center_x - active_center_x
-        delta_y := candidate_center_y - active_center_y
-
-        switch direction {
-            case "left":
-                if delta_x >= 0
-                    continue
-
-                primary_distance := -delta_x
-                perpendicular_distance := Abs(delta_y)
-
-            case "right":
-                if delta_x <= 0
-                    continue
-
-                primary_distance := delta_x
-                perpendicular_distance := Abs(delta_y)
-
-            case "up":
-                if delta_y >= 0
-                    continue
-
-                primary_distance := -delta_y
-                perpendicular_distance := Abs(delta_x)
-
-            case "down":
-                if delta_y <= 0
-                    continue
-
-                primary_distance := delta_y
-                perpendicular_distance := Abs(delta_x)
-
-            default:
-                return
-        }
-
-        ; Prefer nearby windows while strongly favoring alignment with the
-        ; requested direction.
-        score :=
-            primary_distance
-            + perpendicular_distance * 2
-
-        if !target_hwnd || score < best_score {
-            target_hwnd := hwnd
-            best_score := score
-        }
-    }
-
-    if !target_hwnd
+    index := WW_GetNextCycleIndex(WW_FindWindowIndex(windows, active_hwnd), windows.Length,
+        direction = "up")
+    if windows[index] = active_hwnd
         return
 
     WW_ForgetLastMinimizedWindow()
-
-    try {
-        WinActivate("ahk_id " target_hwnd)
-        WW_focus_navigation_hwnd := target_hwnd
-        WW_HighlightFocusedWindow(target_hwnd)
+    if ActivateWindow(windows[index]) {
+        WW_focus_navigation_hwnd := windows[index]
+        WW_HighlightFocusedWindow(windows[index])
     }
+}
+
+WW_GetFocusEntries()
+{
+    entries := []
+    for hwnd in WinGetList() {
+        if !IsSwitchableWindow(hwnd)
+            continue
+        if !GetVisibleWindowBounds(hwnd, &x, &y, &width, &height) {
+            try WinGetPosPixels(&x, &y, &width, &height, "ahk_id " hwnd)
+            catch
+                continue
+        }
+        monitor_left := 0
+        if monitor := WindowMonitorIndex(hwnd)
+            MonitorGetPixels(monitor, &monitor_left)
+        entries.Push({hwnd: hwnd, monitor: monitor_left, x: x, y: y})
+    }
+    return entries
+}
+
+; Reading order. Edges within a few pixels count as one column or row.
+WW_FocusEntryBefore(first, second, tolerance := 8)
+{
+    if first.monitor != second.monitor
+        return first.monitor < second.monitor
+    if Abs(first.x - second.x) > tolerance
+        return first.x < second.x
+    if Abs(first.y - second.y) > tolerance
+        return first.y < second.y
+    return first.hwnd < second.hwnd
+}
+
+WW_SortFocusEntries(entries)
+{
+    sorted := []
+    for entry in entries {
+        position := sorted.Length + 1
+        while position > 1 && WW_FocusEntryBefore(entry, sorted[position - 1])
+            position -= 1
+        sorted.InsertAt(position, entry)
+    }
+    return sorted
 }
 
 ; =============================================================================

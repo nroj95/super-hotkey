@@ -190,9 +190,9 @@ class SuiteReleaseChecks {
         try {
             window.Show("NA w300 h200")
             work_area := WW_GetLayoutWorkArea(window.Hwnd)
-            for position in ["top-right", "bottom-right", "bottom-left"] {
-                parts := StrSplit(position, "-")
-                tile := WW_BuildRatioLayout(work_area, WW_GetSideCycleRatios(parts[2])[1], parts[1])
+            for position, ratios in Map("top-right", [3, 1, 0, "top"], "bottom-right", [3, 1, 0, "bottom"],
+                "bottom-left", [0, 1, 3, "bottom"]) {
+                tile := WW_BuildRatioLayout(work_area, ratios, ratios[4])
                 window.Opt("+MinSize" (tile[3] + 200) "x" (tile[4] + 150))
                 minimum := WW_GetMinimumVisibleSize(window.Hwnd)
                 this.Assert(minimum[1] >= tile[3] + 200 && minimum[2] >= tile[4] + 150,

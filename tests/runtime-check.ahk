@@ -102,10 +102,20 @@ class SuiteChecks {
             this.Assert(configuration["power-up-utilities.terminal.copy"].bindings[1] = Keybindings.Parse("Caps + C").signature, "Terminal copy defaults to Caps + C")
             this.Assert(configuration["power-up-utilities.terminal.clear"].bindings[1] = Keybindings.Parse("Caps + K").signature, "Terminal clear defaults to Caps + K")
             this.Assert(configuration["power-up-utilities.system.wake-speakers"].bindings[1] = Keybindings.Parse("Pause + Pause").signature, "speaker wake defaults to Pause double-tap")
+            this.Assert(configuration["wonder-windows.focus-up"].bindings[1] = Keybindings.Parse("Win + PgUp").signature
+                && configuration["wonder-windows.focus-down"].bindings[1] = Keybindings.Parse("Win + PgDn").signature
+                && !manager.actions.Has("wonder-windows.focus-left")
+                && !manager.actions.Has("wonder-windows.focus-right"),
+                "focus moves up and down with Win + PgUp/PgDn")
+            this.Assert(configuration["wonder-windows.isolate"].bindings[1] = Keybindings.Parse("Win + Home").signature
+                && configuration["cascade-kingdom.close-active"].bindings[2]
+                    = Keybindings.Parse("Win + Delete").signature,
+                "isolate uses Win + Home and closing also uses Win + Delete")
+            for name in ["layout-left", "layout-right", "tile-top-left", "tile-top", "tile-top-right",
+                "tile-bottom-left", "tile-bottom", "tile-bottom-right"]
+                this.Assert(!manager.actions.Has("wonder-windows." name),
+                    "zone cycling replaces " name)
             for direction in ["left", "right", "up", "down"] {
-                this.Assert(configuration["wonder-windows.focus-" direction].bindings[1]
-                    = Keybindings.Parse("Win + Alt + " direction).signature,
-                    "directional focus defaults to Win + Alt + " direction)
                 this.Assert(configuration["wonder-windows.swap-" direction].bindings[1]
                     = Keybindings.Parse("Caps + Win + " direction).signature,
                     "directional swap defaults to Caps + Win + " direction)
@@ -125,12 +135,12 @@ class SuiteChecks {
             this.Assert(configuration["wonder-windows.zones-from-left"].bindings[1]
                     = Keybindings.Parse("Win + WheelDown").signature
                 && configuration["wonder-windows.zones-from-left"].bindings[2]
-                    = Keybindings.Parse("Caps + Win + PgDn").signature
+                    = Keybindings.Parse("Win + Left").signature
                 && configuration["wonder-windows.zones-from-right"].bindings[1]
                     = Keybindings.Parse("Win + WheelUp").signature
                 && configuration["wonder-windows.zones-from-right"].bindings[2]
-                    = Keybindings.Parse("Caps + Win + PgUp").signature,
-                "zone cycling defaults to Win + wheel and Caps + Win + PgDn/PgUp")
+                    = Keybindings.Parse("Win + Right").signature,
+                "zone cycling defaults to Win + wheel and Win + Left/Right")
             for direction in ["up", "down", "left", "right"]
                 this.Assert(!manager.actions.Has("wonder-windows.zone-" direction),
                     "FancyZones forwarding is removed: " direction)

@@ -29,34 +29,19 @@ class WonderWindowsModule extends SuiteModule {
         manager.AddAction("wonder-windows.help", "show Wonder Windows help",
             ObjBindMethod(this.app, "HelpShortcutEvent", this.id), ["Caps + Win + H"],
             {category: "Wonder Windows", available: ObjBindMethod(this, "Available")})
-        focusLabels := Map(
-            "up", "focus nearest window above",
-            "down", "focus nearest window below",
-            "left", "focus nearest window to the left",
-            "right", "focus nearest window to the right")
-        for direction in ["up", "down", "left", "right"]
-            this.Add("focus-" direction, focusLabels[direction], WW_FocusNearestWindow,
-                ["Win + Alt + " direction], [direction])
+        this.Add("focus-up", "focus previous window on screen", WW_CycleWindowFocus, ["Win + PgUp"], ["up"])
+        this.Add("focus-down", "focus next window on screen", WW_CycleWindowFocus, ["Win + PgDn"], ["down"])
         this.Add("cycle-stacked", "cycle windows on this monitor", WW_CycleMonitorWindows, ["Win + Enter"])
         this.Add("cycle-expanded", "cycle maximized / fullscreen windows", WW_CycleMaximizedFullscreenWindows,
             ["Caps + Win + Enter"])
         this.Add("maximize", "cycle maximized / upper half / lower half", WW_MaximizeWindowTarget, ["Win + Up"])
-        this.Add("restore", "restore normal window size / position", WW_RestoreWindowTarget, ["Win + Down"])
+        this.Add("restore", "restore normal size / minimize", WW_RestoreOrMinimizeWindow, ["Win + Down"])
         this.Add("minimize", "minimize / restore last minimized window", WW_MinimizeActiveWindow, ["Win + Backspace"])
         this.Add("move-monitor", "cycle active window to next monitor", WW_CycleWindowMonitor, ["Caps + Win + Backspace"])
-        for side in ["left", "right"]
-            this.Add("layout-" side, "cycle " side " layouts", WW_CycleWindowSnap, ["Win + " side], [side])
-        for tile in [["top-left", "Insert"], ["top", "Home"], ["top-right", "PgUp"],
-            ["bottom-left", "Delete"], ["bottom", "End"], ["bottom-right", "PgDn"]] {
-            if InStr(tile[1], "-")
-                this.Add("tile-" tile[1], "place " tile[1] " tile", WW_PlaceCornerTile, ["Win + " tile[2]], [tile[1]])
-            else
-                this.Add("tile-" tile[1], "cycle " tile[1] "-center tiles", WW_PlaceCenterTile, ["Win + " tile[2]], [tile[1]])
-        }
-        this.Add("zones-from-left", "cycle zones, starting from the left", WW_CycleZone,
-            ["Win + WheelDown", "Caps + Win + PgDn"], ["down"])
-        this.Add("zones-from-right", "cycle zones, starting from the right", WW_CycleZone,
-            ["Win + WheelUp", "Caps + Win + PgUp"], ["up"])
+        this.Add("zones-from-left", "cycle zones from the left", WW_CycleZone,
+            ["Win + WheelDown", "Win + Left"], ["down"])
+        this.Add("zones-from-right", "cycle zones from the right", WW_CycleZone,
+            ["Win + WheelUp", "Win + Right"], ["up"])
         for side in ["left", "right"]
             this.Add("stretch-" side, "stretch " side " to obstacle / restore", WW_ToggleHorizontalStretch,
                 ["Win + Shift + " side], [side])
@@ -66,9 +51,10 @@ class WonderWindowsModule extends SuiteModule {
         for direction in ["up", "down", "left", "right"]
             this.Add("swap-" direction, "swap with nearest window to the " direction,
                 WW_SwapWindow, ["Caps + Win + " direction], [direction])
-        this.Add("isolate", "isolate active window / restore", WW_ToggleOtherWindows, ["Win + Shift + Home"])
+        this.Add("isolate", "isolate active window / restore", WW_ToggleOtherWindows, ["Win + Home"])
         this.Add("minimize-all", "minimize / restore all windows", WW_ToggleAllWindows, ["Win + M"])
         manager.AddMigration("wonderDefaults", "1", WW_MigrateKeybindingDefaults)
+        manager.AddMigration("wonderZoneDefaults", "1", WW_MigrateZoneKeybindingDefaults)
     }
 
     Add(id, label, command, bindings, arguments := unset) {
@@ -243,19 +229,22 @@ class WonderWindowsModule extends SuiteModule {
             . "`r`nWindows already has window-management shortcuts, but I found many of them "
             . "frustrating or incomplete. I wanted something more powerful, consistent "
             . "and predictable, without constantly reaching for the mouse."
-            . "`r`n`r`nARRANGE YOUR WINDOWS"
-            . "`r`nUse the left and right layout actions to cycle through positions such as "
-            . "quarter-width, half-width and near-center. Corner and top/bottom tiles offer "
-            . "more precise placement. Stretch toward neighboring windows or cycle "
-            . "between full-height and full-width. Restore brings back the original shape."
             . "`r`n`r`nCYCLE ZONES"
-            . "`r`nHold Win and scroll, or hold Caps + Win and press PgDn or PgUp, to walk the "
-            . "window through fourths and halves: full height first, then upper and lower "
-            . "fourths, then upper and lower halves. Scroll down starts at the left, scroll up at the right; the "
-            . "other direction steps back. Release the keys to start over next time. Settings "
-            . "can switch the cycle to thirds. Sizes an app cannot shrink to are skipped."
+            . "`r`nHold Win and scroll, or press Win + Left or Right, to walk the window "
+            . "through fourths and halves: full height first, then upper and lower fourths, "
+            . "then upper and lower halves. Left and scroll down start at the left fourth; "
+            . "Right and scroll up start at the right fourth. The other key steps back, so "
+            . "Left then Right jumps to the last zone. Release the keys to start over next "
+            . "time. Settings can switch the cycle to thirds. Sizes an app cannot shrink to "
+            . "are skipped."
+            . "`r`n`r`nARRANGE YOUR WINDOWS"
+            . "`r`nStretch toward neighboring windows or cycle between full-height and "
+            . "full-width. Win + Down restores a placed window's original shape; pressed "
+            . "again it minimizes the window, and once more it brings it back."
             . "`r`n`r`nFOCUS, SWAP AND FULLSCREEN"
-            . "`r`nMove focus to the nearest window in a direction, swap with a nearby window, "
+            . "`r`nWin + PgDn and PgUp step focus through every window on screen in reading "
+            . "order: displays left to right, columns left to right, top before bottom. "
+            . "Swap with a nearby window, "
             . "or temporarily minimize a group. Cycle the windows on the active monitor without moving them, "
             . "and cycle a window between maximized and half-height positions. Moving a "
             . "window to another display preserves cascade membership only where cascading "
@@ -276,7 +265,7 @@ WW_MigrateKeybindingDefaults(configuration, meta := 0)
         ["wonder-windows.reset-stretch", 2, "Caps + Win + Backspace", ""],
         ["wonder-windows.cycle-expanded", 1, "Win + Shift + Tab", "Caps + Win + Enter"]
     ]
-    for direction in ["left", "right", "up", "down"]
+    for direction in ["up", "down"]
         changes.Push(["wonder-windows.focus-" direction, 1,
             "Caps + Win + " direction, "Win + Alt + " direction])
     for change in changes {
@@ -290,20 +279,27 @@ WW_MigrateKeybindingDefaults(configuration, meta := 0)
     }
 }
 
+; Zone cycling replaced the tile and side-layout hotkeys, freeing Win + Home and
+; Win + PgUp/PgDn. Move unchanged stock bindings onto them.
+WW_MigrateZoneKeybindingDefaults(configuration, meta := 0)
+{
+    Keybindings.MigrateDefault(configuration, "wonder-windows.focus-up", 1, "Win + Alt + Up", "Win + PgUp")
+    Keybindings.MigrateDefault(configuration, "wonder-windows.focus-down", 1, "Win + Alt + Down", "Win + PgDn")
+    Keybindings.MigrateDefault(configuration, "wonder-windows.isolate", 1, "Win + Shift + Home", "Win + Home")
+}
+
 ; Before automatic placement adopts a manually positioned window, leave F11
 ; fullscreen and forget Wonder Windows' layout state. Returning false keeps
 ; the window manual.
 WW_PrepareWindowForAdoption(hwnd)
 {
     global WW_horizontal_stretch_windows, WW_vertical_stretch_windows
-    global WW_layout_cycle_windows, WW_center_tile_next_sides, WW_normal_window_placements
-    global WW_full_stretch_windows
+    global WW_layout_cycle_windows, WW_normal_window_placements, WW_full_stretch_windows
     if !WW_SetNativeFullscreen(hwnd, false)
         return false
     WW_ForgetSwapZone(hwnd)
     for states in [WW_horizontal_stretch_windows, WW_vertical_stretch_windows,
-        WW_layout_cycle_windows, WW_center_tile_next_sides, WW_normal_window_placements,
-        WW_full_stretch_windows]
+        WW_layout_cycle_windows, WW_normal_window_placements, WW_full_stretch_windows]
         if states.Has(hwnd)
             states.Delete(hwnd)
     return true

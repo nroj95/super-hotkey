@@ -17,10 +17,14 @@ RegisterCascadeActions(manager)
         ["bring-forward", "bring this monitor's cascade forward", "Caps + Home"],
         ["minimize", "minimize / restore managed windows", "Caps + M"],
         ["gather", "gather cascades onto this monitor", "Caps + Alt + Enter"],
-        ["close-active", "close active window", "Caps + Delete"],
+        ["close-active", "close active window", "Caps + Delete", "Win + Delete"],
         ["close-monitor", "close this monitor's cascade", "Caps + F4"]]
         manager.AddAction("cascade-kingdom." item[1], item[2], CascadeBindingEvent.Bind(item[1]),
-            [item[3]], {category: "Cascade Kingdom", available: CascadeModuleActive})
+            item.Length > 3 ? [item[3], item[4]] : [item[3]],
+            {category: "Cascade Kingdom", available: CascadeModuleActive})
+    ; Win + Delete was a Wonder Windows tile until zone cycling replaced the tiles.
+    manager.AddMigration("cascadeCloseDefaults", "1", (configuration, *) => Keybindings.MigrateDefault(
+        configuration, "cascade-kingdom.close-active", 2, "", "Win + Delete"))
 }
 
 CascadeModuleActive(*) => SuiteState.App.ModuleActive("cascade-kingdom")

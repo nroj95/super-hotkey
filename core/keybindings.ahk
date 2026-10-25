@@ -978,6 +978,26 @@ class Keybindings {
         this.migrations.Push({key: key, value: value, callback: callback})
     }
 
+    ; For migrations: replace a stock binding only while it is unchanged and no
+    ; other action uses the new hotkey. Editor-scoped actions may share it.
+    static MigrateDefault(configuration, actionId, slot, previous, replacement) {
+        if !configuration.Has(actionId)
+            return false
+        expected := previous = "" ? "" : Keybindings.Parse(previous).signature
+        if configuration[actionId].bindings[slot] != expected
+            return false
+        target := replacement = "" ? "" : Keybindings.Parse(replacement).signature
+        actions := IsObject(Keybindings.Current) ? Keybindings.Current.actions : Map()
+        if target != ""
+            for otherId, setting in configuration
+                for otherSlot, binding in setting.bindings
+                    if binding = target && (otherId != actionId || otherSlot != slot)
+                        && !(actions.Has(otherId) && actions[otherId].scope != "")
+                        return false
+        configuration[actionId].bindings[slot] := target
+        return true
+    }
+
     RegisterDisjointScopes(first, second) {
         if this.running || first = second || !this.scopes.Has(first) || !this.scopes.Has(second)
             throw ValueError("Declare distinct registered scopes before starting Keybindings.")

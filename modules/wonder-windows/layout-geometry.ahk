@@ -4,19 +4,6 @@
 ; ratio layouts
 ; =============================================================================
 ; All ratios below are left space : window width : right space.
-; The user's 2:6 and 4:4 edge splits are quarter-width and half-width windows.
-
-WW_GetSideCycleRatios(side)
-{
-    switch side {
-        case "left":
-            return [[0, 2, 6], [0, 4, 4], [2, 2, 4], [2, 4, 2]]
-        case "right":
-            return [[6, 2, 0], [4, 4, 0], [4, 2, 2], [2, 4, 2]]
-        default:
-            throw ValueError("Unknown side: " side)
-    }
-}
 
 WW_BuildRatioLayout(work_area, ratios, vertical_position := "full")
 {
@@ -62,7 +49,7 @@ WW_GetNextCycleIndex(current_index, count, backwards := false)
     if count < 1
         throw ValueError("A cycle must contain at least one item.")
     if current_index < 1 || current_index > count
-        return 1
+        return backwards ? count : 1
     if backwards
         return current_index = 1 ? count : current_index - 1
     return current_index = count ? 1 : current_index + 1

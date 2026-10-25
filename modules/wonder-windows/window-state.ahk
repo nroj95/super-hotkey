@@ -9,7 +9,13 @@ WW_ToggleOtherWindows()
 {
     global WW_isolation_minimized_windows, WW_isolation_active_hwnd
 
+    isolating := !WW_isolation_minimized_windows.Length
     WW_ToggleMinimizedWindowGroup(&WW_isolation_minimized_windows, &WW_isolation_active_hwnd, true)
+    ; Briefly outline the window left on screen, unless it already fills it.
+    hwnd := WW_isolation_active_hwnd
+    if isolating && hwnd && WinExist("ahk_id " hwnd)
+        && WinGetMinMax("ahk_id " hwnd) = 0 && !WW_IsNativeFullscreen(hwnd)
+        SuiteFocusBorder.Show(hwnd, "wonder-windows")
 }
 
 WW_ToggleAllWindows()
@@ -30,7 +36,7 @@ WW_ToggleMinimizedWindowGroup(&minimized_windows, &saved_active_hwnd, keep_activ
         minimized_windows := []
         saved_active_hwnd := 0
 
-        ; Preserve the existing order: Win+Shift+Home restores front-to-back;
+        ; Preserve the existing order: isolation restores front-to-back;
         ; Win+M restores back-to-front before returning focus.
         Loop windows_to_restore.Length {
             index := (keep_active_window ? A_Index : windows_to_restore.Length - A_Index + 1)
@@ -220,6 +226,36 @@ WW_MinimizeActiveWindow()
     catch Error as err {
         WW_DebugError("Minimize active window", err)
     }
+}
+
+; Win + Down: a placed, maximized or fullscreen window returns to its normal
+; rectangle; a window already there is minimized; the next press restores it.
+WW_RestoreOrMinimizeWindow()
+{
+    global WW_last_minimized_hwnd, WW_normal_window_placements
+    Critical "On"
+    if WW_last_minimized_hwnd && WinExist("ahk_id " WW_last_minimized_hwnd) {
+        WW_EndFocusNavigationSession()
+        WW_GetWindowControlTarget() ; restores and activates the minimized window
+        return
+    }
+    hwnd := WinExist("A")
+    if !hwnd || !IsSwitchableWindow(hwnd)
+        return
+    try {
+        if WW_IsAtNormalPlacement(WinGetMinMax(hwnd), WW_IsNativeFullscreen(hwnd),
+            WW_normal_window_placements.Has(hwnd))
+            WW_MinimizeActiveWindow()
+        else
+            WW_RestoreWindowTarget()
+    }
+    catch Error as err
+        WW_DebugError("Restore or minimize window", err)
+}
+
+WW_IsAtNormalPlacement(min_max, native_fullscreen, has_saved_placement)
+{
+    return min_max = 0 && !native_fullscreen && !has_saved_placement
 }
 
 WW_RestoreWindowTarget()

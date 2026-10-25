@@ -17,7 +17,6 @@ WW_vertical_stretch_windows := Map()
 WW_full_stretch_windows := Map()
 WW_swap_zones := Map()
 WW_layout_cycle_windows := Map()
-WW_center_tile_next_sides := Map()
 WW_normal_window_placements := Map()
 
 WW_maximized_fullscreen_cycle := []
