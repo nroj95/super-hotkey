@@ -1952,8 +1952,7 @@ class SuiteUpgradeChecks {
                     settings := app.ui.windows["settings:" id]
                     settings.GetClientPos(, , &settingsW, &settingsH)
                     if id = "wonder-windows" {
-                        for pair in [["snapStatus", ["on", "off", "unknown"]],
-                            ["fancyZonesStatus", ["running, not supported", "not running"]],
+                        for pair in [["fancyZonesStatus", ["running, not supported", "not running"]],
                             ["zoneUnit", ["Fourths and halves", "Thirds"]]] {
                             statusValue := settings[pair[1]].Text
                             allowed := false
@@ -1964,20 +1963,22 @@ class SuiteUpgradeChecks {
                                 "Wonder Windows shows an explicit " pair[1] " status")
                         }
                         this.Assert(WonderWindowsModule.StatusColor("not running") = "008000"
-                            && WonderWindowsModule.StatusColor("on") = "008000"
-                            && WonderWindowsModule.StatusColor("off") = "B02020"
                             && WonderWindowsModule.StatusColor("running, not supported") = "B02020"
                             && WonderWindowsModule.StatusColor("unknown") = "505050",
                             "Wonder Windows status values use green, red or neutral colors")
+                        noSnap := true
+                        for control in settings
+                            if InStr(control.Text, "Snap")
+                                noSnap := false
+                        this.Assert(noSnap, "Wonder Windows Settings do not mention Windows Snap")
                         statusCoords := []
-                        for name in ["zoneUnit", "snapStatus", "fancyZonesStatus"] {
+                        for name in ["zoneUnit", "fancyZonesStatus"] {
                             settings[name].GetPos(&statusX, &statusY)
                             statusCoords.Push(statusY)
                             this.Assert(statusX = 175,
                                 "Wonder Windows " name " value is aligned separately from its label")
                         }
-                        this.Assert(statusCoords[1] < statusCoords[2]
-                            && statusCoords[2] < statusCoords[3],
+                        this.Assert(statusCoords[1] < statusCoords[2],
                             "Wonder Windows settings rows are spaced in reading order")
                     }
                     this.Assert(app.ui.pageLayouts.Has("settings:" id)

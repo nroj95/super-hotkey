@@ -152,7 +152,6 @@ class WonderWindowsModule extends SuiteModule {
         WW_RunWindowCommand(WW_ClearSwapZones)
     }
 
-    ; Windows Snap changes need explicit confirmation; nothing changes at startup.
     ShowSettings(ui) {
         global WW_zone_cycle_unit
         key := "settings:wonder-windows"
@@ -170,18 +169,13 @@ class WonderWindowsModule extends SuiteModule {
         window.AddDropDownList("x175 y20 w260 vzoneUnit", names).Choose(selected)
         window.AddText("x175 y55 w600", "Full height first, then the upper and lower halves of the display."
             . " Thirds skips the halves.")
-        snap := WW_GetNativeWindowsSnapState()
-        WonderWindowsModule.AddStatus(window, "Windows Snap", snap < 0 ? "unknown" : snap ? "on" : "off",
-            110, "snapStatus")
         WonderWindowsModule.AddStatus(window, "FancyZones",
-            WW_IsFancyZonesRunning() ? "running, not supported" : "not running", 135, "fancyZonesStatus")
-        window.AddText("x20 y185 w760", "Use one window-snapping tool at a time. Windows Snap is only"
-            . " changed after you confirm. FancyZones is not supported; close it in PowerToys.")
+            WW_IsFancyZonesRunning() ? "running, not supported" : "not running", 110, "fancyZonesStatus")
+        window.AddText("x20 y150 w760", "FancyZones also moves windows and takes hotkeys, so it isn't supported;"
+            . " close it in PowerToys.")
         ui.Footer(window, [["Apply", ObjBindMethod(this, "SaveSettings", ui), 100],
-            ["Windows Snap...", ObjBindMethod(this, "CompatibilityAction", ui, "snap"), 145],
-            ["Disable Snap...", ObjBindMethod(this, "CompatibilityAction", ui, "disable"), 140],
-            ["Back", ObjBindMethod(ui, "BackToHelp", this.id), 90]], 260)
-        ui.ShowPage(key, 800, 310, 740, 290)
+            ["Back", ObjBindMethod(ui, "BackToHelp", this.id), 90]], 210)
+        ui.ShowPage(key, 800, 260, 740, 240)
     }
 
     SaveSettings(ui, *) {
@@ -200,8 +194,8 @@ class WonderWindowsModule extends SuiteModule {
 
     static StatusColor(value) {
         switch value {
-            case "on", "not running": return "008000"
-            case "off", "running, not supported": return "B02020"
+            case "not running": return "008000"
+            case "running, not supported": return "B02020"
             default: return "505050"
         }
     }
@@ -211,21 +205,6 @@ class WonderWindowsModule extends SuiteModule {
         window.SetFont("s10 c" WonderWindowsModule.StatusColor(value), "Cascadia Mono")
         window.AddText("x175 y" y " w220 h23 v" controlName, value)
         window.SetFont("s10 cDefault", "Cascadia Mono")
-    }
-
-    CompatibilityAction(ui, action, *) {
-        if this.app.dryRun {
-            MsgBox("Compatibility actions are inactive in the dry run.", SuiteApplication.Name, "Iconi")
-            return
-        }
-        try {
-            switch action {
-                case "snap": WW_OpenWindowsSnapSettings()
-                case "disable": WW_PromptToDisableNativeWindowsSnap()
-            }
-        }
-        catch Error as failure
-            ui.Report(failure, "Wonder Windows / compatibility")
     }
 
     HelpText() {

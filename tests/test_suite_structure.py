@@ -108,12 +108,6 @@ class SuiteStructureTests(unittest.TestCase):
             self.assertNotRegex(text, r'(?m)^#HotIf\b')
             self.assertNotRegex(text, r'(?m)^#SingleInstance\b')
 
-    def test_wonder_has_no_automatic_setup_writes(self):
-        text = source(ROOT / 'modules/wonder-windows/module.ahk')
-        # Snap changes are reachable only from the Settings page.
-        lifecycle = text[text.index('    Start() {'):text.index('    ShowSettings(ui) {')]
-        self.assertNotIn('WW_PromptToDisableNativeWindowsSnap()', lifecycle)
-
     def test_sources_are_utf8_with_lf(self):
         for path in [*RUNTIME, *ROOT.glob('tests/*'), *ROOT.glob('modules/*/*.ps1')]:
             if path.is_dir():
