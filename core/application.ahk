@@ -172,6 +172,8 @@ class SuiteApplication {
             ObjBindMethod(this, "LogShortcutEvent", "copy"), ["Pause + F2"], {category: "Global"})
         this.manager.AddAction("cascade-kingdom.reset-log", "clear debug log",
             ObjBindMethod(this, "LogShortcutEvent", "clear"), ["Pause + F1"], {category: "Global"})
+        this.manager.AddAction("core.restart", "restart Super Hotkey", ObjBindMethod(this, "RestartEvent"),
+            ["Pause + F3"], {category: "Global"})
         this.manager.AddMigration("debugDefaults", "2", SuiteMigrateLogKeybindingDefaults)
         for id in SuiteApplication.KeybindingsOrder
             this.modules[id].Register(this.manager)
@@ -217,6 +219,23 @@ class SuiteApplication {
             SuiteNotice.Show("status", this.ui.CopyLog() ? "Debug log copied" : "Debug log copy failed", 1400)
         else
             SuiteNotice.Show("status", this.ui.ClearLogNow() ? "Debug log cleared" : "Debug log clear failed", 1400)
+    }
+
+    ; Restart on release, so the new process never inherits held keys.
+    RestartEvent(event) {
+        if event.phase != "up" || this.stopping
+            return
+        if this.dryRun {
+            SuiteState.Log.Write("Core", "dry run: " event.actionId)
+            return
+        }
+        this.QueueInput(ObjBindMethod(this, "Restart"))
+    }
+
+    Restart(*) {
+        SuiteNotice.Show("status", "Restarting Super Hotkey", 1400)
+        ; Let the notice be read before the process exits.
+        SetTimer((*) => Reload(), -500)
     }
 
     HelpShortcutEvent(moduleId, event) {

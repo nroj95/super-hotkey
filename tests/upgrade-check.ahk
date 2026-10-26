@@ -1483,8 +1483,9 @@ class SuiteUpgradeChecks {
 
     static CheckDisplayOrder(rows) {
         this.AssertDisplaySequence(rows, [
-            "core.keybindings", "core.close-active", "cascade-kingdom.copy-log", "cascade-kingdom.reset-log"],
-            "Global shortcuts group application first and logs together")
+            "core.keybindings", "core.close-active", "cascade-kingdom.copy-log", "cascade-kingdom.reset-log",
+            "core.restart"],
+            "Global shortcuts group application first, logs together, then restart")
         this.AssertDisplaySequence(rows, [
             "paper-pad.help", "paper-pad.toggle", "paper-pad.hide",
             "paper-pad.previous", "paper-pad.next", "paper-pad.delete"],
