@@ -6,6 +6,7 @@ class SuiteHardeningChecks {
         this.FocusBorderLifecycle()
         this.SwapRollback()
         this.ExpandedWindowCycle()
+        this.MonitorWindowCycle()
         WW_RunWindowCommand(ObjBindMethod(this, "MaximizedAdoption"))
     }
 
@@ -44,6 +45,62 @@ class SuiteHardeningChecks {
             "a smaller restore rectangle is not fullscreen")
 
         WW_RunWindowCommand(ObjBindMethod(this, "ExpandedWindowCycleWindows"))
+    }
+
+    static MonitorWindowCycle() {
+        cycle := [101, 102, 103]
+        this.Assert(WW_NextMonitorCycleWindow(cycle, 101, 101) = 102
+            && WW_NextMonitorCycleWindow(cycle, 102, 102) = 103
+            && WW_NextMonitorCycleWindow(cycle, 103, 103) = 101,
+            "monitor cycling visits every window and wraps around")
+        this.Assert(WW_NextMonitorCycleWindow(cycle, 102, 101) = 103
+            && WW_NextMonitorCycleWindow(cycle, 103, 101) = 102,
+            "a refused target is stepped past without returning to the active window")
+        this.Assert(WW_NextMonitorCycleWindow([101], 101, 101) = 0
+            && WW_NextMonitorCycleWindow([], 0, 0) = 0,
+            "a display with no other window has no target")
+
+        ; Activating 102 moves it to the front; its place in the cycle stays.
+        merged := WW_MergeCycleOrder(cycle, [102, 104, 101, 103])
+        this.Assert(merged.Length = 4 && merged[1] = 101 && merged[2] = 102
+            && merged[3] = 103 && merged[4] = 104,
+            "cycle order survives Z-order changes and appends new windows")
+        merged := WW_MergeCycleOrder(cycle, [103, 101])
+        this.Assert(merged.Length = 2 && merged[1] = 101 && merged[2] = 103,
+            "closed, minimized and moved windows leave the cycle")
+
+        display := [-1920, 0, 1920, 1080]
+        this.Assert(WW_IntersectionArea([-100, 500, 400, 300], display) = 30000
+            && !WW_IntersectionArea([-32000, -32000, 160, 28], display)
+            && !WW_IntersectionArea([0, 0, 400, 300], display)
+            && !WW_IntersectionArea([-500, 200, 0, 0], display),
+            "only windows sharing area with the display count as on it")
+
+        maximized := [0, 0, 1920, 1080]
+        this.Assert(WW_WindowsStack([100, 100, 800, 600], [140, 120, 800, 600])
+            && !WW_WindowsStack([0, 0, 640, 1080], [640, 0, 640, 1080])
+            && !WW_WindowsStack([0, 0, 960, 1080], maximized)
+            && !WW_WindowsStack([0, 0, 640, 1080], maximized)
+            && !WW_WindowsStack([0, 0, 200, 150], [0, 0, 800, 600]),
+            "only windows sharing most of each other's area stack")
+
+        ; Explorer over Terminal on the left, VS Code over Firefox in the middle,
+        ; a lone window on the right and a maximized window behind them all.
+        stacks := WW_GroupWindowStacks([
+            {hwnd: 201, rect: [0, 0, 640, 1080]}, {hwnd: 301, rect: [640, 0, 640, 1080]},
+            {hwnd: 202, rect: [10, 20, 630, 1060]}, {hwnd: 401, rect: [1280, 0, 640, 1080]},
+            {hwnd: 302, rect: [640, 0, 640, 1080]}, {hwnd: 501, rect: maximized}])
+        this.Assert(stacks.Length = 4
+            && stacks[1].Length = 2 && stacks[1][1] = 201 && stacks[1][2] = 202
+            && stacks[2].Length = 2 && stacks[2][1] = 301 && stacks[2][2] = 302
+            && stacks[3].Length = 1 && stacks[3][1] = 401
+            && stacks[4].Length = 1 && stacks[4][1] = 501,
+            "stacks group overlapping windows front to back and leave lone windows apart")
+        stacks := WW_GroupWindowStacks([{hwnd: 601, rect: [0, 0, 800, 600]},
+            {hwnd: 603, rect: [400, 0, 800, 600]}, {hwnd: 602, rect: [200, 0, 800, 600]}])
+        this.Assert(stacks.Length = 1 && stacks[1].Length = 3
+            && stacks[1][1] = 601 && stacks[1][2] = 603 && stacks[1][3] = 602,
+            "a window linking two others joins them into one stack")
     }
 
     static ExpandedWindowCycleWindows() {

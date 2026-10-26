@@ -2,33 +2,231 @@
 ; Included into the same script; functions share the existing global state.
 
 ; =============================================================================
-; same-monitor window switcher
+; stacked window switcher
 ; =============================================================================
 
+; Each press rotates every stack of overlapping windows on the working display
+; at once: the next window of each stack comes to the front, and lone windows
+; stay. Stacks rotate in a stable order, because activation changes the
+; Z-order and always-on-top windows never fall to the back. Only the stack
+; with focus keeps it; the others come forward without activation.
 WW_CycleMonitorWindows()
 {
     Critical "On"
-    active := WinExist("A")
-    if !IsSwitchableWindow(active) || SuiteManagedWindows.Monitor(active)
+    global WW_monitor_cycle, WW_monitor_cycle_refused_hwnd, WW_monitor_cycle_refused_from
+
+    foreground := DllCall("GetForegroundWindow", "ptr")
+    ; A dialog stands in for the window that owns it.
+    current := foreground ? DllCall("GetAncestor", "ptr", foreground, "uint", 3, "ptr") : 0 ; GA_ROOTOWNER
+    if SuiteManagedWindows.Monitor(current) {
+        WW_DebugLog("Stacked window cycle skipped: the active window is managed. | " DescribeWindow(current))
+        return
+    }
+    ; The desktop, the taskbar and other surfaces leave the choice to the working display.
+    if !IsSwitchableWindow(current) || !(monitor := WindowMonitorIndex(current)) {
+        current := 0
+        monitor := SuiteWorkingMonitor.Get()
+    }
+
+    entries := WW_GetMonitorCycleEntries(monitor)
+    windows := []
+    for entry in entries
+        windows.Push(entry.hwnd)
+    WW_monitor_cycle := WW_MergeCycleOrder(WW_monitor_cycle, windows)
+
+    raised := []  ; {hwnd, stack}
+    focus_target := 0
+    stack_count := 0
+    for stack in WW_GroupWindowStacks(entries) {
+        if stack.Length < 2
+            continue
+        stack_count += 1
+        ; Continue from the focused window, or from the front of another stack.
+        from := WW_FindWindowIndex(stack, current) ? current : stack[1]
+        ; Step past a window that refused activation instead of requesting it again.
+        if WW_monitor_cycle_refused_hwnd && current = WW_monitor_cycle_refused_from
+            && WW_FindWindowIndex(stack, WW_monitor_cycle_refused_hwnd)
+            from := WW_monitor_cycle_refused_hwnd
+        target := WW_NextMonitorCycleWindow(WW_MergeCycleOrder(WW_monitor_cycle, stack), from, from)
+        ; The focused stack keeps focus; from the desktop, the frontmost stack takes it.
+        if current ? WW_FindWindowIndex(stack, current) : !focus_target
+            focus_target := target
+        else
+            raised.Push({hwnd: target, stack: stack})
+    }
+    ; Without stacks, the desktop still hands focus to the frontmost window.
+    if !stack_count && !current && windows.Length
+        focus_target := windows[1]
+    WW_DebugLog("Stacked window cycle step. | monitor=" monitor " | windows=" windows.Length
+        . " | stacks=" stack_count " | from=" DescribeWindow(foreground))
+    if !focus_target && !raised.Length
         return
 
-    monitor := DllCall("MonitorFromWindow", "ptr", active, "uint", 2, "ptr")
-    backmost := 0
+    WW_ForgetLastMinimizedWindow()
+    WW_EndFocusNavigationSession()
+    restore_focus := false
+    for item in raised {
+        raised_front := WW_RaiseWindow(item.hwnd) && WW_WindowFrontOf(item.hwnd, item.stack)
+        ; Activation always reorders; focus returns below.
+        if !raised_front
+            restore_focus := ActivateWindow(item.hwnd) || restore_focus
+        WW_DebugLog("Stacked window cycle raised a window. | front=" (raised_front ? 1 : 0)
+            . " | " DescribeWindow(item.hwnd))
+    }
+    if !focus_target && restore_focus && current
+        ActivateWindow(current)
+    if focus_target {
+        ; A window with an open dialog hands the foreground to that dialog.
+        activated := ActivateWindow(focus_target)
+            || DllCall("GetAncestor", "ptr", DllCall("GetForegroundWindow", "ptr"), "uint", 3, "ptr") = focus_target
+        WW_monitor_cycle_refused_hwnd := activated ? 0 : focus_target
+        WW_monitor_cycle_refused_from := activated ? 0 : current
+        WW_DebugLog("Stacked window cycle focused a window. | activated=" (activated ? 1 : 0)
+            . " | " DescribeWindow(focus_target))
+    }
+}
 
-    ; WinGetList lists front to back. Bringing the last window on this monitor
-    ; forward rotates through all of them without tracking activation history.
+; The next window after from, wrapping around and skipping the active one.
+; 0 when no other window is left.
+WW_NextMonitorCycleWindow(windows, from_hwnd, active_hwnd)
+{
+    start := WW_FindWindowIndex(windows, from_hwnd)
+    Loop windows.Length {
+        hwnd := windows[Mod(start + A_Index - 1, windows.Length) + 1]
+        if hwnd != active_hwnd
+            return hwnd
+    }
+    return 0
+}
+
+; Brings a window to the front without activating it. Windows accepts HWND_TOP
+; from a background process yet leaves the Z-order alone, so a normal window
+; passes through the always-on-top band instead.
+WW_RaiseWindow(hwnd)
+{
+    flags := 0x13 ; SWP_NOSIZE | SWP_NOMOVE | SWP_NOACTIVATE
+    try {
+        if WinGetExStyle(hwnd) & 0x8 ; WS_EX_TOPMOST
+            return DllCall("SetWindowPos", "ptr", hwnd, "ptr", 0, "int", 0, "int", 0, "int", 0, "int", 0,
+                "uint", flags, "int") ; HWND_TOP
+    }
+    catch
+        return false
+    if !DllCall("SetWindowPos", "ptr", hwnd, "ptr", -1, "int", 0, "int", 0, "int", 0, "int", 0,
+        "uint", flags, "int") ; HWND_TOPMOST
+        return false
+    ; Never leave the window always on top.
+    Loop 2
+        if DllCall("SetWindowPos", "ptr", hwnd, "ptr", -2, "int", 0, "int", 0, "int", 0, "int", 0,
+            "uint", flags, "int") ; HWND_NOTOPMOST
+            return true
+    SuiteState.Log.Write("Wonder Windows", "a raised window stayed always on top: " DescribeWindow(hwnd), "ERROR")
+    return false
+}
+
+; Whether hwnd is in front of every other window of its stack.
+WW_WindowFrontOf(hwnd, stack)
+{
+    for other in WinGetList() {
+        if other = hwnd
+            return true
+        if WW_FindWindowIndex(stack, other)
+            return false
+    }
+    return false
+}
+
+; Switchable windows whose visible frame is on this display, front to back,
+; as {hwnd, rect}. Some apps keep titled windows off-screen; activating one
+; would show nothing.
+WW_GetMonitorCycleEntries(monitor)
+{
+    entries := []
+    MonitorGetPixels(monitor, &left, &top, &right, &bottom)
+    display := [left, top, right - left, bottom - top]
     for hwnd in WinGetList() {
-        if hwnd = active || !IsSwitchableWindow(hwnd)
-            || SuiteManagedWindows.Monitor(hwnd)
+        if !IsSwitchableWindow(hwnd) || SuiteManagedWindows.Monitor(hwnd)
+            || WindowMonitorIndex(hwnd) != monitor
             continue
-        if DllCall("MonitorFromWindow", "ptr", hwnd, "uint", 2, "ptr") = monitor
-            backmost := hwnd
+        if !GetVisibleWindowBounds(hwnd, &x, &y, &width, &height) {
+            try WinGetPosPixels(&x, &y, &width, &height, "ahk_id " hwnd)
+            catch
+                continue
+        }
+        rect := [x, y, width, height]
+        if WW_IntersectionArea(rect, display)
+            entries.Push({hwnd: hwnd, rect: rect})
+        else
+            WW_DebugLog("Stacked window cycle skips an off-screen window. | " DescribeWindow(hwnd))
     }
-    if backmost {
-        WW_ForgetLastMinimizedWindow()
-        WW_EndFocusNavigationSession()
-        ActivateWindow(backmost)
+    return entries
+}
+
+; Groups {hwnd, rect} entries, front to back, into stacks of windows linked
+; by overlap. Stacks come in order of their frontmost window, and each lists
+; its windows front to back.
+WW_GroupWindowStacks(entries)
+{
+    stack_of := Map()  ; entry index -> stack index
+    stacks := []
+    for index, entry in entries {
+        if stack_of.Has(index)
+            continue
+        stacks.Push([])
+        stack_of[index] := stacks.Length
+        pending := [index]
+        while pending.Length {
+            member := entries[pending.Pop()]
+            for other_index, other in entries {
+                if stack_of.Has(other_index) || !WW_WindowsStack(member.rect, other.rect)
+                    continue
+                stack_of[other_index] := stacks.Length
+                pending.Push(other_index)
+            }
+        }
     }
+    for index, entry in entries
+        stacks[stack_of[index]].Push(entry.hwnd)
+    return stacks
+}
+
+; Windows stack when they share at least 60% of each one's area. Side-by-side
+; tiles, and halves or thirds in front of a maximized window, stay apart.
+WW_WindowsStack(first, second)
+{
+    shared := WW_IntersectionArea(first, second) * 5
+    return shared > 0 && shared >= first[3] * first[4] * 3 && shared >= second[3] * second[4] * 3
+}
+
+; The area two [x, y, width, height] rectangles share.
+WW_IntersectionArea(first, second)
+{
+    width := Min(first[1] + first[3], second[1] + second[3]) - Max(first[1], second[1])
+    height := Min(first[2] + first[4], second[2] + second[4]) - Max(first[2], second[2])
+    return width > 0 && height > 0 ? width * height : 0
+}
+
+; A cycle's established order, keeping only detected windows. Activating a
+; window changes the native Z-order, so new windows join at the end, front to back.
+WW_MergeCycleOrder(cycle, detected)
+{
+    detected_set := Map()
+    for hwnd in detected
+        detected_set[hwnd] := true
+
+    merged := []
+    merged_set := Map()
+    for hwnd in cycle {
+        if !detected_set.Has(hwnd)
+            continue
+        merged.Push(hwnd)
+        merged_set[hwnd] := true
+    }
+    for hwnd in detected {
+        if !merged_set.Has(hwnd)
+            merged.Push(hwnd)
+    }
+    return merged
 }
 
 ; =============================================================================
@@ -78,33 +276,9 @@ WW_RefreshMaximizedFullscreenCycle()
 {
     global WW_maximized_fullscreen_cycle
 
-    detected_windows := WW_GetMaximizedFullscreenWindows()
-    detected_set := Map()
-
-    for hwnd in detected_windows
-        detected_set[hwnd] := true
-
-    refreshed_cycle := []
-    preserved_set := Map()
-
-    ; Keep the established order stable even though activating a window changes
-    ; native Z-order. Minimized members stay; closed/normal-size windows fall out.
-    for hwnd in WW_maximized_fullscreen_cycle {
-        if !detected_set.Has(hwnd)
-            continue
-
-        refreshed_cycle.Push(hwnd)
-        preserved_set[hwnd] := true
-    }
-
-    for hwnd in detected_windows {
-        if preserved_set.Has(hwnd)
-            continue
-
-        refreshed_cycle.Push(hwnd)
-    }
-
-    WW_maximized_fullscreen_cycle := refreshed_cycle
+    ; Minimized members stay; closed and normal-size windows fall out.
+    WW_maximized_fullscreen_cycle := WW_MergeCycleOrder(WW_maximized_fullscreen_cycle,
+        WW_GetMaximizedFullscreenWindows())
 }
 
 WW_GetMaximizedFullscreenWindows()

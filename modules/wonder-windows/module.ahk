@@ -51,7 +51,7 @@ class WonderWindowsModule extends SuiteModule {
             WW_MoveWindowToAdjacentMonitor, ["Ctrl + Win + Alt + Right"], ["right"])
         this.Add("focus-up", "focus previous window on screen", WW_CycleWindowFocus, ["Win + PgUp"], ["up"])
         this.Add("focus-down", "focus next window on screen", WW_CycleWindowFocus, ["Win + PgDn"], ["down"])
-        this.Add("cycle-stacked", "cycle windows on this monitor", WW_CycleMonitorWindows, ["Win + Enter"])
+        this.Add("cycle-stacked", "cycle stacked windows on this monitor", WW_CycleMonitorWindows, ["Win + Enter"])
         this.Add("cycle-expanded", "cycle maximized / fullscreen windows", WW_CycleMaximizedFullscreenWindows,
             ["Win + Alt + Enter", "Caps + Win + Enter"])
         this.Add("minimize", "minimize / restore last minimized window", WW_MinimizeActiveWindow, ["Win + Backspace"])
@@ -241,7 +241,7 @@ class WonderWindowsModule extends SuiteModule {
             . "`r`nWin + PgDn and PgUp step focus through every window on screen in reading "
             . "order: displays left to right, columns left to right, top before bottom. "
             . "Swap with a nearby window, "
-            . "or temporarily minimize a group. Cycle the windows on the active monitor without moving them, "
+            . "or temporarily minimize a group. Bring the next window of every stack on the active monitor forward at once, "
             . "and cycle a window between maximized and half-height positions. Moving a "
             . "window to another display preserves cascade membership only where cascading "
             . "is allowed. Layout actions exit F11 fullscreen before repositioning a window. "
