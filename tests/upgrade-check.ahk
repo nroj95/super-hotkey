@@ -1971,6 +1971,13 @@ class SuiteUpgradeChecks {
                             if InStr(control.Text, "Snap")
                                 noSnap := false
                         this.Assert(noSnap, "Wonder Windows Settings do not mention Windows Snap")
+                        screenGridButtons := 0
+                        for control in settings
+                            if control.Type = "Button" && control.Text = "ScreenGrid..."
+                                screenGridButtons += 1
+                        this.Assert(screenGridButtons = 1
+                            && WonderWindowsModule.ScreenGridUrl = "https://github.com/TtesseractT/ScreenGrid",
+                            "Wonder Windows suggests ScreenGrid with a link to its GitHub page")
                         statusCoords := []
                         for name in ["zoneUnit", "fancyZonesStatus"] {
                             settings[name].GetPos(&statusX, &statusY)

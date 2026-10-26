@@ -172,10 +172,23 @@ class WonderWindowsModule extends SuiteModule {
         WonderWindowsModule.AddStatus(window, "FancyZones",
             WW_IsFancyZonesRunning() ? "running, not supported" : "not running", 110, "fancyZonesStatus")
         window.AddText("x20 y150 w760", "FancyZones also moves windows and takes hotkeys, so it isn't supported;"
-            . " close it in PowerToys.")
+            . " disable it in PowerToys. For mouse-driven zones that work alongside Super Hotkey, try ScreenGrid.")
         ui.Footer(window, [["Apply", ObjBindMethod(this, "SaveSettings", ui), 100],
-            ["Back", ObjBindMethod(ui, "BackToHelp", this.id), 90]], 210)
-        ui.ShowPage(key, 800, 260, 740, 240)
+            ["ScreenGrid...", ObjBindMethod(this, "OpenScreenGrid", ui), 130],
+            ["Back", ObjBindMethod(ui, "BackToHelp", this.id), 90]], 230)
+        ui.ShowPage(key, 800, 280, 740, 260)
+    }
+
+    static ScreenGridUrl := "https://github.com/TtesseractT/ScreenGrid"
+
+    OpenScreenGrid(ui, *) {
+        if this.app.dryRun {
+            MsgBox("Opening web pages is inactive in the dry run.", SuiteApplication.Name, "Iconi")
+            return
+        }
+        try Run(WonderWindowsModule.ScreenGridUrl)
+        catch Error as failure
+            ui.Report(failure, "Wonder Windows / ScreenGrid")
     }
 
     SaveSettings(ui, *) {
