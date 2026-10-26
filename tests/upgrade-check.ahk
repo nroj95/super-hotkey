@@ -1196,6 +1196,17 @@ class SuiteUpgradeChecks {
                 this.Assert(!SuiteWindowOwnership.IsManual(window.Hwnd), "a lost per-window marker invalidates cached manual ownership")
             }
             finally window.Destroy()
+            ; A plain window, unlike a suite GUI, carries no cascade exclusion of its own.
+            window := Gui("+Resize", "Manual drag fixture")
+            try {
+                window.Show("NA x60 y60 w400 h300")
+                SuiteWindowOwnership.Claim(window.Hwnd)
+                this.Assert(!IsPlausibleTopLevelWindow(window.Hwnd) && !IsCascadeWindow(window.Hwnd)
+                    && IsPlausibleTopLevelWindow(window.Hwnd, true) && IsCascadeWindow(window.Hwnd, true),
+                    "drags track windows positioned by hand while automatic placement leaves them alone")
+                SuiteWindowOwnership.Release(window.Hwnd, false)
+            }
+            finally window.Destroy()
             guiProbe := SuiteGui("+Resize", "Wonder Windows GUI eligibility test")
             try {
                 SuiteFullscreen.Enable(guiProbe)

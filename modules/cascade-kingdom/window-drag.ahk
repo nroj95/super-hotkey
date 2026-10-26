@@ -35,7 +35,8 @@ CaptureCascadeMousePress(*)
 
 GetCascadeMousePressSnapshot(hwnd)
 {
-    if !IsPlausibleTopLevelWindow(hwnd)
+    ; Track windows positioned by hand too: a drop on a guide adopts them.
+    if !IsPlausibleTopLevelWindow(hwnd, true)
         return 0
 
     try {
@@ -318,7 +319,7 @@ CompleteCascadeWindowDrop(drag)
     ; Edge resizes are not drop-to-join. DPI changes and restoring a maximized
     ; title-bar drag may change size without being an edge resize.
     resized := CascadeDragIsResize(drag, width, height)
-    if resized || !IsCascadeWindow(hwnd) {
+    if resized || !IsCascadeWindow(hwnd, true) {
         if drag.source_monitor && !IsWindowInCascadeLayout(hwnd)
             ReleaseCascadeWindow(hwnd)
         return
@@ -334,6 +335,13 @@ CompleteCascadeWindowDrop(drag)
     slot_index := FindNearestCascadeSlot(frame_x, frame_y, geometry.slots, cascade_slot_tolerance)
 
     if slot_index && HasCascadeDropDestination(monitor_index) {
+        ; A drop on a guide adopts a window positioned by hand, as Caps + Insert
+        ; does. Dropped anywhere else, it stays positioned by hand.
+        was_manual := SuiteWindowOwnership.IsManual(hwnd)
+        if was_manual && !SuiteWindowOwnership.Release(hwnd) {
+            DebugLog("Cascade drop kept a window positioned by hand. | hwnd=" hwnd)
+            return
+        }
         if PlaceCascadeWindowOnMonitor(hwnd, monitor_index, geometry.slots[slot_index]) {
             RemoveWindowFromMinimizeState(hwnd)
             if drag.source_monitor
@@ -344,6 +352,8 @@ CompleteCascadeWindowDrop(drag)
                 " | monitor=" monitor_index " | slot=" slot_index)
             return
         }
+        if was_manual
+            SuiteWindowOwnership.Claim(hwnd)
         ; A scale change that interrupts the move is not an intentional detach.
         if IsCascadeDisplayTransition()
             return

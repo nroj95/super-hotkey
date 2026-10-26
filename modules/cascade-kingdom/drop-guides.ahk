@@ -14,7 +14,7 @@ class CascadeDropGuides {
         try {
             WinGetPosPixels(&x, &y, &width, &height, drag.hwnd)
             if (x = drag.x && y = drag.y) || CascadeDragIsResize(drag, width, height)
-                || !IsCascadeWindow(drag.hwnd)
+                || !IsCascadeWindow(drag.hwnd, true)
                 || !GetVisibleWindowBounds(drag.hwnd, &frame_x, &frame_y, &frame_width, &frame_height) {
                 this.Hide()
                 return

@@ -59,6 +59,8 @@ class SuiteWindowOwnership {
         processId := WindowProcessId(hwnd)
         if !processId
             return
+        if IsObject(SuiteState.Log) && !this.IsManual(hwnd)
+            SuiteState.Log.Debug("Core", "Window positioned by hand. | " DescribeWindow(hwnd))
         ; A per-window property prevents a recycled HWND (even in the same process)
         ; from inheriting manual ownership after the original window was destroyed.
         if !DllCall("SetPropW", "ptr", hwnd, "str", this.marker, "ptr", A_ScriptHwnd, "int")
@@ -77,6 +79,9 @@ class SuiteWindowOwnership {
                     return false
         DllCall("RemovePropW", "ptr", hwnd, "str", this.marker, "ptr")
         this.windows.Delete(hwnd)
+        if IsObject(SuiteState.Log)
+            SuiteState.Log.Debug("Core", "Window no longer positioned by hand. | adoption=" (forAdoption ? 1 : 0)
+                . " | " DescribeWindow(hwnd))
         return true
     }
 
