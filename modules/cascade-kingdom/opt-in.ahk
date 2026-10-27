@@ -114,7 +114,27 @@ CascadeTakeOptInMonitor(hwnd, &reason := "")
         reason := "gesture-held-at-show"
     } else
         reason := "automatic-working-monitor"
+    if (monitor := CascadeTaskbarLaunchMonitor()) {
+        if !held
+            reason := "automatic-taskbar-click"
+        return ResolveCascadeDestination(monitor)
+    }
     return ResolveCascadeDestination(SuiteWorkingMonitor.Get(hwnd))
+}
+
+; A fresh taskbar click chooses the display of the window it launches, even
+; with Shift or Ctrl held for a new or elevated instance: a held modifier
+; repeats and would otherwise look like typing to the working monitor. Only a
+; non-modifier key after the click cancels it.
+CascadeTaskbarLaunchMonitor()
+{
+    global cascade_launch_hint, new_window_focus_timeout_ms
+    hint := cascade_launch_hint
+    if !IsObject(hint) || hint.HasOwnProp("placement_cancelled")
+        || ((A_TickCount - hint.tick) & 0xFFFFFFFF) > new_window_focus_timeout_ms
+        return 0
+    return hint.HasOwnProp("monitor_device") && hint.monitor_device != ""
+        ? FindCascadeMonitorDevice(hint.monitor_device) : 0
 }
 
 ; Prefer a real OS caption hit. Custom title bars can report client-area hits,

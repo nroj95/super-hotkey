@@ -494,6 +494,7 @@ class SuiteReleaseChecks {
 
     static CascadeOptInLaunch() {
         global cascade_opt_in_intent, cascade_auto_placement_enabled
+        global cascade_launch_hint, cascade_displays, new_window_focus_timeout_ms
         global pending_windows, known_windows, startup_windows
         app := SuiteApplication(true, SuiteChecks.directory "\release-opt-in")
         try {
@@ -504,6 +505,28 @@ class SuiteReleaseChecks {
             this.Assert(CascadeTakeOptInMonitor(987654321, &reason) = SuiteWorkingMonitor.Get(987654321)
                 && reason = "automatic-working-monitor",
                 "optional automatic cascading targets the working monitor, not the pointer")
+            ; A taskbar click picks its own display, here another one when available.
+            cascade_displays := Map()
+            loop MonitorGetCount()
+                cascade_displays[A_Index] := {device: MonitorGetName(A_Index)}
+            working := SuiteWorkingMonitor.Get(987654321)
+            clicked := 0, clickedDevice := ""
+            for index, display in cascade_displays
+                if !clicked || index != working
+                    clicked := index, clickedDevice := display.device
+            cascade_launch_hint := {tick: A_TickCount, monitor_device: clickedDevice}
+            this.Assert(CascadeTakeOptInMonitor(987654321, &reason) = clicked
+                && reason = "automatic-taskbar-click",
+                "a fresh taskbar click chooses the display of the window it launches")
+            cascade_launch_hint.placement_cancelled := true
+            this.Assert(CascadeTakeOptInMonitor(987654321, &reason) = working
+                && reason = "automatic-working-monitor",
+                "a key typed after the taskbar click returns the choice to the working monitor")
+            cascade_launch_hint := {tick: A_TickCount - new_window_focus_timeout_ms - 1,
+                monitor_device: clickedDevice}
+            this.Assert(CascadeTakeOptInMonitor(987654321, &reason) = working,
+                "an expired taskbar click no longer chooses the display")
+            cascade_launch_hint := 0
             cascade_auto_placement_enabled := false
             intent := {tick: A_TickCount, monitor_device: "unused", source_hwnd: 98765}
             this.Assert(CascadeIsOptInIntentFresh(intent)
@@ -559,9 +582,11 @@ class SuiteReleaseChecks {
         }
         finally {
             cascade_opt_in_intent := 0
+            cascade_launch_hint := 0
             cascade_auto_placement_enabled := false
-            known_windows.Delete(987654321)
-            startup_windows.Delete(987654321)
+            for windows in [known_windows, startup_windows]
+                if windows.Has(987654321)
+                    windows.Delete(987654321)
         }
     }
 

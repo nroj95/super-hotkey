@@ -189,7 +189,12 @@ class SuiteWorkingMonitor {
 
     static _RecordClick(*) {
         MouseGetPosPixels(&x, &y)
-        this.NoteClick({tick: A_TickCount, x: x, y: y}, DllCall("GetForegroundWindow", "ptr"))
+        foreground := DllCall("GetForegroundWindow", "ptr")
+        this.NoteClick({tick: A_TickCount, x: x, y: y}, foreground)
+        if IsObject(SuiteState.Log) && SuiteState.Log.verbose
+            SuiteState.Log.Debug("Core", "Click recorded. | at=" x "," y
+                . " | keyboard-idle=" A_TimeIdleKeyboard " | mouse-idle=" A_TimeIdleMouse
+                . " | foreground=" DescribeWindow(foreground))
     }
 
     ; The desktop is one window across every display, so clicking it on
@@ -219,11 +224,14 @@ class SuiteWorkingMonitor {
         ; Get() and Return() may already have put this window in front.
         if !hwnd || this.recent.Length && this.recent[1].hwnd = hwnd
             return
-        clicked := this.click && this.click.tick > A_TickCount - A_TimeIdleKeyboard
+        keyboardIdle := A_TimeIdleKeyboard, mouseIdle := A_TimeIdleMouse
+        clickAge := this.click ? A_TickCount - this.click.tick : "none"
+        press := this.click && clickAge < keyboardIdle ? this.click : 0
         if IsObject(SuiteState.Log) && SuiteState.Log.verbose
-            SuiteState.Log.Debug("Core", "Foreground recorded. | by-click=" (clicked ? 1 : 0)
+            SuiteState.Log.Debug("Core", "Foreground recorded. | by-click=" (press ? 1 : 0)
+                . " | click-age=" clickAge " | keyboard-idle=" keyboardIdle " | mouse-idle=" mouseIdle
                 . " | work=" this.IsWorkWindow(hwnd) " | " DescribeWindow(hwnd))
-        recent := [{hwnd: hwnd, click: clicked ? this.click : 0}]
+        recent := [{hwnd: hwnd, click: press}]
         for entry in this.recent
             if entry.hwnd != hwnd && recent.Length < 16
                 recent.Push(entry)
