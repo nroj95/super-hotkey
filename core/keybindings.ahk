@@ -1043,6 +1043,11 @@ class Keybindings {
     _ObserverEligible(key, *) {
         if !this.running || !this.observerGroups.Has(key)
             return false
+        ; ~*Key and *Key are variants of one native hotkey, and only the first
+        ; created whose criterion holds runs. A pass-through observer created
+        ; earlier must not hide one that claims the input, such as a focus-tab click.
+        if SubStr(key, 1, 1) = "~" && this._ObserverEligible(SubStr(key, 2))
+            return false
         for item in this.observerGroups[key].callbacks
             if (item.releaseGuard || !this.gated) && item.context.Call()
                 return true

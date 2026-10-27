@@ -905,6 +905,15 @@ class SuiteUpgradeChecks {
                 this.Assert(manager.observers.Length = 1, "identical passive observers share one native variant: " suffix)
                 manager._DispatchObserver("~*F24")
                 this.Assert(this.observerCalls = 2, "both modules receive the passive observation: " suffix)
+                ; Core's click observer starts before Cascade's focus-tab claim on
+                ; the same native hotkey; the claim must still win on a tab.
+                claiming := false
+                manager.Observe("*F24", (*) => claiming, (*) => 0, true)
+                this.Assert(manager._ObserverEligible("~*F24") && !manager._ObserverEligible("*F24"),
+                    "an earlier pass-through observer keeps ordinary input: " suffix)
+                claiming := true
+                this.Assert(!manager._ObserverEligible("~*F24") && manager._ObserverEligible("*F24"),
+                    "a claiming observer wins over an earlier pass-through one: " suffix)
             }
             finally {
                 manager.Stop()
