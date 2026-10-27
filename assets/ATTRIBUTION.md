@@ -1,8 +1,7 @@
-# icon attribution
+# Icon attribution
 
-`super-hotkey.ico` uses artwork from FatCow Farm-Fresh Web Icons 3.9.2.
+`super-hotkey.ico` is based on `keyboard.png` (16×16 and 32×32) from [FatCow Farm-Fresh Web Icons 3.9.2](fatcow-readme.txt), © 2009–2014 FatCow Web Hosting.
 
-- source: `keyboard.png` (16×16 and 32×32)
-- modification: combined into a multi-resolution Windows ICO
-- license: Creative Commons Attribution 3.0 (CC BY 3.0)
-- https://creativecommons.org/licenses/by/3.0/
+- license: [Creative Commons Attribution 3.0 United States (CC BY 3.0 US)](https://creativecommons.org/licenses/by/3.0/us/)
+- changes: recolored and combined into a multi-resolution Windows ICO
+- changed source images: [`icon-sources/`](icon-sources/)
