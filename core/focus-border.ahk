@@ -1,10 +1,15 @@
 ; Shared, module-independent focus border. Windows-accent outline identical to
-; the former Wonder Windows highlight (12 px, 2 px overlap, 1500 ms).
+; the former Wonder Windows highlight (12 px, 2 px overlap, 1500 ms), hidden
+; early when its window moves.
 class SuiteFocusBorder {
     static guis := []
     static owner := ""
     static timerCallback := 0
+    static watchCallback := 0
+    static target := 0     ; the outlined window
+    static outlined := 0   ; its visible bounds when outlined: [x, y, width, height]
     static durationMs := 1500
+    static watchMs := 50
     static thickness := 12
     static overlap := 2
 
@@ -73,10 +78,34 @@ class SuiteFocusBorder {
         }
 
         this.owner := owner
+        this.target := hwnd
+        this.outlined := [x, y, width, height]
         if !this.timerCallback
             this.timerCallback := ObjBindMethod(this, "Expire")
+        if !this.watchCallback
+            this.watchCallback := ObjBindMethod(this, "Watch")
         SetTimer(this.timerCallback, -this.durationMs)
+        SetTimer(this.watchCallback, this.watchMs)
         return true
+    }
+
+    ; The outline marks where a window is. Once it is dragged, moved by a
+    ; hotkey, resized, minimized or closed, the outline goes at once.
+    static Watch(*) {
+        hwnd := this.target
+        if !hwnd
+            return this.Hide()
+        if !WinExist("ahk_id " hwnd) || DllCall("IsIconic", "ptr", hwnd, "int")
+            || !GetVisibleWindowBounds(hwnd, &x, &y, &width, &height)
+            || this.Moved(this.outlined, [x, y, width, height])
+            this.Hide()
+    }
+
+    static Moved(outlined, bounds) {
+        for index, value in bounds
+            if !IsObject(outlined) || outlined[index] != value
+                return true
+        return false
     }
 
     ; An owner-specific cleanup may not remove another module's border.
@@ -91,6 +120,9 @@ class SuiteFocusBorder {
             return false
         if this.timerCallback
             try SetTimer(this.timerCallback, 0)
+        if this.watchCallback
+            try SetTimer(this.watchCallback, 0)
+        this.target := 0, this.outlined := 0
         for borderGui in this.guis {
             if destroy {
                 try borderGui.Destroy()

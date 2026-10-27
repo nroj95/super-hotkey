@@ -383,6 +383,29 @@ class SuiteHardeningChecks {
                 this.Assert(probe.visible && probe.showCritical > 0,
                     "each reused border segment is shown inside the critical section")
 
+            ; The outline goes as soon as its window is dragged, moved by a
+            ; hotkey, resized or minimized, not when it expires.
+            SuiteFocusBorder.Watch()
+            this.Assert(probes[1].visible && SuiteFocusBorder.target = window.Hwnd,
+                "the border stays while its window stays put")
+            WinGetPos(&borderX, &borderY, , , window.Hwnd)
+            WinMove(borderX + 40, borderY, , , window.Hwnd)
+            SuiteFocusBorder.Watch()
+            this.Assert(!probes[1].visible && !SuiteFocusBorder.target && SuiteFocusBorder.owner = "",
+                "moving the window hides its border at once")
+            SuiteFocusBorder.Show(window.Hwnd, "wonder-windows")
+            WinMove(, , 360, , window.Hwnd)
+            SuiteFocusBorder.Watch()
+            this.Assert(!probes[1].visible, "resizing the window hides its border at once")
+            SuiteFocusBorder.Show(window.Hwnd, "wonder-windows")
+            WinMinimize(window.Hwnd)
+            SuiteFocusBorder.Watch()
+            this.Assert(!probes[1].visible, "minimizing the window hides its border at once")
+            WinRestore(window.Hwnd)
+            this.Assert(SuiteFocusBorder.Moved([1, 2, 3, 4], [1, 2, 3, 5])
+                && !SuiteFocusBorder.Moved([1, 2, 3, 4], [1, 2, 3, 4]),
+                "only a changed position or size counts as a move")
+
             SuiteFocusBorder.Show(window.Hwnd, "close-window")
             this.Assert(!SuiteFocusBorder.Hide("wonder-windows")
                 && SuiteFocusBorder.owner = "close-window",
