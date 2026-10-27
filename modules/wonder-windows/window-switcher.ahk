@@ -268,12 +268,24 @@ WW_WindowPlacementFillsPhysicalMonitor(placement, monitor_info, tolerance := 2)
     ; coordinates. Convert to screen coordinates, including top/left taskbars.
     offset_x := NumGet(monitor_info, 20, "int") - NumGet(monitor_info, 4, "int")
     offset_y := NumGet(monitor_info, 24, "int") - NumGet(monitor_info, 8, "int")
-    return (
-        Abs(NumGet(placement, 28, "int") + offset_x - NumGet(monitor_info, 4, "int")) <= tolerance
-        && Abs(NumGet(placement, 32, "int") + offset_y - NumGet(monitor_info, 8, "int")) <= tolerance
-        && Abs(NumGet(placement, 36, "int") + offset_x - NumGet(monitor_info, 12, "int")) <= tolerance
-        && Abs(NumGet(placement, 40, "int") + offset_y - NumGet(monitor_info, 16, "int")) <= tolerance
-    )
+    return WW_RectCoversMonitor(
+        [NumGet(placement, 28, "int") + offset_x, NumGet(placement, 32, "int") + offset_y,
+            NumGet(placement, 36, "int") + offset_x, NumGet(placement, 40, "int") + offset_y],
+        [NumGet(monitor_info, 4, "int"), NumGet(monitor_info, 8, "int"),
+            NumGet(monitor_info, 12, "int"), NumGet(monitor_info, 16, "int")], tolerance)
+}
+
+; A window fills its display when it covers every edge. Borderless games such
+; as Chrono Trigger may overhang by tens of pixels; a window stretched over
+; another display does not count. Rectangles are [left, top, right, bottom].
+WW_RectCoversMonitor(rect, monitor, tolerance := 2)
+{
+    overhang_x := Max(tolerance, (monitor[3] - monitor[1]) // 16)
+    overhang_y := Max(tolerance, (monitor[4] - monitor[2]) // 16)
+    return rect[1] <= monitor[1] + tolerance && rect[1] >= monitor[1] - overhang_x
+        && rect[2] <= monitor[2] + tolerance && rect[2] >= monitor[2] - overhang_y
+        && rect[3] >= monitor[3] - tolerance && rect[3] <= monitor[3] + overhang_x
+        && rect[4] >= monitor[4] - tolerance && rect[4] <= monitor[4] + overhang_y
 }
 
 WW_WindowFillsPhysicalMonitor(hwnd, tolerance := 2)
@@ -290,9 +302,8 @@ WW_WindowFillsPhysicalMonitor(hwnd, tolerance := 2)
         return false
     }
 
-    return (Abs(window_x - monitor_left) <= tolerance && Abs(window_y - monitor_top) <= tolerance
-        && Abs(window_x + window_width - monitor_right) <= tolerance
-        && Abs(window_y + window_height - monitor_bottom) <= tolerance)
+    return WW_RectCoversMonitor([window_x, window_y, window_x + window_width, window_y + window_height],
+        [monitor_left, monitor_top, monitor_right, monitor_bottom], tolerance)
 }
 
 WW_ShowMaximizedFullscreenCycleWindow(windows, target_hwnd)

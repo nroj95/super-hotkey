@@ -43,6 +43,22 @@ class SuiteHardeningChecks {
         NumPut("int", -140, placement, 36)
         this.Assert(!WW_WindowPlacementFillsPhysicalMonitor(placement, monitorInfo),
             "a smaller restore rectangle is not fullscreen")
+        NumPut("int", -1961, "int", -1121, "int", -8, "int", -21, placement, 28)
+        this.Assert(WW_WindowPlacementFillsPhysicalMonitor(placement, monitorInfo),
+            "a minimized borderless game that overhangs its display stays fullscreen")
+
+        display := [0, 0, 2560, 1440]
+        this.Assert(WW_RectCoversMonitor([0, 0, 2560, 1440], display)
+            && WW_RectCoversMonitor([1, -1, 2559, 1441], display),
+            "a window matching its display within rounding fills it")
+        this.Assert(WW_RectCoversMonitor([-1, -1, 2591, 1459], display),
+            "a borderless game overhanging its display, as Chrono Trigger does, fills it")
+        this.Assert(!WW_RectCoversMonitor([0, 0, 2560, 1400], display)
+            && !WW_RectCoversMonitor([8, 0, 2560, 1440], display),
+            "a window short of any display edge, such as a maximized one above the taskbar, does not")
+        this.Assert(!WW_RectCoversMonitor([-2560, 0, 2560, 1440], display)
+            && !WW_RectCoversMonitor([0, 0, 2560 + 161, 1440], display),
+            "a window stretched over another display does not fill this one")
 
         WW_RunWindowCommand(ObjBindMethod(this, "ExpandedWindowCycleWindows"))
     }
