@@ -240,6 +240,7 @@ class WonderWindowsModule extends SuiteModule {
             . "`r`n`r`nFOCUS, SWAP AND FULLSCREEN"
             . "`r`nWin + PgDn and PgUp step focus through every window on screen in reading "
             . "order: displays left to right, columns left to right, top before bottom. "
+            . "A stack of overlapping windows counts once, as its front window. "
             . "Swap with a nearby window, "
             . "or temporarily minimize a group. Bring forward the next window stacked with the active one, "
             . "and cycle a window between maximized and half-height positions. Moving a "

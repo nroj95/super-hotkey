@@ -101,6 +101,20 @@ class SuiteHardeningChecks {
         this.Assert(stacks.Length = 1 && stacks[1].Length = 3
             && stacks[1][1] = 601 && stacks[1][2] = 603 && stacks[1][3] = 602,
             "a window linking two others joins them into one stack")
+
+        ; Focus stepping sees each stack once, as its front window, but keeps
+        ; the active window even when something stacks in front of it.
+        entries := [{hwnd: 201, rect: [0, 0, 640, 1080]}, {hwnd: 301, rect: [640, 0, 640, 1080]},
+            {hwnd: 202, rect: [10, 20, 630, 1060]}, {hwnd: 302, rect: [640, 0, 640, 1080]},
+            {hwnd: 501, rect: maximized}]
+        order := ""
+        for entry in WW_FrontFocusEntries(entries, 201)
+            order .= entry.hwnd " "
+        this.Assert(order = "201 301 501 ", "focus stepping skips windows hidden in a stack")
+        order := ""
+        for entry in WW_FrontFocusEntries(entries, 302)
+            order .= entry.hwnd " "
+        this.Assert(order = "201 301 302 501 ", "focus stepping keeps the active window")
     }
 
     static ExpandedWindowCycleWindows() {

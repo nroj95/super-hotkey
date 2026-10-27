@@ -7,8 +7,8 @@
 
 ; Down steps to the next visible window in reading order, up to the previous
 ; one, wrapping at both ends: displays left to right, then columns left to
-; right, then top before bottom. Exactly stacked windows keep a fixed order;
-; ordering them front to back would change with every activation and loop.
+; right, then top before bottom. A stack of overlapping windows counts once,
+; as its front window; Win + Enter reaches the windows behind it.
 WW_CycleWindowFocus(direction)
 {
     global WW_focus_navigation_active, WW_focus_navigation_hwnd
@@ -28,7 +28,7 @@ WW_CycleWindowFocus(direction)
     }
 
     windows := []
-    for entry in WW_SortFocusEntries(WW_GetFocusEntries())
+    for entry in WW_SortFocusEntries(WW_FrontFocusEntries(WW_GetFocusEntries(), active_hwnd))
         windows.Push(entry.hwnd)
     if !windows.Length
         return
@@ -58,9 +58,29 @@ WW_GetFocusEntries()
         monitor_left := 0
         if monitor := WindowMonitorIndex(hwnd)
             MonitorGetPixels(monitor, &monitor_left)
-        entries.Push({hwnd: hwnd, monitor: monitor_left, x: x, y: y})
+        entries.Push({hwnd: hwnd, monitor: monitor_left, x: x, y: y, rect: [x, y, width, height]})
     }
     return entries
+}
+
+; Drops windows stacked behind another, keeping keep_hwnd so a session can
+; continue from it. Entries come front to back.
+WW_FrontFocusEntries(entries, keep_hwnd)
+{
+    front := []
+    for index, entry in entries {
+        hidden := false
+        if entry.hwnd != keep_hwnd {
+            Loop index - 1
+                if WW_WindowsStack(entries[A_Index].rect, entry.rect) {
+                    hidden := true
+                    break
+                }
+        }
+        if !hidden
+            front.Push(entry)
+    }
+    return front
 }
 
 ; Reading order. Edges within a few pixels count as one column or row.
