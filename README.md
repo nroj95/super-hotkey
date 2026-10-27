@@ -4,6 +4,8 @@ a small AutoHotkey v2 suite for the Windows shortcuts and window behavior i want
 
 built by a non-programmer: ChatGPT wrote the early versions and Claude Code the later ones; i design, direct and test it.
 
+![Super Hotkey arranging, switching and stretching windows](assets/super-hotkey-showcase.gif)
+
 | module | purpose |
 | --- | --- |
 | Cascade Kingdom | arrange new windows in cascades |
