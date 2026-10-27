@@ -1964,7 +1964,7 @@ class SuiteUpgradeChecks {
                     settings := app.ui.windows["settings:" id]
                     settings.GetClientPos(, , &settingsW, &settingsH)
                     if id = "wonder-windows" {
-                        for pair in [["fancyZonesStatus", ["running, not supported", "not running"]],
+                        for pair in [["fancyZonesStatus", ["running, not supported", "not running, you're all set!"]],
                             ["zoneUnit", ["Fourths and halves", "Thirds"]]] {
                             statusValue := settings[pair[1]].Text
                             allowed := false
@@ -1974,7 +1974,7 @@ class SuiteUpgradeChecks {
                             this.Assert(allowed,
                                 "Wonder Windows shows an explicit " pair[1] " status")
                         }
-                        this.Assert(WonderWindowsModule.StatusColor("not running") = "008000"
+                        this.Assert(WonderWindowsModule.StatusColor("not running, you're all set!") = "008000"
                             && WonderWindowsModule.StatusColor("running, not supported") = "B02020"
                             && WonderWindowsModule.StatusColor("unknown") = "505050",
                             "Wonder Windows status values use green, red or neutral colors")

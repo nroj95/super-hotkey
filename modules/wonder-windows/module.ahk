@@ -170,7 +170,7 @@ class WonderWindowsModule extends SuiteModule {
         window.AddText("x175 y55 w600", "Full height first, then the upper and lower halves of the display."
             . " Thirds skips the halves.")
         WonderWindowsModule.AddStatus(window, "FancyZones",
-            WW_IsFancyZonesRunning() ? "running, not supported" : "not running", 110, "fancyZonesStatus")
+            WW_IsFancyZonesRunning() ? "running, not supported" : "not running, you're all set!", 110, "fancyZonesStatus")
         window.AddText("x20 y150 w760", "FancyZones also moves windows and takes hotkeys, so it isn't supported;"
             . " disable it in PowerToys. For drag-and-drop zones that work alongside Super Hotkey, try ScreenGrid.")
         ui.Footer(window, [["Apply", ObjBindMethod(this, "SaveSettings", ui), 100],
@@ -207,7 +207,7 @@ class WonderWindowsModule extends SuiteModule {
 
     static StatusColor(value) {
         switch value {
-            case "not running": return "008000"
+            case "not running, you're all set!": return "008000"
             case "running, not supported": return "B02020"
             default: return "505050"
         }
@@ -216,7 +216,7 @@ class WonderWindowsModule extends SuiteModule {
     static AddStatus(window, label, value, y, controlName) {
         window.AddText("x20 y" y " w150 h23", label ":")
         window.SetFont("s10 c" WonderWindowsModule.StatusColor(value), "Cascadia Mono")
-        window.AddText("x175 y" y " w220 h23 v" controlName, value)
+        window.AddText("x175 y" y " w600 h23 v" controlName, value)
         window.SetFont("s10 cDefault", "Cascadia Mono")
     }
 
