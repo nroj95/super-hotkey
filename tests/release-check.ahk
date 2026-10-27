@@ -10,6 +10,7 @@ class SuiteReleaseChecks {
         this.LargeDebugLog()
         this.CascadeOptInLaunch()
         this.CascadeLaunchMonitors()
+        this.CascadeLaunchHandoff()
         this.WorkingMonitor()
         this.OversizedTile()
         this.CenteredNotices()
@@ -422,6 +423,72 @@ class SuiteReleaseChecks {
             target.Destroy()
             SetTimer(RunQueuedFocusCornerUpdate, 0)
             Critical(previousCritical)
+        }
+    }
+
+    ; Firefox hands a taskbar launch's foreground to its hidden remote window
+    ; and may never activate the new one; that hand-off still proves the launch.
+    static CascadeLaunchHandoff() {
+        global cascade_launch_hint, current_foreground_hwnd, new_window_focus_request
+        app := SuiteApplication(true, SuiteChecks.directory "\release-launch-handoff")
+        InitializeCascadeState()
+        target := SuiteGui(, "Launch hand-off target")
+        helper := SuiteGui(, "Launch hand-off helper")
+        sibling := SuiteGui(, "Launch hand-off sibling")
+        previousForeground := current_foreground_hwnd
+        try {
+            sibling.Show("NA w200 h100")
+            taskbar := WinExist("ahk_class Shell_TrayWnd")
+            this.Assert(IsLaunchHandoffWindow(helper.Hwnd, target.Hwnd)
+                && !IsLaunchHandoffWindow(sibling.Hwnd, target.Hwnd)
+                && !IsLaunchHandoffWindow(target.Hwnd, target.Hwnd)
+                && !IsLaunchHandoffWindow(taskbar, target.Hwnd)
+                && !IsLaunchHandoffWindow(0, target.Hwnd),
+                "only a hidden window of the new window's own app is a launch hand-off")
+            this.Assert(IsLaunchSettleNoise(helper.Hwnd, target.Hwnd)
+                && (!taskbar || IsLaunchSettleNoise(taskbar, target.Hwnd))
+                && !IsLaunchSettleNoise(sibling.Hwnd, target.Hwnd),
+                "launch settling ignores the shell and the hand-off, not a visible app window")
+
+            cascade_launch_hint := 0
+            current_foreground_hwnd := helper.Hwnd
+            context := CaptureNewWindowFocusContext(target.Hwnd)
+            this.Assert(IsObject(context) && context.proved_foreground && !IsObject(context.hint),
+                "a hand-off as the latest foreground proves a launch")
+            current_foreground_hwnd := sibling.Hwnd
+            this.Assert(!CaptureNewWindowFocusContext(target.Hwnd),
+                "a visible window of the same app proves nothing")
+            cascade_launch_hint := {tick: A_TickCount, foreground: sibling.Hwnd}
+            current_foreground_hwnd := helper.Hwnd
+            context := CaptureNewWindowFocusContext(target.Hwnd)
+            this.Assert(context.proved_foreground && context.foreground = sibling.Hwnd,
+                "a taskbar launch keeps its source and gains the hand-off proof")
+
+            app.dryRun := false
+            this.Assert(IsCascadeEnabled(), "the hand-off fixture runs the live foreground rules")
+            request := {hwnd: target.Hwnd, context: {foreground: sibling.Hwnd},
+                saw_target_foreground: false, visual_synced: false}
+            new_window_focus_request := request
+            ObserveNewWindowForeground(helper.Hwnd)
+            this.Assert(new_window_focus_request = request && request.saw_target_foreground,
+                "the hand-off foreground event arms recovery instead of cancelling it")
+            if taskbar {
+                ObserveNewWindowForeground(taskbar)
+                this.Assert(new_window_focus_request = request,
+                    "the taskbar taking foreground back keeps recovery armed")
+            }
+            ObserveNewWindowForeground(sibling.Hwnd)
+            this.Assert(!IsObject(new_window_focus_request),
+                "a real switch after the hand-off still cancels recovery")
+        }
+        finally {
+            app.stopping := true
+            app.dryRun := true
+            CancelNewWindowFocus()
+            current_foreground_hwnd := previousForeground
+            target.Destroy()
+            helper.Destroy()
+            sibling.Destroy()
         }
     }
 

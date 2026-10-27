@@ -654,17 +654,44 @@ CaptureNewWindowFocusContext(hwnd)
     global cascade_launch_hint, new_window_focus_timeout_ms
 
     foreground := DllCall("GetForegroundWindow", "ptr")
+    proved_foreground := NewWindowOwnsForeground(hwnd)
     if IsObject(cascade_launch_hint)
         && ((A_TickCount - cascade_launch_hint.tick) & 0xFFFFFFFF) <= new_window_focus_timeout_ms
         return {
             foreground: cascade_launch_hint.foreground,
             hint: cascade_launch_hint,
-            proved_foreground: foreground = hwnd
+            proved_foreground: proved_foreground
         }
-    if foreground = hwnd
+    if proved_foreground
         return {foreground: foreground, hint: 0, proved_foreground: true}
     return 0
 }
+
+; A running app may hand a launch's foreground to one of its own hidden
+; windows, as Firefox does with its remote-launch window, and then fail to
+; activate the new window. That hand-off is part of the launch, not a switch.
+IsLaunchHandoffWindow(hwnd, target_hwnd)
+{
+    if !hwnd || hwnd = target_hwnd || !DllCall("IsWindow", "ptr", hwnd, "int")
+        || DllCall("IsWindowVisible", "ptr", hwnd, "int") && !IsWindowCloaked(hwnd)
+        return false
+    pid := WindowProcessId(hwnd)
+    return pid && pid = WindowProcessId(target_hwnd)
+}
+
+; The new window owns foreground, or its app's hand-off window owns it or was
+; the latest foreground before it returned to the shell.
+NewWindowOwnsForeground(hwnd)
+{
+    global current_foreground_hwnd
+    foreground := DllCall("GetForegroundWindow", "ptr")
+    return foreground = hwnd || IsLaunchHandoffWindow(foreground, hwnd)
+        || IsLaunchHandoffWindow(current_foreground_hwnd, hwnd)
+}
+
+; Foreground changes that settle a launch rather than switch away from it.
+IsLaunchSettleNoise(foreground, target_hwnd)
+    => IsShellSurfaceWindow(foreground) || IsLaunchHandoffWindow(foreground, target_hwnd)
 
 StartNewWindowFocus(hwnd, context)
 {
@@ -684,10 +711,10 @@ StartNewWindowFocus(hwnd, context)
     if recovery_started
         return
 
-    foreground := DllCall("GetForegroundWindow", "ptr")
     proved_foreground := false
     try proved_foreground := !!context.proved_foreground
-    if !IsObject(context.hint) && !proved_foreground && foreground != hwnd
+    proved_foreground := proved_foreground || NewWindowOwnsForeground(hwnd)
+    if !IsObject(context.hint) && !proved_foreground
         return
     if IsObject(context.hint) && (context.hint != cascade_launch_hint
         || ((A_TickCount - context.hint.tick) & 0xFFFFFFFF) > new_window_focus_timeout_ms)
@@ -698,9 +725,8 @@ StartNewWindowFocus(hwnd, context)
     new_window_focus_request := {
         hwnd: hwnd, pid: pid, context: context,
         started_tick: A_TickCount, attempts: 0, visual_synced: false,
-        saw_target_foreground: proved_foreground || foreground = hwnd,
-        shell_settle: IsObject(context.hint)
-            || proved_foreground || foreground = hwnd,
+        saw_target_foreground: proved_foreground,
+        shell_settle: IsObject(context.hint) || proved_foreground,
         launch_settle_started_tick: A_TickCount, launch_settle_attempts: 0,
         launch_settle_fallback_used: false, launch_settle_logged: false
     }
@@ -752,7 +778,7 @@ ObserveNewWindowForeground(hwnd)
 
     if IsObject(new_window_focus_request) {
         request := new_window_focus_request
-        if hwnd = request.hwnd {
+        if hwnd = request.hwnd || IsLaunchHandoffWindow(hwnd, request.hwnd) {
             request.saw_target_foreground := true
             request.visual_synced := false
             SyncNewWindowForegroundVisual(request)
@@ -763,12 +789,13 @@ ObserveNewWindowForeground(hwnd)
 
         ; Before the target has ever owned foreground, the original source is an
         ; expected part of launch settling. After it has owned foreground, any
-        ; real application switch is intentional; only shell surfaces are noise.
+        ; real application switch is intentional; only shell surfaces and the
+        ; app's own hand-off window are noise.
         if request.saw_target_foreground {
-            if !IsShellSurfaceWindow(hwnd)
+            if !IsLaunchSettleNoise(hwnd, request.hwnd)
                 CancelNewWindowFocus(request)
         } else if hwnd != request.context.foreground
-            && !IsShellSurfaceWindow(hwnd)
+            && !IsLaunchSettleNoise(hwnd, request.hwnd)
             CancelNewWindowFocus(request)
     }
 }
@@ -826,10 +853,10 @@ RecoverNewWindowDuringShellSettle(request, foreground)
         return true
     }
 
-    ; Once the target has genuinely owned foreground, only a shell/taskbar
-    ; handoff counts as transient launch noise. A real application switch,
+    ; Once the launch has genuinely owned foreground, only a shell/taskbar or
+    ; app hand-off counts as transient launch noise. A real application switch,
     ; including back to the original source, cancels recovery before this path.
-    if !IsShellSurfaceWindow(foreground)
+    if !IsLaunchSettleNoise(foreground, request.hwnd)
         return true
 
     if !IsCascadeEnabled() || new_window_focus_request != request
@@ -900,7 +927,7 @@ WatchNewWindowFocus()
         ; Before first ownership, the original source may still be foreground.
         ; After the target has owned foreground, any non-shell app switch is a
         ; deliberate user choice and must cancel the guarded settle window.
-        if foreground != hwnd && !IsShellSurfaceWindow(foreground) {
+        if foreground != hwnd && !IsLaunchSettleNoise(foreground, hwnd) {
             if request.saw_target_foreground
                 || foreground != request.context.foreground
             {
