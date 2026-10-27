@@ -2,6 +2,8 @@
 
 a small AutoHotkey v2 suite for the Windows shortcuts and window behavior i wanted.
 
+built by a non-programmer: ChatGPT wrote the early versions and Claude Code the later ones; i design, direct and test it.
+
 | module | purpose |
 | --- | --- |
 | Cascade Kingdom | arrange new windows in cascades |
