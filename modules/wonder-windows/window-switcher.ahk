@@ -262,30 +262,52 @@ WW_IsMaximizedFullscreenSwitcherWindow(hwnd)
         return false
 }
 
-WW_WindowPlacementFillsPhysicalMonitor(placement, monitor_info, tolerance := 2)
+; others: the remaining displays, or 0 to read them.
+WW_WindowPlacementFillsPhysicalMonitor(placement, monitor_info, others := 0, tolerance := 2)
 {
     ; Candidates exclude tool windows, so rcNormalPosition uses workspace
     ; coordinates. Convert to screen coordinates, including top/left taskbars.
     offset_x := NumGet(monitor_info, 20, "int") - NumGet(monitor_info, 4, "int")
     offset_y := NumGet(monitor_info, 24, "int") - NumGet(monitor_info, 8, "int")
+    monitor := [NumGet(monitor_info, 4, "int"), NumGet(monitor_info, 8, "int"),
+        NumGet(monitor_info, 12, "int"), NumGet(monitor_info, 16, "int")]
     return WW_RectCoversMonitor(
         [NumGet(placement, 28, "int") + offset_x, NumGet(placement, 32, "int") + offset_y,
             NumGet(placement, 36, "int") + offset_x, NumGet(placement, 40, "int") + offset_y],
-        [NumGet(monitor_info, 4, "int"), NumGet(monitor_info, 8, "int"),
-            NumGet(monitor_info, 12, "int"), NumGet(monitor_info, 16, "int")], tolerance)
+        monitor, IsObject(others) ? others : WW_OtherMonitorRects(monitor), tolerance)
 }
 
 ; A window fills its display when it covers every edge. Borderless games such
-; as Chrono Trigger may overhang by tens of pixels; a window stretched over
-; another display does not count. Rectangles are [left, top, right, bottom].
-WW_RectCoversMonitor(rect, monitor, tolerance := 2)
+; as Chrono Trigger overhang their display, by more after each restore; that
+; is fine where no other display is. A window reaching more than 1/16 of this
+; display's size onto another display spans both and does not count.
+; Rectangles are [left, top, right, bottom].
+WW_RectCoversMonitor(rect, monitor, others, tolerance := 2)
 {
-    overhang_x := Max(tolerance, (monitor[3] - monitor[1]) // 16)
-    overhang_y := Max(tolerance, (monitor[4] - monitor[2]) // 16)
-    return rect[1] <= monitor[1] + tolerance && rect[1] >= monitor[1] - overhang_x
-        && rect[2] <= monitor[2] + tolerance && rect[2] >= monitor[2] - overhang_y
-        && rect[3] >= monitor[3] - tolerance && rect[3] <= monitor[3] + overhang_x
-        && rect[4] >= monitor[4] - tolerance && rect[4] <= monitor[4] + overhang_y
+    if rect[1] > monitor[1] + tolerance || rect[2] > monitor[2] + tolerance
+        || rect[3] < monitor[3] - tolerance || rect[4] < monitor[4] - tolerance
+        return false
+    reach_x := Max(tolerance, (monitor[3] - monitor[1]) // 16)
+    reach_y := Max(tolerance, (monitor[4] - monitor[2]) // 16)
+    for other in others {
+        width := Min(rect[3], other[3]) - Max(rect[1], other[1])
+        height := Min(rect[4], other[4]) - Max(rect[2], other[2])
+        if width > reach_x && height > reach_y
+            return false
+    }
+    return true
+}
+
+; Every display except the one at monitor, as [left, top, right, bottom].
+WW_OtherMonitorRects(monitor)
+{
+    others := []
+    loop MonitorGetCount() {
+        MonitorGet(A_Index, &left, &top, &right, &bottom)
+        if left != monitor[1] || top != monitor[2] || right != monitor[3] || bottom != monitor[4]
+            others.Push([left, top, right, bottom])
+    }
+    return others
 }
 
 WW_WindowFillsPhysicalMonitor(hwnd, tolerance := 2)
@@ -302,8 +324,9 @@ WW_WindowFillsPhysicalMonitor(hwnd, tolerance := 2)
         return false
     }
 
+    monitor := [monitor_left, monitor_top, monitor_right, monitor_bottom]
     return WW_RectCoversMonitor([window_x, window_y, window_x + window_width, window_y + window_height],
-        [monitor_left, monitor_top, monitor_right, monitor_bottom], tolerance)
+        monitor, WW_OtherMonitorRects(monitor), tolerance)
 }
 
 WW_ShowMaximizedFullscreenCycleWindow(windows, target_hwnd)

@@ -38,27 +38,33 @@ class SuiteHardeningChecks {
         NumPut("int", -1920, "int", -1080, "int", 0, "int", 0, monitorInfo, 4)
         NumPut("int", -1880, "int", -1040, "int", 0, "int", 0, monitorInfo, 20)
         NumPut("int", -1960, "int", -1120, "int", -40, "int", -40, placement, 28)
-        this.Assert(WW_WindowPlacementFillsPhysicalMonitor(placement, monitorInfo),
+        this.Assert(WW_WindowPlacementFillsPhysicalMonitor(placement, monitorInfo, []),
             "minimized fullscreen geometry accounts for workspace offsets and negative monitors")
         NumPut("int", -140, placement, 36)
-        this.Assert(!WW_WindowPlacementFillsPhysicalMonitor(placement, monitorInfo),
+        this.Assert(!WW_WindowPlacementFillsPhysicalMonitor(placement, monitorInfo, []),
             "a smaller restore rectangle is not fullscreen")
-        NumPut("int", -1961, "int", -1121, "int", -8, "int", -21, placement, 28)
-        this.Assert(WW_WindowPlacementFillsPhysicalMonitor(placement, monitorInfo),
+        NumPut("int", -1961, "int", -1121, "int", 172, "int", -21, placement, 28)
+        this.Assert(WW_WindowPlacementFillsPhysicalMonitor(placement, monitorInfo, []),
             "a minimized borderless game that overhangs its display stays fullscreen")
 
+        ; Chrono Trigger's window on a 2560 x 1440 display grew from 2592 to
+        ; 2772 px wide over a few restores; the other display was to its left.
         display := [0, 0, 2560, 1440]
-        this.Assert(WW_RectCoversMonitor([0, 0, 2560, 1440], display)
-            && WW_RectCoversMonitor([1, -1, 2559, 1441], display),
+        left := [[-2560, 0, 0, 1440]], right := [[2560, 0, 5120, 1440]]
+        this.Assert(WW_RectCoversMonitor([0, 0, 2560, 1440], display, left)
+            && WW_RectCoversMonitor([1, -1, 2559, 1441], display, left),
             "a window matching its display within rounding fills it")
-        this.Assert(WW_RectCoversMonitor([-1, -1, 2591, 1459], display),
-            "a borderless game overhanging its display, as Chrono Trigger does, fills it")
-        this.Assert(!WW_RectCoversMonitor([0, 0, 2560, 1400], display)
-            && !WW_RectCoversMonitor([8, 0, 2560, 1440], display),
+        this.Assert(WW_RectCoversMonitor([-1, -1, 2591, 1459], display, left)
+            && WW_RectCoversMonitor([-1, -1, 2771, 1459], display, left),
+            "a borderless game overhanging into no other display fills it, however far")
+        this.Assert(WW_RectCoversMonitor([-1, -1, 2591, 1459], display, right)
+            && !WW_RectCoversMonitor([-1, -1, 2771, 1459], display, right),
+            "overhang onto a neighbouring display is allowed only up to 1/16 of the display")
+        this.Assert(!WW_RectCoversMonitor([0, 0, 2560, 1400], display, left)
+            && !WW_RectCoversMonitor([8, 0, 2560, 1440], display, left),
             "a window short of any display edge, such as a maximized one above the taskbar, does not")
-        this.Assert(!WW_RectCoversMonitor([-2560, 0, 2560, 1440], display)
-            && !WW_RectCoversMonitor([0, 0, 2560 + 161, 1440], display),
-            "a window stretched over another display does not fill this one")
+        this.Assert(!WW_RectCoversMonitor([-2560, 0, 2560, 1440], display, left),
+            "a window stretched over both displays does not fill either")
 
         WW_RunWindowCommand(ObjBindMethod(this, "ExpandedWindowCycleWindows"))
     }
