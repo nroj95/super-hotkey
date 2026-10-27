@@ -5,11 +5,10 @@
 ; stacked window switcher
 ; =============================================================================
 
-; Each press rotates every stack of overlapping windows on the working display
-; at once: the next window of each stack comes to the front, and lone windows
-; stay. Stacks rotate in a stable order, because activation changes the
-; Z-order and always-on-top windows never fall to the back. Only the stack
-; with focus keeps it; the others come forward without activation.
+; Each press brings the next window of the active window's stack to the front:
+; the windows overlapping it on its display. Other stacks stay put. The stack
+; rotates in a stable order, because activation changes the Z-order and
+; always-on-top windows never fall to the back.
 WW_CycleMonitorWindows()
 {
     Critical "On"
@@ -34,56 +33,40 @@ WW_CycleMonitorWindows()
         windows.Push(entry.hwnd)
     WW_monitor_cycle := WW_MergeCycleOrder(WW_monitor_cycle, windows)
 
-    raised := []  ; {hwnd, stack}
-    focus_target := 0
-    stack_count := 0
-    for stack in WW_GroupWindowStacks(entries) {
-        if stack.Length < 2
-            continue
-        stack_count += 1
-        ; Continue from the focused window, or from the front of another stack.
-        from := WW_FindWindowIndex(stack, current) ? current : stack[1]
+    target := 0
+    stack := []
+    if current {
+        for candidate in WW_GroupWindowStacks(entries)
+            if WW_FindWindowIndex(candidate, current)
+                stack := candidate
+        from := current
         ; Step past a window that refused activation instead of requesting it again.
         if WW_monitor_cycle_refused_hwnd && current = WW_monitor_cycle_refused_from
             && WW_FindWindowIndex(stack, WW_monitor_cycle_refused_hwnd)
             from := WW_monitor_cycle_refused_hwnd
-        target := WW_NextMonitorCycleWindow(WW_MergeCycleOrder(WW_monitor_cycle, stack), from, from)
-        ; The focused stack keeps focus; from the desktop, the frontmost stack takes it.
-        if current ? WW_FindWindowIndex(stack, current) : !focus_target
-            focus_target := target
-        else
-            raised.Push({hwnd: target, stack: stack})
+        if stack.Length > 1
+            target := WW_NextMonitorCycleWindow(WW_MergeCycleOrder(WW_monitor_cycle, stack), from, from)
     }
-    ; Without stacks, the desktop still hands focus to the frontmost window.
-    if !stack_count && !current && windows.Length
-        focus_target := windows[1]
+    ; From the desktop, focus goes to the frontmost window.
+    else if windows.Length
+        target := windows[1]
     WW_DebugLog("Stacked window cycle step. | monitor=" monitor " | windows=" windows.Length
-        . " | stacks=" stack_count " | from=" DescribeWindow(foreground))
-    if !focus_target && !raised.Length
+        . " | stack=" stack.Length " | from=" DescribeWindow(foreground))
+    if !target {
+        if current
+            SuiteNotice.Show("status", "No stacked windows here", 1400)
         return
+    }
 
     WW_ForgetLastMinimizedWindow()
     WW_EndFocusNavigationSession()
-    restore_focus := false
-    for item in raised {
-        raised_front := WW_RaiseWindow(item.hwnd) && WW_WindowFrontOf(item.hwnd, item.stack)
-        ; Activation always reorders; focus returns below.
-        if !raised_front
-            restore_focus := ActivateWindow(item.hwnd) || restore_focus
-        WW_DebugLog("Stacked window cycle raised a window. | front=" (raised_front ? 1 : 0)
-            . " | " DescribeWindow(item.hwnd))
-    }
-    if !focus_target && restore_focus && current
-        ActivateWindow(current)
-    if focus_target {
-        ; A window with an open dialog hands the foreground to that dialog.
-        activated := ActivateWindow(focus_target)
-            || DllCall("GetAncestor", "ptr", DllCall("GetForegroundWindow", "ptr"), "uint", 3, "ptr") = focus_target
-        WW_monitor_cycle_refused_hwnd := activated ? 0 : focus_target
-        WW_monitor_cycle_refused_from := activated ? 0 : current
-        WW_DebugLog("Stacked window cycle focused a window. | activated=" (activated ? 1 : 0)
-            . " | " DescribeWindow(focus_target))
-    }
+    ; A window with an open dialog hands the foreground to that dialog.
+    activated := ActivateWindow(target)
+        || DllCall("GetAncestor", "ptr", DllCall("GetForegroundWindow", "ptr"), "uint", 3, "ptr") = target
+    WW_monitor_cycle_refused_hwnd := activated ? 0 : target
+    WW_monitor_cycle_refused_from := activated ? 0 : current
+    WW_DebugLog("Stacked window cycle focused a window. | activated=" (activated ? 1 : 0)
+        . " | " DescribeWindow(target))
 }
 
 ; The next window after from, wrapping around and skipping the active one.
@@ -97,43 +80,6 @@ WW_NextMonitorCycleWindow(windows, from_hwnd, active_hwnd)
             return hwnd
     }
     return 0
-}
-
-; Brings a window to the front without activating it. Windows accepts HWND_TOP
-; from a background process yet leaves the Z-order alone, so a normal window
-; passes through the always-on-top band instead.
-WW_RaiseWindow(hwnd)
-{
-    flags := 0x13 ; SWP_NOSIZE | SWP_NOMOVE | SWP_NOACTIVATE
-    try {
-        if WinGetExStyle(hwnd) & 0x8 ; WS_EX_TOPMOST
-            return DllCall("SetWindowPos", "ptr", hwnd, "ptr", 0, "int", 0, "int", 0, "int", 0, "int", 0,
-                "uint", flags, "int") ; HWND_TOP
-    }
-    catch
-        return false
-    if !DllCall("SetWindowPos", "ptr", hwnd, "ptr", -1, "int", 0, "int", 0, "int", 0, "int", 0,
-        "uint", flags, "int") ; HWND_TOPMOST
-        return false
-    ; Never leave the window always on top.
-    Loop 2
-        if DllCall("SetWindowPos", "ptr", hwnd, "ptr", -2, "int", 0, "int", 0, "int", 0, "int", 0,
-            "uint", flags, "int") ; HWND_NOTOPMOST
-            return true
-    SuiteState.Log.Write("Wonder Windows", "a raised window stayed always on top: " DescribeWindow(hwnd), "ERROR")
-    return false
-}
-
-; Whether hwnd is in front of every other window of its stack.
-WW_WindowFrontOf(hwnd, stack)
-{
-    for other in WinGetList() {
-        if other = hwnd
-            return true
-        if WW_FindWindowIndex(stack, other)
-            return false
-    }
-    return false
 }
 
 ; Switchable windows whose visible frame is on this display, front to back,
