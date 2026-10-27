@@ -556,7 +556,10 @@ DescribeWindow(hwnd) {
     try minMax := WinGetMinMax(hwnd)
     try style := WinGetStyle(hwnd)
     try exStyle := WinGetExStyle(hwnd)
+    ; A failed WinGetPos unsets its outputs; the window may close meanwhile.
     try WinGetPosPixels(&x, &y, &width, &height, hwnd)
+    catch
+        x := y := width := height := "?"
     return "hwnd=" hwnd ' exe="' processName '" class="' className '" title="' title '"'
         . " minmax=" minMax " visible=" DllCall("IsWindowVisible", "ptr", hwnd, "int")
         . " iconic=" DllCall("IsIconic", "ptr", hwnd, "int") " cloaked=" IsWindowCloaked(hwnd)

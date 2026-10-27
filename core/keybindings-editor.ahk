@@ -95,7 +95,7 @@ class KeybindingsEditor {
     _AddButton(options, text, kind, handler) {
         button := this.window.AddButton(options, text)
         this.drawButtons[button.Hwnd] := kind
-        button.OnEvent("Click", ObjBindMethod(this, handler))
+        button.OnEvent("Click", SuiteClickAction(ObjBindMethod(this, handler)))
         return button
     }
 

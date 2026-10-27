@@ -70,6 +70,7 @@ class SuiteUpgradeChecks {
         this.StagedKeybindings()
         this.LiveCascadeSettings()
         this.Interfaces()
+        this.ClickedNavigation()
     }
 
     static Preferences() {
@@ -2186,5 +2187,86 @@ class SuiteUpgradeChecks {
             OnError(app.errorCallback, 0)
         }
         this.Assert(!InStr(SuiteState.Log.Read(), "ERROR"), "the five-module GUI smoke test emits no errors")
+    }
+
+    ; Posts BN_CLICKED, so the button's action runs through AutoHotkey's real
+    ; Click dispatch rather than a direct method call.
+    static Click(window, label) {
+        for control in window
+            if control.Type = "Button" && control.Text = label {
+                PostMessage(0x0111, DllCall("GetDlgCtrlID", "ptr", control.Hwnd, "int") & 0xFFFF,
+                    control.Hwnd, , "ahk_id " window.Hwnd) ; WM_COMMAND
+                return
+            }
+        throw Error("Missing button: " label)
+    }
+
+    ; Waits until the page opened is shown and the page closed is gone;
+    ; "keybindings" stands for the Keybindings window.
+    static WaitForPage(app, opened, closed) {
+        shown := (key) => key = "keybindings" ? IsObject(app.manager.editor.window) : app.ui.windows.Has(key)
+        deadline := A_TickCount + 3000
+        while !shown(opened) || shown(closed) {
+            if A_TickCount > deadline
+                throw Error("Timed out opening " opened " from " closed)
+            Sleep(5)
+        }
+    }
+
+    ; AutoHotkey 2.0.26 corrupted pages built inside a footer button's Click
+    ; event once that event returned: Help lost its footer width after Back.
+    static ClickedNavigation() {
+        app := SuiteApplication(true, SuiteChecks.directory "\clicked-navigation")
+        failures := []
+        collect := (failure, *) => (failures.Push(failure.Message), 1)
+        previousCritical := 0
+        try {
+            app.Start()
+            OnError(collect, -1)
+            ; Posted clicks only run while this thread can be interrupted.
+            previousCritical := Critical("Off")
+            intact := (label) => this.AssertFootersIntact(app, failures, label)
+            loop 10 {
+                for id, module in app.modules {
+                    help := "help:" id
+                    app.ui.ShowHelp(id)
+                    settings := "settings:" id
+                    if module.hasSettings {
+                        this.Click(app.ui.windows[help], "Settings...")
+                        this.WaitForPage(app, settings, help)
+                        intact("Settings from Help: " id)
+                        this.Click(app.ui.windows[settings], "Back")
+                        this.WaitForPage(app, help, settings)
+                        intact("Help from Settings: " id)
+                    }
+                    if A_Index = 1 {
+                        this.Click(app.ui.windows[help], "Keybindings...")
+                        this.WaitForPage(app, "keybindings", help)
+                        this.Click(app.manager.editor.window, "Back")
+                        this.WaitForPage(app, help, "keybindings")
+                        intact("Help from Keybindings: " id)
+                    }
+                    app.ui.CloseWindow(help)
+                }
+            }
+        }
+        finally {
+            Critical(previousCritical)
+            OnError(collect, 0)
+            app.Stop("Exit", 0)
+            OnExit(app.exitCallback, 0)
+            OnError(app.errorCallback, 0)
+        }
+        this.Assert(!failures.Length, "clicked navigation raises no errors")
+    }
+
+    static AssertFootersIntact(app, failures, label) {
+        this.Assert(!failures.Length, "clicked navigation raises no errors: " label
+            (failures.Length ? " (" failures[1] ")" : ""))
+        for hwnd, footer in app.ui.pageFooters
+            this.Assert(HasProp(footer, "divider") && HasProp(footer, "buttons") && HasProp(footer, "total"),
+                "pages opened by a click keep their footer: " label)
+        for key, window in app.ui.windows
+            this.Assert(window.Hwnd, "pages opened by a click keep their window: " label)
     }
 }

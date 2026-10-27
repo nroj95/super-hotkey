@@ -96,7 +96,7 @@ class SuiteInterface {
                 OnMessage(0x004E, this.footerDrawCallback)
                 this.footerDrawInstalled := true
             }
-            control.OnEvent("Click", item[2])
+            control.OnEvent("Click", SuiteClickAction(item[2]))
             controls.Push({button: control, width: buttonWidth})
             x += buttonWidth + 10
         }

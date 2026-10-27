@@ -209,6 +209,11 @@ class SuiteIcons {
     }
 }
 
+; A Click handler that runs action in its own thread once the Click event has
+; returned. AutoHotkey 2.0.26 corrupted pages built inside that event, so
+; buttons that open or swap windows must not do it there.
+SuiteClickAction(action) => (*) => SetTimer(action, -1)
+
 ; Flat, square push buttons drawn through NM_CUSTOMDRAW. kind is "warning",
 ; "reset" or anything else for the normal style. Returns CDRF_SKIPDEFAULT
 ; when it painted, or "" to let Windows draw this stage.
