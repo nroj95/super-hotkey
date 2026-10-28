@@ -169,7 +169,7 @@ class PaperPadModule extends SuiteModule {
     OpenNotesFolder(*) {
         folder := IniRead(this.settingsPath, "Paths", "NotesDirectory", PaperPadController.DefaultNotesDirectory)
         if DirExist(folder)
-            Run('explorer.exe "' folder '"')
+            Run('"' A_WinDir '\explorer.exe" "' folder '"')
         else
             MsgBox("The notes folder does not exist yet: " folder, "Paper Pad", "Iconi")
     }

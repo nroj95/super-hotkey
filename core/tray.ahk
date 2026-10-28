@@ -631,11 +631,12 @@ class SuiteInterface {
     OpenLogFile(*) {
         if !FileExist(SuiteState.Log.path)
             SuiteState.Log.Write("Core", "log opened")
-        Run('notepad.exe "' SuiteState.Log.path '"')
+        ; Full paths so a same-named program elsewhere on the search path never runs.
+        Run('"' A_WinDir '\System32\notepad.exe" "' SuiteState.Log.path '"')
     }
 
     OpenSettingsFolder(*) {
-        Run('explorer.exe "' this.app.Settings.directory '"')
+        Run('"' A_WinDir '\explorer.exe" "' this.app.Settings.directory '"')
     }
 
     UpdateStartupTray() {
