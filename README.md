@@ -20,7 +20,7 @@ Use any module on its own or combine them.
 
 ### Wonder Windows
 
-Keep windows at sizes that suit what you're doing, whether you work with a few apps side by side or keep tons open. I found many of Windows' own window shortcuts frustrating or incomplete, so Wonder Windows reworks them to be more useful and predictable.
+There are already plenty of window managers for Windows, but the ones I tried tiled windows smaller than I liked, took a while to learn, or spread things across so many workspaces that I lost track of where I'd put them. Each was a small cost, but they added up. This is my take on window management that builds on the `Win` key shortcuts you already know, so it feels familiar from the start, while making the ones I found frustrating or incomplete more useful and predictable.
 
 Hold `Win` and scroll, or press `Win + Left/Right`, to walk the active window through zones: full-height fourths and halves first, then the same zones in the upper and lower half of the display. The other direction steps back, and releasing `Win` starts over next time. Settings offers thirds instead.
 
@@ -34,7 +34,7 @@ Click a colored focus tab to bring its window forward; click it again to cycle t
 
 ### Paper Pad
 
-A quick-notes drawer: `Win + F12` shows or hides a dedicated Notepad3 window, so you can jot something down without hunting through other windows and tabs.
+A quick-notes drawer: `Win + F12` shows or hides a dedicated Notepad3 window that stays on top while it's open, so you can jot something down without hunting through other windows and tabs.
 
 `Ctrl + N` creates a timestamped page, and `Win + Left/Right` move between pages inside the drawer. Changes are saved automatically when you switch pages, hide the drawer or exit, and pages stay ordinary files in your notes folder.
 
