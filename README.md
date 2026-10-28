@@ -62,7 +62,7 @@ Settings and logs live in `%LOCALAPPDATA%\nroj\SuperHotkey`.
 
 Other window managers and tiling tools can conflict with Super Hotkey when they also place new windows, move windows after display changes, or use the same hotkeys.
 
-PowerToys FancyZones can do all three, so it isn't supported; disable it in PowerToys. For `Shift + drag` window placement, I recommend [ScreenGrid](https://github.com/TtesseractT/ScreenGrid) instead: it shows a grid overlay for dropping windows into zones, and Super Hotkey doesn't need it.
+PowerToys FancyZones can do all three, so it isn't supported; disable it in PowerToys. For `Shift + drag` window placement, I recommend [ScreenGrid](https://github.com/TtesseractT/ScreenGrid) instead. It shows a grid overlay for dropping windows into zones and works well alongside Super Hotkey.
 
 ## Develop
 
