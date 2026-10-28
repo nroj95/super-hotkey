@@ -20,9 +20,11 @@ Use any module on its own or combine them.
 
 ### Wonder Windows
 
-Keep windows at sizes that suit what you're doing, whether you work with a few apps side by side or keep tons open. Position and stretch windows in your main workspace. Zone cycles use fourths and halves by default; Settings offers thirds instead.
+Keep windows at sizes that suit what you're doing, whether you work with a few apps side by side or keep tons open. I found many of Windows' own window shortcuts frustrating or incomplete, so Wonder Windows reworks them to be more useful and predictable.
 
-Windows can sit side by side, with others stacked behind them. `Alt + Win + arrow` moves the active window onto its nearest neighbor in that direction, `Caps + Win + arrow` swaps places with it, and `Win + Enter` cycles through the windows stacked with the active one.
+Hold `Win` and scroll, or press `Win + Left/Right`, to walk the active window through zones: full-height fourths and halves first, then the same zones in the upper and lower half of the display. The other direction steps back, and releasing `Win` starts over next time. Settings offers thirds instead.
+
+Windows can also sit side by side with others stacked behind them: `Win + Enter` cycles through the stack, and `Alt + Win + arrow` moves a window onto its nearest neighbor to stack them. `Win + Shift + Left/Right/Up` stretches a window until it meets its neighbors.
 
 ### Cascade Kingdom
 
