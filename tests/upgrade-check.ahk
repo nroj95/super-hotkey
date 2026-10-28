@@ -65,6 +65,7 @@ class SuiteUpgradeChecks {
         this.DisabledModuleWarning()
         this.ScopesAndObservers()
         this.WonderDefaultMigration()
+        this.MoveOntoDefaultMigration()
         this.GeometryAndOwnership()
         this.ActiveShortcutVisibility()
         this.StagedKeybindings()
@@ -923,6 +924,44 @@ class SuiteUpgradeChecks {
         }
     }
 
+    static MoveOntoDefaultMigration() {
+        Signature(text) => Keybindings.Parse(text).signature
+        Setting(first, second) {
+            return {enabled: true, bindings: [first, second]}
+        }
+        altUp := Signature("Win + Alt + up")
+        capsUp := Signature("Caps + Win + up")
+        custom := Signature("Ctrl + Win + up")
+
+        ; The stock Win + Alt key moves to the new action; swap keeps Caps + Win.
+        configuration := Map("wonder-windows.swap-up", Setting(altUp, capsUp),
+            "wonder-windows.move-onto-up", Setting(altUp, ""))
+        WW_MigrateMoveOntoKeybindingDefaults(configuration)
+        this.Assert(configuration["wonder-windows.swap-up"].bindings[1] = ""
+            && configuration["wonder-windows.swap-up"].bindings[2] = capsUp
+            && configuration["wonder-windows.move-onto-up"].bindings[1] = altUp,
+            "the stock Win + Alt swap hotkey moves to moving onto a window")
+
+        ; A customized swap key stays with swap.
+        configuration := Map("wonder-windows.swap-up", Setting(custom, capsUp),
+            "wonder-windows.move-onto-up", Setting(altUp, ""))
+        WW_MigrateMoveOntoKeybindingDefaults(configuration)
+        this.Assert(configuration["wonder-windows.swap-up"].bindings[1] = custom
+            && configuration["wonder-windows.swap-up"].bindings[2] = capsUp
+            && configuration["wonder-windows.move-onto-up"].bindings[1] = altUp,
+            "a customized swap hotkey stays with swap")
+
+        ; A stock key the user gave another action stays with that action.
+        configuration := Map("wonder-windows.swap-up", Setting("", capsUp),
+            "wonder-windows.move-onto-up", Setting(altUp, ""),
+            "wonder-windows.focus-up", Setting(altUp, ""))
+        WW_MigrateMoveOntoKeybindingDefaults(configuration)
+        this.Assert(configuration["wonder-windows.focus-up"].bindings[1] = altUp
+            && configuration["wonder-windows.move-onto-up"].bindings[1] = ""
+            && configuration["wonder-windows.swap-up"].bindings[2] = capsUp,
+            "moving onto a window gives up a stock key the user assigned elsewhere")
+    }
+
     static WonderDefaultMigration() {
         actionId := "wonder-windows.cycle-expanded"
         oldBinding := Keybindings.Parse("Win + Shift + Tab").signature
@@ -992,12 +1031,12 @@ class SuiteUpgradeChecks {
                 WW_RelocateWindowRectangle([0, 0, 1200, 900], [0, 0, 1200, 900],
                     [0, 0, 800, 600]), [0, 0, 800, 600], 0),
                 "cross-monitor movement constrains windows that exceed the destination")
-            this.Assert(WW_DirectionalSwapScore(-80, 0, "left") = 80
-                && WW_DirectionalSwapScore(80, 0, "left") = -1
-                && WW_DirectionalSwapScore(80, 30, "right") = 140
-                && WW_DirectionalSwapScore(0, -60, "up") = 60
-                && WW_DirectionalSwapScore(0, 60, "down") = 60,
-                "directional swapping selects only windows on the requested side")
+            this.Assert(WW_DirectionalScore(-80, 0, "left") = 80
+                && WW_DirectionalScore(80, 0, "left") = -1
+                && WW_DirectionalScore(80, 30, "right") = 140
+                && WW_DirectionalScore(0, -60, "up") = 60
+                && WW_DirectionalScore(0, 60, "down") = 60,
+                "moving onto a window selects only windows on the requested side")
             oldDefaults := app.manager._DefaultConfiguration()
             oldDefaults["wonder-windows.focus-up"].bindings[1] := Keybindings.Parse("Caps + Win + Up").signature
             oldDefaults["wonder-windows.stretch-full-cycle"].bindings[1] := Keybindings.Parse("Caps + Win + Enter").signature
@@ -1077,18 +1116,18 @@ class SuiteUpgradeChecks {
             this.Assert(WW_RectanglesMatch(
                 WW_FitAcceptedRectangle([100, 150, 800, 500], [100, 150, 800, 500], [0, 0, 1600, 900]),
                 [100, 150, 800, 500], 0),
-                "best-effort swap does not alter a fitting destination")
+                "best-effort placement does not alter a fitting destination")
             this.Assert(WW_RectanglesMatch(
                 WW_FitAcceptedRectangle([900, 600, 400, 300], [900, 600, 820, 520], [0, 0, 1600, 900]),
                 [780, 380, 820, 520], 0),
-                "size-constrained swaps keep accepted dimensions on-screen")
+                "size-constrained placements keep accepted dimensions on-screen")
             this.Assert(WW_RectanglesMatch(
                 WW_FitAcceptedRectangle([-100, -80, 400, 300], [-100, -80, 820, 520], [-1600, -900, 0, 0]),
                 [-820, -520, 820, 520], 0),
-                "best-effort swap handles negative desktop coordinates")
+                "best-effort placement handles negative desktop coordinates")
             this.Assert(!IsObject(WW_FitAcceptedRectangle([100, 100, 400, 300],
                 [100, 100, 1800, 300], [0, 0, 1600, 900])),
-                "unfittable window dimensions require swapping rollback")
+                "unfittable window dimensions require a placement rollback")
             this.Assert(WW_RectanglesMatch(
                 WW_FitAcceptedRectangle([1200, 0, 400, 450], [1200, 0, 600, 500], [0, 0, 1600, 900]),
                 [1000, 0, 600, 500], 0)
@@ -1226,36 +1265,36 @@ class SuiteUpgradeChecks {
                     "normal suite GUIs are Wonder Windows candidates")
                 this.Assert(!WW_IsNativeFullscreen(guiProbe.Hwnd),
                     "ordinary suite GUI is not mistaken for native fullscreen")
-                ; A large window may occupy a smaller logical swap zone.
+                ; A large window may occupy a smaller logical zone.
                 guiActual := WW_GetWindowLayoutRectangle(guiProbe.Hwnd)
                 guiZone := [guiActual[1], guiActual[2],
                     Max(50, guiActual[3] - 130), Max(50, guiActual[4] - 90)]
-                WW_SaveSwapZone(guiProbe.Hwnd, guiZone)
-                this.Assert(WW_RectanglesMatch(WW_GetSwapZone(guiProbe.Hwnd), guiZone, 0),
-                    "oversized GUI retains its logical swap zone")
-                global WW_swap_zones
-                this.Assert(WW_swap_zones.Has(guiProbe.Hwnd)
-                    && WW_RectanglesMatch(WW_swap_zones[guiProbe.Hwnd]["applied"], guiActual, 2),
+                WW_SaveLogicalZone(guiProbe.Hwnd, guiZone)
+                this.Assert(WW_RectanglesMatch(WW_GetLogicalZone(guiProbe.Hwnd), guiZone, 0),
+                    "oversized GUI retains its logical zone")
+                global WW_logical_zones
+                this.Assert(WW_logical_zones.Has(guiProbe.Hwnd)
+                    && WW_RectanglesMatch(WW_logical_zones[guiProbe.Hwnd]["applied"], guiActual, 2),
                     "logical zone and actual GUI rectangle stay separate")
                 ; A recycled HWND must not inherit the previous window's zone.
                 DllCall("RemovePropW", "ptr", guiProbe.Hwnd,
-                    "str", "nroj.SuperHotkey.SwapZone", "ptr")
-                this.Assert(WW_RectanglesMatch(WW_GetSwapZone(guiProbe.Hwnd), guiActual, 2)
-                    && !WW_swap_zones.Has(guiProbe.Hwnd),
-                    "reopened GUI without the zone marker inherits no stale swap zone")
-                WW_SaveSwapZone(guiProbe.Hwnd, guiZone)
-                WW_swap_zones[0] := Map("pid", 0)
-                WW_PruneSwapZones()
-                this.Assert(!WW_swap_zones.Has(0),
-                    "dead swap windows do not retain logical zone records")
+                    "str", "nroj.SuperHotkey.LogicalZone", "ptr")
+                this.Assert(WW_RectanglesMatch(WW_GetLogicalZone(guiProbe.Hwnd), guiActual, 2)
+                    && !WW_logical_zones.Has(guiProbe.Hwnd),
+                    "reopened GUI without the zone marker inherits no stale logical zone")
+                WW_SaveLogicalZone(guiProbe.Hwnd, guiZone)
+                WW_logical_zones[0] := Map("pid", 0)
+                WW_PruneLogicalZones()
+                this.Assert(!WW_logical_zones.Has(0),
+                    "dead windows do not retain logical zone records")
                 ; Manual resizing must forget stale zones rather than spreading them.
                 WinGetPos(&gX, &gY, &gW, &gH, guiProbe.Hwnd)
                 WinMove(gX, gY, gW + 70, gH, guiProbe.Hwnd)
                 Sleep 40
-                this.Assert(WW_RectanglesMatch(WW_GetSwapZone(guiProbe.Hwnd),
+                this.Assert(WW_RectanglesMatch(WW_GetLogicalZone(guiProbe.Hwnd),
                     WW_GetWindowLayoutRectangle(guiProbe.Hwnd), 2)
-                    && !WW_swap_zones.Has(guiProbe.Hwnd),
-                    "manual GUI resize invalidates its remembered swap zone")
+                    && !WW_logical_zones.Has(guiProbe.Hwnd),
+                    "manual GUI resize invalidates its remembered logical zone")
                 this.Assert(IsIgnoredByWindowCascade(guiProbe.Hwnd),
                     "Cascade Kingdom continues to ignore normal suite GUIs")
                 DllCall("SetPropW", "ptr", guiProbe.Hwnd, "str", "nroj.PaperPad.Notepad3Window", "ptr", 1, "int")
@@ -1527,6 +1566,8 @@ class SuiteUpgradeChecks {
             "wonder-windows.stretch-left", "wonder-windows.stretch-right",
             "wonder-windows.stretch-height", "wonder-windows.stretch-full-cycle",
             "wonder-windows.reset-stretch",
+            "wonder-windows.move-onto-up", "wonder-windows.move-onto-down",
+            "wonder-windows.move-onto-left", "wonder-windows.move-onto-right",
             "wonder-windows.swap-up", "wonder-windows.swap-down",
             "wonder-windows.swap-left", "wonder-windows.swap-right",
             "wonder-windows.move-monitor-left", "wonder-windows.move-monitor-right",

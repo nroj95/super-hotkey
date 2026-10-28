@@ -8,21 +8,21 @@ Built by a non-programmer: ChatGPT wrote the early versions and Claude Code the 
 
 ## Modules
 
+Use any module on its own or combine them.
+
 | Module | Purpose |
 | --- | --- |
-| [Wonder Windows](#wonder-windows) | Position, stretch, swap and cycle windows |
+| [Wonder Windows](#wonder-windows) | Position, stretch, stack and cycle windows |
 | [Cascade Kingdom](#cascade-kingdom) | Keep many windows in an overlapping cascade |
 | [Paper Pad](#paper-pad) | A quick-notes drawer using Notepad3 |
 | [Power-Up Utilities](#power-up-utilities) | Extra keys, text shortcuts and system utilities |
 | [Secret Layers](#secret-layers) | Use CapsLock and Pause as extra keyboard layers |
 
-Use any module on its own or combine them.
-
 ### Wonder Windows
 
-Keep windows at sizes that suit what you're doing, whether you work with a few apps side by side or keep tons open. Position, stretch and swap windows in your main workspace. Zone cycles use fourths and halves by default; Settings offers thirds instead.
+Keep windows at sizes that suit what you're doing, whether you work with a few apps side by side or keep tons open. Position and stretch windows in your main workspace. Zone cycles use fourths and halves by default; Settings offers thirds instead.
 
-Windows can sit side by side, with others stacked behind them. `Win + Enter` cycles through the windows stacked with the active one.
+Windows can sit side by side, with others stacked behind them. `Alt + Win + arrow` moves the active window onto its nearest neighbor in that direction, `Caps + Win + arrow` swaps places with it, and `Win + Enter` cycles through the windows stacked with the active one.
 
 ### Cascade Kingdom
 

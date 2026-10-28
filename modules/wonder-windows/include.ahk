@@ -3,7 +3,7 @@
 #Include "%A_ScriptDir%\modules\wonder-windows\window-state.ahk"
 #Include "%A_ScriptDir%\modules\wonder-windows\layout-geometry.ahk"
 #Include "%A_ScriptDir%\modules\wonder-windows\layouts.ahk"
-#Include "%A_ScriptDir%\modules\wonder-windows\swapping.ahk"
+#Include "%A_ScriptDir%\modules\wonder-windows\nearest-window.ahk"
 #Include "%A_ScriptDir%\modules\wonder-windows\focus.ahk"
 #Include "%A_ScriptDir%\modules\wonder-windows\window-switcher.ahk"
 #Include "%A_ScriptDir%\modules\wonder-windows\monitor-move.ahk"

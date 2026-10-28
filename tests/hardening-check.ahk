@@ -5,6 +5,7 @@ class SuiteHardeningChecks {
         this.SleepPolicyRecovery()
         this.FocusBorderLifecycle()
         this.SwapRollback()
+        this.MoveOntoZone()
         this.ExpandedWindowCycle()
         this.MonitorWindowCycle()
         WW_RunWindowCommand(ObjBindMethod(this, "MaximizedAdoption"))
@@ -472,6 +473,42 @@ class SuiteHardeningChecks {
                     try SuiteSizeGrip.Detach(window)
                     try window.Destroy()
                 }
+            }
+        }
+    }
+    static MoveOntoZone() {
+        windows := []
+        try {
+            Loop 2 {
+                window := SuiteGui("+Resize", "Hardening move onto " A_Index)
+                windows.Push(window)
+                window.Show("NA x" (60 + 340 * (A_Index - 1)) " y80 w300 h220")
+            }
+            source := windows[1].Hwnd
+            target := windows[2].Hwnd
+            targetVisible := WW_GetWindowLayoutRectangle(target)
+            this.Assert(WW_MoveWindowToZone(source, WW_GetLogicalZone(target)),
+                "moving onto a window reports success")
+            this.Assert(WW_WindowMatchesVisibleRectangle(source, targetVisible),
+                "the moved window takes its neighbor's visible rectangle")
+            this.Assert(WW_WindowMatchesVisibleRectangle(target, targetVisible),
+                "the neighbor stays where it is")
+
+            WinGetPos(&x, &y, &width, &height, source)
+            raw := [x, y, width, height]
+            visible := WW_GetWindowLayoutRectangle(source)
+            WinMove(x + 70, y + 60, , , source)
+            this.Assert(WW_RestoreWindowRectangle(source, raw, visible),
+                "rollback restores a moved window")
+            SuiteSizeGrip.Detach(windows[1])
+            windows[1].Destroy()
+            this.Assert(!WW_RestoreWindowRectangle(source, raw, visible),
+                "rollback reports failure when the window has closed")
+        }
+        finally {
+            for window in windows {
+                try SuiteSizeGrip.Detach(window)
+                try window.Destroy()
             }
         }
     }

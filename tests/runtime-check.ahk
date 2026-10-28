@@ -127,11 +127,14 @@ class SuiteChecks {
                 this.Assert(!manager.actions.Has("wonder-windows." name),
                     "zone cycling replaces " name)
             for direction in ["left", "right", "up", "down"] {
-                this.Assert(configuration["wonder-windows.swap-" direction].bindings[1]
+                this.Assert(configuration["wonder-windows.move-onto-" direction].bindings[1]
                     = Keybindings.Parse("Win + Alt + " direction).signature
+                    && configuration["wonder-windows.move-onto-" direction].bindings[2] = "",
+                    "moving onto a window defaults to Win + Alt + " direction)
+                this.Assert(configuration["wonder-windows.swap-" direction].bindings[1] = ""
                     && configuration["wonder-windows.swap-" direction].bindings[2]
                     = Keybindings.Parse("Caps + Win + " direction).signature,
-                    "directional swap defaults to Win + Alt + " direction ", then Caps + Win")
+                    "swapping defaults to Caps + Win + " direction " in the second column")
             }
             this.Assert(configuration["wonder-windows.stretch-full-cycle"].bindings[1]
                 = Keybindings.Parse("Shift + Win + Enter").signature

@@ -2,9 +2,39 @@
 ; Included into the same script; functions share the existing global state.
 
 ; =============================================================================
-; nearest directional window swapping
+; moving onto or swapping with the nearest window in a direction
 ; =============================================================================
 
+; The active window takes its neighbor's logical zone and stacks in front of
+; it, so Win + Enter can cycle the two. The neighbor stays where it is.
+WW_MoveOntoWindow(direction)
+{
+    Critical "On"
+    if direction != "left" && direction != "right"
+        && direction != "up" && direction != "down"
+        return
+
+    hwnd := WW_GetWindowControlTarget()
+    if !hwnd
+        return
+
+    try {
+        WW_PrepareWindowForPlacement(hwnd)
+        monitor := DllCall("MonitorFromWindow", "ptr", hwnd, "uint", 2, "ptr")
+        WW_PruneLogicalZones()
+        target := WW_FindDirectionalTarget(hwnd, monitor, direction)
+        if !target
+            return
+        if !WW_MoveWindowToZone(hwnd, WW_GetLogicalZone(target, monitor))
+            return
+        WW_ForgetWindowLayoutCycle(hwnd)
+        WinActivate("ahk_id " hwnd)
+    }
+    catch Error as err
+        WW_DebugError("Move onto nearest window", err)
+}
+
+; The active window and its neighbor trade logical zones.
 WW_SwapWindow(direction)
 {
     Critical "On"
@@ -19,8 +49,8 @@ WW_SwapWindow(direction)
     try {
         WW_PrepareWindowForPlacement(hwnd)
         monitor := DllCall("MonitorFromWindow", "ptr", hwnd, "uint", 2, "ptr")
-        WW_PruneSwapZones()
-        target := WW_FindDirectionalSwapTarget(hwnd, monitor, direction)
+        WW_PruneLogicalZones()
+        target := WW_FindDirectionalTarget(hwnd, monitor, direction)
         if !target
             return
 
@@ -38,22 +68,22 @@ WW_SwapWindow(direction)
         WW_DebugError("Directional window swap", err)
 }
 
-WW_FindDirectionalSwapTarget(hwnd, monitor, direction)
+WW_FindDirectionalTarget(hwnd, monitor, direction)
 {
-    source := WW_GetSwapZone(hwnd, monitor)
+    source := WW_GetLogicalZone(hwnd, monitor)
     sourceX := source[1] + source[3] / 2
     sourceY := source[2] + source[4] / 2
     bestHwnd := 0
     bestScore := 0
 
     for candidate in WinGetList() {
-        if candidate = hwnd || !WW_IsWindowSwapCandidate(candidate, monitor)
+        if candidate = hwnd || !WW_IsDirectionalCandidate(candidate, monitor)
             continue
         try {
-            zone := WW_GetSwapZone(candidate, monitor)
+            zone := WW_GetLogicalZone(candidate, monitor)
             deltaX := zone[1] + zone[3] / 2 - sourceX
             deltaY := zone[2] + zone[4] / 2 - sourceY
-            score := WW_DirectionalSwapScore(deltaX, deltaY, direction)
+            score := WW_DirectionalScore(deltaX, deltaY, direction)
             if score < 0
                 continue
             if !bestHwnd || score < bestScore {
@@ -65,7 +95,7 @@ WW_FindDirectionalSwapTarget(hwnd, monitor, direction)
     return bestHwnd
 }
 
-WW_DirectionalSwapScore(deltaX, deltaY, direction)
+WW_DirectionalScore(deltaX, deltaY, direction)
 {
     switch direction {
         case "left":
@@ -80,7 +110,7 @@ WW_DirectionalSwapScore(deltaX, deltaY, direction)
     return -1
 }
 
-WW_IsWindowSwapCandidate(hwnd, monitor_handle)
+WW_IsDirectionalCandidate(hwnd, monitor_handle)
 {
     if !SuiteWindowOwnership.AllowsWonderWindows(hwnd)
         return false
@@ -149,74 +179,121 @@ WW_IsWindowSwapCandidate(hwnd, monitor_handle)
 
 ; Intended positions remain distinct from what minimum-size windows can display.
 ; Forget an entry when the user or another application moves/resizes that window.
-WW_GetSwapZone(hwnd, monitor := 0)
+WW_GetLogicalZone(hwnd, monitor := 0)
 {
-    global WW_swap_zones
+    global WW_logical_zones
     actual := WW_GetWindowLayoutRectangle(hwnd)
-    if !WW_swap_zones.Has(hwnd)
+    if !WW_logical_zones.Has(hwnd)
         return actual
 
-    saved := WW_swap_zones[hwnd]
+    saved := WW_logical_zones[hwnd]
     if !WW_IsStretchStateCurrent(hwnd, saved, monitor)
-        || !WW_SwapZoneMarkerMatches(hwnd)
+        || !WW_LogicalZoneMarkerMatches(hwnd)
         || !WW_RectanglesMatch(actual, saved["applied"], 2) {
-        WW_ForgetSwapZone(hwnd)
+        WW_ForgetLogicalZone(hwnd)
         return actual
     }
     return saved["zone"].Clone()
 }
 
 ; Window properties disappear with destroyed HWNDs, unlike our in-memory map.
-WW_SwapZoneMarkerMatches(hwnd)
+WW_LogicalZoneMarkerMatches(hwnd)
 {
     return DllCall("GetPropW", "ptr", hwnd,
-        "str", "nroj.SuperHotkey.SwapZone", "ptr") = A_ScriptHwnd
+        "str", "nroj.SuperHotkey.LogicalZone", "ptr") = A_ScriptHwnd
 }
 
-WW_ForgetSwapZone(hwnd)
+WW_ForgetLogicalZone(hwnd)
 {
-    global WW_swap_zones
-    if !WW_swap_zones.Has(hwnd)
+    global WW_logical_zones
+    if !WW_logical_zones.Has(hwnd)
         return
-    if WW_SwapZoneMarkerMatches(hwnd)
-        DllCall("RemovePropW", "ptr", hwnd, "str", "nroj.SuperHotkey.SwapZone", "ptr")
-    WW_swap_zones.Delete(hwnd)
+    if WW_LogicalZoneMarkerMatches(hwnd)
+        DllCall("RemovePropW", "ptr", hwnd, "str", "nroj.SuperHotkey.LogicalZone", "ptr")
+    WW_logical_zones.Delete(hwnd)
 }
 
-WW_PruneSwapZones()
+WW_PruneLogicalZones()
 {
-    global WW_swap_zones
-    for hwnd, saved in WW_swap_zones.Clone()
-        if !WW_WindowStateMatchesProcess(hwnd, saved) || !WW_SwapZoneMarkerMatches(hwnd)
-            WW_ForgetSwapZone(hwnd)
+    global WW_logical_zones
+    for hwnd, saved in WW_logical_zones.Clone()
+        if !WW_WindowStateMatchesProcess(hwnd, saved) || !WW_LogicalZoneMarkerMatches(hwnd)
+            WW_ForgetLogicalZone(hwnd)
 }
 
-WW_ClearSwapZones()
+WW_ClearLogicalZones()
 {
-    global WW_swap_zones
-    for hwnd in WW_swap_zones.Clone()
-        WW_ForgetSwapZone(hwnd)
+    global WW_logical_zones
+    for hwnd in WW_logical_zones.Clone()
+        WW_ForgetLogicalZone(hwnd)
 }
 
-WW_SaveSwapZone(hwnd, zone)
+WW_SaveLogicalZone(hwnd, zone)
 {
-    global WW_swap_zones
+    global WW_logical_zones
     actual := WW_GetWindowLayoutRectangle(hwnd)
-    ; Ordinary exact swaps need no bookkeeping.
+    ; Ordinary exact placements need no bookkeeping.
     if WW_RectanglesMatch(actual, zone, 2) {
-        WW_ForgetSwapZone(hwnd)
+        WW_ForgetLogicalZone(hwnd)
         return
     }
 
     ; Property identity prevents a freshly reopened GUI inheriting a recycled HWND.
-    if !DllCall("SetPropW", "ptr", hwnd, "str", "nroj.SuperHotkey.SwapZone",
+    if !DllCall("SetPropW", "ptr", hwnd, "str", "nroj.SuperHotkey.LogicalZone",
         "ptr", A_ScriptHwnd, "int") {
-        WW_DebugLog("Could not mark a logical swap zone. hwnd=" hwnd)
+        WW_DebugLog("Could not mark a logical zone. hwnd=" hwnd)
         return
     }
-    WW_swap_zones[hwnd] := Map("pid", WinGetPID(hwnd),
+    WW_logical_zones[hwnd] := Map("pid", WinGetPID(hwnd),
         "monitor", DllCall("MonitorFromWindow", "ptr", hwnd, "uint", 2, "ptr"),
         "work_area", WW_GetLayoutWorkArea(hwnd), "zone", zone.Clone(), "applied", actual)
+}
+
+WW_MoveWindowToZone(hwnd, zone)
+{
+    WinGetPos(&x, &y, &width, &height, hwnd)
+    raw := [x, y, width, height]
+    visible := WW_GetWindowLayoutRectangle(hwnd)
+
+    try {
+        if WW_MoveWindowToVisibleRectangle(hwnd, zone)
+            && WW_WindowMatchesVisibleRectangle(hwnd, zone) {
+            WW_SaveLogicalZone(hwnd, zone)
+            return true
+        }
+
+        ; A size-constrained app may silently clamp WinMove. Keep the size it
+        ; accepts, shifted inward only as far as needed to stay on-screen.
+        Sleep 30
+        accepted := WW_FitAcceptedRectangle(zone, WW_GetWindowLayoutRectangle(hwnd),
+            WW_GetLayoutWorkArea(hwnd))
+        if IsObject(accepted) && WW_MoveWindowToVisibleRectangle(hwnd, accepted)
+            && WW_WindowMatchesVisibleRectangle(hwnd, accepted) {
+            ; Record the intended rectangle rather than the larger accepted size.
+            WW_SaveLogicalZone(hwnd, zone)
+            WW_DebugLog("Used best-effort placement onto a window zone. hwnd=" hwnd)
+            return true
+        }
+        throw Error("Neither exact nor best-effort placement was accepted.")
+    }
+    catch Error as failure {
+        if !WW_RestoreWindowRectangle(hwnd, raw, visible)
+            WW_DebugLog("Could not roll back a window zone move. hwnd=" hwnd)
+        WW_DebugError("Move window to zone", failure)
+        return false
+    }
+}
+
+WW_RestoreWindowRectangle(hwnd, raw, visible)
+{
+    try {
+        ; Use HWND rectangles here, including invisible resize borders.
+        WinMove(raw[1], raw[2], raw[3], raw[4], hwnd)
+        return WW_WindowMatchesVisibleRectangle(hwnd, visible)
+    }
+    catch {
+        return false
+    }
 }
 
 WW_SwapWindowRectangles(first_hwnd, second_hwnd)
@@ -227,8 +304,8 @@ WW_SwapWindowRectangles(first_hwnd, second_hwnd)
     second_raw := [second_x, second_y, second_width, second_height]
     first_visible := WW_GetWindowLayoutRectangle(first_hwnd)
     second_visible := WW_GetWindowLayoutRectangle(second_hwnd)
-    first_zone := WW_GetSwapZone(first_hwnd)
-    second_zone := WW_GetSwapZone(second_hwnd)
+    first_zone := WW_GetLogicalZone(first_hwnd)
+    second_zone := WW_GetLogicalZone(second_hwnd)
 
     try {
         ; Exchange logical zones. For ordinary windows these equal visible frames.
@@ -237,8 +314,8 @@ WW_SwapWindowRectangles(first_hwnd, second_hwnd)
             && WW_MoveWindowToVisibleRectangle(second_hwnd, first_zone)
             && WW_WindowMatchesVisibleRectangle(second_hwnd, first_zone)
             && WW_WindowMatchesVisibleRectangle(first_hwnd, second_zone) {
-            WW_SaveSwapZone(first_hwnd, second_zone)
-            WW_SaveSwapZone(second_hwnd, first_zone)
+            WW_SaveLogicalZone(first_hwnd, second_zone)
+            WW_SaveLogicalZone(second_hwnd, first_zone)
             return true
         }
 
@@ -252,8 +329,8 @@ WW_SwapWindowRectangles(first_hwnd, second_hwnd)
         if WW_TryBestEffortSwap(first_hwnd, second_hwnd,
             first_zone, second_zone, work_area) {
             ; Record intended rectangles rather than the larger accepted size.
-            WW_SaveSwapZone(first_hwnd, second_zone)
-            WW_SaveSwapZone(second_hwnd, first_zone)
+            WW_SaveLogicalZone(first_hwnd, second_zone)
+            WW_SaveLogicalZone(second_hwnd, first_zone)
             WW_DebugLog("Used best-effort window swap. first=" first_hwnd " second=" second_hwnd)
             return true
         }
@@ -272,21 +349,9 @@ WW_RestoreSwapRectangles(first_hwnd, second_hwnd,
     first_raw, second_raw, first_visible, second_visible)
 {
     ; A failed first rollback must not prevent restoring the second window.
-    first_restored := WW_RestoreSwapRectangle(first_hwnd, first_raw, first_visible)
-    second_restored := WW_RestoreSwapRectangle(second_hwnd, second_raw, second_visible)
+    first_restored := WW_RestoreWindowRectangle(first_hwnd, first_raw, first_visible)
+    second_restored := WW_RestoreWindowRectangle(second_hwnd, second_raw, second_visible)
     return first_restored && second_restored
-}
-
-WW_RestoreSwapRectangle(hwnd, raw, visible)
-{
-    try {
-        ; Use HWND rectangles here, including invisible resize borders.
-        WinMove(raw[1], raw[2], raw[3], raw[4], hwnd)
-        return WW_WindowMatchesVisibleRectangle(hwnd, visible)
-    }
-    catch {
-        return false
-    }
 }
 
 WW_TryBestEffortSwap(first_hwnd, second_hwnd,

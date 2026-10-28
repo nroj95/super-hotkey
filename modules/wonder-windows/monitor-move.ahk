@@ -73,7 +73,7 @@ WW_MoveWindowToAdjacentMonitor(direction)
         WW_ForgetVerticalStretch(hwnd)
         WW_ForgetFullStretch(hwnd)
         WW_ForgetWindowLayoutCycle(hwnd)
-        WW_ForgetSwapZone(hwnd)
+        WW_ForgetLogicalZone(hwnd)
         WW_ForgetLastMinimizedWindow()
         if maximized
             WinMaximize(hwnd)

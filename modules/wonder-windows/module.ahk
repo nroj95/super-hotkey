@@ -42,9 +42,12 @@ class WonderWindowsModule extends SuiteModule {
         this.Add("stretch-height", "stretch vertically until obstacles", WW_StretchWindowVertically, ["Win + Shift + Up"])
         this.Add("stretch-full-cycle", "cycle full-height / full-width stretch", WW_CycleFullStretch, ["Shift + Win + Enter"])
         this.Add("reset-stretch", "undo window stretch", WW_ResetWindowStretch, ["Win + Shift + Down"])
-        for swap in [["up", "above"], ["down", "below"], ["left", "to the left"], ["right", "to the right"]]
-            this.Add("swap-" swap[1], "swap with nearest window " swap[2],
-                WW_SwapWindow, ["Win + Alt + " swap[1], "Caps + Win + " swap[1]], [swap[1]])
+        for side in [["up", "above"], ["down", "below"], ["left", "to the left"], ["right", "to the right"]]
+            this.Add("move-onto-" side[1], "move onto nearest window " side[2],
+                WW_MoveOntoWindow, ["Win + Alt + " side[1]], [side[1]])
+        for side in [["up", "above"], ["down", "below"], ["left", "to the left"], ["right", "to the right"]]
+            this.Add("swap-" side[1], "swap with nearest window " side[2],
+                WW_SwapWindow, ["", "Caps + Win + " side[1]], [side[1]])
         this.Add("move-monitor-left", "move active window to the display on the left",
             WW_MoveWindowToAdjacentMonitor, ["Ctrl + Win + Alt + Left"], ["left"])
         this.Add("move-monitor-right", "move active window to the display on the right",
@@ -59,6 +62,7 @@ class WonderWindowsModule extends SuiteModule {
         this.Add("minimize-all", "minimize / restore all windows", WW_ToggleAllWindows, ["Win + M"])
         manager.AddMigration("wonderDefaults", "1", WW_MigrateKeybindingDefaults)
         manager.AddMigration("wonderZoneDefaults", "1", WW_MigrateZoneKeybindingDefaults)
+        manager.AddMigration("wonderMoveOntoDefaults", "1", WW_MigrateMoveOntoKeybindingDefaults)
     }
 
     Add(id, label, command, bindings, arguments := unset) {
@@ -149,7 +153,7 @@ class WonderWindowsModule extends SuiteModule {
         this.stopping := true
         this.CancelWork()
         SetTimer(this.pollCallback, 0)
-        WW_RunWindowCommand(WW_ClearSwapZones)
+        WW_RunWindowCommand(WW_ClearLogicalZones)
     }
 
     ShowSettings(ui) {
@@ -237,12 +241,12 @@ class WonderWindowsModule extends SuiteModule {
             . "`r`nStretch toward neighboring windows or cycle between full-height and "
             . "full-width. Win + Down restores a placed window's original shape; pressed "
             . "again it minimizes the window, and once more it brings it back."
-            . "`r`n`r`nFOCUS, SWAP AND FULLSCREEN"
+            . "`r`n`r`nFOCUS, STACKS AND FULLSCREEN"
             . "`r`nWin + PgDn and PgUp step focus through every window on screen in reading "
             . "order: displays left to right, columns left to right, top before bottom. "
             . "A stack of overlapping windows counts once, as its front window. "
-            . "Swap with a nearby window, "
-            . "or temporarily minimize a group. Bring forward the next window stacked with the active one, "
+            . "Move a window onto its nearest neighbor to stack it in front, swap places "
+            . "with it, or temporarily minimize a group. Bring forward the next window stacked with the active one, "
             . "and cycle a window between maximized and half-height positions. Moving a "
             . "window to another display preserves cascade membership only where cascading "
             . "is allowed. Layout actions exit F11 fullscreen before repositioning a window. "
@@ -285,6 +289,19 @@ WW_MigrateZoneKeybindingDefaults(configuration, meta := 0)
     Keybindings.MigrateDefault(configuration, "wonder-windows.isolate", 1, "Win + Shift + Home", "Win + Home")
 }
 
+; Moving onto a window took over swap's stock Win + Alt hotkeys; swap keeps
+; Caps + Win. An unchanged swap key moves over, and a key the user gave
+; another action stays with that action.
+WW_MigrateMoveOntoKeybindingDefaults(configuration, meta := 0)
+{
+    for direction in ["up", "down", "left", "right"] {
+        key := "Win + Alt + " direction
+        Keybindings.MigrateDefault(configuration, "wonder-windows.swap-" direction, 1, key, "")
+        if !Keybindings.MigrateDefault(configuration, "wonder-windows.move-onto-" direction, 1, key, key)
+            Keybindings.MigrateDefault(configuration, "wonder-windows.move-onto-" direction, 1, key, "")
+    }
+}
+
 ; Before automatic placement adopts a manually positioned window, leave F11
 ; fullscreen and forget Wonder Windows' layout state. Returning false keeps
 ; the window manual.
@@ -294,7 +311,7 @@ WW_PrepareWindowForAdoption(hwnd)
     global WW_layout_cycle_windows, WW_normal_window_placements, WW_full_stretch_windows
     if !WW_SetNativeFullscreen(hwnd, false)
         return false
-    WW_ForgetSwapZone(hwnd)
+    WW_ForgetLogicalZone(hwnd)
     for states in [WW_horizontal_stretch_windows, WW_vertical_stretch_windows,
         WW_layout_cycle_windows, WW_normal_window_placements, WW_full_stretch_windows]
         if states.Has(hwnd)
