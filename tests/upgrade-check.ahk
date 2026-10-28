@@ -1543,7 +1543,7 @@ class SuiteUpgradeChecks {
 
     static CheckDisplayOrder(rows) {
         this.AssertDisplaySequence(rows, [
-            "core.keybindings", "core.close-active", "cascade-kingdom.copy-log", "cascade-kingdom.reset-log",
+            "core.keybindings", "core.close-active", "cascade-kingdom.reset-log", "cascade-kingdom.copy-log",
             "core.restart"],
             "Global shortcuts group application first, logs together, then restart")
         this.AssertDisplaySequence(rows, [
@@ -1602,10 +1602,21 @@ class SuiteUpgradeChecks {
                 powerHeadings.Push(row.label)
         this.Assert(powerHeadings.Length = 4
             && powerHeadings[1] = "Power-Up Utilities"
-            && powerHeadings[2] = "Power-Up Utilities / Extra function keys"
-            && powerHeadings[3] = "Power-Up Utilities / Virtual number pad"
-            && powerHeadings[4] = "Power-Up Utilities / Text and symbols",
-            "existing Power-Up Utilities headings have a purposeful order")
+            && powerHeadings[2] = "Power-Up Utilities / Text and symbols"
+            && powerHeadings[3] = "Power-Up Utilities / Extra function keys"
+            && powerHeadings[4] = "Power-Up Utilities / Virtual number pad",
+            "text actions precede the long runs of virtual keys")
+        wonderHeadings := []
+        for row in rows
+            if row.id = "" && InStr(row.label, "Wonder Windows") = 1
+                wonderHeadings.Push(row.label)
+        expectedWonder := ["Wonder Windows", "Wonder Windows / Layout", "Wonder Windows / Stretching",
+            "Wonder Windows / Stacking and movement", "Wonder Windows / Navigation",
+            "Wonder Windows / Minimize and restore"]
+        wonderOrdered := wonderHeadings.Length = expectedWonder.Length
+        for index, heading in expectedWonder
+            wonderOrdered := wonderOrdered && wonderHeadings.Has(index) && wonderHeadings[index] = heading
+        this.Assert(wonderOrdered, "Wonder Windows groups its actions under task subheadings")
     }
 
     static RouteExists(manager, actionId) {

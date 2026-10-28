@@ -8,16 +8,16 @@ RegisterCascadeActions(manager)
         {category: "Cascade Kingdom", available: CascadeModuleActive})
     for item in [["focus-previous", "focus visible window up", "Caps + PgUp"],
         ["focus-next", "focus visible window down", "Caps + PgDn"],
-        ["slot-previous", "previous layer in this slot", "Caps + Left"],
-        ["slot-next", "next layer in this slot", "Caps + Right"],
+        ["slot-previous", "show previous window in slot", "Caps + Left"],
+        ["slot-next", "show next window in slot", "Caps + Right"],
         ["swap-up", "swap visible window up", "Caps + Up"],
         ["swap-down", "swap visible window down", "Caps + Down"],
-        ["rotate-next", "rotate all slots forward", "Caps + Space"],
-        ["adopt", "adopt or re-slot active window", "Caps + Insert"],
-        ["bring-forward", "bring this monitor's cascade forward", "Caps + Home"],
-        ["minimize", "minimize / restore managed windows", "Caps + M"],
-        ["gather", "gather cascades onto this monitor", "Caps + Alt + Enter"],
-        ["close-monitor", "close this monitor's cascade", "Caps + F4"]]
+        ["rotate-next", "show next window in each slot", "Caps + Space"],
+        ["adopt", "place active window in cascade", "Caps + Insert"],
+        ["bring-forward", "bring cascade on this display to front", "Caps + Home"],
+        ["minimize", "minimize / restore all cascade windows", "Caps + M"],
+        ["gather", "gather all cascades onto one display", "Caps + Alt + Enter"],
+        ["close-monitor", "close cascade windows on this display", "Caps + F4"]]
         manager.AddAction("cascade-kingdom." item[1], item[2], CascadeBindingEvent.Bind(item[1]),
             [item[3]], {category: "Cascade Kingdom", available: CascadeModuleActive})
 }

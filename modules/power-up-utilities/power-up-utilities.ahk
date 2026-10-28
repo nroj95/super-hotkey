@@ -32,6 +32,12 @@ class PowerUpUtilities extends SuiteModule {
             "terminal-copy", "", "Caps + C", true)
         this.AddAction("terminal", "terminal.clear", "clear terminal buffer",
             "terminal-clear", "", "Caps + K", true)
+        ; The few text actions come before the long runs of virtual keys.
+        this.AddAction("text", "text.apostrophe", "insert curly apostrophe (’)", "text", "’", "Pause + '", true)
+        this.AddAction("text", "text.en-dash", "insert en dash (–)", "text", "–", "Pause + -", true)
+        this.AddAction("text", "text.nbsp", "insert HTML entity (&nbsp;)", "text", "&nbsp;", "Pause + N", true)
+        this.AddAction("text", "text.sharp-s", "insert sharp s (ß)", "text", "ß", "Pause + S", true)
+        this.AddAction("text", "text.timestamp", "insert timestamp", "timestamp", "", "Pause + T", true)
         for index, key in ["Q", "W", "E", "R", "A", "S", "D", "F", "Z", "X", "C", "V"] {
             output := "F" (12 + index)
             this.AddAction("function-keys", "keyboard." StrLower(output), "send " output,
@@ -42,11 +48,6 @@ class PowerUpUtilities extends SuiteModule {
             this.AddAction("number-pad", "keyboard.numpad" digit, "send Numpad" digit,
                 "virtual", "Numpad" digit, "Caps + " digit)
         }
-        this.AddAction("text", "text.apostrophe", "insert curly apostrophe", "text", "’", "Pause + '", true)
-        this.AddAction("text", "text.en-dash", "insert en dash", "text", "–", "Pause + -", true)
-        this.AddAction("text", "text.nbsp", "insert literal &nbsp;", "text", "&nbsp;", "Pause + N", true)
-        this.AddAction("text", "text.sharp-s", "insert ß", "text", "ß", "Pause + S", true)
-        this.AddAction("text", "text.timestamp", "insert timestamp", "timestamp", "", "Pause + T", true)
     }
 
     AddAction(group, actionId, label, kind, value, defaultBinding, needsFocus := false) {

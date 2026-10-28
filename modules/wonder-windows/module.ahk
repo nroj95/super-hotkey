@@ -23,54 +23,59 @@ class WonderWindowsModule extends SuiteModule {
         SuiteWindowOwnership.OnRelease(WW_PrepareWindowForAdoption)
     }
 
-    ; Registration order is the Keybindings display order, grouped by modifier:
-    ; place (Win + arrows), resize (Shift), relocate (Alt), switch, minimize.
+    ; Registration order is the Keybindings display order: Help, then one
+    ; subheading per task, from placing a window to minimizing many.
     Register(manager) {
         this.manager := manager
         manager.AddAction("wonder-windows.help", "show Wonder Windows help",
             ObjBindMethod(this.app, "HelpShortcutEvent", this.id), ["Ctrl + Alt + H", "Caps + Win + H"],
             {category: "Wonder Windows", available: ObjBindMethod(this, "Available")})
-        this.Add("zones-from-left", "cycle zones from the left", WW_CycleZone,
+        this.Add("Layout", "zones-from-left", "cycle zones from the left", WW_CycleZone,
             ["Win + WheelDown", "Win + Left"], ["down"])
-        this.Add("zones-from-right", "cycle zones from the right", WW_CycleZone,
+        this.Add("Layout", "zones-from-right", "cycle zones from the right", WW_CycleZone,
             ["Win + WheelUp", "Win + Right"], ["up"])
-        this.Add("maximize", "cycle maximized / upper half / lower half", WW_MaximizeWindowTarget, ["Win + Up"])
-        this.Add("restore", "restore normal size / minimize", WW_RestoreOrMinimizeWindow, ["Win + Down"])
+        this.Add("Layout", "maximize", "cycle maximized / upper half / lower half", WW_MaximizeWindowTarget, ["Win + Up"])
+        this.Add("Layout", "restore", "restore normal size / minimize", WW_RestoreOrMinimizeWindow, ["Win + Down"])
         for side in ["left", "right"]
-            this.Add("stretch-" side, "stretch " side " to obstacle / restore", WW_ToggleHorizontalStretch,
+            this.Add("Stretching", "stretch-" side, "stretch " side " to obstacle / restore", WW_ToggleHorizontalStretch,
                 ["Win + Shift + " side], [side])
-        this.Add("stretch-height", "stretch vertically until obstacles", WW_StretchWindowVertically, ["Win + Shift + Up"])
-        this.Add("stretch-full-cycle", "cycle full-height / full-width stretch", WW_CycleFullStretch, ["Shift + Win + Enter"])
-        this.Add("reset-stretch", "undo window stretch", WW_ResetWindowStretch, ["Win + Shift + Down"])
+        this.Add("Stretching", "stretch-height", "stretch vertically until obstacles", WW_StretchWindowVertically,
+            ["Win + Shift + Up"])
+        this.Add("Stretching", "stretch-full-cycle", "cycle full-height / full-width stretch", WW_CycleFullStretch,
+            ["Shift + Win + Enter"])
+        this.Add("Stretching", "reset-stretch", "undo window stretch", WW_ResetWindowStretch, ["Win + Shift + Down"])
         for side in [["up", "above"], ["down", "below"], ["left", "to the left"], ["right", "to the right"]]
-            this.Add("move-onto-" side[1], "move onto nearest window " side[2],
+            this.Add("Stacking and movement", "move-onto-" side[1], "stack on nearest window " side[2],
                 WW_MoveOntoWindow, ["Win + Alt + " side[1]], [side[1]])
         for side in [["up", "above"], ["down", "below"], ["left", "to the left"], ["right", "to the right"]]
-            this.Add("swap-" side[1], "swap with nearest window " side[2],
+            this.Add("Stacking and movement", "swap-" side[1], "swap with nearest window " side[2],
                 WW_SwapWindow, ["", "Caps + Win + " side[1]], [side[1]])
-        this.Add("move-monitor-left", "move active window to the display on the left",
+        this.Add("Stacking and movement", "move-monitor-left", "move window to left display",
             WW_MoveWindowToAdjacentMonitor, ["Ctrl + Win + Alt + Left"], ["left"])
-        this.Add("move-monitor-right", "move active window to the display on the right",
+        this.Add("Stacking and movement", "move-monitor-right", "move window to right display",
             WW_MoveWindowToAdjacentMonitor, ["Ctrl + Win + Alt + Right"], ["right"])
-        this.Add("focus-up", "focus previous window on screen", WW_CycleWindowFocus, ["Win + PgUp"], ["up"])
-        this.Add("focus-down", "focus next window on screen", WW_CycleWindowFocus, ["Win + PgDn"], ["down"])
-        this.Add("cycle-stacked", "cycle windows stacked with the active one", WW_CycleMonitorWindows, ["Win + Enter"])
-        this.Add("cycle-expanded", "cycle maximized / fullscreen windows", WW_CycleMaximizedFullscreenWindows,
-            ["Win + Alt + Enter", "Caps + Win + Enter"])
-        this.Add("minimize", "minimize / restore last minimized window", WW_MinimizeActiveWindow, ["Win + Backspace"])
-        this.Add("isolate", "isolate active window / restore", WW_ToggleOtherWindows, ["Win + Home"])
-        this.Add("minimize-all", "minimize / restore all windows", WW_ToggleAllWindows, ["Win + M"])
+        this.Add("Navigation", "focus-up", "focus previous visible window", WW_CycleWindowFocus, ["Win + PgUp"], ["up"])
+        this.Add("Navigation", "focus-down", "focus next visible window", WW_CycleWindowFocus, ["Win + PgDn"], ["down"])
+        this.Add("Navigation", "cycle-stacked", "cycle windows in current stack", WW_CycleMonitorWindows, ["Win + Enter"])
+        this.Add("Navigation", "cycle-expanded", "cycle maximized and fullscreen windows",
+            WW_CycleMaximizedFullscreenWindows, ["Win + Alt + Enter", "Caps + Win + Enter"])
+        this.Add("Minimize and restore", "minimize", "minimize / restore last minimized window",
+            WW_MinimizeActiveWindow, ["Win + Backspace"])
+        this.Add("Minimize and restore", "isolate", "minimize / restore other windows", WW_ToggleOtherWindows,
+            ["Win + Home"])
+        this.Add("Minimize and restore", "minimize-all", "minimize / restore all windows", WW_ToggleAllWindows,
+            ["Win + M"])
         manager.AddMigration("wonderDefaults", "1", WW_MigrateKeybindingDefaults)
         manager.AddMigration("wonderZoneDefaults", "1", WW_MigrateZoneKeybindingDefaults)
         manager.AddMigration("wonderMoveOntoDefaults", "1", WW_MigrateMoveOntoKeybindingDefaults)
     }
 
-    Add(id, label, command, bindings, arguments := unset) {
+    Add(group, id, label, command, bindings, arguments := unset) {
         actionId := "wonder-windows." id
         arguments := IsSet(arguments) ? arguments : []
         this.catalog[actionId] := {command: command, arguments: arguments}
         this.manager.AddAction(actionId, label, ObjBindMethod(this, "Event"), bindings,
-            {category: "Wonder Windows", available: ObjBindMethod(this, "Available"),
+            {category: "Wonder Windows / " group, available: ObjBindMethod(this, "Available"),
                 context: ObjBindMethod(this, "WindowContext")})
     }
 
@@ -250,7 +255,8 @@ class WonderWindowsModule extends SuiteModule {
             . "and cycle a window between maximized and half-height positions. Moving a "
             . "window to another display preserves cascade membership only where cascading "
             . "is allowed. Layout actions exit F11 fullscreen before repositioning a window. "
-            . "The isolate action hides other windows in a group; use it again to restore them. "
+            . "Minimize / restore other windows hides every window but the active one; use it "
+            . "again to restore them. "
             . "Keybindings below shows the current hotkey for each action."
     }
 }

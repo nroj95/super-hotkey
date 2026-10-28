@@ -146,7 +146,8 @@ class KeybindingsEditor {
     _AddRow() {
         index := this.rowPool.Length + 1
         window := this.window
-        title := window.AddText("Hidden x22 y48 w290 h25 +0x4000", "") ; SS_ENDELLIPSIS
+        ; SS_NOPREFIX keeps "&" in labels such as &nbsp; from becoming an accelerator.
+        title := window.AddText("Hidden x22 y48 w290 h25 +0x4000 +0x80", "") ; SS_ENDELLIPSIS | SS_NOPREFIX
         categoryTitle := window.AddText("Hidden x22 y48 w752 h25 Center", "")
         contextTag := window.AddText("Hidden x22 y48 w80 h16 Border Center c777777", "")
         contextTag.SetFont("s7.25 c777777", "Cascadia Mono")

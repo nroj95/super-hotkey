@@ -168,10 +168,11 @@ class SuiteApplication {
             ["Caps + Delete", "Win + Delete"], {category: "Global",
                 context: (*) => SuiteWindowOwnership.AllowsWonderWindows(DllCall("GetForegroundWindow", "ptr"))})
         ; The log actions keep their original IDs so saved assignments survive.
-        this.manager.AddAction("cascade-kingdom.copy-log", "copy debug log",
-            ObjBindMethod(this, "LogShortcutEvent", "copy"), ["Pause + F2"], {category: "Global"})
+        ; Listed in default-key order: F1 clear, F2 copy, F3 restart.
         this.manager.AddAction("cascade-kingdom.reset-log", "clear debug log",
             ObjBindMethod(this, "LogShortcutEvent", "clear"), ["Pause + F1"], {category: "Global"})
+        this.manager.AddAction("cascade-kingdom.copy-log", "copy debug log",
+            ObjBindMethod(this, "LogShortcutEvent", "copy"), ["Pause + F2"], {category: "Global"})
         this.manager.AddAction("core.restart", "restart Super Hotkey", ObjBindMethod(this, "RestartEvent"),
             ["Pause + F3"], {category: "Global"})
         this.manager.AddMigration("debugDefaults", "2", SuiteMigrateLogKeybindingDefaults)

@@ -25,7 +25,7 @@ class PaperPadModule extends SuiteModule {
             ["hide", "hide Paper Pad / dismiss completion", ["Escape"]],
             ["previous", "previous page", ["Win + Left", "Win + PgDn"]],
             ["next", "next page", ["Win + Right", "Win + PgUp"]],
-            ["delete", "delete page to Recycle Bin", ["Win + F4"]]
+            ["delete", "move page to Recycle Bin", ["Win + F4"]]
         ]
             manager.AddAction("paper-pad." item[1], item[2], ObjBindMethod(this, "Event", item[1]), item[3],
                 {category: "Paper Pad", available: ObjBindMethod(this, "Available"),
