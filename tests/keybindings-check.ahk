@@ -618,13 +618,11 @@ class KeybindingsChecks {
         for row in rows
             if row.id = "" && InStr(row.label, "Wonder Windows") = 1
                 wonderHeadings.Push(row.label)
-        expectedWonder := ["Wonder Windows", "Wonder Windows / Layout",
-            "Wonder Windows / Stacking and movement", "Wonder Windows / Navigation",
-            "Wonder Windows / Minimize and restore"]
+        expectedWonder := ["Wonder Windows"]
         wonderOrdered := wonderHeadings.Length = expectedWonder.Length
         for index, heading in expectedWonder
             wonderOrdered := wonderOrdered && wonderHeadings.Has(index) && wonderHeadings[index] = heading
-        this.Assert(wonderOrdered, "Wonder Windows groups its actions under task subheadings")
+        this.Assert(wonderOrdered, "Wonder Windows keeps its actions under one heading")
     }
 
     static RouteExists(manager, actionId) {
