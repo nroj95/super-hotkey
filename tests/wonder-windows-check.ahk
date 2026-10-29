@@ -1,10 +1,9 @@
-; Wonder Windows: geometry, ownership, tiles, swapping, stacking and window cycles.
+; Wonder Windows: geometry, ownership, tiles, stacking and window cycles.
 ; Disposable preferences, dry-run inputs and test-owned windows only.
 class WonderWindowsChecks {
     static Run() {
         this.GeometryAndOwnership()
         this.OversizedTile()
-        this.SwapRollback()
         this.MoveOntoZone()
         this.ExpandedWindowCycle()
         this.MonitorWindowCycle()
@@ -285,42 +284,6 @@ class WonderWindowsChecks {
         finally {
             SuiteWindowOwnership.Release(window.Hwnd, false)
             window.Destroy()
-        }
-    }
-
-    static SwapRollback() {
-        ; Try each ordering: failure of either window must not skip the other one.
-        for missingIndex in [1, 2] {
-            windows := []
-            handles := []
-            raw := []
-            visible := []
-            try {
-                Loop 2 {
-                    window := SuiteGui("+Resize", "Hardening swap " A_Index)
-                    windows.Push(window)
-                    handles.Push(window.Hwnd)
-                    window.Show("NA x" (40 * A_Index) " y" (40 * A_Index) " w260 h180")
-                    WinGetPos(&x, &y, &width, &height, window.Hwnd)
-                    raw.Push([x, y, width, height])
-                    visible.Push(WW_GetWindowLayoutRectangle(window.Hwnd))
-                }
-                survivor := 3 - missingIndex
-                original := raw[survivor]
-                WinMove(original[1] + 70, original[2] + 60, , , handles[survivor])
-                windows[missingIndex].Destroy()
-
-                this.Assert(!WW_RestoreSwapRectangles(handles[1], handles[2],
-                    raw[1], raw[2], visible[1], visible[2]),
-                    "rollback reports failure when one target has closed")
-                this.Assert(WW_WindowMatchesVisibleRectangle(handles[survivor], visible[survivor]),
-                    "rollback still restores the surviving window in either argument order")
-            }
-            finally {
-                for window in windows {
-                    try window.Destroy()
-                }
-            }
         }
     }
 

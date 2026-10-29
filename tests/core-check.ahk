@@ -119,10 +119,8 @@ class CoreChecks {
                     = Keybindings.Parse("Win + Alt + " direction).signature
                     && configuration["wonder-windows.move-onto-" direction].bindings[2] = "",
                     "moving onto a window defaults to Win + Alt + " direction)
-                this.Assert(configuration["wonder-windows.swap-" direction].bindings[1] = ""
-                    && configuration["wonder-windows.swap-" direction].bindings[2]
-                    = Keybindings.Parse("Caps + Win + " direction).signature,
-                    "swapping defaults to Caps + Win + " direction " in the second column")
+                this.Assert(!manager.actions.Has("wonder-windows.swap-" direction),
+                    "stacking on the nearest window replaces swapping: " direction)
             }
             this.Assert(configuration["wonder-windows.stretch"].bindings[1]
                 = Keybindings.Parse("Win + Shift + Enter").signature

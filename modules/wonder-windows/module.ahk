@@ -41,9 +41,6 @@ class WonderWindowsModule extends SuiteModule {
         for side in [["up", "above"], ["down", "below"], ["left", "to the left"], ["right", "to the right"]]
             this.Add("Stacking and movement", "move-onto-" side[1], "stack on nearest window " side[2],
                 WW_MoveOntoWindow, ["Win + Alt + " side[1]], [side[1]])
-        for side in [["up", "above"], ["down", "below"], ["left", "to the left"], ["right", "to the right"]]
-            this.Add("Stacking and movement", "swap-" side[1], "swap with nearest window " side[2],
-                WW_SwapWindow, ["", "Caps + Win + " side[1]], [side[1]])
         this.Add("Navigation", "focus-up", "focus previous visible window", WW_CycleWindowFocus, ["Win + PgUp"], ["up"])
         this.Add("Navigation", "focus-down", "focus next visible window", WW_CycleWindowFocus, ["Win + PgDn"], ["down"])
         this.Add("Navigation", "cycle-stacked", "cycle windows in current stack", WW_CycleMonitorWindows, ["Win + Enter"])
@@ -238,8 +235,8 @@ class WonderWindowsModule extends SuiteModule {
             . "`r`nWin + PgDn and PgUp step focus through every window on screen in reading "
             . "order: displays left to right, columns left to right, top before bottom. "
             . "A stack of overlapping windows counts once, as its front window. "
-            . "Move a window onto its nearest neighbor to stack it in front, swap places "
-            . "with it, or temporarily minimize a group. Bring forward the next window stacked with the active one, "
+            . "Move a window onto its nearest neighbor to stack it in front, "
+            . "or temporarily minimize a group. Bring forward the next window stacked with the active one, "
             . "and cycle a window between maximized and half-height positions. Layout actions exit F11 fullscreen before repositioning a window. "
             . "Minimize / restore other windows hides every window but the active one; use it "
             . "again to restore them. "

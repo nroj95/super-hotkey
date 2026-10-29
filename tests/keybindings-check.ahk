@@ -579,8 +579,6 @@ class KeybindingsChecks {
             "wonder-windows.maximize", "wonder-windows.restore", "wonder-windows.stretch",
             "wonder-windows.move-onto-up", "wonder-windows.move-onto-down",
             "wonder-windows.move-onto-left", "wonder-windows.move-onto-right",
-            "wonder-windows.swap-up", "wonder-windows.swap-down",
-            "wonder-windows.swap-left", "wonder-windows.swap-right",
             "wonder-windows.focus-up", "wonder-windows.focus-down",
             "wonder-windows.cycle-stacked", "wonder-windows.cycle-expanded",
             "wonder-windows.minimize", "wonder-windows.isolate", "wonder-windows.minimize-all"],
