@@ -124,10 +124,11 @@ class CoreChecks {
                     = Keybindings.Parse("Caps + Win + " direction).signature,
                     "swapping defaults to Caps + Win + " direction " in the second column")
             }
-            this.Assert(configuration["wonder-windows.stretch-full-cycle"].bindings[1]
-                = Keybindings.Parse("Shift + Win + Enter").signature
-                && configuration["wonder-windows.reset-stretch"].bindings[2] = "",
-                "full stretch cycling and undo have revised defaults")
+            this.Assert(configuration["wonder-windows.stretch"].bindings[1]
+                = Keybindings.Parse("Win + Shift + Enter").signature
+                && !manager.actions.Has("wonder-windows.stretch-left")
+                && !manager.actions.Has("wonder-windows.reset-stretch"),
+                "one Win + Shift + Enter cycle replaces the stretch actions")
             this.Assert(configuration["wonder-windows.cycle-expanded"].bindings[1]
                     = Keybindings.Parse("Win + Alt + Enter").signature
                 && configuration["wonder-windows.cycle-expanded"].bindings[2]
@@ -150,12 +151,8 @@ class CoreChecks {
             for direction in ["up", "down", "left", "right"]
                 this.Assert(!manager.actions.Has("wonder-windows.zone-" direction),
                     "FancyZones forwarding is removed: " direction)
-            this.Assert(configuration["wonder-windows.move-monitor-left"].bindings[1]
-                    = Keybindings.Parse("Ctrl + Win + Alt + Left").signature
-                && configuration["wonder-windows.move-monitor-right"].bindings[1]
-                    = Keybindings.Parse("Ctrl + Win + Alt + Right").signature
-                && !manager.actions.Has("wonder-windows.move-monitor"),
-                "moving between displays uses Ctrl + Win + Alt + Left/Right")
+            this.Assert(!manager.actions.Has("wonder-windows.move-monitor-left"),
+                "moving between displays is left to Windows' own Win + Shift + Left/Right")
             ; Wonder Windows works without the Caps layer: Caps only appears in second slots.
             capsPrimaries := ""
             for actionId, action in manager.actions

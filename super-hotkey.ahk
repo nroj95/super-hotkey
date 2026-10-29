@@ -49,7 +49,6 @@
 #Include "%A_ScriptDir%\modules\wonder-windows\nearest-window.ahk"
 #Include "%A_ScriptDir%\modules\wonder-windows\focus.ahk"
 #Include "%A_ScriptDir%\modules\wonder-windows\window-switcher.ahk"
-#Include "%A_ScriptDir%\modules\wonder-windows\monitor-move.ahk"
 #Include "%A_ScriptDir%\modules\wonder-windows\native-fullscreen.ahk"
 #Include "%A_ScriptDir%\modules\wonder-windows\zones.ahk"
 #Include "%A_ScriptDir%\modules\wonder-windows\windows.ahk"

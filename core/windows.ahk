@@ -106,12 +106,10 @@ class SuiteWindowOwnership {
 ; Windows that a module arranges automatically. Cascade Kingdom is the provider,
 ; so Wonder Windows can respect its windows without calling into it.
 class SuiteManagedWindows {
-    static provider := 0  ; ManagedMonitor(hwnd), CanMoveToMonitor(hwnd, monitor), MoveToMonitor(hwnd, monitor)
+    static provider := 0  ; ManagedMonitor(hwnd)
 
     ; The display a managed window belongs to, or 0 when no module manages it.
     static Monitor(hwnd) => this.provider ? this.provider.ManagedMonitor(hwnd) : 0
-    static CanMoveToMonitor(hwnd, monitor) => this.provider && this.provider.CanMoveToMonitor(hwnd, monitor)
-    static MoveToMonitor(hwnd, monitor) => this.provider.MoveToMonitor(hwnd, monitor)
 }
 
 ; The display the user is working on. Keyboard-only users never aim the

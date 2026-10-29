@@ -65,19 +65,6 @@ class CascadeKingdomModule extends SuiteModule {
     ; SuiteManagedWindows: other modules leave these windows to Cascade Kingdom.
     ManagedMonitor(hwnd) => GetManagedCascadeMonitor(hwnd)
 
-    CanMoveToMonitor(hwnd, monitor) {
-        return IsCascadeEnabled() && GetManagedCascadeMonitor(hwnd) && CascadeDisplayAllowed(monitor)
-    }
-
-    ; A managed window joins the destination cascade instead of becoming manual.
-    MoveToMonitor(hwnd, monitor) {
-        RemoveWindowFromMinimizeState(hwnd)
-        if !PlaceCascadeWindowOnMonitor(hwnd, monitor)
-            return false
-        QueueFocusCornerUpdate()
-        return true
-    }
-
     Stop(*) {
         global cascade_command_queue
         SuiteWindowOwnership.OffClaim(CascadeForgetManualWindow)

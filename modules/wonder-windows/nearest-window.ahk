@@ -56,9 +56,7 @@ WW_SwapWindow(direction)
         WW_RememberNormalWindowPlacement(target)
         if !WW_SwapWindowRectangles(hwnd, target)
             return
-        WW_ForgetHorizontalStretch(target)
-        WW_ForgetVerticalStretch(target)
-        WW_ForgetFullStretch(target)
+        WW_ForgetStretch(target)
         WW_ForgetWindowLayoutCycle(hwnd)
         WW_ForgetWindowLayoutCycle(target)
         WinActivate("ahk_id " hwnd)
@@ -186,7 +184,7 @@ WW_GetLogicalZone(hwnd, monitor := 0)
         return actual
 
     saved := WW_logical_zones[hwnd]
-    if !WW_IsStretchStateCurrent(hwnd, saved, monitor)
+    if !WW_IsPlacementStateCurrent(hwnd, saved, monitor)
         || !WW_LogicalZoneMarkerMatches(hwnd)
         || !WW_RectanglesMatch(actual, saved["applied"], 2) {
         WW_ForgetLogicalZone(hwnd)

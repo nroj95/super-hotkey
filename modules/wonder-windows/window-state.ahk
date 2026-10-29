@@ -156,9 +156,7 @@ WW_MaximizeWindowTarget()
 
         if next_index = 0 {
             SuiteWindowOwnership.Claim(hwnd)
-            WW_ForgetHorizontalStretch(hwnd)
-            WW_ForgetVerticalStretch(hwnd)
-            WW_ForgetFullStretch(hwnd)
+            WW_ForgetStretch(hwnd)
             WW_ForgetWindowLayoutCycle(hwnd)
             WinMaximize(window)
         } else {
@@ -271,9 +269,7 @@ WW_RestoreWindowTarget()
             if WinGetMinMax(hwnd) = 1
                 WinRestore(hwnd)
         }
-        WW_ForgetHorizontalStretch(hwnd)
-        WW_ForgetVerticalStretch(hwnd)
-        WW_ForgetFullStretch(hwnd)
+        WW_ForgetStretch(hwnd)
         WW_ForgetWindowLayoutCycle(hwnd)
         WinActivate(hwnd)
     }

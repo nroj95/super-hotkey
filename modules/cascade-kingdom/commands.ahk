@@ -655,6 +655,32 @@ ForgetCascadeMinimizedObservation(hwnd)
         cascade_minimized_observed.Delete(hwnd)
 }
 
+; The display a member now sits on when something other than Cascade Kingdom
+; moved it there, such as Win + Shift + Left/Right or the app itself; else 0.
+GetMovedCascadeMemberMonitor(hwnd, monitor_index)
+{
+    global placement_reservations, placement_stabilization_generations
+    if IsCascadeDisplayTransition() || HasPendingCascadeDisplayLayout(monitor_index)
+        || IsCascadeRestoreInProgress(monitor_index) || IsCascadeWindowBeingDragged(hwnd)
+        || placement_reservations.Has(hwnd) || placement_stabilization_generations.Has(hwnd)
+        || WinGetMinMax(hwnd) != 0
+        return 0
+    current := GetMonitorForWindow(hwnd)
+    return current && current != monitor_index ? current : 0
+}
+
+; A moved member joins the cascade on its new display, or leaves the cascade
+; when that display is excluded, as a drag there would.
+FollowMovedCascadeMember(hwnd, monitor)
+{
+    RemoveWindowFromMinimizeState(hwnd)
+    if CascadeDisplayAllowed(monitor) && PlaceCascadeWindowOnMonitor(hwnd, monitor)
+        QueueFocusCornerUpdate()
+    else
+        ReleaseCascadeWindow(hwnd)
+    DebugLog("Cascade member moved to display " monitor ". | " DescribeWindow(hwnd))
+}
+
 ReconcileCascadeRuntimeState()
 {
     if !IsCascadeEnabled()
@@ -679,7 +705,8 @@ ReconcileCascadeRuntimeState()
                     ForgetCascadeMinimizedObservation(hwnd)
                     if WinGetPID(hwnd) = pid
                         TrackCascadeWindowRestores([hwnd])
-                }
+                } else if (moved_to := GetMovedCascadeMemberMonitor(hwnd, monitor_index))
+                    FollowMovedCascadeMember(hwnd, moved_to)
             }
             catch {
                 continue

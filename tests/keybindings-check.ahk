@@ -576,15 +576,11 @@ class KeybindingsChecks {
         this.AssertDisplaySequence(rows, [
             "wonder-windows.help",
             "wonder-windows.zones-from-left", "wonder-windows.zones-from-right",
-            "wonder-windows.maximize", "wonder-windows.restore",
-            "wonder-windows.stretch-left", "wonder-windows.stretch-right",
-            "wonder-windows.stretch-height", "wonder-windows.stretch-full-cycle",
-            "wonder-windows.reset-stretch",
+            "wonder-windows.maximize", "wonder-windows.restore", "wonder-windows.stretch",
             "wonder-windows.move-onto-up", "wonder-windows.move-onto-down",
             "wonder-windows.move-onto-left", "wonder-windows.move-onto-right",
             "wonder-windows.swap-up", "wonder-windows.swap-down",
             "wonder-windows.swap-left", "wonder-windows.swap-right",
-            "wonder-windows.move-monitor-left", "wonder-windows.move-monitor-right",
             "wonder-windows.focus-up", "wonder-windows.focus-down",
             "wonder-windows.cycle-stacked", "wonder-windows.cycle-expanded",
             "wonder-windows.minimize", "wonder-windows.isolate", "wonder-windows.minimize-all"],
@@ -624,7 +620,7 @@ class KeybindingsChecks {
         for row in rows
             if row.id = "" && InStr(row.label, "Wonder Windows") = 1
                 wonderHeadings.Push(row.label)
-        expectedWonder := ["Wonder Windows", "Wonder Windows / Layout", "Wonder Windows / Stretching",
+        expectedWonder := ["Wonder Windows", "Wonder Windows / Layout",
             "Wonder Windows / Stacking and movement", "Wonder Windows / Navigation",
             "Wonder Windows / Minimize and restore"]
         wonderOrdered := wonderHeadings.Length = expectedWonder.Length

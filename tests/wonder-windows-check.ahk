@@ -27,25 +27,6 @@ class WonderWindowsChecks {
             this.Assert(WW_GetNextCycleIndex(4, 4) = 1 && WW_GetNextCycleIndex(1, 4, true) = 4
                 && WW_GetNextCycleIndex(0, 4) = 1 && WW_GetNextCycleIndex(0, 4, true) = 4,
                 "layout cycling wraps in both directions and starts from either end")
-            ; Display 1 is in the middle, 2 on the right, 3 on the left.
-            lefts := [0, 1920, -1920]
-            this.Assert(WW_NextSpatialMonitor(1, lefts) = 2 && WW_NextSpatialMonitor(2, lefts) = 3
-                && WW_NextSpatialMonitor(1, lefts, true) = 3 && WW_NextSpatialMonitor(3, lefts, true) = 2
-                && WW_NextSpatialMonitor(1, [0, 1920]) = 2 && WW_NextSpatialMonitor(1, [0, 1920], true) = 2
-                && WW_NextSpatialMonitor(1, [0]) = 0,
-                "monitor moves follow the physical layout, wrap, and do nothing with one display")
-            this.Assert(WW_RectanglesMatch(
-                WW_RelocateWindowRectangle([150, 130, 500, 300], [0, 0, 1000, 800],
-                    [-1920, 0, 0, 1040]), [-1770, 130, 500, 300], 0),
-                "cross-monitor movement retains size and relative position")
-            this.Assert(WW_RectanglesMatch(
-                WW_RelocateWindowRectangle([800, 650, 500, 300], [0, 0, 1000, 800],
-                    [1000, 0, 1800, 600]), [1300, 300, 500, 300], 0),
-                "cross-monitor movement clamps oversized position to new work area")
-            this.Assert(WW_RectanglesMatch(
-                WW_RelocateWindowRectangle([0, 0, 1200, 900], [0, 0, 1200, 900],
-                    [0, 0, 800, 600]), [0, 0, 800, 600], 0),
-                "cross-monitor movement constrains windows that exceed the destination")
             this.Assert(WW_DirectionalScore(-80, 0, "left") = 80
                 && WW_DirectionalScore(80, 0, "left") = -1
                 && WW_DirectionalScore(80, 30, "right") = 140
@@ -66,13 +47,20 @@ class WonderWindowsChecks {
                 [[100, 0, 300, 150], [100, 550, 300, 100], [600, 300, 200, 100]], 0, 900)
             this.Assert(vertical[1] = 150 && vertical[2] = 550,
                 "vertical extension stops at upper and lower obstacles")
+            ; A neighbor on the left, one above the stretched span and one to the right.
+            neighbors := [[0, 200, 50, 200], [200, 0, 200, 120], [700, 100, 100, 600]]
             this.Assert(WW_RectanglesMatch(
-                WW_FullStretchRectangle([100, 200, 300, 200], [0, 0, 900, 1100], "height"),
-                [100, 0, 300, 1100], 0)
-                && WW_RectanglesMatch(
-                    WW_FullStretchRectangle([100, 200, 300, 200], [0, 0, 900, 1100], "width"),
-                    [0, 200, 900, 200], 0),
-                "full stretch modes retain the untouched dimension")
+                WW_NeighborStretchRectangle([100, 200, 300, 200], neighbors, [0, 0, 900, 1100], "across"),
+                [50, 200, 650, 200], 0),
+                "stretching across stops at the nearest windows on the left and right")
+            this.Assert(WW_RectanglesMatch(
+                WW_NeighborStretchRectangle([100, 200, 300, 200], neighbors, [0, 0, 900, 1100], "fill"),
+                [50, 120, 650, 980], 0),
+                "filling also stops at windows above and below the stretched span")
+            this.Assert(WW_RectanglesMatch(
+                WW_NeighborStretchRectangle([100, 200, 300, 200], [], [0, 0, 900, 1100], "fill"),
+                [0, 0, 900, 1100], 0),
+                "without neighbors, filling reaches the work area's edges")
             this.Assert(WW_RectanglesMatch(
                 WW_FitAcceptedRectangle([100, 150, 800, 500], [100, 150, 800, 500], [0, 0, 1600, 900]),
                 [100, 150, 800, 500], 0),
@@ -188,13 +176,12 @@ class WonderWindowsChecks {
                 this.Assert(IsIgnoredByCascade(window.Hwnd), "suite GUI is marked before it can be cascaded")
                 SuiteWindowOwnership.Claim(window.Hwnd)
                 this.Assert(SuiteWindowOwnership.IsManual(window.Hwnd), "manual geometry ownership is recorded per HWND and process")
-                global WW_horizontal_stretch_windows, WW_vertical_stretch_windows, WW_normal_window_placements
-                WW_horizontal_stretch_windows[window.Hwnd] := Map("pid", WindowProcessId(window.Hwnd))
-                WW_vertical_stretch_windows[window.Hwnd] := Map("pid", WindowProcessId(window.Hwnd))
+                global WW_stretched_windows, WW_normal_window_placements
+                WW_stretched_windows[window.Hwnd] := Map("pid", WindowProcessId(window.Hwnd))
                 WW_normal_window_placements[window.Hwnd] := Map("pid", WindowProcessId(window.Hwnd))
                 this.Assert(SuiteWindowOwnership.Release(window.Hwnd) && !SuiteWindowOwnership.IsManual(window.Hwnd),
                     "explicit adoption releases manual ownership")
-                this.Assert(!WW_horizontal_stretch_windows.Has(window.Hwnd) && !WW_vertical_stretch_windows.Has(window.Hwnd),
+                this.Assert(!WW_stretched_windows.Has(window.Hwnd),
                     "adoption discards stretch cleanup that would otherwise undo the new cascade")
                 this.Assert(!WW_normal_window_placements.Has(window.Hwnd),
                     "adoption starts a fresh manual-restore history")

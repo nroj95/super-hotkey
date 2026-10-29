@@ -24,7 +24,7 @@ There are already plenty of window managers for Windows, but the ones I tried ti
 
 Hold `Win` and scroll, or press `Win + Left/Right`, to walk the active window through zones: full-height fourths and halves first, then the same zones in the upper and lower half of the display. The other direction steps back, and releasing `Win` starts over next time. Settings offers thirds instead.
 
-Windows can also sit side by side with others stacked behind them: `Win + Enter` cycles through the stack, and `Alt + Win + arrow` moves a window onto its nearest neighbor to stack them. `Win + Shift + Left/Right/Up` stretches a window until it meets its neighbors.
+Windows can also sit side by side with others stacked behind them: `Win + Enter` cycles through the stack, and `Alt + Win + arrow` moves a window onto its nearest neighbor to stack them. `Win + Shift + Enter` stretches a window across to its neighbors, then into all the free space around it, then back.
 
 ### Cascade Kingdom
 

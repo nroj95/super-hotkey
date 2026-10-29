@@ -1,4 +1,4 @@
-; Wonder Windows ratio layouts and collision-limited horizontal extension.
+; Wonder Windows ratio layouts and stretching to neighbors.
 
 ; =============================================================================
 ; ratio layouts
@@ -83,8 +83,23 @@ WW_RectanglesMatch(first, second, tolerance := 4)
 }
 
 ; =============================================================================
-; collision-limited horizontal extension
+; stretching to neighbors
 ; =============================================================================
+
+; The rectangle a stretch step gives: across fills the space between the
+; nearest windows on the left and right; fill then also fills it up and down.
+WW_NeighborStretchRectangle(original, obstacles, work_area, step)
+{
+    left := WW_GetCollisionLimitedEdge("left", original, obstacles, work_area[1])
+    right := WW_GetCollisionLimitedEdge("right", original, obstacles, work_area[3])
+    if step = "across"
+        return [left, original[2], right - left, original[4]]
+    if step != "fill"
+        throw ValueError("Unknown stretch step: " step)
+    bounds := WW_GetCollisionLimitedVerticalBounds([left, original[2], right - left, original[4]],
+        obstacles, work_area[2], work_area[4])
+    return [left, bounds[1], right - left, bounds[2] - bounds[1]]
+}
 
 WW_GetCollisionLimitedVerticalBounds(active_rect, obstacles, work_top, work_bottom, tolerance := 1)
 {
@@ -111,15 +126,6 @@ WW_GetCollisionLimitedVerticalBounds(active_rect, obstacles, work_top, work_bott
             limit_bottom := Min(limit_bottom, Max(bottom, other_top))
     }
     return [limit_top, limit_bottom]
-}
-
-WW_FullStretchRectangle(original, work_area, mode)
-{
-    if mode = "height"
-        return [original[1], work_area[2], original[3], work_area[4] - work_area[2]]
-    if mode = "width"
-        return [work_area[1], original[2], work_area[3] - work_area[1], original[4]]
-    throw ValueError("Unknown full stretch mode: " mode)
 }
 
 ; Keep a window's accepted dimensions, placing it inside the work area as near
