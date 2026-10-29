@@ -1,90 +1,53 @@
-; Wonder Windows maximize, minimize and restore for single windows and groups.
+; Wonder Windows maximize, minimize and restore, and minimizing all other windows.
 
 ; =============================================================================
-; minimize / restore window groups
+; minimize / restore other windows
 ; =============================================================================
 
+; Win + Home minimizes every window but the active one and, pressed again,
+; restores that same group front to back. Windows minimized before stay so.
 WW_ToggleOtherWindows()
 {
     global WW_isolation_minimized_windows, WW_isolation_active_hwnd
 
-    isolating := !WW_isolation_minimized_windows.Length
-    WW_ToggleMinimizedWindowGroup(&WW_isolation_minimized_windows, &WW_isolation_active_hwnd, true)
-    ; Briefly outline the window left on screen, unless it already fills it.
-    hwnd := WW_isolation_active_hwnd
-    if isolating && hwnd && WinExist("ahk_id " hwnd)
-        && WinGetMinMax("ahk_id " hwnd) = 0 && !WW_IsNativeFullscreen(hwnd)
-        SuiteFocusBorder.Show(hwnd, "wonder-windows")
-}
-
-WW_ToggleAllWindows()
-{
-    global WW_all_minimized_windows, WW_all_active_hwnd
-
-    WW_ToggleMinimizedWindowGroup(&WW_all_minimized_windows, &WW_all_active_hwnd)
-}
-
-WW_ToggleMinimizedWindowGroup(&minimized_windows, &saved_active_hwnd, keep_active_window := false)
-{
-    ; Each toggle restores only its own saved group. Windows already minimized
-    ; before that toggle stay untouched.
-    if minimized_windows.Length {
-        windows_to_restore := minimized_windows
-        restore_focus_hwnd := saved_active_hwnd
-
-        minimized_windows := []
-        saved_active_hwnd := 0
-
-        ; Preserve the existing order: isolation restores front-to-back;
-        ; Win+M restores back-to-front before returning focus.
-        Loop windows_to_restore.Length {
-            index := (keep_active_window ? A_Index : windows_to_restore.Length - A_Index + 1)
-            hwnd := windows_to_restore[index]
-
+    if WW_isolation_minimized_windows.Length {
+        windows_to_restore := WW_isolation_minimized_windows
+        restore_focus_hwnd := WW_isolation_active_hwnd
+        WW_isolation_minimized_windows := []
+        WW_isolation_active_hwnd := 0
+        for hwnd in windows_to_restore {
             if !WinExist("ahk_id " hwnd)
                 continue
-
             try {
                 if WinGetMinMax("ahk_id " hwnd) = -1
                     WinRestore("ahk_id " hwnd)
             }
         }
-
-        if restore_focus_hwnd
-            && WinExist("ahk_id " restore_focus_hwnd)
-        {
+        if restore_focus_hwnd && WinExist("ahk_id " restore_focus_hwnd)
             try WinActivate("ahk_id " restore_focus_hwnd)
-        }
-
         return
     }
 
     active_hwnd := WinExist("A")
-
-    if keep_active_window && !active_hwnd
+    if !active_hwnd
         return
-
-    saved_active_hwnd := active_hwnd
-    windows_to_minimize := []
-
+    WW_isolation_active_hwnd := active_hwnd
     ; Snapshot before minimizing anything, because minimization changes focus
     ; and window order.
-    for hwnd in WinGetList() {
-        if keep_active_window && hwnd = active_hwnd
-            continue
-
-        if !IsSwitchableWindow(hwnd)
-            continue
-
-        windows_to_minimize.Push(hwnd)
-    }
-
+    windows_to_minimize := []
+    for hwnd in WinGetList()
+        if hwnd != active_hwnd && IsSwitchableWindow(hwnd)
+            windows_to_minimize.Push(hwnd)
     for hwnd in windows_to_minimize {
         try {
             WinMinimize("ahk_id " hwnd)
-            minimized_windows.Push(hwnd)
+            WW_isolation_minimized_windows.Push(hwnd)
         }
     }
+    ; Briefly outline the window left on screen, unless it already fills it.
+    if WinExist("ahk_id " active_hwnd) && WinGetMinMax("ahk_id " active_hwnd) = 0
+        && !WW_IsNativeFullscreen(active_hwnd)
+        SuiteFocusBorder.Show(active_hwnd, "wonder-windows")
 }
 
 ; =============================================================================

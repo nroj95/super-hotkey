@@ -48,8 +48,6 @@ class WonderWindowsModule extends SuiteModule {
             WW_MinimizeActiveWindow, ["Win + Backspace"])
         this.Add("Minimize and restore", "isolate", "minimize / restore other windows", WW_ToggleOtherWindows,
             ["Win + Home"])
-        this.Add("Minimize and restore", "minimize-all", "minimize / restore all windows", WW_ToggleAllWindows,
-            ["Win + M"])
     }
 
     Add(group, id, label, command, bindings, arguments := unset) {
