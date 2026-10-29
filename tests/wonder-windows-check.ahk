@@ -1,11 +1,11 @@
-; Wonder Windows: geometry, ownership, tiles, stacking and window cycles.
+; Wonder Windows: geometry, ownership, tiles, stacking, stack cycling and fullscreen detection.
 ; Disposable preferences, dry-run inputs and test-owned windows only.
 class WonderWindowsChecks {
     static Run() {
         this.GeometryAndOwnership()
         this.OversizedTile()
         this.MoveOntoZone()
-        this.ExpandedWindowCycle()
+        this.FullscreenDetection()
         this.MonitorWindowCycle()
     }
 
@@ -322,37 +322,7 @@ class WonderWindowsChecks {
         }
     }
 
-    static ExpandedWindowCycle() {
-        cycle := [101, 102, 103]
-        this.Assert(WW_NextMaximizedFullscreenWindow([], 0, 0) = 0,
-            "an empty expanded-window cycle has no target")
-        this.Assert(WW_NextMaximizedFullscreenWindow(cycle, 0, 0) = 101
-            && WW_NextMaximizedFullscreenWindow(cycle, 101, 101) = 102
-            && WW_NextMaximizedFullscreenWindow(cycle, 102, 102) = 103
-            && WW_NextMaximizedFullscreenWindow(cycle, 103, 103) = 0,
-            "expanded cycling visits each window before the all-minimized step")
-        this.Assert(WW_NextMaximizedFullscreenWindow(cycle, 999, 102) = 102
-            && WW_NextMaximizedFullscreenWindow(cycle, 999, 0) = 101
-            && WW_NextMaximizedFullscreenWindow(cycle, 999, 999) = 101,
-            "outside focus resumes the last expanded window or restarts after reset or closure")
-        this.Assert(WW_NextMaximizedFullscreenWindow([101], 101, 101) = 0
-            && WW_NextMaximizedFullscreenWindow([101], 0, 0) = 101,
-            "one expanded window alternates between minimized and visible")
-
-        placement := Buffer(44, 0)
-        monitorInfo := Buffer(40, 0)
-        NumPut("int", -1920, "int", -1080, "int", 0, "int", 0, monitorInfo, 4)
-        NumPut("int", -1880, "int", -1040, "int", 0, "int", 0, monitorInfo, 20)
-        NumPut("int", -1960, "int", -1120, "int", -40, "int", -40, placement, 28)
-        this.Assert(WW_WindowPlacementFillsPhysicalMonitor(placement, monitorInfo, []),
-            "minimized fullscreen geometry accounts for workspace offsets and negative monitors")
-        NumPut("int", -140, placement, 36)
-        this.Assert(!WW_WindowPlacementFillsPhysicalMonitor(placement, monitorInfo, []),
-            "a smaller restore rectangle is not fullscreen")
-        NumPut("int", -1961, "int", -1121, "int", 172, "int", -21, placement, 28)
-        this.Assert(WW_WindowPlacementFillsPhysicalMonitor(placement, monitorInfo, []),
-            "a minimized borderless game that overhangs its display stays fullscreen")
-
+    static FullscreenDetection() {
         ; Chrono Trigger's window on a 2560 x 1440 display grew from 2592 to
         ; 2772 px wide over a few restores; the other display was to its left.
         display := [0, 0, 2560, 1440]
@@ -372,7 +342,7 @@ class WonderWindowsChecks {
         this.Assert(!WW_RectCoversMonitor([-2560, 0, 2560, 1440], display, left),
             "a window stretched over both displays does not fill either")
 
-        WW_RunWindowCommand(ObjBindMethod(this, "ExpandedWindowCycleWindows"))
+        WW_RunWindowCommand(ObjBindMethod(this, "FullscreenDetectionWindows"))
     }
 
     static MonitorWindowCycle() {
@@ -445,29 +415,22 @@ class WonderWindowsChecks {
         this.Assert(order = "201 301 302 501 ", "focus stepping keeps the active window")
     }
 
-    static ExpandedWindowCycleWindows() {
+    static FullscreenDetectionWindows() {
         windows := []
         try {
-            Loop 3 {
-                window := SuiteGui("+Resize -DPIScale", "Expanded cycle fixture " A_Index)
+            Loop 2 {
+                window := SuiteGui("+Resize -DPIScale", "Fullscreen fixture " A_Index)
                 windows.Push(window)
                 SuiteWindowOwnership.AllowArranging(window)
                 window.Show("NA x60 y60 w320 h220")
             }
             normal := windows[1].Hwnd
-            maximized := windows[2].Hwnd
-            fullscreen := windows[3].Hwnd
-            WinMaximize(maximized)
-            WinMinimize(maximized)
+            fullscreen := windows[2].Hwnd
             WinMinimize(normal)
-            this.Assert(WW_IsMaximizedFullscreenSwitcherWindow(maximized)
-                && !WW_IsMaximizedFullscreenSwitcherWindow(normal),
-                "initially minimized maximized windows qualify without admitting normal windows")
-            this.Assert(!IsSwitchableWindow(maximized)
-                && !IsSwitchableWindow(normal)
-                && IsSwitchableWindow(maximized, true),
-                "other window commands retain their default exclusion of minimized windows")
+            this.Assert(!IsSwitchableWindow(normal) && IsSwitchableWindow(normal, true),
+                "window commands exclude minimized windows unless asked to include them")
             WinRestore(normal)
+            this.Assert(!WW_IsNativeFullscreen(normal), "an ordinary window is not native fullscreen")
 
             ; A native-style borderless fixture.
             WinSetStyle((WinGetStyle(fullscreen) & ~0xC40000) | 0x80000000, fullscreen)
@@ -476,27 +439,6 @@ class WonderWindowsChecks {
             WW_GetWindowMonitorBounds(fullscreen, &left, &top, &right, &bottom)
             WinMove(left, top, right - left, bottom - top, fullscreen)
             this.Assert(WW_IsNativeFullscreen(fullscreen), "borderless fixture is native fullscreen")
-            WinMinimize(fullscreen)
-            this.Assert(WW_IsMaximizedFullscreenSwitcherWindow(fullscreen),
-                "initially minimized native fullscreen windows qualify without cycle history")
-
-            ; Only explicit test-owned handles reach the executor; never enumerate the desktop.
-            cycle := [maximized, fullscreen]
-            this.Assert(WW_ShowMaximizedFullscreenCycleWindow(cycle, maximized)
-                && WinGetMinMax(maximized) = 1 && WinGetMinMax(fullscreen) = -1,
-                "cycling restores maximized state and leaves the other candidate minimized")
-            this.Assert(WW_ShowMaximizedFullscreenCycleWindow(cycle, fullscreen)
-                && WinGetMinMax(maximized) = -1 && WinGetMinMax(fullscreen) != -1
-                && WW_IsNativeFullscreen(fullscreen),
-                "cycling to fullscreen minimizes the previously visible maximized window")
-            this.Assert(WW_ShowMaximizedFullscreenCycleWindow(cycle, 0)
-                && WinGetMinMax(maximized) = -1 && WinGetMinMax(fullscreen) = -1,
-                "the final cycle step leaves every candidate minimized")
-            target := WW_NextMaximizedFullscreenWindow(cycle, normal, 0)
-            this.Assert(WW_ShowMaximizedFullscreenCycleWindow(cycle, target)
-                && WinGetMinMax(maximized) = 1 && WinGetMinMax(fullscreen) = -1
-                && WinGetMinMax(normal) = 0,
-                "cycling restarts at the first window and leaves unrelated normal windows untouched")
         }
         finally {
             for window in windows {

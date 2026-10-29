@@ -127,13 +127,10 @@ class CoreChecks {
                 && !manager.actions.Has("wonder-windows.stretch-left")
                 && !manager.actions.Has("wonder-windows.reset-stretch"),
                 "one Win + Shift + Enter cycle replaces the stretch actions")
-            this.Assert(configuration["wonder-windows.cycle-expanded"].bindings[1]
-                    = Keybindings.Parse("Win + Alt + Enter").signature
-                && configuration["wonder-windows.cycle-expanded"].bindings[2]
-                    = Keybindings.Parse("Caps + Win + Enter").signature
-                && configuration["wonder-windows.cycle-stacked"].bindings[1]
-                    = Keybindings.Parse("Win + Enter").signature,
-                "expanded and stacked window cycling use separate default shortcuts")
+            this.Assert(configuration["wonder-windows.cycle-stacked"].bindings[1]
+                    = Keybindings.Parse("Win + Enter").signature
+                && !manager.actions.Has("wonder-windows.cycle-expanded"),
+                "Win + Enter cycles the stack; Alt + Tab covers maximized windows")
             this.Assert(!manager.actions.Has("wonder-windows.swap-next")
                 && !manager.actions.Has("wonder-windows.swap-previous"),
                 "old clockwise swap actions are removed")

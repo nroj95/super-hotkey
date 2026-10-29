@@ -17,9 +17,6 @@ WW_logical_zones := Map()
 WW_layout_cycle_windows := Map()
 WW_normal_window_placements := Map()
 
-WW_maximized_fullscreen_cycle := []
-WW_last_maximized_fullscreen_hwnd := 0
-
 WW_monitor_cycle := []
 WW_monitor_cycle_refused_hwnd := 0  ; the last target that refused activation
 WW_monitor_cycle_refused_from := 0  ; the window it was requested from

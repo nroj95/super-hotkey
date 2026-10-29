@@ -580,7 +580,7 @@ class KeybindingsChecks {
             "wonder-windows.move-onto-up", "wonder-windows.move-onto-down",
             "wonder-windows.move-onto-left", "wonder-windows.move-onto-right",
             "wonder-windows.focus-up", "wonder-windows.focus-down",
-            "wonder-windows.cycle-stacked", "wonder-windows.cycle-expanded",
+            "wonder-windows.cycle-stacked",
             "wonder-windows.minimize", "wonder-windows.isolate", "wonder-windows.minimize-all"],
             "Wonder Windows groups placing, resizing, relocating, switching and minimizing")
         this.AssertDisplaySequence(rows, [

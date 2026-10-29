@@ -44,8 +44,6 @@ class WonderWindowsModule extends SuiteModule {
         this.Add("Navigation", "focus-up", "focus previous visible window", WW_CycleWindowFocus, ["Win + PgUp"], ["up"])
         this.Add("Navigation", "focus-down", "focus next visible window", WW_CycleWindowFocus, ["Win + PgDn"], ["down"])
         this.Add("Navigation", "cycle-stacked", "cycle windows in current stack", WW_CycleMonitorWindows, ["Win + Enter"])
-        this.Add("Navigation", "cycle-expanded", "cycle maximized and fullscreen windows",
-            WW_CycleMaximizedFullscreenWindows, ["Win + Alt + Enter", "Caps + Win + Enter"])
         this.Add("Minimize and restore", "minimize", "minimize / restore last minimized window",
             WW_MinimizeActiveWindow, ["Win + Backspace"])
         this.Add("Minimize and restore", "isolate", "minimize / restore other windows", WW_ToggleOtherWindows,
