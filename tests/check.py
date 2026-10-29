@@ -108,10 +108,7 @@ def main() -> None:
                                      mode='w', encoding='utf-8', delete=False) as stream:
         harness = Path(stream.name)
         stream.write('#Include "super-hotkey.ahk"\n')
-        stream.write('#Include "%A_ScriptDir%\\tests\\upgrade-check.ahk"\n')
-        stream.write('#Include "%A_ScriptDir%\\tests\\release-check.ahk"\n')
-        stream.write('#Include "%A_ScriptDir%\\tests\\hardening-check.ahk"\n')
-        stream.write('#Include "%A_ScriptDir%\\tests\\runtime-check.ahk"\n#Warn All, StdOut\n')
+        stream.write('#Include "%A_ScriptDir%\\tests\\checks.ahk"\n#Warn All, StdOut\n')
     try:
         result = run([str(executable), '/ErrorStdOut=UTF-8', str(harness)])
         if 'PASS: native suite checks completed:' not in result:

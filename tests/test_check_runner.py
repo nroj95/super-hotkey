@@ -108,7 +108,7 @@ class CheckRunnerTests(unittest.TestCase):
         self.assertIn('/force', parse)
         self.assertLess(parse.index('/force'), len(parse) - 2)
         self.assertEqual(parse[-1], '--check')
-        self.assertIn('tests\\hardening-check.ahk', harness[0])
+        self.assertIn('tests\\checks.ahk', harness[0])
 
     def test_failed_native_check_removes_harness(self):
         calls, harness = self.run_main(native_failure=True)
