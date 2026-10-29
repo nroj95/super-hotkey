@@ -1,8 +1,6 @@
 ; Native F11 is application-controlled; do not change foreign window styles.
 WW_IsNativeFullscreen(hwnd)
 {
-    if SuiteFullscreen.placements.Has(hwnd)
-        return true
     if !WW_WindowFillsPhysicalMonitor(hwnd)
         return false
     try {
@@ -24,10 +22,7 @@ WW_SetNativeFullscreen(hwnd, enabled)
         return false
 
     try {
-        if DllCall("GetPropW", "ptr", hwnd, "str", SuiteFullscreen.marker, "ptr")
-            SuiteFullscreen.Toggle()
-        else
-            SendEvent("{F11}") ; non-blind Send releases held shortcut modifiers
+        SendEvent("{F11}") ; non-blind Send releases held shortcut modifiers
 
         Loop 10 {
             Sleep 40

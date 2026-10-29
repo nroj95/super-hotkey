@@ -216,9 +216,7 @@ class CascadeChecks {
             app.stopping := true
             app.dryRun := true
             InitializeCascadeState()
-            SuiteSizeGrip.Detach(source)
             source.Destroy()
-            SuiteSizeGrip.Detach(target)
             target.Destroy()
             SetTimer(RunQueuedFocusCornerUpdate, 0)
             Critical(previousCritical)
@@ -247,7 +245,6 @@ class CascadeChecks {
         }
         finally {
             DestroyFocusCornerOverlay(window.Hwnd)
-            SuiteSizeGrip.Detach(window)
             window.Destroy()
             app.dryRun := true
             Critical(previousCritical)
@@ -363,7 +360,6 @@ class CascadeChecks {
             CancelPendingAdoptionUndo()
             StopCascadeDisplays()
             InitializeCascadeState()
-            try SuiteSizeGrip.Detach(window)
             window.Destroy()
             Critical(previousCritical)
         }

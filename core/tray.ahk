@@ -13,9 +13,6 @@ class SuiteInterface {
         this.helpSizingInstalled := false
         this.pageLayouts := Map()
         this.pageFooters := Map()
-        this.footerButtons := Map()
-        this.footerDrawCallback := ObjBindMethod(this, "DrawFooterButton")
-        this.footerDrawInstalled := false
         this.logColorCallback := ObjBindMethod(this, "ColorLog")
         OnMessage(0x0138, this.logColorCallback) ; WM_CTLCOLORSTATIC for read-only Edit
         this.startupPath := A_Startup "\Super Hotkey.lnk"
@@ -70,7 +67,7 @@ class SuiteInterface {
     NewWindow(key, title, configuration := false, options := "+Resize +0x02000000") {
         window := SuiteGui(options, title)
         window.BackColor := "FAF7F2"
-        SuiteFullscreen.Enable(window)
+        SuiteWindowOwnership.AllowArranging(window)
         window.SetFont("s10", "Cascadia Mono")
         window.OnEvent("Close", ObjBindMethod(this, "CloseWindow", key))
         window.OnEvent("Escape", ObjBindMethod(this, "CloseWindow", key))
@@ -91,11 +88,6 @@ class SuiteInterface {
         for item in buttons {
             buttonWidth := item.Length >= 3 ? item[3] : 130
             control := window.AddButton("x" x " y" y " w" buttonWidth " h30", item[1])
-            this.footerButtons[control.Hwnd] := window.Hwnd
-            if !this.footerDrawInstalled {
-                OnMessage(0x004E, this.footerDrawCallback)
-                this.footerDrawInstalled := true
-            }
             control.OnEvent("Click", SuiteClickAction(item[2]))
             controls.Push({button: control, width: buttonWidth})
             x += buttonWidth + 10
@@ -135,7 +127,6 @@ class SuiteInterface {
     ResizePage(key, window, minMax, width, height) {
         if minMax = -1 || !this.pageLayouts.Has(key)
             return
-        SuiteSizeGrip.Move(window, minMax)
         layout := this.pageLayouts[key]
         width := Max(layout.minWidth, width)
         height := Max(layout.minHeight, height)
@@ -157,33 +148,21 @@ class SuiteInterface {
                 y: height - 49, w: item.width, h: 30})
             x += item.width + 10
         }
-        SuiteMoveControls(window, positions, true)
+        SuiteMoveControls(window, positions)
         layout.renderedWidth := width
         layout.renderedHeight := height
-    }
-
-    DrawFooterButton(wParam, lParam, messageId, receiverHwnd) {
-        hwnd := NumGet(lParam, 0, "ptr")
-        if !this.footerButtons.Has(hwnd) || this.footerButtons[hwnd] != receiverHwnd
-            return
-        return SuitePaintButton(lParam, "normal")
     }
 
     CloseWindow(key, *) {
         if this.windows.Has(key) {
             if this.helpWindowIds.Has(this.windows[key].Hwnd)
                 this.helpWindowIds.Delete(this.windows[key].Hwnd)
-            for control in this.windows[key]
-                if control.Type = "Button" && this.footerButtons.Has(control.Hwnd)
-                    this.footerButtons.Delete(control.Hwnd)
             if this.pageLayouts.Has(key)
                 this.pageLayouts.Delete(key)
             if InStr(key, "help:") = 1 && this.helpLayouts.Has(SubStr(key, 6))
                 this.helpLayouts.Delete(SubStr(key, 6))
             if this.pageFooters.Has(this.windows[key].Hwnd)
                 this.pageFooters.Delete(this.windows[key].Hwnd)
-            SuiteFullscreen.Forget(this.windows[key])
-            SuiteSizeGrip.Detach(this.windows[key])
             SuiteFocusReturn.Destroy(this.windows[key])
             this.windows.Delete(key)
         }
@@ -197,11 +176,6 @@ class SuiteInterface {
             this.helpSizingInstalled := false
         }
         this.helpWindowIds.Clear()
-        if this.footerDrawInstalled {
-            OnMessage(0x004E, this.footerDrawCallback, 0)
-            this.footerDrawInstalled := false
-        }
-        this.footerButtons.Clear()
         OnMessage(0x0138, this.logColorCallback, 0)
     }
 
@@ -273,7 +247,6 @@ class SuiteInterface {
     ResizeHelp(id, window, minMax, width, height) {
         if minMax = -1 || !this.helpLayouts.Has(id)
             return
-        SuiteSizeGrip.Move(window, minMax)
         layout := this.helpLayouts[id]
         width := Max(560, width)
         height := Max(400, height)
@@ -300,7 +273,7 @@ class SuiteInterface {
                 w: item.width, h: 30})
             x += item.width + 10
         }
-        SuiteMoveControls(window, positions, true)
+        SuiteMoveControls(window, positions)
         layout.renderedWidth := width
         layout.renderedHeight := height
     }

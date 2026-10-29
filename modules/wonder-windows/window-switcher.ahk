@@ -250,8 +250,7 @@ WW_IsMaximizedFullscreenSwitcherWindow(hwnd)
 
         placement := CaptureWindowPlacement(hwnd)
         ; Windows remembers whether an iconic window should restore maximized.
-        if (NumGet(placement, 4, "uint") & 0x0002) ; WPF_RESTORETOMAXIMIZED
-            || SuiteFullscreen.placements.Has(hwnd)
+        if NumGet(placement, 4, "uint") & 0x0002 ; WPF_RESTORETOMAXIMIZED
             return true
 
         ; Native fullscreen is a normal-state window filling a physical monitor.

@@ -543,8 +543,6 @@ class CoreChecks {
             if IsObject(manager.client)
                 this.Assert(manager.client.running,
                     "Keybindings does not reset the running Caps/Pause layer session")
-            this.Assert(SuiteFullscreen.Active(),
-                "F11 fullscreen remains available while Keybindings is open")
             app.ToggleKeybindings()
             this.Assert(!IsObject(manager.editor.window) && !manager.gated,
                 "opening shortcut closes the focused Keybindings window")
@@ -562,11 +560,8 @@ class CoreChecks {
             manager.editor.BeginRecording(recordIndex, 1)
             this.Assert(IsObject(manager.editor.recording) && manager.gated,
                 "recording alone temporarily gates normal hotkeys")
-            this.Assert(!SuiteFullscreen.Active(),
-                "F11 fullscreen is disabled during keybinding recording")
             manager.editor.EndRecording()
-            this.Assert(!manager.gated && SuiteFullscreen.Active(),
-                "ending recording restores normal hotkeys and F11")
+            this.Assert(!manager.gated, "ending recording restores normal hotkeys")
             app.ui.ToggleSuspension()
             this.Assert(manager.gated && app.suspended,
                 "suspending while Keybindings is open keeps inputs gated")
@@ -605,22 +600,11 @@ class CoreChecks {
                 && core.secondary.Text = "Ctrl + Alt + K"
                 && core.primary.Enabled,
                 "disabled Secret Layers marks only the Caps binding and leaves it editable")
-            this.Assert(manager.editor.warningButtons.Has(core.primary.Hwnd)
-                && !manager.editor.warningButtons.Has(core.secondary.Hwnd),
-                "warning background applies only to unavailable assignment buttons")
-            this.Assert(manager.editor.drawButtons[core.primary.Hwnd] = "binding"
-                && manager.editor.drawButtons[core.secondary.Hwnd] = "binding"
-                && manager.editor.drawButtons[core.reset.Hwnd] = "reset"
-                && manager.editor.drawButtons[manager.editor.resetAllButton.Hwnd] = "reset"
-                && manager.editor.drawButtons[manager.editor.applyButton.Hwnd] = "done",
-                "binding, reset and Apply controls share the square-corner drawing system")
             manager.editor.window["search"].Value := "show Paper Pad help"
             manager.editor.Render()
             paper := manager.editor.visibleRows[2].primary
             this.Assert(InStr(paper.Text, "⚠ Pause + F12") = 1 && paper.Enabled,
                 "disabled Secret Layers marks the saved Pause Help binding as reassignable")
-            this.Assert(manager.editor.warningButtons.Has(paper.Hwnd),
-                "disabled Pause bindings also receive the amber warning background")
             before := manager.GetConfiguration()["paper-pad.help"].bindings[1]
             this.Assert(before = Keybindings.Parse("Pause + F12").signature,
                 "warning presentation never modifies the saved shortcut")
@@ -1057,7 +1041,6 @@ class CoreChecks {
         }
         finally {
             SuiteFocusBorder.Hide("", true)
-            SuiteSizeGrip.Detach(window)
             window.Destroy()
             Critical(previousCritical)
         }

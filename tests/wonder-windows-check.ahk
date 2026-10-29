@@ -181,8 +181,6 @@ class WonderWindowsChecks {
                 "pre-existing overlap does not collapse a stretched window")
             window := SuiteGui("+ToolWindow", "Owned test window")
             try {
-                this.Assert(!SuiteSizeGrip.handles.Has(window.Hwnd),
-                    "non-resizable suite windows have no sizing grip")
                 this.Assert(SuiteWindowOwnership.IsSuiteSurface(window.Hwnd),
                     "private suite tool windows are recognized")
                 this.Assert(!SuiteWindowOwnership.AllowsWonderWindows(window.Hwnd),
@@ -218,7 +216,7 @@ class WonderWindowsChecks {
             finally window.Destroy()
             guiProbe := SuiteGui("+Resize", "Wonder Windows GUI eligibility test")
             try {
-                SuiteFullscreen.Enable(guiProbe)
+                SuiteWindowOwnership.AllowArranging(guiProbe)
                 guiProbe.Show("NA w600 h400")
                 this.Assert(SuiteWindowOwnership.AllowsWonderWindows(guiProbe.Hwnd)
                     && IsSwitchableWindow(guiProbe.Hwnd),
@@ -261,15 +259,7 @@ class WonderWindowsChecks {
                 this.Assert(SuiteWindowOwnership.AllowsWonderWindows(guiProbe.Hwnd),
                     "marked Paper Pad editor windows remain eligible")
             }
-            finally {
-                SuiteSizeGrip.Detach(guiProbe)
-                guiProbe.Destroy()
-            }
-            focusTabProbe := CreatePhysicalGui("-Caption -DPIScale +ToolWindow +E0x08000000",
-                "Cascade Kingdom focus tab grip test")
-            try this.Assert(!SuiteSizeGrip.handles.Has(focusTabProbe.Hwnd),
-                "Cascade Kingdom focus tabs have no sizing grip")
-            finally focusTabProbe.Destroy()
+            finally guiProbe.Destroy()
             event := {phase: "down", actionId: "wonder-windows.maximize", slot: 1,
                 foregroundHwnd: 0, key: "sc148", layer: "normal", modifiers: 8, oneShot: false}
             app.modules["wonder-windows"].Event(event)
@@ -307,7 +297,6 @@ class WonderWindowsChecks {
         }
         finally {
             SuiteWindowOwnership.Release(window.Hwnd, false)
-            SuiteSizeGrip.Detach(window)
             window.Destroy()
         }
     }
@@ -332,7 +321,6 @@ class WonderWindowsChecks {
                 survivor := 3 - missingIndex
                 original := raw[survivor]
                 WinMove(original[1] + 70, original[2] + 60, , , handles[survivor])
-                SuiteSizeGrip.Detach(windows[missingIndex])
                 windows[missingIndex].Destroy()
 
                 this.Assert(!WW_RestoreSwapRectangles(handles[1], handles[2],
@@ -343,7 +331,6 @@ class WonderWindowsChecks {
             }
             finally {
                 for window in windows {
-                    try SuiteSizeGrip.Detach(window)
                     try window.Destroy()
                 }
             }
@@ -374,14 +361,12 @@ class WonderWindowsChecks {
             WinMove(x + 70, y + 60, , , source)
             this.Assert(WW_RestoreWindowRectangle(source, raw, visible),
                 "rollback restores a moved window")
-            SuiteSizeGrip.Detach(windows[1])
             windows[1].Destroy()
             this.Assert(!WW_RestoreWindowRectangle(source, raw, visible),
                 "rollback reports failure when the window has closed")
         }
         finally {
             for window in windows {
-                try SuiteSizeGrip.Detach(window)
                 try window.Destroy()
             }
         }
@@ -516,7 +501,7 @@ class WonderWindowsChecks {
             Loop 3 {
                 window := SuiteGui("+Resize -DPIScale", "Expanded cycle fixture " A_Index)
                 windows.Push(window)
-                SuiteFullscreen.Enable(window)
+                SuiteWindowOwnership.AllowArranging(window)
                 window.Show("NA x60 y60 w320 h220")
             }
             normal := windows[1].Hwnd
@@ -534,7 +519,7 @@ class WonderWindowsChecks {
                 "other window commands retain their default exclusion of minimized windows")
             WinRestore(normal)
 
-            ; A native-style borderless fixture, without SuiteFullscreen.placements.
+            ; A native-style borderless fixture.
             WinSetStyle((WinGetStyle(fullscreen) & ~0xC40000) | 0x80000000, fullscreen)
             WinSetExStyle(WinGetExStyle(fullscreen) & ~0x300, fullscreen)
             WonderWindowsChecks.RefreshFrame(fullscreen)
@@ -565,7 +550,6 @@ class WonderWindowsChecks {
         }
         finally {
             for window in windows {
-                try SuiteSizeGrip.Detach(window)
                 try window.Destroy()
             }
         }

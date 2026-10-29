@@ -13,15 +13,12 @@ class KeybindingsEditor {
         this.rowPool := []
         this.scrollPosition := 0
         this.wheelRemainder := 0
-        this.drawButtons := Map()
-        this.warningButtons := Map()
         this.captureMouse := Map()
         this.resizing := false
         this.renderedWidth := 0
         this.renderedHeight := 0
         this.wheelCallback := ObjBindMethod(this, "_Wheel")
         this.scrollCallback := ObjBindMethod(this, "_VerticalScroll")
-        this.drawCallback := ObjBindMethod(this, "_DrawButton")
     }
 
     Title() {
@@ -61,7 +58,7 @@ class KeybindingsEditor {
         window := SuiteGui("+Resize +MinSize820x520 +0x02000000 +E0x02000000", this.Title())
         this.window := window
         window.BackColor := "FAF7F2"
-        SuiteFullscreen.Enable(window)
+        SuiteWindowOwnership.AllowArranging(window)
         window.SetFont("s10 w400", "Cascadia Mono")
         this.search := window.AddEdit("x210 y13 w400 vsearch")
         DllCall("SendMessageW", "ptr", this.search.Hwnd, "uint", 0x1501, ; EM_SETCUEBANNER
@@ -69,15 +66,12 @@ class KeybindingsEditor {
         this.search.OnEvent("Change", ObjBindMethod(this, "SearchChanged"))
         this.rowPool := []
         this.visibleRows := []
-        this.drawButtons := Map()
-        this.warningButtons := Map()
-        OnMessage(0x004E, this.drawCallback) ; WM_NOTIFY / NM_CUSTOMDRAW
         this.scroll := window.AddCustom("ClassScrollBar x778 y48 w24 h140 +0x1")
         this.divider := window.AddText("x22 y300 w752 h2 +0x10", "")
-        this.resetAllButton := this._AddButton("x244 y320 w180 h31", "Restore defaults", "reset", "_ResetAll")
-        this.applyButton := this._AddButton("x438 y320 w120 h31", "Apply", "done", "ApplyStaged")
+        this.resetAllButton := this._AddButton("x244 y320 w180 h31", "Restore defaults", "_ResetAll")
+        this.applyButton := this._AddButton("x438 y320 w120 h31", "Apply", "ApplyStaged")
         ; The title bar and Escape close the window; a module view adds Back to its Help.
-        this.doneButton := moduleId = "" ? 0 : this._AddButton("x572 y320 w110 h31", "Back", "done", "BackToHelp")
+        this.doneButton := moduleId = "" ? 0 : this._AddButton("x572 y320 w110 h31", "Back", "BackToHelp")
         window.OnEvent("Size", ObjBindMethod(this, "Resize"))
         window.OnEvent("ContextMenu", ObjBindMethod(this, "_EditBindingText"))
         window.OnEvent("Close", ObjBindMethod(this, "RequestClose"))
@@ -92,9 +86,8 @@ class KeybindingsEditor {
         OnMessage(0x0115, this.scrollCallback) ; WM_VSCROLL
     }
 
-    _AddButton(options, text, kind, handler) {
+    _AddButton(options, text, handler) {
         button := this.window.AddButton(options, text)
-        this.drawButtons[button.Hwnd] := kind
         button.OnEvent("Click", SuiteClickAction(ObjBindMethod(this, handler)))
         return button
     }
@@ -154,9 +147,6 @@ class KeybindingsEditor {
         primary := window.AddButton("Hidden x358 y48 w167 h29", "Unbound")
         secondary := window.AddButton("Hidden x535 y48 w153 h29", "Unbound")
         reset := window.AddButton("Hidden x698 y48 w76 h29", "Reset")
-        this.drawButtons[primary.Hwnd] := "binding"
-        this.drawButtons[secondary.Hwnd] := "binding"
-        this.drawButtons[reset.Hwnd] := "reset"
         primary.OnEvent("Click", ObjBindMethod(this, "BeginRecording", index, 1))
         secondary.OnEvent("Click", ObjBindMethod(this, "BeginRecording", index, 2))
         reset.OnEvent("Click", ObjBindMethod(this, "_ResetAction", index))
@@ -168,7 +158,6 @@ class KeybindingsEditor {
     Resize(window, minMax, width, height) {
         if !IsObject(this.window) || this.window != window || minMax = -1
             return
-        SuiteSizeGrip.Move(window, minMax)
         if this.resizing
             return
         width := Max(820, width)
@@ -348,7 +337,6 @@ class KeybindingsEditor {
         newTitle := this.Title()
         if this.window.Title != newTitle
             this.window.Title := newTitle
-        this.warningButtons := Map()
         this.rows := Keybindings.DisplayRows(manager.Catalog(this.draft, this.moduleId),
             this.window["search"].Value)
         this.applyButton.Enabled := this.HasPending()
@@ -406,23 +394,12 @@ class KeybindingsEditor {
                 }
                 ; A layer binding stays editable while its layer is off; it is only marked.
                 inactiveLayer := parsed.layer != "normal" && manager.BindingUnavailable(parsed) != ""
-                if inactiveLayer
-                    this.warningButtons[control.Hwnd] := true
                 KeybindingsEditor._SetText(control, (inactiveLayer ? "⚠ " : "") parsed.label)
             }
             defaults := manager.actions[entry.id].defaults
             KeybindingsEditor._SetEnabled(row.reset,
                 setting.bindings[1] != defaults[1] || setting.bindings[2] != defaults[2])
         }
-    }
-
-    _DrawButton(wParam, lParam, messageId, receiverHwnd) {
-        if !IsObject(this.window) || receiverHwnd != this.window.Hwnd
-            return
-        hwnd := NumGet(lParam, 0, "ptr")
-        if !this.drawButtons.Has(hwnd)
-            return
-        return SuitePaintButton(lParam, this.warningButtons.Has(hwnd) ? "warning" : this.drawButtons[hwnd])
     }
 
     _ResetAction(index, *) {
@@ -528,15 +505,10 @@ class KeybindingsEditor {
 
     Close(*) {
         this.EndRecording()
-        OnMessage(0x004E, this.drawCallback, 0)
         OnMessage(0x020A, this.wheelCallback, 0)
         OnMessage(0x0115, this.scrollCallback, 0)
-        this.drawButtons := Map()
-        this.warningButtons := Map()
         this.wheelRemainder := 0
         if IsObject(this.window) {
-            SuiteFullscreen.Forget(this.window)
-            SuiteSizeGrip.Detach(this.window)
             SuiteFocusReturn.Destroy(this.window)
         }
         this.window := 0

@@ -258,7 +258,7 @@ class WonderWindowsModule extends SuiteModule {
     }
 }
 
-; Before automatic placement adopts a manually positioned window, leave F11
+; Before Cascade Kingdom adopts a manually positioned window, leave F11
 ; fullscreen and forget Wonder Windows' layout state. Returning false keeps
 ; the window manual.
 WW_PrepareWindowForAdoption(hwnd)

@@ -1,14 +1,10 @@
-; Shared GUI building blocks: one icon, centered opening, a native size grip,
-; F11 fullscreen for suite windows, flat buttons and batched layouts.
+; Shared GUI building blocks: one icon, centered opening, batched layouts and
+; on-screen notices.
 SuiteGui(options := "", title := "") {
     window := Gui(options, title)
     SuiteIcons.Apply(window)
     ; Mark before showing: the window-show hook must never adopt our own dialogs.
     DllCall("SetPropW", "ptr", window.Hwnd, "str", "nroj.SuperHotkey.CascadeIgnore", "ptr", 1, "int")
-    ; Only actual resizable windows need the native sizing grip.
-    ; Cascade focus tabs, DPI probes and other overlays are not resizable.
-    if DllCall("GetWindowLongPtrW", "ptr", window.Hwnd, "int", -16, "ptr") & 0x00040000 ; WS_THICKFRAME
-        SuiteSizeGrip.Attach(window)
     return window
 }
 
@@ -39,7 +35,6 @@ SuiteShowCentered(window, width, height, layoutCallback := 0, fitWorkArea := fal
     if !DllCall("SetWindowPos", "ptr", window.Hwnd, "ptr", 0,
         "int", x, "int", y, "int", 0, "int", 0, "uint", 0x15, "int")
         throw OSError(A_LastError, "Position Super Hotkey window")
-    SuiteSizeGrip.Move(window)
     window.Show()
 }
 
@@ -58,126 +53,6 @@ SuiteFitClientSize(window, width, height, workWidth, workHeight) {
     ; Gui dimensions are DPI-scaled; the work area and native frame are not.
     return {width: Max(1, Min(width, Floor((workWidth - borderWidth) * logicalWidth / physicalWidth))),
         height: Max(1, Min(height, Floor((workHeight - borderHeight) * logicalHeight / physicalHeight)))}
-}
-
-class SuiteFullscreen {
-    static placements := Map()
-    static marker := "nroj.SuperHotkey.FullscreenAllowed"
-
-    static Enable(window) {
-        if !DllCall("SetPropW", "ptr", window.Hwnd, "str", this.marker, "ptr", 1, "int")
-            throw OSError(A_LastError, "Enable Super Hotkey fullscreen")
-    }
-
-    static Active(*) {
-        ; F11 remains assignable while the Keybindings recorder is active.
-        if IsObject(SuiteState.App) && IsObject(SuiteState.App.manager)
-            && IsObject(SuiteState.App.manager.editor.recording)
-            return false
-        hwnd := WinActive("A")
-        return hwnd && !!DllCall("GetPropW", "ptr", hwnd, "str", this.marker, "ptr")
-    }
-
-    static IsFullscreen(window) => this.placements.Has(window.Hwnd)
-
-    static Forget(window) {
-        if this.placements.Has(window.Hwnd)
-            this.placements.Delete(window.Hwnd)
-    }
-
-    static Toggle(*) {
-        if !this.Active()
-            return
-        hwnd := WinActive("A")
-        window := GuiFromHwnd(hwnd)
-        if !IsObject(window)
-            return
-        target := "ahk_id " hwnd
-
-        if this.placements.Has(hwnd) {
-            saved := this.placements[hwnd]
-            WinSetStyle(saved.style, target)
-            WinSetExStyle(saved.exStyle, target)
-            if !DllCall("SetWindowPlacement", "ptr", hwnd, "ptr", saved.placement, "int")
-                throw OSError(A_LastError, "Restore Super Hotkey window")
-            if !DllCall("SetWindowPos", "ptr", hwnd, "ptr", 0,
-                "int", 0, "int", 0, "int", 0, "int", 0, "uint", 0x37, "int")
-                throw OSError(A_LastError, "Restore Super Hotkey frame")
-            this.placements.Delete(hwnd)
-            SuiteSizeGrip.Move(window, WinGetMinMax(target))
-            return
-        }
-
-        placement := Buffer(44, 0) ; WINDOWPLACEMENT
-        NumPut("uint", placement.Size, placement)
-        if !DllCall("GetWindowPlacement", "ptr", hwnd, "ptr", placement, "int")
-            throw OSError(A_LastError, "Save Super Hotkey placement")
-        bounds := MonitorRects(WindowMonitor(hwnd)).monitor
-
-        window.Restore()
-        style := WinGetStyle(target)
-        exStyle := WinGetExStyle(target)
-        this.placements[hwnd] := {placement: placement, style: style, exStyle: exStyle}
-        WinSetStyle((style & ~0xC40000) | 0x80000000, target) ; popup, no caption/resize border
-        WinSetExStyle(exStyle & ~0x300, target) ; no client/window edge
-        if !DllCall("SetWindowPos", "ptr", hwnd, "ptr", 0,
-            "int", bounds[1], "int", bounds[2],
-            "int", bounds[3] - bounds[1],
-            "int", bounds[4] - bounds[2],
-            "uint", 0x34, "int") ; FRAMECHANGED | NOACTIVATE | NOZORDER
-            throw OSError(A_LastError, "Enter Super Hotkey fullscreen")
-        SuiteSizeGrip.Move(window)
-    }
-}
-
-class SuiteSizeGrip {
-    static handles := Map()
-
-    static Attach(window) {
-        ; A native scroll-bar sizing grip gives the corner a familiar diagonal
-        ; indicator and lets Windows handle dragging the parent window.
-        dimension := DllCall("GetSystemMetrics", "int", 2, "int")
-        height := DllCall("GetSystemMetrics", "int", 3, "int")
-        grip := DllCall("CreateWindowExW", "uint", 0, "str", "SCROLLBAR",
-            "ptr", 0, "uint", 0x50000010, ; WS_CHILD | WS_VISIBLE | SBS_SIZEGRIP
-            "int", 0, "int", 0, "int", dimension, "int", height,
-            "ptr", window.Hwnd, "ptr", 0,
-            "ptr", DllCall("GetModuleHandleW", "ptr", 0, "ptr"),
-            "ptr", 0, "ptr")
-        if !grip
-            throw OSError(A_LastError, "Create Super Hotkey sizing grip")
-        this.handles[window.Hwnd] := grip
-    }
-
-    static Move(window, minMax := 0) {
-        if !this.handles.Has(window.Hwnd)
-            return
-        grip := this.handles[window.Hwnd]
-        if !DllCall("IsWindow", "ptr", grip, "int") {
-            this.handles.Delete(window.Hwnd)
-            return
-        }
-        if minMax = 1 || SuiteFullscreen.IsFullscreen(window) {
-            DllCall("ShowWindow", "ptr", grip, "int", 0, "int")
-            return
-        }
-        rect := Buffer(16, 0)
-        if !DllCall("GetClientRect", "ptr", window.Hwnd, "ptr", rect, "int")
-            return
-        width := DllCall("GetSystemMetrics", "int", 2, "int")
-        height := DllCall("GetSystemMetrics", "int", 3, "int")
-        DllCall("SetWindowPos", "ptr", grip, "ptr", 0,
-            "int", Max(0, NumGet(rect, 8, "int") - width),
-            "int", Max(0, NumGet(rect, 12, "int") - height),
-            "int", width, "int", height,
-            "uint", 0x54, "int") ; NOZORDER | NOACTIVATE | SHOWWINDOW
-    }
-
-    static Detach(window) {
-        if this.handles.Has(window.Hwnd)
-            this.handles.Delete(window.Hwnd)
-        ; Parent GUI destruction also destroys its child resizing grip.
-    }
 }
 
 class SuiteIcons {
@@ -208,77 +83,9 @@ class SuiteIcons {
 ; buttons that open or swap windows must not do it there.
 SuiteClickAction(action) => (*) => SetTimer(action, -1)
 
-; Flat, square push buttons drawn through NM_CUSTOMDRAW. kind is "warning",
-; "reset" or anything else for the normal style. Returns CDRF_SKIPDEFAULT
-; when it painted, or "" to let Windows draw this stage.
-SuitePaintButton(lParam, kind) {
-    if NumGet(lParam, 16, "int") != -12 ; NM_CUSTOMDRAW
-        || NumGet(lParam, 24, "uint") != 1 ; CDDS_PREPAINT
-        return ""
-    hwnd := NumGet(lParam, 0, "ptr")
-    hdc := NumGet(lParam, 32, "ptr")
-    state := NumGet(lParam, 64, "uint")
-    pressed := !!(state & 0x1) ; CDIS_SELECTED
-    hovered := !!(state & 0x40) ; CDIS_HOT
-    enabled := !!DllCall("IsWindowEnabled", "ptr", hwnd, "int")
-    if kind = "warning" {
-        fillColor := pressed ? 0xA7D8FF : hovered ? 0xBCE5FF : 0xD9F0FF
-        frameColor := 0x2D8EB9
-        textColor := 0x234566
-    } else if kind = "reset" && !enabled {
-        fillColor := 0xF5F5F5
-        frameColor := 0xCDCDCD
-        textColor := 0xB0B0B0
-    } else if kind = "reset" {
-        fillColor := pressed ? 0xDEDEDE : hovered ? 0xEEEEEE : 0xFFFFFF
-        frameColor := 0x909090
-        textColor := 0x303030
-    } else {
-        fillColor := pressed ? 0xE5E5E5 : hovered ? 0xF5F5F5 : 0xFFFFFF
-        frameColor := 0xC9C9C9
-        textColor := enabled ? 0x202020 : 0x999999
-    }
-
-    fillBrush := DllCall("CreateSolidBrush", "uint", fillColor, "ptr")
-    frameBrush := DllCall("CreateSolidBrush", "uint", frameColor, "ptr")
-    try {
-        if !fillBrush || !frameBrush
-            return ""
-        bounds := Buffer(16, 0)
-        DllCall("RtlMoveMemory", "ptr", bounds, "ptr", lParam + 40, "uptr", 16)
-        DllCall("FillRect", "ptr", hdc, "ptr", bounds, "ptr", fillBrush, "int")
-        DllCall("FrameRect", "ptr", hdc, "ptr", bounds, "ptr", frameBrush, "int")
-        DllCall("InflateRect", "ptr", bounds, "int", -5, "int", -3, "int")
-        length := DllCall("GetWindowTextLengthW", "ptr", hwnd, "int")
-        label := Buffer((length + 1) * 2, 0)
-        DllCall("GetWindowTextW", "ptr", hwnd, "ptr", label, "int", length + 1, "int")
-        font := DllCall("SendMessageW", "ptr", hwnd, "uint", 0x31, "uptr", 0, "ptr", 0, "ptr") ; WM_GETFONT
-        originalFont := font ? DllCall("SelectObject", "ptr", hdc, "ptr", font, "ptr") : 0
-        originalMode := DllCall("SetBkMode", "ptr", hdc, "int", 1, "int")
-        originalText := DllCall("SetTextColor", "ptr", hdc, "uint", textColor, "uint")
-        try DllCall("DrawTextW", "ptr", hdc, "ptr", label, "int", -1,
-            "ptr", bounds, "uint", 0x8825, "int") ; centered, single line, no prefix
-        finally {
-            DllCall("SetTextColor", "ptr", hdc, "uint", originalText)
-            DllCall("SetBkMode", "ptr", hdc, "int", originalMode)
-            if originalFont
-                DllCall("SelectObject", "ptr", hdc, "ptr", originalFont)
-        }
-        if state & 0x10 ; CDIS_FOCUS
-            DllCall("DrawFocusRect", "ptr", hdc, "ptr", bounds, "int")
-        return 4 ; CDRF_SKIPDEFAULT
-    }
-    finally {
-        if fillBrush
-            DllCall("DeleteObject", "ptr", fillBrush)
-        if frameBrush
-            DllCall("DeleteObject", "ptr", frameBrush)
-    }
-}
-
 ; Moves controls given in DPI-independent GUI units, as one batch so the
 ; window never paints a half-moved layout. positions: [{control, x, y, w, h}].
-SuiteMoveControls(window, positions, redrawButtons := false) {
+SuiteMoveControls(window, positions) {
     if !positions.Length
         return
     rect := Buffer(16, 0)
@@ -306,12 +113,6 @@ SuiteMoveControls(window, positions, redrawButtons := false) {
         for item in positions
             item.control.Move(item.x, item.y, item.w, item.h)
     }
-    ; Batched moves can leave stale fragments on owner-drawn buttons.
-    if redrawButtons
-        for item in positions
-            if item.control.Type = "Button"
-                DllCall("RedrawWindow", "ptr", item.control.Hwnd, "ptr", 0,
-                    "ptr", 0, "uint", 0x105, "int") ; RDW_INVALIDATE | RDW_ERASE | RDW_UPDATENOW
 }
 
 ; Large, click-through notices centered on the working display, so keyboard
@@ -391,10 +192,3 @@ class SuiteNotice {
         return window
     }
 }
-
-#HotIf SuiteFullscreen.Active()
-F11::{
-    SuiteFullscreen.Toggle()
-    KeyWait "F11" ; ignore key repeat while held
-}
-#HotIf

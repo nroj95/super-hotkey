@@ -10,30 +10,6 @@ class InterfaceChecks {
 
     static Assert(condition, label) => SuiteChecks.Assert(condition, label)
 
-    static AssertResizeGrip(window, label) {
-        this.Assert(SuiteSizeGrip.handles.Has(window.Hwnd),
-            "window has a native bottom-right resizing grip: " label)
-        grip := SuiteSizeGrip.handles[window.Hwnd]
-        this.Assert(!!DllCall("IsWindow", "ptr", grip, "int")
-            && WinGetClass("ahk_id " grip) = "ScrollBar"
-            && (DllCall("GetWindowLongPtrW", "ptr", grip, "int", -16, "ptr") & 0x10),
-            "the resize handle uses Windows SBS_SIZEGRIP: " label)
-        client := Buffer(16, 0)
-        gripRect := Buffer(16, 0)
-        this.Assert(!!DllCall("GetClientRect", "ptr", window.Hwnd, "ptr", client, "int")
-            && !!DllCall("GetWindowRect", "ptr", grip, "ptr", gripRect, "int"),
-            "resize handle and client dimensions can be measured: " label)
-        point := Buffer(8, 0)
-        NumPut("int", NumGet(client, 8, "int")
-            - DllCall("GetSystemMetrics", "int", 2, "int"), point, 0)
-        NumPut("int", NumGet(client, 12, "int")
-            - DllCall("GetSystemMetrics", "int", 3, "int"), point, 4)
-        DllCall("ClientToScreen", "ptr", window.Hwnd, "ptr", point, "int")
-        this.Assert(Abs(NumGet(gripRect, 0, "int") - NumGet(point, 0, "int")) <= 1
-            && Abs(NumGet(gripRect, 4, "int") - NumGet(point, 4, "int")) <= 1,
-            "sizing grip stays at the actual lower-right client corner: " label)
-    }
-
     static AssertCentered(window, label) {
         rect := Buffer(16, 0)
         this.Assert(!!DllCall("GetWindowRect", "ptr", window.Hwnd, "ptr", rect, "int"),
@@ -146,7 +122,6 @@ class InterfaceChecks {
                 "global Keybindings has Restore defaults and Apply; the title bar closes it")
             editor.GetClientPos(, , &firstWidth, &firstHeight)
             this.AssertCentered(editor, "Keybindings")
-            this.AssertResizeGrip(editor, "Keybindings")
             expectedKeybindingsHeight := Min(860, Max(560, A_ScreenHeight - 125))
             monitor := GetMonitorForWindow(editor.Hwnd)
             MonitorGetWorkArea(monitor, &workLeft, &workTop, &workRight, &workBottom)
@@ -355,7 +330,6 @@ class InterfaceChecks {
                 this.Assert(helpWidth = 820 && helpHeight = expectedHelpHeight,
                     "Help opens tall enough for its introduction: " id)
                 this.AssertCentered(window, SuiteSettings.ModuleNames[id] " Help")
-                this.AssertResizeGrip(window, SuiteSettings.ModuleNames[id] " Help")
                 titlePart := app.ui.helpLayouts[id].header
                 statusPart := app.ui.helpLayouts[id].status
                 titlePart.GetPos(&headingX, , &headingW)
@@ -427,7 +401,6 @@ class InterfaceChecks {
                 this.Assert(app.ui.helpLayouts[id].renderedWidth = helpWidth
                     && app.ui.helpLayouts[id].renderedHeight = helpHeight,
                     "help live resizing processes one coherent control layout: " id)
-                this.AssertResizeGrip(window, SuiteSettings.ModuleNames[id] " resized Help")
                 app.ui.helpLayouts[id].footer.divider.GetPos(, &dividerY, &dividerWidth)
                 this.Assert(dividerY = helpHeight - 64
                     && dividerWidth = helpWidth - 40,
@@ -467,8 +440,6 @@ class InterfaceChecks {
                     this.Assert(buttonY > textY + textHeight
                         && buttonX >= 0 && buttonX + buttonWidth <= helpWidth,
                         "help navigation stays in the footer: " id "/" control.Text)
-                    this.Assert(app.ui.footerButtons.Has(control.Hwnd),
-                        "help button uses the shared square-corner styling: " id "/" control.Text)
                 }
                 if SuiteIcons.handles.Length
                     this.Assert(SendMessage(0x007F, 0, 0, , window.Hwnd)
@@ -529,7 +500,6 @@ class InterfaceChecks {
                         && app.ui.pageLayouts["settings:" id].minHeight < defaultH,
                         "Settings can shrink below the opening size: " id)
                     this.AssertCentered(settings, SuiteSettings.ModuleNames[id] " Settings")
-                    this.AssertResizeGrip(settings, SuiteSettings.ModuleNames[id] " Settings")
                     settings.Show("w" (defaultW + 120) " h" (defaultH + 140))
                     settings.GetClientPos(, , &settingsW, &settingsH)
                     app.ui.ResizePage("settings:" id, settings, 0, settingsW, settingsH)
@@ -553,18 +523,12 @@ class InterfaceChecks {
                             backFound := true
                     this.Assert(backFound, "module settings provides Back navigation: " id)
                     settingsDivider := 0
-                    settingsPaintTarget := 0
-                    for control in settings {
+                    for control in settings
                         if control.Type = "Text"
                             && (WinGetStyle("ahk_id " control.Hwnd) & 0x00000010)
                             settingsDivider := control
-                        if control.Type = "Button" && app.ui.footerButtons.Has(control.Hwnd)
-                            settingsPaintTarget := control
-                    }
                     this.Assert(IsObject(settingsDivider) && settingsDivider.Visible,
                         "module settings retains the same visible footer divider: " id)
-                    this.Assert(IsObject(settingsPaintTarget),
-                        "module settings footer uses the same square button styling: " id)
                     app.ui.BackToHelp(id)
                     this.Assert(!app.ui.windows.Has("settings:" id)
                         && app.ui.windows.Has(key),
@@ -631,10 +595,8 @@ class InterfaceChecks {
                 this.Assert(layout.minWidth < layout.width && layout.minHeight < layout.height,
                     "utility page allows smaller manual sizes: " page)
                 this.AssertCentered(window, page)
-                this.AssertResizeGrip(window, page)
-                this.Assert(layout.footer.buttons.Length >= 2
-                    && app.ui.footerButtons.Has(layout.footer.buttons[1].button.Hwnd),
-                    "utility footer has matching square buttons: " page)
+                this.Assert(layout.footer.buttons.Length >= 2,
+                    "utility footer has its buttons: " page)
                 if page = "log"
                     this.Assert(window["verbose"].Value = 0,
                         "one global logging checkbox is available")
@@ -842,7 +804,6 @@ class InterfaceChecks {
                 "uint", 13, "ptr", cloaked, "uint", 4, "int")
         }
         finally {
-            SuiteSizeGrip.Detach(window)
             window.Destroy()
             owner.Destroy()
         }

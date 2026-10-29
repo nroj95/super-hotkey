@@ -32,6 +32,13 @@ class SuiteWindowOwnership {
             || DllCall("GetPropW", "ptr", hwnd, "str", "nroj.PaperPad.Notepad3Window", "ptr"))
     }
 
+    ; Marks an ordinary suite window, such as a settings page, that Wonder
+    ; Windows may arrange like any application window.
+    static AllowArranging(window) {
+        if !DllCall("SetPropW", "ptr", window.Hwnd, "str", "nroj.SuperHotkey.Arrangeable", "ptr", 1, "int")
+            throw OSError(A_LastError, "Mark Super Hotkey window")
+    }
+
     ; Ordinary suite GUIs and the marked Paper Pad editor may be arranged by
     ; Wonder Windows; overlays, hooks, and private utility windows stay excluded.
     static AllowsWonderWindows(hwnd) {
@@ -39,7 +46,7 @@ class SuiteWindowOwnership {
             return false
         if !this.IsSuiteSurface(hwnd)
             return true
-        return !!DllCall("GetPropW", "ptr", hwnd, "str", SuiteFullscreen.marker, "ptr")
+        return !!DllCall("GetPropW", "ptr", hwnd, "str", "nroj.SuperHotkey.Arrangeable", "ptr")
             || !!DllCall("GetPropW", "ptr", hwnd, "str", "nroj.PaperPad.Notepad3Window", "ptr")
     }
 
