@@ -23,8 +23,8 @@ class PaperPadModule extends SuiteModule {
         ; Showing and hiding, then page navigation, then the destructive delete.
         for item in [
             ["hide", "hide Paper Pad / dismiss completion", ["Escape"]],
-            ["previous", "previous page", ["Win + Left", "Win + PgDn"]],
-            ["next", "next page", ["Win + Right", "Win + PgUp"]],
+            ["previous", "previous page", ["Win + Left", "Win + PgUp"]],
+            ["next", "next page", ["Win + Right", "Win + PgDn"]],
             ["delete", "move page to Recycle Bin", ["Win + F4"]]
         ]
             manager.AddAction("paper-pad." item[1], item[2], ObjBindMethod(this, "Event", item[1]), item[3],
