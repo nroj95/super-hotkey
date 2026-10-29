@@ -77,6 +77,7 @@ class SuiteStructureTests(unittest.TestCase):
             others = set().union(*(names for other, names in owned.items() if other != module))
             used = set(re.findall(r'[A-Za-z_]\w*', code(path))) & others
             self.assertEqual(used, set(), f'{path.relative_to(ROOT)} uses another module')
+            self.assertNotIn('.modules[', code(path), f'{path.relative_to(ROOT)} reaches another module object')
         for module, names in declared.items():
             for other, other_names in declared.items():
                 if other != module:

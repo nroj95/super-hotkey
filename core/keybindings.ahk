@@ -916,6 +916,12 @@ class Keybindings {
 
     LayerEnabled(layer) => IsObject(this.client) && this.client.LayerEnabled(layer)
 
+    ; A mouse gesture with the prefix held is neither a tap nor a double-tap.
+    ConsumeLayerGesture(layer) {
+        if IsObject(this.client)
+            this.client.ConsumeGesture(layer)
+    }
+
     ; While the editor records a hotkey, every route stays gated.
     SetCapture(active) {
         this.externalCapture := !!active

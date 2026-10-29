@@ -22,7 +22,7 @@ CascadeConsumeGesture()
 {
     global cascade_gesture_key
     ; A mouse gesture is not an unused prefix tap or a speaker-wake double tap.
-    SuiteState.App.modules["secret-layers"].ConsumeGesture(cascade_gesture_key = "Pause" ? "pause" : "caps")
+    SuiteState.App.manager.ConsumeLayerGesture(cascade_gesture_key = "Pause" ? "pause" : "caps")
 }
 
 CascadeShouldLaunch(automatic_enabled, gesture_held)

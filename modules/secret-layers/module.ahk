@@ -6,7 +6,6 @@ class SecretLayersModule extends SuiteModule {
     __New(app) {
         super.__New(app, "secret-layers")
         this.manager := 0
-        this.engine := 0
         this.capsToggle := 0
     }
 
@@ -15,13 +14,7 @@ class SecretLayersModule extends SuiteModule {
         app := this.app
         if !app.ModuleActive(this.id) || !(app.activeLayers["caps"] || app.activeLayers["pause"])
             return 0
-        return (manager) => this.engine := KeyboardLayers(manager, app.activeLayers)
-    }
-
-    ; A mouse gesture with the prefix held is neither a tap nor a double-tap.
-    ConsumeGesture(layer) {
-        if IsObject(this.engine)
-            this.engine.ConsumeGesture(layer)
+        return (manager) => KeyboardLayers(manager, app.activeLayers)
     }
 
     Register(manager) {
