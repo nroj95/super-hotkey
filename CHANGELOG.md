@@ -1,5 +1,28 @@
 # Changelog
 
+## Unreleased
+
+Fewer, smarter hotkeys: this version cuts features that overlapped and hands several keys back to Windows.
+
+### Breaking changes
+
+- If you customized these hotkeys, set them again in Keybindings: Clear log, Copy log, Toggle Caps Lock and Power-Up help have new action IDs and start from their defaults.
+- **Paper Pad:** `Win + PgUp` now goes to the previous page and `Win + PgDn` to the next, like PgUp and PgDn everywhere else. Saved hotkeys keep the old order, so swap them in Keybindings.
+- **Windows Terminal helpers** send Terminal's default shortcuts (`Ctrl + Shift + A`, `C` and `K`). If you remapped those in Terminal, restore them.
+
+### Changes
+
+- **Wonder Windows:** `Win + Shift + Enter` replaces the stretch actions. It stretches a window across to its neighbors, then into all the free space around it, then back, and Windows' own `Win + Shift + arrows` work again. Swap with neighbor and the maximized and fullscreen cycle are gone, `Win + M` and `Win + Home` belong to Windows again, and stacking on the nearest window also works with `Caps + Win + arrows`.
+- **Cascade Kingdom:** windows join a cascade only through `Caps + Insert` or a drop onto a slot. Automatic mode, launching while holding the cascade key, `Caps` + double-click on a title bar and the Cascade key setting are gone, so Cascade Kingdom no longer needs Secret Layers. Active focus tabs and drop guides follow the Windows accent color.
+- **Paper Pad** no longer installs Notepad3 or locks the open page; the lock could block sync clients. The slide always takes 180 ms unless Windows' Animation effects are off.
+- **Suite windows** use standard Windows title bars and borders. Tray > Debug log opens the log in Notepad, and Keybindings names every action by what it does.
+
+### Fixes
+
+- Clicks are no longer held while a hotkey checks its context, so a busy moment can't delay or drop clicks, for example in the tray menu.
+- Windows moved to another display with Windows' own keys stay in the right cascade.
+- `&nbsp;` shows correctly in Keybindings.
+
 ## v1.0.0-beta.1
 
 The first public test version. Everything described in the [README](README.md) is included, but expect some bugs; I'd be grateful for [reports](https://github.com/nroj95/super-hotkey/issues) of anything that misbehaves.
