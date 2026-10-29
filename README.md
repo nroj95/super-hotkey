@@ -57,7 +57,7 @@ Install [AutoHotkey v2](https://www.autohotkey.com/) **64-bit**, extract the pro
 Try these first:
 
 - Hold `Win` and scroll to walk the active window through zones.
-- Press `Win + F12` to open the Paper Pad notes drawer. It needs Notepad3 and offers setup when it can't find it.
+- Press `Win + F12` to open the Paper Pad notes drawer. It needs [Notepad3](https://www.rizonesoft.com/downloads/notepad3/) and asks you to install or locate it when it can't find it.
 - Press `Ctrl + Alt + K` to see and change every hotkey.
 
 Right-click the tray icon for guides, settings and **Modules...**, where you can turn off what you don't need.

@@ -477,66 +477,20 @@ class PaperPadController
         if executable := this.FindInstalledNotepad3()
             return executable
 
+        ; Installing software is the user's step, never Paper Pad's.
         choice := MsgBox(
-            "Notepad3 was not found.`n`n"
-                . "Paper Pad requires Notepad3.`n`n"
-                . "Yes = install Notepad3`n"
-                . "No = locate Notepad3.exe manually`n"
-                . "Cancel = stop",
+            "Paper Pad needs Notepad3, and it was not found.`n`n"
+                . "Install it, for example with:`n"
+                . "winget install Rizonesoft.Notepad3`n`n"
+                . "Then choose OK to continue or locate Notepad3.exe.",
             "Paper Pad setup",
-            "YesNoCancel Iconi 4096"
+            "OKCancel Iconi 4096"
         )
-
-        if choice = "No"
-            return this.SelectNotepad3Executable()
-
-        if choice != "Yes"
+        if choice != "OK"
             throw Error("Notepad3 is required to use Paper Pad.")
 
-        existing_notepad3_windows := this.SnapshotNotepad3Windows()
-
-        MsgBox(
-            "Paper Pad will open the Notepad3 installer.`n`n"
-                . "Choose any installation options you want. Paper Pad will continue "
-                . "automatically when setup finishes.",
-            "Paper Pad setup",
-            "Iconi 4096"
-        )
-
-        if !this.InstallNotepad3WithWinget() {
-            choice := MsgBox(
-                "Paper Pad could not install Notepad3 automatically.`n`n"
-                    . "Would you like to locate an existing Notepad3.exe manually?",
-                "Paper Pad setup",
-                "YesNo Iconx 4096"
-            )
-
-            if choice = "Yes"
-                return this.SelectNotepad3Executable()
-
-            throw Error("Notepad3 is required to use Paper Pad.")
-        }
-
-        ; The installer can optionally launch an ordinary Notepad3 window.
-        ; Consider only new, empty, unmodified main windows for cleanup. Never
-        ; close a document just because it appeared during this installation.
-        this.CloseInstallerNotepad3Windows(existing_notepad3_windows)
-        Sleep 200
-        this.CloseInstallerNotepad3Windows(existing_notepad3_windows)
-
-        ; Give App Paths and the installation directory a moment to appear.
-        loop 50 {
-            if executable := this.FindInstalledNotepad3()
-                return executable
-            Sleep 100
-        }
-
-        MsgBox(
-            "Notepad3 appears to be installed, but Paper Pad could not locate it "
-                . "automatically.`n`nLocate Notepad3.exe to continue.",
-            "Paper Pad setup",
-            "Iconi 4096"
-        )
+        if executable := this.FindInstalledNotepad3()
+            return executable
         return this.SelectNotepad3Executable()
     }
 
@@ -569,54 +523,6 @@ class PaperPadController
         }
 
         return ""
-    }
-
-    InstallNotepad3WithWinget()
-    {
-        command := "winget.exe install --exact --id Rizonesoft.Notepad3 --source winget"
-            . " --accept-package-agreements --accept-source-agreements --interactive"
-
-        try return RunWait(command, , "Hide") = 0
-        catch
-            return false
-    }
-
-    SnapshotNotepad3Windows() {
-        editorWindows := Map()
-        for hwnd in WinGetList("ahk_exe Notepad3.exe")
-            editorWindows[hwnd] := true
-        return editorWindows
-    }
-
-    CloseInstallerNotepad3Windows(known_windows)
-    {
-        for hwnd in WinGetList("ahk_exe Notepad3.exe") {
-            if known_windows.Has(hwnd)
-                continue
-
-            ; Never touch a PaperPad-owned editor if this helper is reused later.
-            if DllCall(
-                "GetPropW",
-                "ptr", hwnd,
-                "str", this.window_marker,
-                "ptr"
-            )
-                continue
-
-            try {
-                candidate := Notepad3Bridge(hwnd)
-                candidate.CheckReady()
-                if candidate.CurrentPath() != "" || candidate.IsDirty()
-                    || candidate.Scintilla(2006) != 0 ; SCI_GETLENGTH
-                    continue
-                ; WM_CLOSE still lets Notepad3 prompt if typing starts after
-                ; the checks. No dialog is confirmed and no process is killed.
-                PostMessage 0x0010, 0, 0, , "ahk_id " hwnd ; WM_CLOSE
-            }
-            catch {
-                ; An uncertain or busy ordinary editor is not ours to close.
-            }
-        }
     }
 
     SelectNotepad3Executable()
