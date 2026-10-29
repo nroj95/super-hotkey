@@ -7,10 +7,14 @@ PaperPadEditorFocused()
 
     if !IsSet(paperPad) || !IsObject(paperPad) || !paperPad.HasWindow()
         return false
-    if !WinActive("ahk_id " paperPad.window_hwnd)
+    if SuiteWorkingMonitor.UserWindow() != paperPad.window_hwnd
         return false
     if !paperPad.bridge || paperPad.bridge.tainted
         return false
+    ; A passing overlay covers the editor. Windows clears a background thread's
+    ; focus, and the overlay leaves no menu open, so the user is still typing.
+    if DllCall("GetForegroundWindow", "ptr") != paperPad.window_hwnd
+        return true
 
     ; Read the actual focused HWND instead of relying on a ClassNN string.
     thread_info := Buffer(72, 0) ; GUITHREADINFO, 64-bit

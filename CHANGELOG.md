@@ -21,6 +21,7 @@ Fewer, smarter hotkeys: this version cuts features that overlapped and hands sev
 
 - Clicks are no longer held while a hotkey checks its context, so a busy moment can't delay or drop clicks, for example in the tray menu.
 - Windows moved to another display with Windows' own keys stay in the right cascade.
+- A hotkey pressed while an overlay pops up in front, such as a shortcut guide shown while Win is held, now acts on the window underneath instead of falling through to another action.
 - `&nbsp;` shows correctly in Keybindings.
 
 ## v1.0.0-beta.1

@@ -116,6 +116,8 @@ class SuiteManagedWindows {
 ; pointer, so it chooses a display only through a click: the active app window
 ; decides. Start, search, the taskbar and the desktop are passed through; the
 ; click that opened one chooses, or else the app window used before it does.
+; Hotkeys also ask it for the window the user is in, which looks through
+; passing overlays such as a shortcut guide shown while Win is held.
 class SuiteWorkingMonitor {
     static recent := []  ; foreground windows, newest first: {hwnd, click}
     static click := 0    ; the last physical mouse press: {tick, x, y} in physical pixels
@@ -185,11 +187,22 @@ class SuiteWorkingMonitor {
         if !IsTopLevelAppWindow(hwnd) || !DllCall("IsWindowVisible", "ptr", hwnd, "int")
             || IsWindowCloaked(hwnd)
             return false
-        try exe := StrLower(WinGetProcessName("ahk_id " hwnd))
-        catch
-            return false
-        return exe != "startmenuexperiencehost.exe" && exe != "searchhost.exe" && exe != "searchapp.exe"
-            && exe != "shellexperiencehost.exe" && exe != "shellhost.exe"
+        try return !IsShellHost(WinGetProcessName("ahk_id " hwnd))
+        return false
+    }
+
+    ; The window the user is in: the foreground, or the window a passing
+    ; overlay covers. The user never chose the overlay, so it never decides.
+    static UserWindow() {
+        foreground := DllCall("GetForegroundWindow", "ptr")
+        if !IsPassingOverlay(foreground)
+            return foreground
+        if !this.recent.Length || this.recent[1].hwnd != foreground
+            this._RecordForeground(0, 3, foreground)
+        for entry in this.recent
+            if !IsPassingOverlay(entry.hwnd) && DllCall("IsWindow", "ptr", entry.hwnd, "int")
+                return entry.hwnd
+        return foreground
     }
 
     static _RecordClick(*) {
@@ -245,7 +258,7 @@ class SuiteWorkingMonitor {
 }
 
 PaperPadWindowActive(*) {
-    hwnd := DllCall("GetForegroundWindow", "ptr")
+    hwnd := SuiteWorkingMonitor.UserWindow()
     return hwnd && !!DllCall("GetPropW", "ptr", hwnd, "str", "nroj.PaperPad.Notepad3Window", "ptr")
 }
 
@@ -314,6 +327,29 @@ IsShellSurfaceClass(className) {
     return className = "Shell_TrayWnd" || className = "Shell_SecondaryTrayWnd"
         || className = "Progman" || className = "WorkerW"
         || className = "NotifyIconOverflowWindow" || className = "tooltips_class32"
+}
+
+; Start, search and the shell's flyouts run in these hosts.
+IsShellHost(processName) {
+    return processName = "startmenuexperiencehost.exe" || processName = "searchhost.exe"
+        || processName = "searchapp.exe" || processName = "shellexperiencehost.exe"
+        || processName = "shellhost.exe"
+}
+
+; A floating helper that takes the foreground on its own, such as a shortcut
+; guide shown while Win is held: a topmost tool or no-activate window. The
+; shell's own surfaces, menus and switchers are things the user opened.
+IsPassingOverlay(hwnd) {
+    exStyle := hwnd ? DllCall("GetWindowLongPtrW", "ptr", hwnd, "int", -20, "ptr") : 0
+    ; WS_EX_TOPMOST with WS_EX_TOOLWINDOW or WS_EX_NOACTIVATE.
+    if !(exStyle & 0x8) || !(exStyle & 0x08000080)
+        return false
+    try {
+        processName := WinGetProcessName("ahk_id " hwnd)
+        return !IsShellSurfaceClass(WinGetClass("ahk_id " hwnd))
+            && processName != "explorer.exe" && !IsShellHost(processName)
+    }
+    return false
 }
 
 IsShellSurfaceWindow(hwnd) {

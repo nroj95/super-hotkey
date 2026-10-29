@@ -16,6 +16,7 @@ class CoreChecks {
         this.PowerCancellation()
         this.LogClearing()
         this.WorkingMonitor()
+        this.PassingOverlay()
         this.CenteredNotices()
         this.FocusReturn()
         this.DeferredInputsAndSessions()
@@ -739,6 +740,53 @@ class CoreChecks {
         finally {
             for window in [work, older, passage]
                 window.Destroy()
+        }
+    }
+
+    ; A shortcut guide that pops up while Win is held must not redirect a hotkey.
+    static PassingOverlay() {
+        app := SuiteApplication(true, SuiteChecks.directory "\release-passing-overlay")
+        manager := Keybindings("passing-overlay", "Passing overlay",
+            {directory: app.Settings.directory "\keybindings"})
+        app.manager := manager
+        work := SuiteGui(, "Passing overlay app")
+        overlay := SuiteGui("+AlwaysOnTop +ToolWindow", "Passing overlay guide")
+        savedRecent := SuiteWorkingMonitor.recent
+        presses := []
+        try {
+            SuiteShowCentered(work, 320, 240)
+            overlay.Show("w200 h100")
+            WinWaitActive("ahk_id " overlay.Hwnd, , 1)
+            SuiteWorkingMonitor.recent := [{hwnd: overlay.Hwnd, click: 0}, {hwnd: work.Hwnd, click: 0}]
+            this.Assert(IsPassingOverlay(overlay.Hwnd) && !IsPassingOverlay(work.Hwnd),
+                "a topmost tool window is a passing overlay; an app window is not")
+            this.Assert(SuiteWorkingMonitor.UserWindow() = work.Hwnd,
+                "the user is still in the window a passing overlay covers")
+
+            ; The action exists only in the covered window, like Paper Pad's pages.
+            manager.AddAction("fixture.covered", "covered window input",
+                (event) => event.phase = "down" && presses.Push({target: event.foregroundHwnd,
+                    active: DllCall("GetForegroundWindow", "ptr")}),
+                ["F24"], {context: (*) => SuiteWorkingMonitor.UserWindow() = work.Hwnd})
+            candidate := manager._CandidateRoutes(manager._DefaultConfiguration())
+            manager.configuration := candidate.configuration
+            manager.routes := candidate.routes
+            route := manager.routes[1]
+            route.enabled := true
+            manager.routeMap := Map(route.binding.signature, [route])
+            manager.running := true
+            manager._KeyDown(route.binding.signature)
+            manager._KeyUp(route.binding.key)
+            manager._Drain()
+            this.Assert(presses.Length = 1 && presses[1].target = work.Hwnd
+                && presses[1].active = work.Hwnd,
+                "a hotkey pressed through an overlay runs in the covered window, brought back to front")
+        }
+        finally {
+            SuiteWorkingMonitor.recent := savedRecent
+            for window in [overlay, work]
+                window.Destroy()
+            app.Stop("test")
         }
     }
 

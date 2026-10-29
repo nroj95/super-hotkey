@@ -59,7 +59,7 @@ class WonderWindowsModule extends SuiteModule {
 
     Available(*) => this.app.ModuleActive(this.id)
 
-    WindowContext(*) => SuiteWindowOwnership.AllowsWonderWindows(DllCall("GetForegroundWindow", "ptr"))
+    WindowContext(*) => SuiteWindowOwnership.AllowsWonderWindows(SuiteWorkingMonitor.UserWindow())
 
     Start() {
         ; The observer is passive and shares its callback group with Cascade Kingdom.

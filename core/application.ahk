@@ -156,7 +156,8 @@ class SuiteApplication {
             options.layerFactory := factory
         this.manager := Keybindings("super-hotkey", SuiteApplication.Name, options)
         this.manager.RegisterScope("paper-pad", PaperPadWindowActive)
-        this.manager.RegisterScope("windows-terminal", (*) => WinActive("ahk_exe WindowsTerminal.exe"))
+        this.manager.RegisterScope("windows-terminal",
+            (*) => (hwnd := SuiteWorkingMonitor.UserWindow()) && WinExist("ahk_exe WindowsTerminal.exe ahk_id " hwnd))
         ; One foreground window cannot be both Notepad3 Paper Pad and Windows Terminal.
         this.manager.RegisterDisjointScopes("paper-pad", "windows-terminal")
         this.manager.AddAction("core.keybindings", "open Keybindings", ObjBindMethod(this, "OpenBindingsEvent"),
@@ -164,7 +165,7 @@ class SuiteApplication {
         ; Global so that closing works whichever modules are enabled.
         this.manager.AddAction("core.close-active", "close active window", ObjBindMethod(this, "CloseWindowEvent"),
             ["Caps + Delete", "Win + Delete"], {category: "Global",
-                context: (*) => SuiteWindowOwnership.AllowsWonderWindows(DllCall("GetForegroundWindow", "ptr"))})
+                context: (*) => SuiteWindowOwnership.AllowsWonderWindows(SuiteWorkingMonitor.UserWindow())})
         ; Listed in default-key order: F1 clear, F2 copy, F3 restart.
         this.manager.AddAction("core.clear-log", "clear debug log",
             ObjBindMethod(this, "LogShortcutEvent", "clear"), ["Pause + F1"], {category: "Global"})

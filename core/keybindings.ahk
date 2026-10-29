@@ -675,7 +675,7 @@ class Keybindings {
             }
             ; A suffix marks a held layer as used, or consumes a one-shot arm.
             oneShot := route.binding.layer != "normal" && this.client.Use(route.binding.layer)
-            foreground := DllCall("GetForegroundWindow", "ptr")
+            foreground := SuiteWorkingMonitor.UserWindow()
             if !route.binding.wheel {
                 this.pressed[key] := {route: route, finished: false, oneShot: oneShot}
                 this._UpdateReleaseTimer()
@@ -790,7 +790,7 @@ class Keybindings {
         route := this._SelectedRoute(Keybindings.Parse(layer = "caps" ? "Caps + Caps" : "Pause + Pause").signature)
         if !IsObject(route)
             return
-        foreground := DllCall("GetForegroundWindow", "ptr")
+        foreground := SuiteWorkingMonitor.UserWindow()
         this._QueueEvent(route, "down", foreground, true)
         this._QueueEvent(route, "up", foreground, true)
     }
@@ -853,6 +853,7 @@ class Keybindings {
                         || this.gated || this.applying || !item.route.enabled
                         || ((A_TickCount - item.tick) & 0xFFFFFFFF) > 500
                         continue
+                    this._StepAroundOverlay(item.event.foregroundHwnd)
                     this.delivered[item.token] := item
                 } else {
                     if !this.delivered.Has(item.token)
@@ -871,6 +872,16 @@ class Keybindings {
             if this.queue.Length && this.running
                 SetTimer(this.drainCallback, -1)
         }
+    }
+
+    ; A passing overlay covers the window the press was meant for: bring that
+    ; window back first, so actions see the foreground the user was in.
+    _StepAroundOverlay(hwnd) {
+        foreground := DllCall("GetForegroundWindow", "ptr")
+        if !hwnd || foreground = hwnd || !IsPassingOverlay(foreground)
+            return
+        SuiteWorkingMonitor.Return(hwnd)
+        ActivateWindow(hwnd)
     }
 
     _Invoke(route, event) {
