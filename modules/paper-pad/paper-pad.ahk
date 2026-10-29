@@ -39,8 +39,6 @@ class PaperPadController
         this.z_order_snapshot := ""
         this.system_text_input_escape_pending := false
         this.last_bounds := 0
-        this.page_lock_handle := 0
-        this.page_lock_path := ""
         this.window_marker := "nroj.PaperPad.Notepad3Window"
         this.cascade_ignore_marker := "nroj.SuperHotkey.CascadeIgnore"
         this.data_directory := dataDirectory
@@ -49,7 +47,7 @@ class PaperPadController
         this.editor_profile := this.data_directory "\Notepad3.ini"
         this.process_commands_callback := ObjBindMethod(this, "ProcessCommands")
         this.autosave_callback := ObjBindMethod(this, "Autosave")
-        this.page_lock_sync_callback := ObjBindMethod(this, "SyncPageLock")
+        this.watch_callback := ObjBindMethod(this, "WatchEditor")
 
         DirCreate this.data_directory
         default_notes_directory := PaperPadController.DefaultNotesDirectory
@@ -72,15 +70,15 @@ class PaperPadController
         ; Hidden owner/sender window for WM_COPYDATA page switches.
         this.controller_window := SuiteGui("+ToolWindow", "nroj.PaperPad.Controller")
 
-        ; Reacquire the retained editor's page lock immediately after Reload,
-        ; even while hidden. A fresh controller must not wait for the next hotkey.
+        ; Reattach the retained editor immediately after Reload, even while
+        ; hidden. A fresh controller must not wait for the next hotkey.
         try this.AttachExistingWindow()
         catch as failure {
             this.autosave_paused := true
             this.ReportError(failure, true)
         }
         SetTimer this.autosave_callback, PaperPadController.AutosavePollMs
-        SetTimer this.page_lock_sync_callback, 250
+        SetTimer this.watch_callback, 250
     }
 
     CreateDefaultSettings(default_notes_directory)
@@ -297,25 +295,12 @@ class PaperPadController
 
     HasWindow()
     {
-        if !this.window_hwnd || !DllCall("IsWindow", "ptr", this.window_hwnd, "int") {
-            this.ReleasePageLock()
+        if !this.window_hwnd || !DllCall("IsWindow", "ptr", this.window_hwnd, "int")
+            || !DllCall("GetPropW", "ptr", this.window_hwnd, "str", this.window_marker, "ptr")
             return false
-        }
-        if !DllCall("GetPropW", "ptr", this.window_hwnd, "str", this.window_marker, "ptr") {
-            this.ReleasePageLock()
+        try return WinGetPID("ahk_id " this.window_hwnd) = this.editor_pid
+        catch
             return false
-        }
-
-        try {
-            valid := WinGetPID("ahk_id " this.window_hwnd) = this.editor_pid
-            if !valid
-                this.ReleasePageLock()
-            return valid
-        }
-        catch {
-            this.ReleasePageLock()
-            return false
-        }
     }
 
     IsVisible()
@@ -349,10 +334,6 @@ class PaperPadController
             ; Keep the old disk stamp on reattach: reload must not bless a conflict.
             this.disk_stamp := path = saved_path
                 ? IniRead(this.state_path, "CurrentPage", "DiskStamp", "") : ""
-
-            attributes := FileExist(path)
-            if this.IsNotePath(path) && attributes && !InStr(attributes, "D")
-                this.ProtectPage(path)
 
             this.bridge.PrepareDrawer()
             ; A visible drawer is always topmost; a retained hidden editor is not.
@@ -444,7 +425,6 @@ class PaperPadController
         WinHide "ahk_id " this.window_hwnd
         this.current_path := initial_path
         this.disk_stamp := before_load_stamp
-        this.ProtectPage(initial_path)
         this.bridge.PrepareDrawer()
         this.last_bounds := this.GetBounds()
         this.PersistCurrentState()
@@ -596,55 +576,7 @@ class PaperPadController
         }
     }
 
-    ProtectPage(path)
-    {
-        path := PaperPadFullPath(path)
-
-        if this.page_lock_handle && path = this.page_lock_path
-            return
-
-        attributes := FileExist(path)
-        if !attributes || InStr(attributes, "D")
-            throw Error("Cannot protect a missing or invalid page:`n" path)
-
-        ; Match the tested PowerShell lock: permit normal reads/writes while
-        ; denying delete sharing. This blocks external delete/rename/replace
-        ; without interfering with Notepad3's normal Save or Save As.
-        new_handle := DllCall(
-            "CreateFileW",
-            "str", path,
-            "uint", 0x80000000, ; GENERIC_READ
-            "uint", 0x00000003, ; FILE_SHARE_READ | FILE_SHARE_WRITE
-            "ptr", 0,
-            "uint", 3,          ; OPEN_EXISTING
-            "uint", 0x80,       ; FILE_ATTRIBUTE_NORMAL
-            "ptr", 0,
-            "ptr"
-        )
-
-        if new_handle = -1
-            throw OSError(A_LastError, "CreateFileW", path)
-
-        ; Acquire the new lock before releasing the old one so a page switch
-        ; never leaves both pages unprotected because opening the new lock failed.
-        old_handle := this.page_lock_handle
-        this.page_lock_handle := new_handle
-        this.page_lock_path := path
-
-        if old_handle
-            DllCall("CloseHandle", "ptr", old_handle)
-    }
-
-    ReleasePageLock()
-    {
-        if this.page_lock_handle
-            DllCall("CloseHandle", "ptr", this.page_lock_handle)
-
-        this.page_lock_handle := 0
-        this.page_lock_path := ""
-    }
-
-    SyncPageLock(*)
+    WatchEditor(*)
     {
         if this.busy || !this.IsVisible()
             return
@@ -664,7 +596,6 @@ class PaperPadController
 
             path := this.bridge.CurrentPath()
             if path = "" {
-                this.ReleasePageLock()
                 this.AdoptNativeNew()
                 return
             }
@@ -674,14 +605,6 @@ class PaperPadController
                 path := this.CheckCurrentPage()
             ; A clean native Save or reload can resume a previously paused autosave.
             this.ResumeAutosaveAfterCleanNativeSave(path)
-            if path = this.page_lock_path
-                return
-
-            attributes := FileExist(path)
-            if this.IsNotePath(path) && attributes && !InStr(attributes, "D")
-                this.ProtectPage(path)
-            else
-                this.ReleasePageLock()
         }
         catch {
             ; Native dialogs and transient filename changes are retried on the
@@ -721,7 +644,6 @@ class PaperPadController
             }
             throw failure
         }
-        this.ProtectPage(path)
         this.current_path := path
         this.disk_stamp := PaperPadFileStamp(path)
         this.PersistCurrentState()
@@ -758,8 +680,6 @@ class PaperPadController
             throw Error("The active page unexpectedly disappeared from disk:`n" path)
         if InStr(attributes, "D")
             throw Error("The open page path now refers to a directory:`n" path)
-
-        this.ProtectPage(path)
 
         if path != this.current_path {
             ; Notepad3's path control follows native Open, Rename and Save As.
@@ -908,7 +828,6 @@ class PaperPadController
         if this.bridge.CurrentPath() != next_path
             throw Error("Notepad3 did not load the requested page. Inspect its dialog and retry.")
 
-        this.ProtectPage(next_path)
         this.current_path := next_path
         this.disk_stamp := before_load_stamp
         this.PersistCurrentState()
@@ -935,8 +854,7 @@ class PaperPadController
         if !current_index
             throw Error("The current page could not be found in the page list.")
 
-        ; Save and leave the page before recycling it. ProtectPage() acquires the
-        ; replacement page's lock before releasing this page's delete-denying lock.
+        ; Save and leave the page before recycling it.
         if pages.Length = 1 {
             this.SwitchPage("", true)
         } else {
@@ -1512,7 +1430,7 @@ class PaperPadController
     OnScriptExit(exit_reason, exit_code)
     {
         SetTimer this.autosave_callback, 0
-        SetTimer this.page_lock_sync_callback, 0
+        SetTimer this.watch_callback, 0
         SetTimer this.process_commands_callback, 0
         ; Leave the native editor to Windows during shutdown or logoff.
         if exit_reason != "Shutdown" && exit_reason != "Logoff" && this.HasWindow() {
@@ -1531,7 +1449,6 @@ class PaperPadController
                 }
             }
         }
-        this.ReleasePageLock()
         this.bridge := 0
         return 0
     }

@@ -109,9 +109,8 @@ class PaperPadChecks {
             pad.bridge.text := "saved under a new name"
             pad.bridge.dirty := false
             pad.autosave_paused := true
-            pad.SyncPageLock()
-            this.Assert(!pad.autosave_paused && pad.current_path = savedPath
-                && pad.page_lock_path = savedPath,
+            pad.WatchEditor()
+            this.Assert(!pad.autosave_paused && pad.current_path = savedPath,
                 "clean native Save As resumes autosave on the new page")
 
             pad.bridge.text := "new page edits"
@@ -224,7 +223,6 @@ class CheckNativeSavePad extends PaperPadController {
         this.allowed_extensions := "|md|"
         this.busy := false
         this.command_queue := []
-        this.page_lock_path := ""
         this.disk_stamp := PaperPadFileStamp(path)
         this.autosave_paused := false
         this.autosave_tracking := {sampled: false, text: "", last_change: 0}
@@ -233,8 +231,6 @@ class CheckNativeSavePad extends PaperPadController {
     HasWindow() => true
     IsVisible() => true
     SyncZOrder() => 0
-    ProtectPage(path) => this.page_lock_path := path
-    ReleasePageLock() => this.page_lock_path := ""
     PersistCurrentState() => 0
 
     AcceptSave(path, stamp) {
