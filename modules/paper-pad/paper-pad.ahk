@@ -6,8 +6,9 @@ class PaperPadController
     static AutosaveMaxMs := 10000
     static AutosavePollMs := 500
     ; [Window] size preferences: default, minimum and maximum.
-    static WindowDefaults := Map("WidthPercent", [45, 30, 100],
-        "HeightPercent", [35, 20, 100], "AnimationDurationMs", [180, 0, 1000])
+    static WindowDefaults := Map("WidthPercent", [45, 30, 100], "HeightPercent", [35, 20, 100])
+    ; The drawer slides this long unless Windows' Animation effects are off.
+    static AnimationMs := 180
     static DefaultNotesDirectory => EnvGet("USERPROFILE") "\Paper Pad"
 
     ; =========================================================================
@@ -64,7 +65,6 @@ class PaperPadController
         sizes := PaperPadController.WindowDefaults
         this.width_percent := this.ReadNumber("Window", "WidthPercent", sizes["WidthPercent"]*)
         this.height_percent := this.ReadNumber("Window", "HeightPercent", sizes["HeightPercent"]*)
-        this.animation_ms := this.ReadNumber("Window", "AnimationDurationMs", sizes["AnimationDurationMs"]*)
         this.allowed_extensions := "|md|txt|ps1|psm1|psd1|py|pyw|ahk|lua|js|ts|jsx|tsx|"
             . "json|jsonc|yaml|yml|xml|html|htm|css|scss|ini|cfg|conf|toml|log|"
             . "sh|bash|bat|cmd|sql|c|cpp|h|hpp|cs|rs|go|java|rb|php|csv|tsv|"
@@ -91,8 +91,7 @@ class PaperPadController
                 . "`nNotepad3Executable=`n"
                 . "`n[Window]`nMonitor=Primary"
                 . "`nWidthPercent=" sizes["WidthPercent"][1]
-                . "`nHeightPercent=" sizes["HeightPercent"][1]
-                . "`nAnimationDurationMs=" sizes["AnimationDurationMs"][1] "`n"
+                . "`nHeightPercent=" sizes["HeightPercent"][1] "`n"
                 . "`n[Setup]`nWelcomePending=1`n"
             FileAppend settings, this.settings_path, "UTF-16"
         }
@@ -1434,7 +1433,7 @@ class PaperPadController
 
     AnimateWindow(showing, bounds, animate := true)
     {
-        duration := animate ? this.animation_ms : 0
+        duration := animate ? PaperPadController.AnimationMs : 0
         animation_setting := Buffer(4, 0)
         if DllCall("SystemParametersInfoW", "uint", 0x1042, "uint", 0,
             "ptr", animation_setting, "uint", 0, "int") && !NumGet(animation_setting, 0, "int")

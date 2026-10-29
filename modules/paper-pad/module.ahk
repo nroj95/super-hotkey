@@ -113,9 +113,7 @@ class PaperPadModule extends SuiteModule {
         window.AddText("x20 y180 w150", "Display")
         window.AddDropDownList("x180 y175 w380 vdisplay", choices.names).Choose(choices.selected)
         y := 225
-        for item in [["width", "Width (%)", "WidthPercent"],
-            ["height", "Height (%)", "HeightPercent"],
-            ["animation", "Animation (ms)", "AnimationDurationMs"]] {
+        for item in [["width", "Width (%)", "WidthPercent"], ["height", "Height (%)", "HeightPercent"]] {
             window.AddText("x20 y" (y + 5) " w150", item[2])
             window.AddEdit("x180 y" y " w140 v" item[1],
                 IniRead(path, "Window", item[3], PaperPadController.WindowDefaults[item[3]][1]))
@@ -123,8 +121,8 @@ class PaperPadModule extends SuiteModule {
         }
         ui.Footer(window, [["Open notes folder", ObjBindMethod(this, "OpenNotesFolder"), 165],
             ["Apply and restart", ObjBindMethod(this, "SaveSettings", ui), 160],
-            ["Back", ObjBindMethod(ui, "BackToHelp", this.id), 100]], 392)
-        ui.ShowPage(key, 800, 442, 760, 417)
+            ["Back", ObjBindMethod(ui, "BackToHelp", this.id), 100]], 349)
+        ui.ShowPage(key, 800, 399, 760, 374)
     }
 
     SaveSettings(ui, *) {
@@ -145,9 +143,7 @@ class PaperPadModule extends SuiteModule {
                     "WidthPercent", ui.NumberField(window, "width",
                         sizes["WidthPercent"][2], sizes["WidthPercent"][3]),
                     "HeightPercent", ui.NumberField(window, "height",
-                        sizes["HeightPercent"][2], sizes["HeightPercent"][3]),
-                    "AnimationDurationMs", ui.NumberField(window, "animation",
-                        sizes["AnimationDurationMs"][2], sizes["AnimationDurationMs"][3])))
+                        sizes["HeightPercent"][2], sizes["HeightPercent"][3])))
             pathsChanged := folder != IniRead(path, "Paths", "NotesDirectory", PaperPadController.DefaultNotesDirectory)
                 || editor != IniRead(path, "Paths", "Notepad3Executable", "")
             if pathsChanged && this.started && IsSet(paperPad) {
