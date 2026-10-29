@@ -78,6 +78,24 @@ class SuiteIcons {
     }
 }
 
+; The Windows accent color as RRGGBB, read live so theme changes apply at once.
+SuiteAccentColor() {
+    colorization := 0
+    blend := 0
+    result := DllCall(
+        "dwmapi\DwmGetColorizationColor",
+        "uint*", &colorization,
+        "int*", &blend,
+        "int"
+    )
+    if result != 0
+        return "0078D4"
+    return Format("{:02X}{:02X}{:02X}",
+        (colorization >> 16) & 0xFF,
+        (colorization >> 8) & 0xFF,
+        colorization & 0xFF)
+}
+
 ; A Click handler that runs action in its own thread once the Click event has
 ; returned. AutoHotkey 2.0.26 corrupted pages built inside that event, so
 ; buttons that open or swap windows must not do it there.

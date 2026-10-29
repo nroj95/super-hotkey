@@ -45,7 +45,7 @@ class CascadeChecks {
     }
 
     static Settings() {
-        global cascade_target_display, cascade_drop_guide_color_name
+        global cascade_target_display, focus_corner_inactive_slot_color_name
         app := SuiteApplication(true, SuiteChecks.directory "\cascade-settings")
         cascade := CascadeKingdomModule(app)
         app.modules["cascade-kingdom"] := cascade
@@ -68,13 +68,11 @@ class CascadeChecks {
                 "missing saved displays remain visible without silently changing the preference")
             app.ui.ShowModuleSettings("cascade-kingdom")
             window := app.ui.windows["settings:cascade-kingdom"]
-            this.Assert(window["activeColor"].Text = "Yellow"
-                && window["inactiveColor"].Text = "White"
-                && window["guideColor"].Text = "Pink"
+            this.Assert(window["inactiveColor"].Text = "White"
                 && focus_corner_active_slot_alpha = 255
                 && focus_corner_inactive_slot_alpha = 128,
-                "cascade settings default to Yellow/White/Pink and 50% inactive opacity")
-            window["guideColor"].Choose("Cyan")
+                "cascade settings default to White inactive tabs at 50% opacity")
+            window["inactiveColor"].Choose("Cyan")
             ; Use a real device, not the dropdown index, in the saved preference.
             window["display"].Choose(2)
             expectedDisplay := cascade.displayChoices[2]
@@ -82,15 +80,15 @@ class CascadeChecks {
             path := app.Settings.directory "\cascade-kingdom\settings.ini"
             this.Assert(!app.ui.windows.Has("settings:cascade-kingdom")
                 && IniRead(path, "Controls", "Display") = expectedDisplay
-                && IniRead(path, "DropGuides", "Color") = "Cyan",
-                "Apply persists the destination device and guide color")
+                && IniRead(path, "FocusTabs", "InactiveSlotColor") = "Cyan",
+                "Apply persists the destination device and inactive tab color")
             InitializeCascadeState()
             this.Assert(cascade_target_display = expectedDisplay
-                && cascade_drop_guide_color_name = "Cyan",
+                && focus_corner_inactive_slot_color_name = "Cyan",
                 "cascade choices survive state initialization")
             app.Settings.ResetModulePreferences(Map("cascade-kingdom", cascade.resetSections))
-            this.Assert(IniRead(path, "DropGuides", "Color", "missing") = "missing",
-                "factory reset includes the new guide preference")
+            this.Assert(IniRead(path, "FocusTabs", "InactiveSlotColor", "missing") = "missing",
+                "factory reset includes the inactive tab color")
             InitializeCascadeState()
             app.ui.ShowModuleSettings("paper-pad")
             window := app.ui.windows["settings:paper-pad"]
@@ -104,16 +102,13 @@ class CascadeChecks {
 
     static LiveCascadeSettings() {
         global focus_corner_visible, focus_tab_color_presets
-        global focus_corner_active_slot_color_name, focus_corner_inactive_slot_color_name
-        global focus_corner_active_slot_color, focus_corner_inactive_slot_color
+        global focus_corner_inactive_slot_color_name, focus_corner_inactive_slot_color
         global cascade_history
         app := SuiteApplication(true, SuiteChecks.directory "\live-cascade-settings")
         app.InitializeCatalog()
         manager := app.manager
         previous := {visible: focus_corner_visible,
-            activeName: focus_corner_active_slot_color_name,
             inactiveName: focus_corner_inactive_slot_color_name,
-            activeColor: focus_corner_active_slot_color,
             inactiveColor: focus_corner_inactive_slot_color}
         try {
             manager.SetPaused(true)
@@ -122,10 +117,8 @@ class CascadeChecks {
             app.ui.ShowModuleSettings("cascade-kingdom")
             settings := app.ui.windows["settings:cascade-kingdom"]
             expectedVisible := !previous.visible
-            activeName := previous.activeName = "Pink" ? "Green" : "Pink"
             inactiveName := previous.inactiveName = "Blue" ? "Grey" : "Blue"
             settings["tabs"].Value := expectedVisible
-            settings["activeColor"].Choose(activeName)
             settings["inactiveColor"].Choose(inactiveName)
             existingHistorySize := cascade_history.Count
             this.Assert(app.ui.pageFooters[settings.Hwnd].buttons[1].button.Text = "Apply",
@@ -134,13 +127,10 @@ class CascadeChecks {
             path := app.Settings.directory "\cascade-kingdom\settings.ini"
             this.Assert(!app.ui.windows.Has("settings:cascade-kingdom")
                 && focus_corner_visible = expectedVisible
-                && focus_corner_active_slot_color_name = activeName
                 && focus_corner_inactive_slot_color_name = inactiveName
-                && focus_corner_active_slot_color = focus_tab_color_presets[activeName]
                 && focus_corner_inactive_slot_color = focus_tab_color_presets[inactiveName],
                 "Cascade Kingdom applies focus-tab preferences without reload")
             this.Assert(IniRead(path, "FocusTabs", "Visible") = (expectedVisible ? "1" : "0")
-                && IniRead(path, "FocusTabs", "ActiveSlotColor") = activeName
                 && IniRead(path, "FocusTabs", "InactiveSlotColor") = inactiveName,
                 "Cascade Kingdom persists its focus-tab preferences")
             this.Assert(cascade_history.Count = existingHistorySize,
@@ -148,9 +138,7 @@ class CascadeChecks {
         }
         finally {
             focus_corner_visible := previous.visible
-            focus_corner_active_slot_color_name := previous.activeName
             focus_corner_inactive_slot_color_name := previous.inactiveName
-            focus_corner_active_slot_color := previous.activeColor
             focus_corner_inactive_slot_color := previous.inactiveColor
             if IsObject(app.ui)
                 app.ui.CloseAll()

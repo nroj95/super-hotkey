@@ -5,7 +5,7 @@ class CascadeDropGuides {
     static alpha := 255 ; Fully opaque, matching active focus tabs.
 
     static Update(drag) {
-        global cascade_drop_guide_color_name, focus_tab_color_presets, cascade_window_drag
+        global cascade_window_drag
         if !IsCascadeEnabled() || IsCascadeDisplayTransition() || drag.cancelled
             || drag.native_ended || !GetKeyState("LButton", "P") {
             this.Hide()
@@ -34,8 +34,7 @@ class CascadeDropGuides {
                     this.Hide()
                     return
                 }
-                this.Show(geometry.slots, GetCascadeMonitorDpi(monitor),
-                    focus_tab_color_presets[cascade_drop_guide_color_name])
+                this.Show(geometry.slots, GetCascadeMonitorDpi(monitor), SuiteAccentColor())
             }
             finally Critical(previous_critical)
         }

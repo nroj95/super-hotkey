@@ -249,12 +249,11 @@ ShowFocusCornerOverlay(hwnd, window_x, window_y, window_width, window_height, dp
     global focus_corner_size
     global focus_corner_thickness, focus_corner_full_height_thickness
     global focus_corner_overlap
-    global focus_corner_inactive_slot_color, focus_corner_active_slot_color
+    global focus_corner_inactive_slot_color
     global focus_corner_inactive_slot_alpha, focus_corner_active_slot_alpha
     global focus_corner_visible
 
-    marker_color := (active_slot ? focus_corner_active_slot_color : focus_corner_inactive_slot_color
-    )
+    marker_color := active_slot ? SuiteAccentColor() : focus_corner_inactive_slot_color
     marker_alpha := (active_slot ? focus_corner_active_slot_alpha : focus_corner_inactive_slot_alpha
     )
 

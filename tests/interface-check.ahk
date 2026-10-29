@@ -47,8 +47,7 @@ class InterfaceChecks {
             app.ui.CloseWindow("settings:secret-layers")
             app.ui.ShowModuleSettings("cascade-kingdom")
             window := app.ui.windows["settings:cascade-kingdom"]
-            this.Assert(window["tabs"].Enabled && window["activeColor"].Enabled
-                && window["inactiveColor"].Enabled,
+            this.Assert(window["tabs"].Enabled && window["inactiveColor"].Enabled,
                 "Cascade Kingdom settings offer focus-tab controls")
         }
         finally {

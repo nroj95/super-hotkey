@@ -37,7 +37,7 @@ class SuiteFocusBorder {
         thickness := this.thickness
         overlap := this.overlap
         outside := thickness - overlap
-        color := this.GetAccentColor()
+        color := SuiteAccentColor()
         rects := [
             [x - outside, y - outside, width + outside * 2, thickness],
             [x - outside, y + height - overlap, width + outside * 2, thickness],
@@ -157,21 +157,4 @@ class SuiteFocusBorder {
     }
 
     static Expire(*) => this.Hide()
-
-    static GetAccentColor() {
-        colorization := 0
-        blend := 0
-        result := DllCall(
-            "dwmapi\DwmGetColorizationColor",
-            "uint*", &colorization,
-            "int*", &blend,
-            "int"
-        )
-        if result != 0
-            return "0078D4"
-        return Format("{:02X}{:02X}{:02X}",
-            (colorization >> 16) & 0xFF,
-            (colorization >> 8) & 0xFF,
-            colorization & 0xFF)
-    }
 }

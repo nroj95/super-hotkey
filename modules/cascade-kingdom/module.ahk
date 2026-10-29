@@ -2,7 +2,7 @@
 ; the module's globals, initialized by InitializeCascadeState().
 class CascadeKingdomModule extends SuiteModule {
     hasSettings := true
-    resetSections := ["Controls", "DropGuides", "FocusTabs"]
+    resetSections := ["Controls", "FocusTabs"]
 
     __New(app) {
         super.__New(app, "cascade-kingdom")
@@ -94,9 +94,8 @@ class CascadeKingdomModule extends SuiteModule {
         key := "settings:cascade-kingdom"
         if ui.Existing(key)
             return
-        global cascade_target_display, cascade_drop_guide_color_name
-        global focus_corner_visible, focus_tab_color_presets
-        global focus_corner_active_slot_color_name, focus_corner_inactive_slot_color_name
+        global cascade_target_display, focus_corner_visible, focus_tab_color_presets
+        global focus_corner_inactive_slot_color_name
         window := ui.NewWindow(key, "Cascade Kingdom - Settings", true)
         window.AddText("x20 y18 w560", "Add windows with Caps + Insert or by dragging one onto a slot.")
         choices := ui.DisplayChoices(cascade_target_display, true)
@@ -107,57 +106,43 @@ class CascadeKingdomModule extends SuiteModule {
         colors := []
         for name in focus_tab_color_presets
             colors.Push(name)
-        window.AddText("x20 y148 w200", "Active-slot tab color")
-        window.AddDropDownList("x240 y143 w210 vactiveColor", colors).Choose(focus_corner_active_slot_color_name)
-        window.AddText("x20 y193 w200", "Inactive-slot tab color")
-        window.AddDropDownList("x240 y188 w210 vinactiveColor", colors).Choose(focus_corner_inactive_slot_color_name)
-        window.AddText("x20 y238 w200", "Drop-guide color")
-        window.AddDropDownList("x240 y233 w210 vguideColor", colors).Choose(cascade_drop_guide_color_name)
-        window.AddText("x20 y268 w520", "Display changes release other displays without moving windows."
+        window.AddText("x20 y148 w200", "Inactive-slot tab color")
+        window.AddDropDownList("x240 y143 w210 vinactiveColor", colors).Choose(focus_corner_inactive_slot_color_name)
+        window.AddText("x20 y188 w560", "Active tabs and drop guides use the Windows accent color."
+            . "`nDisplay changes release other displays without moving windows."
             . "`nClick Apply to use these settings.")
         ui.Footer(window, [["Apply", ObjBindMethod(this, "SaveSettings", ui), 120],
-            ["Back", ObjBindMethod(ui, "BackToHelp", this.id), 100]], 353, 600)
-        ui.ShowPage(key, 600, 403, 560, 378)
+            ["Back", ObjBindMethod(ui, "BackToHelp", this.id), 100]], 293, 600)
+        ui.ShowPage(key, 600, 343, 560, 318)
     }
 
     ; Applies without a restart; routing changes first release in-flight work.
     SaveSettings(ui, *) {
-        global cascade_target_display, cascade_drop_guide_color_name
-        global focus_corner_visible, focus_tab_color_presets
-        global focus_corner_active_slot_color_name, focus_corner_inactive_slot_color_name
-        global focus_corner_active_slot_color, focus_corner_inactive_slot_color
+        global cascade_target_display, focus_corner_visible, focus_tab_color_presets
+        global focus_corner_inactive_slot_color_name, focus_corner_inactive_slot_color
         key := "settings:cascade-kingdom"
         window := ui.windows[key]
         try {
             display := this.displayChoices[window["display"].Value]
             visible := window["tabs"].Value != 0
-            activeName := window["activeColor"].Text
             inactiveName := window["inactiveColor"].Text
-            guideName := window["guideColor"].Text
-            if !focus_tab_color_presets.Has(activeName) || !focus_tab_color_presets.Has(inactiveName)
-                || !focus_tab_color_presets.Has(guideName)
-                throw ValueError("Select valid tab and drop-guide colors.")
+            if !focus_tab_color_presets.Has(inactiveName)
+                throw ValueError("Select a valid inactive tab color.")
             this.app.Settings.WritePreferences(this.id, Map(
                 "Controls", Map("Display", display),
-                "DropGuides", Map("Color", guideName),
-                "FocusTabs", Map("Visible", visible ? 1 : 0,
-                    "ActiveSlotColor", activeName, "InactiveSlotColor", inactiveName)))
+                "FocusTabs", Map("Visible", visible ? 1 : 0, "InactiveSlotColor", inactiveName)))
             routingChanged := cascade_target_display != display
             if routingChanged {
                 this.app.CancelInputs()
                 this.Suspend()
             }
             cascade_target_display := display
-            cascade_drop_guide_color_name := guideName
             if routingChanged
                 CascadeReleaseExcludedDisplays()
             if focus_corner_visible != visible
                 ToggleFocusCornerVisibility()
-            focus_corner_active_slot_color_name := activeName
             focus_corner_inactive_slot_color_name := inactiveName
-            focus_corner_active_slot_color := focus_tab_color_presets[activeName]
             focus_corner_inactive_slot_color := focus_tab_color_presets[inactiveName]
-            CascadeDropGuides.Hide()
             if routingChanged && this.started && IsCascadeEnabled()
                 this.Resume()
             QueueFocusCornerUpdate()
@@ -182,7 +167,8 @@ class CascadeKingdomModule extends SuiteModule {
             . "returns or you change Settings."
             . "`r`n`r`nFOCUS TABS"
             . "`r`nClick a focus tab to select a slot. Click again to cycle windows sharing "
-            . "that slot. Choose guide and tab colors in Settings."
+            . "that slot. Active tabs and drop guides use your Windows accent color; "
+            . "choose the inactive tab color in Settings."
     }
 }
 

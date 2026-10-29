@@ -66,8 +66,9 @@ focus_corner_overlap := 2
 focus_corner_update_ms := 50
 focus_corner_fallback_ms := 1000
 
-; Focus-tab colors are chosen from a small fixed palette. An inactive slot
-; represents its exposed window; the active slot represents the next layer.
+; The active slot, which represents the next layer, uses the Windows accent
+; color; inactive tabs, which represent their exposed windows, use a color
+; chosen from a small fixed palette.
 ; Deeper tabs stay hidden, so opacity no longer accumulates with stack depth.
 focus_tab_color_presets := Map("White", "FFFFFF", "Grey", "808080", "Red", "F44336",
     "Orange", "FF9800", "Yellow", "FBC02D", "Green", "4CAF50", "Cyan", "00BCD4", "Blue", "2196F3",
@@ -85,19 +86,12 @@ focus_tab_release_poll_ms := 50
 settings_path := SuiteState.App.Settings.directory "\cascade-kingdom\settings.ini"
 focus_corner_visible := IniRead(settings_path, "FocusTabs", "Visible", "1") = "1"
 
-focus_corner_active_slot_color_name := IniRead(settings_path, "FocusTabs", "ActiveSlotColor",
-    "Yellow")
 focus_corner_inactive_slot_color_name := IniRead(settings_path, "FocusTabs", "InactiveSlotColor",
     "White")
-
-if !focus_tab_color_presets.Has(focus_corner_active_slot_color_name)
-    focus_corner_active_slot_color_name := "Yellow"
 
 if !focus_tab_color_presets.Has(focus_corner_inactive_slot_color_name)
     focus_corner_inactive_slot_color_name := "White"
 
-focus_corner_active_slot_color :=
-    focus_tab_color_presets[focus_corner_active_slot_color_name]
 focus_corner_inactive_slot_color :=
     focus_tab_color_presets[focus_corner_inactive_slot_color_name]
 
@@ -137,9 +131,6 @@ cascade_restore_batches := Map()
 cascade_restore_request_depth := 0
 cascade_close_batches := Map()
 cascade_target_display := IniRead(settings_path, "Controls", "Display", "All")
-cascade_drop_guide_color_name := IniRead(settings_path, "DropGuides", "Color", "Pink")
-if !focus_tab_color_presets.Has(cascade_drop_guide_color_name)
-    cascade_drop_guide_color_name := "Pink"
 cascade_minimize_toggle_in_progress := false
 cascade_minimized_windows := []
 
