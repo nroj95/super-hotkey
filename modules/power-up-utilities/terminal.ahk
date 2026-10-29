@@ -1,18 +1,17 @@
 ; =============================================================================
 ; terminal.ahk - the two Windows Terminal macros: copy as Markdown and clear
 ; =============================================================================
-; Discover effective Terminal shortcuts without modifying Terminal's settings.
-; Clearing still sends Ctrl+C and Enter between two clear actions and can
-; interrupt a running command. Both extra keys are checked for safe behavior.
-; Never activate another window to finish a macro after the user changes focus.
+; Both macros send Windows Terminal's default shortcuts: Ctrl+Shift+A selects
+; all, Ctrl+Shift+C copies and Ctrl+Shift+K clears the buffer. A Terminal with
+; those remapped needs its defaults back. Clearing sends Ctrl+C and Enter
+; between two clears and can interrupt a running command. Never activate
+; another window to finish a macro after the user changes focus.
 ; =============================================================================
 
 class PU_Terminal {
     __New(app) {
         this.app := app
         this.clipboardRestore := 0
-        this.bindingsCacheKey := ""
-        this.bindingsStatus := ""
     }
 
     Ready(job) {
@@ -23,71 +22,6 @@ class PU_Terminal {
             return false
     }
 
-    ; Only the stable packaged Terminal has a known settings location.
-    CheckBindings(job, action) {
-        if !this.Ready(job)
-            return false
-        executable := WinGetProcessPath("ahk_id " job.event.foregroundHwnd)
-        if !RegExMatch(executable, "i)\\Microsoft\.WindowsTerminal_\d+\.\d+\.\d+\.\d+_[^\\]+\\WindowsTerminal\.exe$")
-            throw Error("This Windows Terminal installation is not supported by the shortcut checker. No keys were sent.")
-        SplitPath(executable, , &packageDirectory)
-        settingsPath := EnvGet("LOCALAPPDATA") "\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json"
-        ; Compare file contents, not second-resolution timestamps: users can
-        ; edit and restore bindings within the same second.
-        settingsSnapshot := FileExist(settingsPath) ? FileRead(settingsPath, "UTF-8") : "<defaults>"
-        ; The package path names its version, and package files are immutable.
-        cacheKey := executable "|" settingsSnapshot
-
-        if cacheKey != this.bindingsCacheKey {
-            helper := A_ScriptDir "\modules\power-up-utilities\terminal-bindings.ps1"
-            powershell := A_WinDir "\System32\WindowsPowerShell\v1.0\powershell.exe"
-            if !FileExist(helper) || !FileExist(powershell)
-                throw Error("Windows Terminal shortcut checker is unavailable. No keys were sent.")
-            resultPath := A_Temp "\super-hotkey-terminal-"
-                . DllCall("GetCurrentProcessId", "uint") "-" A_TickCount ".txt"
-            command := '"' powershell '" -NoLogo -NoProfile -NonInteractive'
-                . ' -WindowStyle Hidden -ExecutionPolicy Bypass -File "' helper '"'
-                . ' -DefaultsPath "' packageDirectory '\defaults.json" -SettingsPath "' settingsPath '"'
-                . ' -ResultPath "' resultPath '"'
-            try {
-                exitCode := RunWait(command, , "Hide")
-                output := FileExist(resultPath) ? Trim(FileRead(resultPath, "UTF-8"), "`r`n ") : ""
-                if exitCode != 0 || !RegExMatch(output, "^OK\R")
-                    throw Error("Windows Terminal shortcut check failed: " (output != "" ? output : "no result")
-                        . ". No keys were sent.")
-                if (FileExist(settingsPath) ? FileRead(settingsPath, "UTF-8") : "<defaults>") != settingsSnapshot
-                    throw Error("Windows Terminal settings changed during verification. Retry the shortcut.")
-                this.bindingsStatus := output
-                this.bindingsCacheKey := cacheKey
-            }
-            finally {
-                try FileDelete(resultPath)
-            }
-        }
-        if !this.Ready(job)
-            return false
-        if action = "clear" {
-            if !InStr("`n" this.bindingsStatus "`n", "`nSAFE_CLEAR_STEPS=1`n")
-                throw Error("Windows Terminal Ctrl+C or Enter is reassigned. No keys were sent.")
-            return {clear: this.ResolvedShortcut("CLEAR")}
-        }
-        return {copy: this.ResolvedShortcut("COPY"),
-            select: this.ResolvedShortcut("SELECT")}
-    }
-
-    ResolvedShortcut(name) {
-        for line in StrSplit(this.bindingsStatus, "`n", "`r") {
-            if InStr(line, name "=") != 1
-                continue
-            shortcut := SubStr(line, StrLen(name) + 2)
-            ; Accept only the exact safe AHK Send format emitted by our helper.
-            if RegExMatch(shortcut, "^[\^!+]{1,3}(?:[a-z0-9]|\{F(?:[1-9]|1[0-9]|2[0-4])\})$")
-                return shortcut
-            break
-        }
-        throw Error("No supported Windows Terminal shortcut for " name ". Check Terminal Settings > Actions. No keys were sent.")
-    }
-
     SendStep(job, shortcut) {
         if !this.Ready(job)
             return false
@@ -96,10 +30,7 @@ class PU_Terminal {
     }
 
     Clear(job) {
-        shortcuts := this.CheckBindings(job, "clear")
-        if !shortcuts
-            return
-        for index, shortcut in [shortcuts.clear, "^c", "{Enter}", shortcuts.clear] {
+        for index, shortcut in ["^+k", "^c", "{Enter}", "^+k"] {
             if !this.SendStep(job, shortcut)
                 return
             if index < 4
@@ -108,9 +39,6 @@ class PU_Terminal {
     }
 
     Copy(job) {
-        shortcuts := this.CheckBindings(job, "copy")
-        if !shortcuts
-            return
         savedClipboard := ClipboardAll()
         if !this.Ready(job)
             return
@@ -124,10 +52,10 @@ class PU_Terminal {
         }
         finally Critical previousCritical
         try {
-            if !this.SendStep(job, shortcuts.select)
+            if !this.SendStep(job, "^+a")
                 return
             Sleep(50)
-            if !this.SendStep(job, shortcuts.copy) || !ClipWait(1)
+            if !this.SendStep(job, "^+c") || !ClipWait(1)
                 return
             if !this.Ready(job)
                 return

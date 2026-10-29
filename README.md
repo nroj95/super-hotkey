@@ -44,7 +44,7 @@ A quick-notes drawer: `Win + F12` shows or hides a dedicated Notepad3 window tha
 
 Send F13-F24 or use a virtual number pad, even if your keyboard doesn't have those keys. Insert punctuation, special characters or a timestamp without looking them up.
 
-In Windows Terminal, copy the buffer as Markdown or clear it. Other shortcuts wake speakers that have gone into standby or put the computer to sleep.
+In Windows Terminal, copy the buffer as Markdown or clear it; both use Terminal's default `Ctrl + Shift + A`, `C` and `K` shortcuts. Other shortcuts wake speakers that have gone into standby or put the computer to sleep.
 
 ### Secret Layers
 
