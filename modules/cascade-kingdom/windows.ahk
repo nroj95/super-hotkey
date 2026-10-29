@@ -50,22 +50,6 @@ IsCascadeWindow(hwnd, allow_manual := false)
         && width >= 1 && height >= 1 && title != ""
 }
 
-IsDesktopSurfaceWindow(hwnd)
-{
-    try window_class := hwnd && WinExist("ahk_id " hwnd) ? WinGetClass("ahk_id " hwnd) : ""
-    catch
-        return false
-    return window_class = "Progman" || window_class = "WorkerW"
-}
-
-IsTaskbarSurfaceWindow(hwnd)
-{
-    try window_class := hwnd && WinExist("ahk_id " hwnd) ? WinGetClass("ahk_id " hwnd) : ""
-    catch
-        return false
-    return window_class = "Shell_TrayWnd" || window_class = "Shell_SecondaryTrayWnd"
-}
-
 IsCascadeWindowTopmost(hwnd)
 {
     if !hwnd || !DllCall("IsWindow", "ptr", hwnd, "int")
@@ -98,19 +82,6 @@ TryGetWindowCenter(hwnd, &center_x, &center_y)
 ; =============================================================================
 
 GetCommandMonitor() => SuiteWorkingMonitor.Get()
-
-ResolveCascadePlacementMonitor(request, fallback_monitor)
-{
-    global cascade_target_display
-    if cascade_target_display != "All"
-        return ResolveCascadeDestination(fallback_monitor)
-    if request.HasOwnProp("monitor_device") && request.monitor_device != "" {
-        monitor := FindCascadeMonitorDevice(request.monitor_device)
-        ; Never reuse a removed display's old index or re-sample a later mouse.
-        return monitor ? monitor : MonitorGetPrimary()
-    }
-    return fallback_monitor ? fallback_monitor : MonitorGetPrimary()
-}
 
 GetMonitorForWindow(hwnd)
 {

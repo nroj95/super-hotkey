@@ -198,7 +198,6 @@ RefreshCascadeDisplays()
                     target.monitor := cascade_window_slots[target.hwnd].monitor
             }
             CancelPendingAdoptionUndo()
-            CancelNewWindowFocus()
             cascade_display_change_pending := false
             DebugLog("Display geometry refreshed without reload. | displays=" new_displays.Count
                 " | pending-members=" cascade_display_reflow.Count " | signature=" snapshot.signature)

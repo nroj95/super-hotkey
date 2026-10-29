@@ -26,10 +26,8 @@ CaptureCascadeMousePress(*)
     if HasFocusTabClick()
         return
 
-    MouseGetPosPixels(&mouse_x, &mouse_y, &hover_hwnd)
+    MouseGetPosPixels(, , &hover_hwnd)
     hwnd := DllCall("GetAncestor", "ptr", hover_hwnd, "uint", 2, "ptr") ; GA_ROOT
-    CaptureCascadeLaunchIntent(hwnd)
-    CascadeObserveGestureMouseClick(hwnd, mouse_x, mouse_y)
     cascade_mouse_press := GetCascadeMousePressSnapshot(hwnd)
 }
 
@@ -99,7 +97,7 @@ BeginCascadeWindowDrag(hwnd, event_time)
         return
 
     global cascade_mouse_press, cascade_window_drag, cascade_drag_generation
-    global known_windows, handled_windows, pending_windows, placement_reservations
+    global placement_reservations
 
     if HasCascadeWindowDrag() || HasFocusTabClick()
         return
@@ -132,17 +130,11 @@ BeginCascadeWindowDrag(hwnd, event_time)
     cascade_window_drag := drag
     cascade_drag_generation += 1
 
-    ; Manual interaction takes priority over launch settling and old corrections.
-    ; Mark it handled so already-bound new-window timers become harmless too.
+    ; Manual interaction takes priority over pending undo and old corrections.
     CancelPendingAdoptionUndo()
-    CancelNewWindowFocus()
     CancelCascadeDisplayPlacement(hwnd)
     RemoveWindowFromCascadeRestore(hwnd)
     CancelPlacementStabilization(hwnd)
-    known_windows[hwnd] := true
-    handled_windows[hwnd] := true
-    if pending_windows.Has(hwnd)
-        pending_windows.Delete(hwnd)
     if placement_reservations.Has(hwnd)
         placement_reservations.Delete(hwnd)
 
@@ -372,26 +364,14 @@ HasCascadeDropDestination(monitor_index)
 
 ReleaseCascadeWindow(hwnd)
 {
-    global known_windows, handled_windows, pending_windows, placement_reservations
+    global placement_reservations
 
     source_monitor := GetManagedCascadeMonitor(hwnd)
     CancelPlacementStabilization(hwnd)
     RemoveCascadeWindowFromHistory(hwnd)
     RemoveWindowFromMinimizeState(hwnd)
-    if pending_windows.Has(hwnd)
-        pending_windows.Delete(hwnd)
     if placement_reservations.Has(hwnd)
         placement_reservations.Delete(hwnd)
-    if WinExist(hwnd) {
-        known_windows[hwnd] := true
-        handled_windows[hwnd] := true
-    } else {
-        ; A close during drop processing must not leave a dead/reusable HWND known.
-        if known_windows.Has(hwnd)
-            known_windows.Delete(hwnd)
-        if handled_windows.Has(hwnd)
-            handled_windows.Delete(hwnd)
-    }
     DestroyFocusCornerOverlay(hwnd)
     if source_monitor
         QueueCascadeCompaction(source_monitor)

@@ -76,7 +76,6 @@ BeginFocusTabClick(*)
 
     try {
         CancelPendingAdoptionUndo()
-        CancelNewWindowFocus()
         ActivateFocusTabClick(press)
     }
     catch Error as err {

@@ -69,35 +69,3 @@ DebugFocusCornerAppearance(active_hwnd, active_slot_targets)
     previous_snapshot := snapshot
     DebugLog("Focus-tab appearance. | " snapshot)
 }
-
-
-DebugDescribeForegroundState()
-{
-    if !SuiteState.Log.verbose
-        return ""
-
-    ; Foreground, thread activation and keyboard focus are different handles.
-    ; Capture them only for launch-recovery diagnostics, never on every repaint.
-    info := Buffer(24 + 6 * A_PtrSize, 0)
-    NumPut("uint", info.Size, info)
-
-    foreground := DllCall("GetForegroundWindow", "ptr")
-    result := ("foreground=" foreground . " | foreground-pid=" WindowProcessId(foreground))
-
-    if DllCall("GetGUIThreadInfo", "uint", 0, "ptr", info, "int") {
-        thread_active := NumGet(info, 8, "ptr")
-        keyboard_focus := NumGet(info, 8 + A_PtrSize, "ptr")
-        keyboard_focus_root := (
-            keyboard_focus
-            ? DllCall("GetAncestor", "ptr", keyboard_focus, "uint", 2, "ptr") ; GA_ROOT
-            : 0
-        )
-
-        result .= (" | thread-active=" thread_active . " | keyboard-focus=" keyboard_focus
-            . " | keyboard-focus-root=" keyboard_focus_root
-            . " | keyboard-focus-pid=" WindowProcessId(keyboard_focus)
-            . " | focus-root-is-foreground=" (keyboard_focus_root = foreground))
-    }
-
-    return result
-}

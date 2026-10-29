@@ -8,7 +8,7 @@ InitializeCascadeState()
 ; settings
 ; =============================================================================
 
-; New windows use a predictable generic size instead of an app's remembered size.
+; Cascade windows use a predictable generic size instead of an app's remembered size.
 window_width_ratio := 0.80
 window_height_ratio := 0.80
 
@@ -21,20 +21,6 @@ cascade_y := 24
 ; top-left must be within this distance on both axes; the closest slot wins.
 cascade_slot_tolerance := 56
 
-placement_delay_ms := 20
-
-; Existing managed windows may re-show the same HWND from a recent trusted
-; user action. Keep this much shorter than ordinary launch focus so unrelated
-; later activity cannot retarget an old managed window.
-handled_reshow_hint_max_age_ms := 1000
-
-; Recent taskbar hints and ordinary focus requests use this timeout.
-new_window_focus_timeout_ms := 3000
-new_window_focus_poll_ms := 100
-; Measured from recovery start, not added after the ordinary timeout.
-; Foreground-proven new windows may recover from shell handoffs during this period.
-new_window_shell_settle_ms := 5000
-
 ; Restore requests can finish before their native/DWM rectangles settle.
 ; Poll only during restores; a failed restore must not lock compaction forever.
 cascade_restore_poll_ms := 50
@@ -45,19 +31,8 @@ cascade_restore_timeout_ms := 5000
 ; This only expires bookkeeping; it never forces a window to close.
 cascade_close_timeout_ms := 5000
 
-; Some applications expose their real top-level window before it is ready for
-; placement. Keep the original launch context while waiting briefly for it.
-placement_ready_retry_ms := 200
-placement_ready_retry_limit := 25
-
-; Taskbar/shell launches may restore their remembered geometry shortly after
-; becoming usable. Let that finish before applying the cascade placement.
-placement_settle_delay_ms := 300
-
 ; Keep one late safety check in case an application changes geometry again.
 placement_stabilize_delays_ms := [500]
-; One final check after a new window first matches; no extra idle polling.
-placement_startup_confirmation_ms := 1500
 placement_stabilize_tolerance := 6
 
 ; A busy window may not process an asynchronous placement immediately.
@@ -133,19 +108,12 @@ focus_corner_inactive_slot_color :=
 cascade_command_queue := []
 cascade_command_draining := false
 
-pending_windows := Map()
-cascade_launch_hint := 0
-explorer_space_reshow_hint := 0
-new_window_focus_request := 0
-handled_windows := Map()
 placement_reservations := Map()
 placement_stabilization_generations := Map()
 placement_dpi_generations := Map()
 placement_stabilization_generation_counter := 0
 pending_adoption_undo := 0
-startup_windows := Map()
-known_windows := Map()
-missed_window_poll_ms := 1000
+cascade_poll_ms := 1000
 cascade_history := Map()
 ; A display snapshot is refreshed by notifications and the existing slow fallback.
 ; Logical slots survive transient geometry/display changes; they are not reload persistence.
@@ -168,17 +136,10 @@ cascade_compaction_timer_pending := false
 cascade_restore_batches := Map()
 cascade_restore_request_depth := 0
 cascade_close_batches := Map()
-cascade_auto_placement_enabled := IniRead(settings_path, "Controls", "AutoCascadeNewWindows", "0") = "1"
-cascade_gesture_key := IniRead(settings_path, "Controls", "CascadeKey", "CapsLock")
-if cascade_gesture_key != "CapsLock" && cascade_gesture_key != "Pause"
-    cascade_gesture_key := "CapsLock"
 cascade_target_display := IniRead(settings_path, "Controls", "Display", "All")
 cascade_drop_guide_color_name := IniRead(settings_path, "DropGuides", "Color", "Pink")
 if !focus_tab_color_presets.Has(cascade_drop_guide_color_name)
     cascade_drop_guide_color_name := "Pink"
-cascade_opt_in_intent := 0
-cascade_hidden_startup_explorers := Map()
-cascade_titlebar_click := 0
 cascade_minimize_toggle_in_progress := false
 cascade_minimized_windows := []
 
@@ -190,7 +151,6 @@ focus_tab_click := 0
 focus_tab_click_generation := 0
 
 current_foreground_hwnd := WinExist("A")
-previous_foreground_hwnd := 0
 
 win_event_callback := 0
 foreground_hook := 0

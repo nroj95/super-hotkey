@@ -307,7 +307,6 @@ class SuiteApplication {
             this.CancelInputs()
             this.SuspendModules()
         } else {
-            ; Snapshot windows opened during suspension before allowing placement.
             this.ResumeModules()
             this.suspended := false
             this.RefreshInputGate()

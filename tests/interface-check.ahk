@@ -71,10 +71,9 @@ class InterfaceChecks {
             app.ui.CloseWindow("settings:secret-layers")
             app.ui.ShowModuleSettings("cascade-kingdom")
             window := app.ui.windows["settings:cascade-kingdom"]
-            this.Assert(window["autoCascade"].Enabled && !window["autoCascade"].Value
-                && window["tabs"].Enabled && window["activeColor"].Enabled
+            this.Assert(window["tabs"].Enabled && window["activeColor"].Enabled
                 && window["inactiveColor"].Enabled,
-                "Cascade Kingdom defaults automatic cascading off while retaining focus-tab controls")
+                "Cascade Kingdom settings offer focus-tab controls")
         }
         finally {
             if IsObject(app.ui)
@@ -337,7 +336,7 @@ class InterfaceChecks {
                 guide := window["helpText"].Value
                 this.Assert(StrLen(guide) > 300 && !InStr(guide, "CURRENT SAVED SHORTCUTS"),
                     "help explains usage without listing every keybinding: " id)
-                firstHeading := Map("cascade-kingdom", "CASCADE ONLY WHEN YOU ASK",
+                firstHeading := Map("cascade-kingdom", "ADD A WINDOW",
                     "wonder-windows", "ARRANGE YOUR WINDOWS",
                     "power-up-utilities", "MORE KEYS WITHOUT A NEW KEYBOARD",
                     "paper-pad", "YOUR OWN QUICK-NOTES DRAWER",
@@ -349,8 +348,8 @@ class InterfaceChecks {
                 this.Assert(StrLen(guide) >= 600,
                     "each Help guide provides substantial practical usage details: " id)
                 if id = "cascade-kingdom"
-                    this.Assert(InStr(guide, "You can release the key before it finishes opening.") > 0,
-                        "Cascade Kingdom explains when the cascade key can be released")
+                    this.Assert(InStr(guide, "press it again straight away to undo") > 0,
+                        "Cascade Kingdom explains how to undo adding a window")
                 window.GetClientPos(, , &helpWidth, &helpHeight)
                 expectedHelpHeight := Max(480, 145 + app.ui.HelpTextHeight(id, 820) + 12)
                 this.Assert(helpWidth = 820 && helpHeight = expectedHelpHeight,

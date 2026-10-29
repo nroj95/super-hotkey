@@ -21,6 +21,7 @@ class CoreChecks {
         this.DeferredInputsAndSessions()
         this.InputQueueCancellation()
         this.FocusBorderLifecycle()
+        this.CloseAndBorderRules()
     }
 
     static Assert(condition, label) => SuiteChecks.Assert(condition, label)
@@ -489,7 +490,7 @@ class CoreChecks {
     }
 
     static ApplicationSuspension() {
-        global pending_windows, cascade_compaction_pending
+        global cascade_compaction_pending
         app := SuiteApplication(true, SuiteChecks.directory "\hotkey-suspension")
         app.InitializeCatalog()
         manager := app.manager
@@ -505,11 +506,10 @@ class CoreChecks {
                 "suspending the input manager does not require stopping the application")
             this.Assert(!IsCascadeEnabled(),
                 "application suspension disables automatic Cascade Kingdom work")
-            pending_windows[123456789] := {pid: 0}
             cascade_compaction_pending[1] := 0
             app.modules["cascade-kingdom"].Suspend()
-            this.Assert(!pending_windows.Count && !cascade_compaction_pending.Count,
-                "suspension clears queued placements and compactions")
+            this.Assert(!cascade_compaction_pending.Count,
+                "suspension clears queued compactions")
             QueueCascadeCompaction(1)
             this.Assert(!cascade_compaction_pending.Count,
                 "suspended Cascade Kingdom discards new compaction requests")
@@ -1061,6 +1061,34 @@ class CoreChecks {
             window.Destroy()
             Critical(previousCritical)
         }
+    }
+
+    static CloseAndBorderRules() {
+        this.Assert(SuiteCloseWindow.Decision(true, false) = "preserve"
+            && SuiteCloseWindow.Decision(true, true) = "preserve"
+            && SuiteCloseWindow.Decision(false, true) = "wait"
+            && SuiteCloseWindow.Decision(false, false) = "recover",
+            "closing preserves genuine focus and recovers only after closing")
+        this.Assert(SuiteCloseWindow.ShouldHighlight("preserve", false)
+            && !SuiteCloseWindow.ShouldHighlight("preserve", true)
+            && !SuiteCloseWindow.ShouldHighlight("wait", true)
+            && !SuiteCloseWindow.ShouldHighlight("recover", false),
+            "closing highlights native focus only after the close completes")
+        clip := (rect) => (clipped := SuiteFocusBorder.Clip(rect, [0, 0, 1920, 1080]))
+            ? clipped[1] "," clipped[2] "," clipped[3] "," clipped[4] : "hidden"
+        this.Assert(clip([-10, 100, 12, 300]) = "0,100,2,300"
+            && clip([1918, 100, 12, 300]) = "1918,100,2,300"
+            && clip([1920, 100, 12, 300]) = "hidden"
+            && clip([90, -10, 500, 12]) = "90,0,500,2"
+            && clip([90, 90, 500, 12]) = "90,90,500,12",
+            "the focus border keeps only the part on its window's display")
+        this.Assert(SuiteFocusBorder.durationMs = 1500
+            && SuiteFocusBorder.thickness = 12
+            && SuiteFocusBorder.overlap = 2
+            && SuiteFocusBorder.CanHide("wonder-windows", "wonder-windows")
+            && !SuiteFocusBorder.CanHide("wonder-windows", "close-window")
+            && SuiteFocusBorder.CanHide("", "close-window"),
+            "shared core border preserves appearance and respects module ownership")
     }
 }
 

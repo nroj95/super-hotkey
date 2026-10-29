@@ -1,21 +1,10 @@
-; Cascade Kingdom minimize / restore (Caps + M), activity startup and
-; paused-window bookkeeping.
-;
-; New-window adoption follows the configured automatic mode and cascade key.
+; Cascade Kingdom's enabled state, minimize / restore (Caps + M), activity
+; startup and minimized-window cleanup on exit.
 
 IsCascadeEnabled() {
     app := SuiteState.App
     return app.ModuleActive("cascade-kingdom") && !app.dryRun && !app.stopping
         && !app.suspended && !app.systemSuspended && !app.sessionLocked
-}
-
-RememberUnmanagedCascadeWindow(hwnd)
-{
-    global startup_windows, known_windows
-    if !hwnd
-        return
-    startup_windows[hwnd] := true
-    known_windows[hwnd] := true
 }
 
 ; =============================================================================
@@ -204,7 +193,7 @@ PruneMinimizedCascadeWindows()
 
 
 ; =============================================================================
-; activity startup and paused-window bookkeeping
+; activity startup and minimized-window cleanup on exit
 ; =============================================================================
 
 StartCascadeActivity()
@@ -212,11 +201,11 @@ StartCascadeActivity()
     if !IsCascadeEnabled()
         return
 
-    global missed_window_poll_ms, focus_corner_fallback_ms, cascade_history
+    global cascade_poll_ms, focus_corner_fallback_ms, cascade_history
     global cascade_restore_batches, cascade_restore_poll_ms
 
     SetTimer(ApplyPendingCascadeDisplayLayout, -50)
-    SetTimer(WatchForMissedWindows, missed_window_poll_ms)
+    SetTimer(PollCascadeState, cascade_poll_ms)
     SetTimer(UpdateFocusCornerOverlays, focus_corner_fallback_ms)
     if cascade_restore_batches.Count
         SetTimer(WatchCascadeWindowRestores, cascade_restore_poll_ms)
@@ -224,24 +213,6 @@ StartCascadeActivity()
         QueueCascadeCompaction(monitor_index)
     QueueFocusCornerUpdate()
 }
-
-RememberWindowsSinceLastResume()
-{
-    global startup_windows, known_windows
-
-    ; Suspended new windows should remain unmanaged after resuming.
-    previous_hidden := DetectHiddenWindows(true)
-    try {
-        for hwnd in WinGetList() {
-            startup_windows[hwnd] := true
-            known_windows[hwnd] := true
-        }
-    }
-    finally {
-        DetectHiddenWindows(previous_hidden)
-    }
-}
-
 
 RestoreMinimizedCascadeWindowsOnExit()
 {

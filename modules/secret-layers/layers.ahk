@@ -66,14 +66,6 @@ class KeyboardLayers {
         return true
     }
 
-    ; A mouse gesture with the prefix held is neither a tap nor a double-tap.
-    ConsumeGesture(layer) {
-        if this.running && this.layers[layer].down {
-            this.layers[layer].used := true
-            this.layers[layer].cancelTap := true
-        }
-    }
-
     Start() {
         if this.disposed || this.running
             return

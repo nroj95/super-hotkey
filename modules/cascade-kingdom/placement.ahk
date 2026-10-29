@@ -1,5 +1,4 @@
-; Cascade Kingdom placement: new-window readiness, explicit placement on a
-; display and asynchronous stabilization.
+; Cascade Kingdom placement on a display and asynchronous stabilization.
 
 ; =============================================================================
 ; explicit placement on a monitor
@@ -12,7 +11,7 @@ PlaceCascadeWindowOnMonitor(hwnd, target_monitor, requested_position := 0,
         return false
 
     global cascade_display_generation
-    global handled_windows, known_windows, pending_windows, placement_reservations
+    global placement_reservations
 
     if !hwnd || !CascadeDisplayAllowed(target_monitor) || !WinExist("ahk_id " hwnd)
         return false
@@ -46,7 +45,7 @@ PlaceCascadeWindowOnMonitor(hwnd, target_monitor, requested_position := 0,
         ; Exclude this HWND from occupancy without removing its membership yet.
         ; A display notification during placement must still find the old member.
         ; A mouse drop supplies the nearest slot explicitly. Keyboard adoption
-        ; and new-window placement keep using the normal least-used-slot policy.
+        ; uses the normal least-used-slot policy.
         position := IsObject(requested_position) ? requested_position : GetNextCascadePosition(
             target_monitor,
             work_left,
@@ -86,12 +85,6 @@ PlaceCascadeWindowOnMonitor(hwnd, target_monitor, requested_position := 0,
         move_error := A_LastError
 
         if !move_result {
-            if move_error = 5 {
-                ; Preserve the old access-denied behavior: do not let discovery
-                ; repeatedly retry a window Windows has refused to control.
-                handled_windows[hwnd] := true
-                known_windows[hwnd] := true
-            }
             DebugLog("Explicit placement SetWindowPos failed." . " | last-error=" move_error
                 . " | target=" DescribeWindow(hwnd))
             return false
@@ -108,10 +101,6 @@ PlaceCascadeWindowOnMonitor(hwnd, target_monitor, requested_position := 0,
             && previous_monitor = target_monitor
         if !preserve_membership
             RemoveCascadeWindowFromHistory(hwnd)
-        handled_windows[hwnd] := true
-        known_windows[hwnd] := true
-        if pending_windows.Has(hwnd)
-            pending_windows.Delete(hwnd)
 
         RecordCascadeWindow(target_monitor, hwnd)
 
@@ -144,483 +133,6 @@ PlaceCascadeWindowOnMonitor(hwnd, target_monitor, requested_position := 0,
     }
 }
 
-
-; =============================================================================
-; new-window readiness and placement
-; =============================================================================
-
-GetPlacementReadinessReason(hwnd)
-{
-    ; Query title and state in the same order as the placement path.
-    retry_reason := ""
-
-    try {
-        candidate_title := WinGetTitle("ahk_id " hwnd)
-        candidate_min_max := WinGetMinMax("ahk_id " hwnd)
-
-        if candidate_title = ""
-            retry_reason := "empty title"
-        else if candidate_min_max = -1
-            retry_reason := "minimized"
-        else if candidate_min_max = 1
-            retry_reason := "maximized"
-    }
-    catch {
-        retry_reason := "window state unavailable"
-    }
-
-    return retry_reason
-}
-
-ReserveNewWindowPlacement(hwnd, source_hwnd, queued_monitor, request)
-{
-    global handled_windows, placement_reservations
-    global cascade_display_generation
-
-    display_generation := cascade_display_generation
-    target_monitor := ResolveCascadePlacementMonitor(request, queued_monitor)
-    if !target_monitor
-        return 0
-    dpi_transition :=
-        GetCascadeWindowMonitorDpi(hwnd) != GetCascadeMonitorDpi(target_monitor)
-
-    MonitorGetWorkAreaPixels(target_monitor, &work_left, &work_top, &work_right, &work_bottom)
-
-    size := GetCascadeWindowSize(work_right - work_left, work_bottom - work_top)
-    window_width := size[1]
-    window_height := size[2]
-
-    previous_critical := Critical("On")
-    try {
-        if !IsCurrentNewWindowPlacement(hwnd, request)
-            || handled_windows.Has(hwnd)
-            || IsCascadeWindowBeingDragged(hwnd)
-            || IsCascadeDisplayTransition()
-            || display_generation != cascade_display_generation
-            return 0
-
-        position := GetNextCascadePosition(target_monitor, work_left, work_top, work_right,
-            work_bottom, window_width, window_height, hwnd)
-        reservation := Map("monitor", target_monitor, "x", position[1], "y", position[2])
-        placement_reservations[hwnd] := reservation
-    }
-    finally {
-        Critical(previous_critical)
-    }
-
-    return {
-        display_generation: display_generation,
-        monitor: target_monitor,
-        x: position[1],
-        y: position[2],
-        width: window_width,
-        height: window_height,
-        dpi_transition: dpi_transition,
-        reservation: reservation
-    }
-}
-
-
-TryProvisionalNewWindowPlacement(hwnd, source_hwnd, queued_monitor, request)
-{
-    global placement_reservations, cascade_display_generation
-
-    if request.HasOwnProp("provisional_placement") && IsObject(request.provisional_placement)
-        return true
-
-    ; The settled pass retains the normal eligibility check. If the window is
-    ; not ready enough yet, skip the early move and keep the old behavior.
-    if !IsCascadeWindow(hwnd)
-        return false
-
-    plan := 0
-    try {
-        plan := ReserveNewWindowPlacement(hwnd, source_hwnd, queued_monitor, request)
-        if !IsObject(plan)
-            return false
-
-        raw_target := VisibleToRawRect(hwnd, plan.x, plan.y, plan.width, plan.height)
-
-        initial_rect := "unavailable"
-        if GetVisibleWindowBounds(hwnd, &initial_x, &initial_y, &initial_width, &initial_height) {
-            initial_rect :=
-                "(" initial_x "," initial_y
-                . " " initial_width "x" initial_height ")"
-        }
-
-        if !IsCurrentNewWindowPlacement(hwnd, request)
-            || IsCascadeWindowBeingDragged(hwnd)
-            || IsCascadeDisplayTransition()
-            || plan.display_generation != cascade_display_generation
-        {
-            if placement_reservations.Has(hwnd)
-                && placement_reservations[hwnd] = plan.reservation
-                placement_reservations.Delete(hwnd)
-            return false
-        }
-
-
-        DebugLog("Provisional new-window placement begin." . " | monitor=" plan.monitor
-            . " | initial-visible-rect=" initial_rect . " | target-visible-rect=(" plan.x "," plan.y
-            . " " plan.width "x" plan.height ")" . " | hwnd=" hwnd)
-
-        moved := PhysicalDllCall(
-            "SetWindowPos",
-            "ptr", hwnd,
-            "ptr", 0,
-            "int", raw_target[1],
-            "int", raw_target[2],
-            "int", raw_target[3],
-            "int", raw_target[4],
-            "uint", 0x4014, ; ASYNC | NOACTIVATE | NOZORDER
-            "int"
-        )
-        move_error := A_LastError
-
-        if !moved {
-            if placement_reservations.Has(hwnd)
-                && placement_reservations[hwnd] = plan.reservation
-                placement_reservations.Delete(hwnd)
-            DebugLog("Provisional new-window placement failed." . " | last-error=" move_error
-                . " | hwnd=" hwnd)
-            return false
-        }
-
-        if !IsCurrentNewWindowPlacement(hwnd, request)
-            || IsCascadeWindowBeingDragged(hwnd)
-            || IsCascadeDisplayTransition()
-            || plan.display_generation != cascade_display_generation
-        {
-            if placement_reservations.Has(hwnd)
-                && placement_reservations[hwnd] = plan.reservation
-                placement_reservations.Delete(hwnd)
-            return false
-        }
-
-        request.provisional_placement := plan
-
-        DebugLog("Provisional new-window placement complete." . " | monitor=" plan.monitor
-            . " | visible-rect=(" plan.x "," plan.y . " " plan.width "x" plan.height ")"
-            . " | hwnd=" hwnd)
-        return true
-    }
-    catch Error as err {
-        if IsObject(plan) && placement_reservations.Has(hwnd)
-            && placement_reservations[hwnd] = plan.reservation
-            placement_reservations.Delete(hwnd)
-        DebugError("Provisional new-window placement", err)
-        return false
-    }
-}
-
-
-ReleaseFailedNewWindowPlacementReservation(hwnd, request, reservation := 0)
-{
-    global placement_reservations
-
-    ; A terminal callback may be cleaning up a reservation created by an earlier
-    ; provisional pass rather than by this invocation of PlaceNewWindow().
-    if !IsObject(reservation)
-        && IsObject(request)
-        && request.HasOwnProp("provisional_placement")
-        && IsObject(request.provisional_placement)
-    {
-        reservation := request.provisional_placement.reservation
-    }
-
-    if !IsObject(reservation)
-        return
-
-    monitor_index := reservation.Has("monitor") ? reservation["monitor"] : 0
-
-    ; Delete only the exact reservation owned by this failed request. A newer
-    ; operation may already have reused the HWND and installed a different one.
-    if placement_reservations.Has(hwnd)
-        && placement_reservations[hwnd] = reservation
-    {
-        placement_reservations.Delete(hwnd)
-    }
-
-    if IsObject(request)
-        && request.HasOwnProp("provisional_placement")
-        && IsObject(request.provisional_placement)
-        && request.provisional_placement.reservation = reservation
-    {
-        request.provisional_placement := 0
-    }
-
-    ; Another launch may already have chosen a later slot while this reservation
-    ; existed. Recompact current membership after the abandoned slot is released.
-    if monitor_index
-        QueueCascadeCompaction(monitor_index)
-}
-
-
-PlaceNewWindow(hwnd, source_hwnd, queued_monitor := 0, retry_count := 0, settle_complete := false,
-    request := 0)
-{
-    global pending_windows, handled_windows, placement_reservations
-    global placement_ready_retry_ms, placement_ready_retry_limit
-    global placement_settle_delay_ms, placement_stabilize_tolerance
-    global cascade_display_generation
-    display_generation := cascade_display_generation
-    retry_scheduled := false
-    owned_reservation := 0
-    try {
-        if !IsCurrentNewWindowPlacement(hwnd, request)
-            || handled_windows.Has(hwnd) || IsCascadeWindowBeingDragged(hwnd)
-            return
-        if !WinExist(hwnd) || WinGetPID(hwnd) != request.pid
-            return
-        if IsCascadeDisplayTransition() {
-            retry_scheduled := true
-            SetTimer(PlaceNewWindow.Bind(hwnd, source_hwnd, queued_monitor,
-                retry_count, settle_complete, request), -placement_ready_retry_ms)
-            return
-        }
-        queued_monitor := ResolveCascadePlacementMonitor(request, queued_monitor)
-        if !queued_monitor
-            return
-
-        DebugLog("PlaceNewWindow begin." . " | retry=" retry_count . " | settled=" settle_complete
-            . " | queued-monitor=" queued_monitor . " | target=" DescribeWindow(hwnd)
-            . " | source=" DescribeWindow(source_hwnd))
-
-        retry_reason := GetPlacementReadinessReason(hwnd)
-
-        ; Apps such as Explorer can remember that their previous window was
-        ; maximized. Normalize that startup state before cascade placement.
-        if retry_reason = "maximized" {
-            try {
-                WinRestore("ahk_id " hwnd)
-                DebugLog("Restoring maximized new window before cascade placement."
-                    . " | target=" DescribeWindow(hwnd))
-            }
-            catch {
-            }
-        }
-
-        if retry_reason != ""
-            && retry_count < placement_ready_retry_limit
-        {
-            next_retry := retry_count + 1
-            retry_scheduled := true
-
-            DebugLog("Placement readiness retry." . " | reason=" retry_reason
-                . " | retry=" next_retry . "/" placement_ready_retry_limit
-                . " | target=" DescribeWindow(hwnd))
-
-            SetTimer(
-                PlaceNewWindow.Bind(hwnd, source_hwnd, queued_monitor, next_retry, settle_complete,
-                    request),
-                -placement_ready_retry_ms
-            )
-
-            return
-        }
-
-        if !settle_complete {
-            source_is_shell_or_gone := (!source_hwnd || !WinExist("ahk_id " source_hwnd)
-                || IsShellSurfaceWindow(source_hwnd))
-
-            if queued_monitor && source_is_shell_or_gone {
-                ; Move a ready window before the shell/startup grace period.
-                ; The settled pass reuses this exact reservation if it succeeds.
-                TryProvisionalNewWindowPlacement(hwnd, source_hwnd, queued_monitor, request)
-
-                retry_scheduled := true
-
-                SetTimer(
-                    PlaceNewWindow.Bind(hwnd, source_hwnd, queued_monitor, retry_count, true,
-                        request),
-                    -placement_settle_delay_ms
-                )
-
-                return
-            }
-        }
-
-        if !IsCascadeWindow(hwnd) {
-            DebugLog("Placement rejected by IsCascadeWindow." . " | " DescribeWindow(hwnd))
-            return
-        }
-
-        provisional := (request.HasOwnProp("provisional_placement") ? request.provisional_placement
-            : 0)
-
-        if IsObject(provisional)
-            && (provisional.display_generation != cascade_display_generation
-                || !placement_reservations.Has(hwnd)
-                || placement_reservations[hwnd] != provisional.reservation)
-        {
-            if placement_reservations.Has(hwnd)
-                && placement_reservations[hwnd] = provisional.reservation
-                placement_reservations.Delete(hwnd)
-            request.provisional_placement := 0
-            provisional := 0
-        }
-
-        reused_provisional := IsObject(provisional)
-        plan := (reused_provisional ? provisional
-            : ReserveNewWindowPlacement(hwnd, source_hwnd, queued_monitor, request))
-        if !IsObject(plan) {
-            if IsCascadeDisplayTransition()
-                || display_generation != cascade_display_generation
-            {
-                retry_scheduled := true
-                SetTimer(
-                    PlaceNewWindow.Bind(hwnd, source_hwnd, queued_monitor, retry_count,
-                        settle_complete, request),
-                    -placement_ready_retry_ms
-                )
-            }
-            return
-        }
-
-        target_monitor := plan.monitor
-        target_x := plan.x
-        target_y := plan.y
-        window_width := plan.width
-        window_height := plan.height
-        dpi_transition := plan.dpi_transition
-        owned_reservation := plan.reservation
-
-        DebugLog("Placement monitor resolved." . " | dpi-transfer=" dpi_transition
-            . " | monitor=" target_monitor . " | queued-monitor=" queued_monitor
-            . " | provisional=" reused_provisional . " | target=" DescribeWindow(hwnd)
-            . " | source=" DescribeWindow(source_hwnd))
-
-        if reused_provisional
-            && IsCurrentNewWindowPlacement(hwnd, request)
-            && !handled_windows.Has(hwnd)
-            && !IsCascadeWindowBeingDragged(hwnd)
-            && !IsCascadeDisplayTransition()
-            && display_generation = cascade_display_generation
-        {
-            try {
-                if GetVisibleWindowBounds(hwnd, &current_x, &current_y, &current_width,
-                    &current_height) && GetMonitorForWindow(hwnd) = target_monitor
-                    && Abs(current_x - target_x) <= placement_stabilize_tolerance
-                    && Abs(current_y - target_y) <= placement_stabilize_tolerance
-                    && Abs(current_width - window_width) <= placement_stabilize_tolerance
-                    && Abs(current_height - window_height) <= placement_stabilize_tolerance
-                {
-                    DebugLog("Final placement move skipped." . " | reason=provisional-matched"
-                        . " | actual=(" current_x "," current_y
-                        . " " current_width "x" current_height ")"
-                        . " | requested=(" target_x "," target_y
-                        . " " window_width "x" window_height ")" . " | hwnd=" hwnd)
-                    handled_windows[hwnd] := true
-                    RecordCascadeWindow(target_monitor, hwnd)
-                    DebugLog("Placement complete." . " | monitor=" target_monitor
-                        . " | final-move=skipped" . " | " DescribeWindow(hwnd))
-                    SchedulePlacementStabilization(hwnd, target_x, target_y, window_width,
-                        window_height, dpi_transition, true)
-                    StartNewWindowFocus(hwnd, request.focus)
-                    return
-                }
-            }
-            catch {
-                ; Fall through to the normal settled move if geometry is unavailable.
-            }
-        }
-
-        raw_target := VisibleToRawRect(hwnd, target_x, target_y, window_width, window_height)
-
-        raw_target_x := raw_target[1]
-        raw_target_y := raw_target[2]
-        raw_target_width := raw_target[3]
-        raw_target_height := raw_target[4]
-
-        DebugLog("Placement slot reserved." . " | monitor=" target_monitor
-            . " | provisional=" reused_provisional . " | visible-rect=(" target_x "," target_y
-            . " " window_width "x" window_height ")" . " | hwnd=" hwnd)
-
-        DebugLog("Moving cascade window." . " | monitor=" target_monitor
-            . " | visible-rect=(" target_x "," target_y . " " window_width "x" window_height ")"
-            . " | raw-rect=(" raw_target_x "," raw_target_y
-            . " " raw_target_width "x" raw_target_height ")" . " | " DescribeWindow(hwnd))
-
-        ; Post the placement request instead of blocking on applications whose
-        ; window thread is temporarily busy, such as DST during startup.
-        swp_flags := (
-            0x4000  ; SWP_ASYNCWINDOWPOS
-            | 0x0010  ; SWP_NOACTIVATE
-            | 0x0004  ; SWP_NOZORDER
-        )
-
-        DebugLog("SetWindowPos begin." . " | flags=" swp_flags
-            . " | target=" DescribeWindow(hwnd))
-
-        set_window_pos_start_tick := A_TickCount
-
-        if !IsCurrentNewWindowPlacement(hwnd, request)
-            || handled_windows.Has(hwnd) || IsCascadeWindowBeingDragged(hwnd)
-            return
-
-        if IsCascadeDisplayTransition() || display_generation != cascade_display_generation {
-            retry_scheduled := true
-            SetTimer(PlaceNewWindow.Bind(hwnd, source_hwnd, queued_monitor,
-                retry_count, settle_complete, request), -placement_ready_retry_ms)
-            return
-        }
-        set_window_pos_result := PhysicalDllCall("SetWindowPos", "ptr", hwnd, "ptr", 0,
-            "int", raw_target_x, "int", raw_target_y, "int", raw_target_width,
-            "int", raw_target_height, "uint", swp_flags, "int")
-
-        ; Logging and diagnostics call Windows too; preserve the original error.
-        set_window_pos_error := A_LastError
-        set_window_pos_elapsed_ms :=
-            (A_TickCount - set_window_pos_start_tick) & 0xFFFFFFFF
-
-        DebugLog("SetWindowPos returned." . " | result=" set_window_pos_result
-            . " | elapsed-ms=" set_window_pos_elapsed_ms . " | target=" DescribeWindow(hwnd))
-
-        if !set_window_pos_result {
-            if placement_reservations.Has(hwnd) && placement_reservations[hwnd] = owned_reservation
-                placement_reservations.Delete(hwnd)
-
-            DebugLog("SetWindowPos failed." . " | last-error=" set_window_pos_error
-                . " | target=" DescribeWindow(hwnd))
-            return
-        }
-
-        ; A native drag may have taken ownership while the async move was posted.
-        if !IsCurrentNewWindowPlacement(hwnd, request)
-            || handled_windows.Has(hwnd) || IsCascadeWindowBeingDragged(hwnd)
-            return
-        if IsCascadeDisplayTransition() || display_generation != cascade_display_generation {
-            if placement_reservations.Has(hwnd) && placement_reservations[hwnd] = owned_reservation
-                placement_reservations.Delete(hwnd)
-            retry_scheduled := true
-            SetTimer(PlaceNewWindow.Bind(hwnd, source_hwnd, queued_monitor,
-                retry_count, settle_complete, request), -placement_ready_retry_ms)
-            return
-        }
-        handled_windows[hwnd] := true
-        RecordCascadeWindow(target_monitor, hwnd)
-
-        DebugLog("Placement complete." . " | monitor=" target_monitor
-            . " | " DescribeWindow(hwnd))
-
-        SchedulePlacementStabilization(hwnd, target_x, target_y, window_width, window_height,
-            dpi_transition, true)
-        StartNewWindowFocus(hwnd, request.focus)
-
-    }
-    catch Error as err {
-        DebugError("PlaceNewWindow", err)
-    }
-    finally {
-        if !retry_scheduled && IsCurrentNewWindowPlacement(hwnd, request) {
-            pending_windows.Delete(hwnd)
-            if !handled_windows.Has(hwnd)
-                ReleaseFailedNewWindowPlacementReservation(hwnd, request, owned_reservation)
-        }
-    }
-}
-
-
 ; =============================================================================
 ; asynchronous placement stabilization
 ; =============================================================================
@@ -648,7 +160,7 @@ FinishPlacementStabilization(hwnd, generation)
 }
 
 SchedulePlacementStabilization(hwnd, target_x, target_y, target_width, target_height,
-    dpi_transition := false, startup_check := false)
+    dpi_transition := false)
 {
     if !IsCascadeEnabled()
         return
@@ -672,7 +184,7 @@ SchedulePlacementStabilization(hwnd, target_x, target_y, target_width, target_he
     for delay_ms in placement_stabilize_delays_ms {
         SetTimer(
             StabilizePlacedWindow.Bind(hwnd, target_x, target_y, target_width, target_height,
-                stabilization_generation, delay_ms, 0, 0, 0, startup_check),
+                stabilization_generation, delay_ms),
             -delay_ms
         )
     }
@@ -688,10 +200,8 @@ IsCurrentPlacementStabilization(hwnd, stabilization_generation)
 }
 
 StabilizePlacedWindow(hwnd, target_x, target_y, target_width, target_height,
-    stabilization_generation, delay_ms, attempt := 0, passive_stage := 0, confirmation_count := 0,
-    startup_check := false)
+    stabilization_generation, delay_ms, attempt := 0, passive_stage := 0, confirmation_count := 0)
 {
-    global handled_windows, placement_reservations
     global placement_stabilize_tolerance
     global placement_stabilize_retry_ms
     global placement_stabilize_retry_limit
@@ -704,7 +214,7 @@ StabilizePlacedWindow(hwnd, target_x, target_y, target_width, target_height,
     if IsCascadeDisplayTransition() {
         SetTimer(StabilizePlacedWindow.Bind(hwnd, target_x, target_y, target_width,
             target_height, stabilization_generation, delay_ms, attempt, passive_stage,
-            confirmation_count, startup_check), -200)
+            confirmation_count), -200)
         return
     }
     dpi_transition := placement_dpi_generations.Has(hwnd)
@@ -714,7 +224,8 @@ StabilizePlacedWindow(hwnd, target_x, target_y, target_width, target_height,
         . " | delay-ms=" delay_ms . " | attempt=" attempt . " | passive-stage=" passive_stage
         . " | hwnd=" hwnd)
 
-    if !handled_windows.Has(hwnd) {
+    ; Never correct a window that has left the cascade.
+    if !GetManagedCascadeMonitor(hwnd) {
         FinishPlacementStabilization(hwnd, stabilization_generation)
 
         return
@@ -757,14 +268,12 @@ StabilizePlacedWindow(hwnd, target_x, target_y, target_width, target_height,
             . " | hwnd=" hwnd)
 
         if !needs_correction {
-            ; A browser can restore remembered geometry after the first match,
-            ; even on equal-DPI displays. New windows get one trailing check.
-            confirmation_delay := GetCascadeConfirmationDelay(startup_check,
-                dpi_transition, confirmation_count)
+            ; A DPI transfer can settle after the first match; check it once more.
+            confirmation_delay := GetCascadeConfirmationDelay(dpi_transition, confirmation_count)
             if confirmation_delay {
                 SetTimer(StabilizePlacedWindow.Bind(hwnd, target_x, target_y, target_width,
                     target_height, stabilization_generation, confirmation_delay,
-                    attempt, passive_stage, confirmation_count + 1, false), -confirmation_delay)
+                    attempt, passive_stage, confirmation_count + 1), -confirmation_delay)
                 return
             }
             FinishPlacementStabilization(hwnd, stabilization_generation)
@@ -785,7 +294,7 @@ StabilizePlacedWindow(hwnd, target_x, target_y, target_width, target_height,
             SetTimer(
                 StabilizePlacedWindow.Bind(hwnd, target_x, target_y, target_width, target_height,
                     stabilization_generation, placement_stabilize_confirmation_ms, attempt,
-                    passive_stage, confirmation_count + 1, startup_check),
+                    passive_stage, confirmation_count + 1),
                 -placement_stabilize_confirmation_ms
             )
 
@@ -798,7 +307,7 @@ StabilizePlacedWindow(hwnd, target_x, target_y, target_width, target_height,
 
         ; A mismatch does not immediately mean that Cascade needs to fight the
         ; application. Give the window progressively more time to finish its
-        ; own startup or asynchronous geometry changes.
+        ; own asynchronous geometry changes.
         ; A wrong monitor is not a cosmetic size disagreement. Correct the first
         ; three misses promptly even when both displays use the same DPI.
         current_monitor := GetMonitorForPoint(current_x + current_width / 2,
@@ -815,7 +324,7 @@ StabilizePlacedWindow(hwnd, target_x, target_y, target_width, target_height,
             SetTimer(
                 StabilizePlacedWindow.Bind(hwnd, target_x, target_y, target_width, target_height,
                     stabilization_generation, passive_delay_ms, attempt, next_passive_stage,
-                    confirmation_count, startup_check),
+                    confirmation_count),
                 -passive_delay_ms
             )
 
@@ -853,7 +362,7 @@ StabilizePlacedWindow(hwnd, target_x, target_y, target_width, target_height,
         if IsCascadeDisplayTransition() {
             SetTimer(StabilizePlacedWindow.Bind(hwnd, target_x, target_y, target_width,
                 target_height, stabilization_generation, delay_ms, attempt, passive_stage,
-                confirmation_count, startup_check), -200)
+                confirmation_count), -200)
             return
         }
 
@@ -887,7 +396,7 @@ StabilizePlacedWindow(hwnd, target_x, target_y, target_width, target_height,
         SetTimer(
             StabilizePlacedWindow.Bind(hwnd, target_x, target_y, target_width, target_height,
                 stabilization_generation, placement_stabilize_retry_ms, next_attempt, 0,
-                confirmation_count, startup_check),
+                confirmation_count),
             -placement_stabilize_retry_ms
         )
 
@@ -908,16 +417,8 @@ ShouldCorrectCascadeMonitorPromptly(dpi_transition, current_monitor, target_moni
         || (current_monitor && target_monitor && current_monitor != target_monitor))
 }
 
-GetCascadeConfirmationDelay(startup_check, dpi_transition, confirmation_count)
+GetCascadeConfirmationDelay(dpi_transition, confirmation_count)
 {
-    global placement_startup_confirmation_ms, placement_stabilize_retry_ms
-    return startup_check ? placement_startup_confirmation_ms
-        : (dpi_transition && confirmation_count < 1 ? placement_stabilize_retry_ms : 0)
-}
-
-IsCurrentNewWindowPlacement(hwnd, request)
-{
-    global pending_windows
-    return IsCascadeEnabled() && IsObject(request)
-        && pending_windows.Has(hwnd) && pending_windows[hwnd] = request
+    global placement_stabilize_retry_ms
+    return dpi_transition && confirmation_count < 1 ? placement_stabilize_retry_ms : 0
 }

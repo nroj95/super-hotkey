@@ -139,7 +139,7 @@ class SuiteWorkingMonitor {
     }
 
     ; The AutoHotkey index of the working display. ignore skips a window that
-    ; just appeared, such as a new window being placed.
+    ; just appeared, such as a suite window being centered.
     static Get(ignore := 0) {
         foreground := DllCall("GetForegroundWindow", "ptr")
         if foreground && (!this.recent.Length || this.recent[1].hwnd != foreground)

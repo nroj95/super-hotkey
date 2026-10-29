@@ -60,8 +60,6 @@ AdoptActiveWindow()
 
 CaptureAdoptionUndoSnapshot(hwnd)
 {
-    global handled_windows
-
     try {
         ; Keep the maximized state AND its original normal restore rectangle.
         maximized_placement := WinGetMinMax(hwnd) = 1 ? CaptureWindowPlacement(hwnd) : 0
@@ -72,8 +70,7 @@ CaptureAdoptionUndoSnapshot(hwnd)
     }
 
     return Map("hwnd", hwnd, "x", window_x, "y", window_y, "width", window_width,
-        "height", window_height, "was_handled", handled_windows.Has(hwnd),
-        "maximized_placement", maximized_placement)
+        "height", window_height, "maximized_placement", maximized_placement)
 }
 
 IsPendingAdoptionUndoFor(hwnd)
@@ -94,8 +91,7 @@ CancelPendingAdoptionUndo()
 
 UndoPendingAdoption()
 {
-    global pending_adoption_undo
-    global handled_windows, placement_reservations
+    global pending_adoption_undo, placement_reservations
 
     if !IsObject(pending_adoption_undo)
         return false
@@ -136,11 +132,6 @@ UndoPendingAdoption()
 
     if placement_reservations.Has(hwnd)
         placement_reservations.Delete(hwnd)
-
-    if snapshot["was_handled"]
-        handled_windows[hwnd] := true
-    else if handled_windows.Has(hwnd)
-        handled_windows.Delete(hwnd)
 
     if managed_monitor
         QueueCascadeCompaction(managed_monitor)
@@ -671,8 +662,8 @@ ReconcileCascadeRuntimeState()
 
     global cascade_history, cascade_minimized_observed, cascade_compaction_pending
 
-    ; Reuse the discovery fallback. A missed MINIMIZEEND must not require another
-    ; user toggle, and a queued compaction must not depend on one timer delivery.
+    ; A missed MINIMIZEEND must not require another user toggle, and a queued
+    ; compaction must not depend on one timer delivery.
     for monitor_index, history in cascade_history.Clone() {
         for hwnd in history.Clone() {
             if !DllCall("IsWindow", "ptr", hwnd, "int") {
