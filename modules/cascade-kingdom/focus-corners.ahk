@@ -72,7 +72,7 @@ UpdateFocusCornerOverlays()
             continue
         }
 
-        monitor_index := GetMonitorForWindow(hwnd)
+        monitor_index := WindowMonitorIndex(hwnd)
         if !monitor_index || monitor_index != managed_monitor
             continue
         if !geometry_by_monitor.Has(monitor_index) {
@@ -334,23 +334,9 @@ ShowFocusCornerOverlay(hwnd, window_x, window_y, window_width, window_height, dp
 
 PlaceFocusCornerAboveTarget(hwnd, overlay)
 {
-    static SWP_NOSIZE := 0x0001
-    static SWP_NOMOVE := 0x0002
-    static SWP_NOACTIVATE := 0x0010
-
-    if !WinExist("ahk_id " hwnd)
-        return
     ; The target precedes its edge tab in the existing Z-order convention.
-    if DllCall("GetWindow", "ptr", overlay.gui.Hwnd, "uint", 3, "ptr") = hwnd
-        return
-
-    flags :=
-        SWP_NOSIZE
-        | SWP_NOMOVE
-        | SWP_NOACTIVATE
-
-    PhysicalDllCall("SetWindowPos", "ptr", overlay.gui.Hwnd, "ptr", hwnd, "int", 0, "int", 0,
-        "int", 0, "int", 0, "uint", flags, "int")
+    if WinExist("ahk_id " hwnd) && DllCall("GetWindow", "ptr", overlay.gui.Hwnd, "uint", 3, "ptr") != hwnd
+        SetCascadeZOrder(overlay.gui.Hwnd, hwnd)
 }
 
 HideFocusCornerOverlay(hwnd)

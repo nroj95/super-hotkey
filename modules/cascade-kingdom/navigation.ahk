@@ -38,7 +38,7 @@ FocusCascadeLayerWindow(direction)
         else if target_index > ordered_windows.Length
             target_index := 1
 
-        ActivateCascadeWindow(ordered_windows[target_index])
+        ActivateWindow(ordered_windows[target_index])
         return
     }
 
@@ -47,7 +47,7 @@ FocusCascadeLayerWindow(direction)
     target_hwnd := GetNearestSpatialCascadeWindow(ordered_windows, active_hwnd, direction)
 
     if target_hwnd
-        ActivateCascadeWindow(target_hwnd)
+        ActivateWindow(target_hwnd)
 }
 
 SwapActiveCascadeWindow(direction)
@@ -60,7 +60,7 @@ SwapActiveCascadeWindow(direction)
     if !active_hwnd || IsShellSurfaceWindow(active_hwnd)
         return
 
-    monitor_index := GetMonitorForWindow(active_hwnd)
+    monitor_index := WindowMonitorIndex(active_hwnd)
 
     if !monitor_index
         return
@@ -108,13 +108,6 @@ SwapActiveCascadeWindow(direction)
 
     ; Keep both swapped windows above the deeper layers in their new slots,
     ; while preserving focus on the active window.
-    z_flags := (
-        0x0001  ; SWP_NOSIZE
-        | 0x0002  ; SWP_NOMOVE
-        | 0x0010  ; SWP_NOACTIVATE
-        | 0x0200  ; SWP_NOOWNERZORDER
-    )
-
     ; Never force a topmost window behind a normal window. If either native
     ; state query fails, skip the relative Z-order mutation rather than guessing.
     target_topmost := IsCascadeWindowTopmost(target_hwnd)
@@ -122,8 +115,7 @@ SwapActiveCascadeWindow(direction)
     if target_topmost >= 0 && active_topmost >= 0
         && target_topmost = active_topmost
     {
-        try PhysicalDllCall("SetWindowPos", "ptr", target_hwnd, "ptr", active_hwnd, "int", 0,
-            "int", 0, "int", 0, "int", 0, "uint", z_flags, "int")
+        try SetCascadeZOrder(target_hwnd, active_hwnd)
     }
 
     QueueFocusCornerUpdate()
@@ -160,8 +152,6 @@ MoveCascadeWindowToSlot(hwnd, target_x, target_y, post_asynchronously := false)
     ; Compaction must replace the previous stabilization destination, otherwise
     ; its delayed retry could pull a just-dropped window back to an old slot.
     CancelPlacementStabilization(hwnd)
-    if placement_reservations.Has(hwnd)
-        placement_reservations.Delete(hwnd)
 
     raw_target := [target_x - frame.left, target_y - frame.top, frame.rawWidth, frame.rawHeight]
 
@@ -169,7 +159,7 @@ MoveCascadeWindowToSlot(hwnd, target_x, target_y, post_asynchronously := false)
         || IsCascadeDisplayTransition() || display_generation != cascade_display_generation
         return false
 
-    owned_reservation := Map("monitor", GetMonitorForWindow(hwnd), "x", target_x, "y", target_y)
+    owned_reservation := Map("monitor", WindowMonitorIndex(hwnd), "x", target_x, "y", target_y)
     placement_reservations[hwnd] := owned_reservation
     stabilization_scheduled := false
 
@@ -232,18 +222,13 @@ MoveCascadeWindowToSlot(hwnd, target_x, target_y, post_asynchronously := false)
 ; slot and layer rotation
 ; =============================================================================
 
-RotateCurrentCascadeSlot(direction)
-{
-    return RotateCascadeSlotForWindow(WinExist("A"), direction)
-}
-
 RotateCascadeSlotForWindow(target_hwnd, direction, expected_monitor := 0, expected_slot := 0)
 {
     if !target_hwnd || !WinExist("ahk_id " target_hwnd)
         || IsShellSurfaceWindow(target_hwnd)
         return 0
 
-    monitor_index := GetMonitorForWindow(target_hwnd)
+    monitor_index := WindowMonitorIndex(target_hwnd)
 
     if !monitor_index || (expected_monitor && monitor_index != expected_monitor)
         return 0
@@ -265,7 +250,7 @@ RotateCascadeSlotForWindow(target_hwnd, direction, expected_monitor := 0, expect
         next_hwnd := RotateCascadeStackWindows(ordered_stack, direction)
 
         if next_hwnd
-            ActivateCascadeWindow(next_hwnd)
+            ActivateWindow(next_hwnd)
 
         QueueFocusCornerUpdate()
         return next_hwnd
@@ -297,13 +282,6 @@ RotateCascadeStackWindows(ordered_windows, direction)
     if band_windows.Length < 2
         return 0
 
-    flags := (
-        0x0001  ; SWP_NOSIZE
-        | 0x0002  ; SWP_NOMOVE
-        | 0x0010  ; SWP_NOACTIVATE
-        | 0x0200  ; SWP_NOOWNERZORDER
-    )
-
     try {
         if direction < 0 {
             ; Bring the deepest window to the front of its existing native band
@@ -312,20 +290,14 @@ RotateCascadeStackWindows(ordered_windows, direction)
             target_hwnd := band_windows[band_windows.Length]
             insert_after := front_is_topmost ? -1 : 0 ; TOPMOST / TOP
 
-            succeeded := PhysicalDllCall("SetWindowPos", "ptr", target_hwnd, "ptr", insert_after,
-                "int", 0, "int", 0, "int", 0, "int", 0, "uint", flags, "int")
-
-            return succeeded ? target_hwnd : 0
+            return SetCascadeZOrder(target_hwnd, insert_after) ? target_hwnd : 0
         }
 
         ; Move the exposed window behind the deepest window in the same band.
         current_hwnd := band_windows[1]
         deepest_hwnd := band_windows[band_windows.Length]
 
-        succeeded := PhysicalDllCall("SetWindowPos", "ptr", current_hwnd, "ptr", deepest_hwnd,
-            "int", 0, "int", 0, "int", 0, "int", 0, "uint", flags, "int")
-
-        return succeeded ? band_windows[2] : 0
+        return SetCascadeZOrder(current_hwnd, deepest_hwnd) ? band_windows[2] : 0
     }
     catch {
         return 0
@@ -365,7 +337,7 @@ RotateCascadeLayers(direction := 1)
     }
 
     if next_active_hwnd
-        ActivateCascadeWindow(next_active_hwnd)
+        ActivateWindow(next_active_hwnd)
 
     QueueFocusCornerUpdate()
 }
@@ -467,35 +439,9 @@ GetNearestSpatialCascadeWindow(ordered_windows, active_hwnd, direction)
 ; activation and bringing a cascade forward
 ; =============================================================================
 
-ActivateCascadeWindow(hwnd)
-{
-    if !hwnd
-        return
-
-    try {
-        if WinGetMinMax("ahk_id " hwnd) = -1
-            WinRestore("ahk_id " hwnd)
-
-        WinActivate("ahk_id " hwnd)
-    }
-    catch {
-        return
-    }
-}
-
-BringCommandMonitorCascadeForward()
-{
-    monitor_index := SuiteWorkingMonitor.Get()
-
-    if !monitor_index
-        return
-
-    BringCascadeForward(monitor_index)
-}
-
 BringCascadeForward(monitor_index)
 {
-    if !IsCascadeEnabled()
+    if !IsCascadeEnabled() || !monitor_index
         return
 
     windows := GetLiveCascadeHistory(monitor_index)
@@ -531,62 +477,19 @@ BringCascadeForward(monitor_index)
 
     last_used_hwnd := visible_windows[1]
 
-    flags := (
-        0x0001  ; SWP_NOSIZE
-        | 0x0002  ; SWP_NOMOVE
-        | 0x0010  ; SWP_NOACTIVATE
-        | 0x0200  ; SWP_NOOWNERZORDER
-    )
-
     ; Temporarily promote the whole cascade into the topmost band. Process
     ; bottom-to-top so its existing internal Z-order is preserved.
-    index := visible_windows.Length
-
-    while index >= 1 {
-        hwnd := visible_windows[index]
-
-        try PhysicalDllCall(
-            "SetWindowPos",
-            "ptr", hwnd,
-            "ptr", -1, ; HWND_TOPMOST
-            "int", 0,
-            "int", 0,
-            "int", 0,
-            "int", 0,
-            "uint", flags,
-            "int"
-        )
-
-        index -= 1
-    }
+    Loop visible_windows.Length
+        try SetCascadeZOrder(visible_windows[visible_windows.Length - A_Index + 1], -1) ; HWND_TOPMOST
 
     ; Return only temporarily promoted windows to the normal Z band, keeping
     ; the bottom-to-top order. Preserve an application's existing always-on-top
     ; setting rather than clearing it as a side effect of bringing the group up.
-    index := visible_windows.Length
-
-    while index >= 1 {
-        hwnd := visible_windows[index]
-
-        if originally_topmost[hwnd] {
-            index -= 1
-            continue
-        }
-
-        try PhysicalDllCall(
-            "SetWindowPos",
-            "ptr", hwnd,
-            "ptr", -2, ; HWND_NOTOPMOST
-            "int", 0,
-            "int", 0,
-            "int", 0,
-            "int", 0,
-            "uint", flags,
-            "int"
-        )
-
-        index -= 1
+    Loop visible_windows.Length {
+        hwnd := visible_windows[visible_windows.Length - A_Index + 1]
+        if !originally_topmost[hwnd]
+            try SetCascadeZOrder(hwnd, -2) ; HWND_NOTOPMOST
     }
 
-    ActivateCascadeWindow(last_used_hwnd)
+    ActivateWindow(last_used_hwnd)
 }

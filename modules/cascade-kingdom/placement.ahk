@@ -21,8 +21,6 @@ PlaceCascadeWindowOnMonitor(hwnd, target_monitor, requested_position := 0,
     dpi_transition := GetCascadeWindowMonitorDpi(hwnd) != GetCascadeMonitorDpi(target_monitor)
     CancelCascadeDisplayPlacement(hwnd)
     CancelPlacementStabilization(hwnd)
-    if placement_reservations.Has(hwnd)
-        placement_reservations.Delete(hwnd)
     previous_monitor := GetManagedCascadeMonitor(hwnd)
     owned_reservation := 0
     placed := false
@@ -165,7 +163,7 @@ SchedulePlacementStabilization(hwnd, target_x, target_y, target_width, target_he
     if !IsCascadeEnabled()
         return
 
-    global placement_stabilize_delays_ms
+    global placement_stabilize_delay_ms
     global placement_stabilization_generations
     global placement_stabilization_generation_counter, placement_dpi_generations
 
@@ -181,13 +179,8 @@ SchedulePlacementStabilization(hwnd, target_x, target_y, target_width, target_he
         placement_dpi_generations.Delete(hwnd)
     RememberCascadeSlot(hwnd, GetManagedCascadeMonitor(hwnd), target_x, target_y)
 
-    for delay_ms in placement_stabilize_delays_ms {
-        SetTimer(
-            StabilizePlacedWindow.Bind(hwnd, target_x, target_y, target_width, target_height,
-                stabilization_generation, delay_ms),
-            -delay_ms
-        )
-    }
+    SetTimer(StabilizePlacedWindow.Bind(hwnd, target_x, target_y, target_width, target_height,
+        stabilization_generation, placement_stabilize_delay_ms), -placement_stabilize_delay_ms)
 }
 
 IsCurrentPlacementStabilization(hwnd, stabilization_generation)

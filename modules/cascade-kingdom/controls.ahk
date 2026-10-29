@@ -25,30 +25,16 @@ ActiveWindowBlocksCascadeCommands(allow_maximized := false)
         if WinGetMinMax("ahk_id " active_hwnd) = 1
             return !allow_maximized
 
-        WinGetPosPixels(&window_x, &window_y, &window_width, &window_height, "ahk_id " active_hwnd)
+        WinGetPosPixels(&x, &y, &width, &height, "ahk_id " active_hwnd)
+        monitor := CallWithDpiContext(-3, MonitorRects, WindowMonitor(active_hwnd)).monitor
     }
     catch {
         return false
     }
 
-    window_right := window_x + window_width
-    window_bottom := window_y + window_height
-    tolerance_px := 2
-
-    ; Borderless/exclusive fullscreen normally covers one monitor exactly.
-    Loop MonitorGetCount() {
-        MonitorGetPixels(A_Index, &monitor_left, &monitor_top, &monitor_right, &monitor_bottom)
-
-        if Abs(window_x - monitor_left) <= tolerance_px
-            && Abs(window_y - monitor_top) <= tolerance_px
-            && Abs(window_right - monitor_right) <= tolerance_px
-            && Abs(window_bottom - monitor_bottom) <= tolerance_px
-        {
-            return true
-        }
-    }
-
-    return false
+    ; Borderless/exclusive fullscreen normally covers its display exactly.
+    return Abs(x - monitor[1]) <= 2 && Abs(y - monitor[2]) <= 2
+        && Abs(x + width - monitor[3]) <= 2 && Abs(y + height - monitor[4]) <= 2
 }
 
 
@@ -153,23 +139,15 @@ DispatchCascadeCommand(command)
     switch name {
         case "focus-previous": FocusCascadeLayerWindow(-1)
         case "focus-next": FocusCascadeLayerWindow(1)
-        case "slot-previous": RotateCurrentCascadeSlot(-1)
-        case "slot-next": RotateCurrentCascadeSlot(1)
+        case "slot-previous": RotateCascadeSlotForWindow(WinExist("A"), -1)
+        case "slot-next": RotateCascadeSlotForWindow(WinExist("A"), 1)
         case "swap-up": SwapActiveCascadeWindow(-1)
         case "swap-down": SwapActiveCascadeWindow(1)
         case "rotate-next": RotateCascadeLayers(1)
         case "adopt": AdoptActiveWindow()
-        case "bring-forward": BringCommandMonitorCascadeForward()
+        case "bring-forward": BringCascadeForward(SuiteWorkingMonitor.Get())
         case "gather": GatherCascadesToCommandMonitor()
         case "close-monitor": CloseCommandMonitorCascade()
     }
 }
 
-
-CancelCascadePendingMouseActions(*)
-{
-    if !IsCascadeEnabled()
-        return
-
-    CancelPendingAdoptionUndo()
-}

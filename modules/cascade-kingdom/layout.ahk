@@ -174,7 +174,8 @@ TryGetCascadeLayoutOrigin(hwnd, &monitor_index, &x, &y)
             return true
         }
     }
-    monitor_index := GetMonitorForWindow(hwnd)
+    ; A minimized window has no slot, only a restore rectangle.
+    monitor_index := DllCall("IsIconic", "ptr", hwnd, "int") ? 0 : WindowMonitorIndex(hwnd)
     return monitor_index && GetVisibleWindowBounds(hwnd, &x, &y, &width, &height)
 }
 
@@ -625,21 +626,25 @@ CompactCascadeLayout(monitor_index, preferred_hwnd := 0)
     target_stacks := BuildStableCascadeCompactionPlan(ordered_stacks, managed_window_count,
         preferred_hwnd)
 
+    ; Never apply an old plan after a newer drag or membership change, or while
+    ; layout is deferred: queue it again instead.
+    Superseded() {
+        global cascade_drag_generation, cascade_membership_generation
+        if drag_generation = cascade_drag_generation
+            && membership_generation = cascade_membership_generation
+            && !IsCascadeCompactionDeferred(monitor_index)
+            return false
+        RequeueCascadeCompaction(monitor_index, preferred_hwnd)
+        return true
+    }
+
     failed_moves := 0
     for slot_index, stack_windows in target_stacks {
         target_slot := slots[slot_index]
 
         for hwnd in stack_windows {
-            ; Never apply an old plan after a newer drag has changed the layout.
-            if drag_generation != cascade_drag_generation
-                || membership_generation != cascade_membership_generation {
-                RequeueCascadeCompaction(monitor_index, preferred_hwnd)
+            if Superseded()
                 return
-            }
-            if IsCascadeCompactionDeferred(monitor_index) {
-                RequeueCascadeCompaction(monitor_index, preferred_hwnd)
-                return
-            }
 
             ; Compaction has reservation/stabilization tracking, so geometry moves
             ; can be posted without waiting on each target application's UI thread.
@@ -651,13 +656,6 @@ CompactCascadeLayout(monitor_index, preferred_hwnd := 0)
     ; Keep each target stack in the same top-to-bottom order within each native
     ; Z-order band. Never place a topmost window after a normal window: Windows
     ; would remove its WS_EX_TOPMOST state as a side effect.
-    z_flags := (
-        0x0001  ; SWP_NOSIZE
-        | 0x0002  ; SWP_NOMOVE
-        | 0x0010  ; SWP_NOACTIVATE
-        | 0x0200  ; SWP_NOOWNERZORDER
-    )
-
     for stack_windows in target_stacks {
         topmost_windows := []
         normal_windows := []
@@ -686,20 +684,12 @@ CompactCascadeLayout(monitor_index, preferred_hwnd := 0)
                 continue
 
             Loop band_windows.Length - 1 {
-                if drag_generation != cascade_drag_generation
-                    || membership_generation != cascade_membership_generation {
-                    RequeueCascadeCompaction(monitor_index, preferred_hwnd)
+                if Superseded()
                     return
-                }
-                if IsCascadeCompactionDeferred(monitor_index) {
-                    RequeueCascadeCompaction(monitor_index, preferred_hwnd)
-                    return
-                }
                 upper_hwnd := band_windows[A_Index]
                 lower_hwnd := band_windows[A_Index + 1]
 
-                try PhysicalDllCall("SetWindowPos", "ptr", lower_hwnd, "ptr", upper_hwnd, "int", 0,
-                    "int", 0, "int", 0, "int", 0, "uint", z_flags, "int")
+                try SetCascadeZOrder(lower_hwnd, upper_hwnd)
             }
         }
     }

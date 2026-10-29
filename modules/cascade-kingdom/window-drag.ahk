@@ -48,7 +48,7 @@ GetCascadeMousePressSnapshot(hwnd)
             hwnd: hwnd, pid: WinGetPID(hwnd),
             x: x, y: y, width: width, height: height,
             frame_x: frame_x, frame_y: frame_y,
-            monitor: GetMonitorForWindow(hwnd),
+            monitor: WindowMonitorIndex(hwnd),
             minmax: WinGetMinMax(hwnd),
             dpi: GetCascadeWindowMonitorDpi(hwnd),
             resize: !!RegExMatch(A_Cursor, "^Size(NS|WE|NWSE|NESW)$"),
@@ -97,7 +97,6 @@ BeginCascadeWindowDrag(hwnd, event_time)
         return
 
     global cascade_mouse_press, cascade_window_drag, cascade_drag_generation
-    global placement_reservations
 
     if HasCascadeWindowDrag() || HasFocusTabClick()
         return
@@ -135,8 +134,6 @@ BeginCascadeWindowDrag(hwnd, event_time)
     CancelCascadeDisplayPlacement(hwnd)
     RemoveWindowFromCascadeRestore(hwnd)
     CancelPlacementStabilization(hwnd)
-    if placement_reservations.Has(hwnd)
-        placement_reservations.Delete(hwnd)
 
     HideFocusCornerOverlay(hwnd)
     QueueFocusCornerUpdate()
@@ -326,7 +323,7 @@ CompleteCascadeWindowDrop(drag)
     geometry := GetCanonicalCascadeGeometry(monitor_index)
     slot_index := FindNearestCascadeSlot(frame_x, frame_y, geometry.slots, cascade_slot_tolerance)
 
-    if slot_index && HasCascadeDropDestination(monitor_index) {
+    if slot_index && CascadeDisplayAllowed(monitor_index) {
         ; A drop on a guide adopts a window positioned by hand, as Caps + Insert
         ; does. Dropped anywhere else, it stays positioned by hand.
         was_manual := SuiteWindowOwnership.IsManual(hwnd)
@@ -356,22 +353,12 @@ CompleteCascadeWindowDrop(drag)
     ReleaseCascadeWindow(hwnd)
 }
 
-; Canonical slots are valid even before the first window joins the cascade.
-HasCascadeDropDestination(monitor_index)
-{
-    return CascadeDisplayAllowed(monitor_index)
-}
-
 ReleaseCascadeWindow(hwnd)
 {
-    global placement_reservations
-
     source_monitor := GetManagedCascadeMonitor(hwnd)
     CancelPlacementStabilization(hwnd)
     RemoveCascadeWindowFromHistory(hwnd)
     RemoveWindowFromMinimizeState(hwnd)
-    if placement_reservations.Has(hwnd)
-        placement_reservations.Delete(hwnd)
     DestroyFocusCornerOverlay(hwnd)
     if source_monitor
         QueueCascadeCompaction(source_monitor)

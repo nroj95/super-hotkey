@@ -23,66 +23,27 @@ PollCascadeState()
 
 StartWindowHooks()
 {
-    global win_event_callback
-    global foreground_hook, window_show_hook, window_destroy_hook
-    global window_move_size_hook, window_restore_hook
-
-    EVENT_SYSTEM_FOREGROUND := 0x0003
-    EVENT_OBJECT_DESTROY := 0x8001
-    EVENT_OBJECT_SHOW := 0x8002
-    EVENT_SYSTEM_MOVESIZESTART := 0x000A
-    EVENT_SYSTEM_MOVESIZEEND := 0x000B
-    EVENT_SYSTEM_MINIMIZESTART := 0x0016
-    EVENT_SYSTEM_MINIMIZEEND := 0x0017
-
-    WINEVENT_OUTOFCONTEXT := 0x0000
-    WINEVENT_SKIPOWNPROCESS := 0x0002
-    flags := WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS
+    global win_event_callback, win_event_hooks
 
     win_event_callback := CallbackCreate(HandleWinEvent)
-
-    foreground_hook := DllCall("SetWinEventHook", "uint", EVENT_SYSTEM_FOREGROUND,
-        "uint", EVENT_SYSTEM_FOREGROUND, "ptr", 0, "ptr", win_event_callback, "uint", 0, "uint", 0,
-        "uint", flags, "ptr")
-
-
-    window_show_hook := DllCall("SetWinEventHook", "uint", EVENT_OBJECT_SHOW,
-        "uint", EVENT_OBJECT_SHOW, "ptr", 0, "ptr", win_event_callback, "uint", 0, "uint", 0,
-        "uint", flags, "ptr")
-
-
-    window_destroy_hook := DllCall("SetWinEventHook", "uint", EVENT_OBJECT_DESTROY,
-        "uint", EVENT_OBJECT_DESTROY, "ptr", 0, "ptr", win_event_callback, "uint", 0, "uint", 0,
-        "uint", flags, "ptr")
-
-
-    window_move_size_hook := DllCall("SetWinEventHook", "uint", EVENT_SYSTEM_MOVESIZESTART,
-        "uint", EVENT_SYSTEM_MOVESIZEEND, "ptr", 0, "ptr", win_event_callback, "uint", 0, "uint", 0,
-        "uint", flags, "ptr")
-
+    ; Foreground, move/size start and end, minimize start and end, and window
+    ; destroy and show, out of context and skipping our own process.
     ; MINIMIZEEND announces a restore, not settled geometry. The shared
     ; completion watcher confirms readiness before requesting compaction.
-    window_restore_hook := DllCall("SetWinEventHook", "uint", EVENT_SYSTEM_MINIMIZESTART,
-        "uint", EVENT_SYSTEM_MINIMIZEEND, "ptr", 0, "ptr", win_event_callback, "uint", 0, "uint", 0,
-        "uint", flags, "ptr")
-
-    if (!foreground_hook || !window_show_hook || !window_destroy_hook || !window_move_size_hook
-        || !window_restore_hook) {
-
-        MsgBox(
-            "Could not install all Windows event hooks.`n`n"
-            . "Cascade Kingdom may not track windows correctly.",
-            "Cascade Kingdom",
-            "Iconx"
-        )
+    for range in [[0x0003, 0x0003], [0x000A, 0x000B], [0x0016, 0x0017], [0x8001, 0x8002]] {
+        hook := DllCall("SetWinEventHook", "uint", range[1], "uint", range[2], "ptr", 0,
+            "ptr", win_event_callback, "uint", 0, "uint", 0, "uint", 0x0002, "ptr")
+        if !hook {
+            SuiteState.Log.Write("Cascade Kingdom", "could not install all Windows event hooks", "ERROR")
+            continue
+        }
+        win_event_hooks.Push(hook)
     }
 }
 
 StopWindowHooks()
 {
-    global win_event_callback
-    global foreground_hook, window_show_hook, window_destroy_hook
-    global window_move_size_hook, window_restore_hook
+    global win_event_callback, win_event_hooks
 
     SetTimer(PollCascadeState, 0)
     SetTimer(UpdateFocusCornerOverlays, 0)
@@ -91,31 +52,9 @@ StopWindowHooks()
     SetTimer(WatchCascadeWindowRestores, 0)
     SetTimer(FlushCascadeCompactions, 0)
 
-    if foreground_hook {
-        DllCall("UnhookWinEvent", "ptr", foreground_hook)
-        foreground_hook := 0
-    }
-
-    if window_show_hook {
-        DllCall("UnhookWinEvent", "ptr", window_show_hook)
-        window_show_hook := 0
-    }
-
-    if window_destroy_hook {
-        DllCall("UnhookWinEvent", "ptr", window_destroy_hook)
-        window_destroy_hook := 0
-    }
-
-    if window_move_size_hook {
-        DllCall("UnhookWinEvent", "ptr", window_move_size_hook)
-        window_move_size_hook := 0
-    }
-
-    if window_restore_hook {
-        DllCall("UnhookWinEvent", "ptr", window_restore_hook)
-        window_restore_hook := 0
-    }
-
+    for hook in win_event_hooks
+        DllCall("UnhookWinEvent", "ptr", hook)
+    win_event_hooks := []
     if win_event_callback {
         CallbackFree(win_event_callback)
         win_event_callback := 0
@@ -204,7 +143,7 @@ HandleWinEvent(hook_handle, event, hwnd, object_id, child_id, event_thread, even
 
 ForgetWindow(hwnd)
 {
-    global placement_reservations, pending_adoption_undo, current_foreground_hwnd
+    global pending_adoption_undo, current_foreground_hwnd
 
     ; Do not wait for the next visual sweep: a destroyed target must never leave
     ; its script-owned focus GUI behind.
@@ -219,9 +158,6 @@ ForgetWindow(hwnd)
         pending_adoption_undo := 0
 
     CancelPlacementStabilization(hwnd)
-
-    if placement_reservations.Has(hwnd)
-        placement_reservations.Delete(hwnd)
 
     if current_foreground_hwnd = hwnd
         current_foreground_hwnd := 0

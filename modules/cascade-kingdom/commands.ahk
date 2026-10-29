@@ -40,7 +40,7 @@ AdoptActiveWindow()
     if !managed_monitor
         undo_snapshot := CaptureAdoptionUndoSnapshot(hwnd)
 
-    target_monitor := ResolveCascadeDestination(GetMonitorForWindow(hwnd))
+    target_monitor := ResolveCascadeDestination(WindowMonitorIndex(hwnd))
 
     if !target_monitor
         return
@@ -91,7 +91,7 @@ CancelPendingAdoptionUndo()
 
 UndoPendingAdoption()
 {
-    global pending_adoption_undo, placement_reservations
+    global pending_adoption_undo
 
     if !IsObject(pending_adoption_undo)
         return false
@@ -129,9 +129,6 @@ UndoPendingAdoption()
 
     RemoveCascadeWindowFromHistory(hwnd)
     RemoveWindowFromMinimizeState(hwnd)
-
-    if placement_reservations.Has(hwnd)
-        placement_reservations.Delete(hwnd)
 
     if managed_monitor
         QueueCascadeCompaction(managed_monitor)
@@ -401,31 +398,10 @@ RestoreCascadeWindowList(windows)
     }
 
     ; Rebuild the saved Z-order explicitly.
-    flags := (
-        0x0001  ; SWP_NOSIZE
-        | 0x0002  ; SWP_NOMOVE
-        | 0x0010  ; SWP_NOACTIVATE
-        | 0x0200  ; SWP_NOOWNERZORDER
-    )
-
     Loop windows.Length {
-        index := windows.Length - A_Index + 1
-        hwnd := windows[index]
-
-        if !WinExist("ahk_id " hwnd)
-            continue
-
-        try PhysicalDllCall(
-            "SetWindowPos",
-            "ptr", hwnd,
-            "ptr", 0, ; HWND_TOP
-            "int", 0,
-            "int", 0,
-            "int", 0,
-            "int", 0,
-            "uint", flags,
-            "int"
-        )
+        hwnd := windows[windows.Length - A_Index + 1]
+        if WinExist("ahk_id " hwnd)
+            try SetCascadeZOrder(hwnd, 0) ; HWND_TOP
     }
 
     for hwnd in windows {
@@ -437,7 +413,7 @@ RestoreCascadeWindowList(windows)
     }
 
     if top_restored_hwnd
-        ActivateCascadeWindow(top_restored_hwnd)
+        ActivateWindow(top_restored_hwnd)
 }
 
 
@@ -538,7 +514,7 @@ WatchCascadeWindowRestores()
                 ; Use actual bounds, not an in-flight placement reservation.
                 if !IsObject(geometry)
                     geometry := GetCanonicalCascadeGeometry(monitor_index)
-                if GetMonitorForWindow(hwnd) != monitor_index
+                if WindowMonitorIndex(hwnd) != monitor_index
                     || !FindNearestCascadeSlot(x, y, geometry.slots, cascade_slot_tolerance)
                 {
                     ready := false
@@ -665,7 +641,7 @@ GetMovedCascadeMemberMonitor(hwnd, monitor_index)
         || placement_reservations.Has(hwnd) || placement_stabilization_generations.Has(hwnd)
         || WinGetMinMax(hwnd) != 0
         return 0
-    current := GetMonitorForWindow(hwnd)
+    current := WindowMonitorIndex(hwnd)
     return current && current != monitor_index ? current : 0
 }
 

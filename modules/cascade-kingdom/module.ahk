@@ -26,7 +26,7 @@ class CascadeKingdomModule extends SuiteModule {
         manager.Observe("*LButton Up", HasFocusTabClick, (*) => FinishFocusTabClick(), true)
         manager.Observe("~*LButton", IsCascadeEnabled, (*) => CaptureCascadeMousePress())
         for key in ["RButton", "MButton", "XButton1", "XButton2"]
-            manager.Observe("~*" key, IsCascadeEnabled, (*) => CancelCascadePendingMouseActions())
+            manager.Observe("~*" key, IsCascadeEnabled, (*) => CancelPendingAdoptionUndo())
         manager.Observe("~*LButton Up", IsCascadeEnabled, (*) => CaptureCascadeMouseRelease())
         manager.Observe("~*Escape", HasCascadeWindowDrag, (*) => CancelCascadeWindowDrop())
         SuiteWindowOwnership.OnClaim(CascadeForgetManualWindow)
@@ -162,11 +162,8 @@ class CascadeKingdomModule extends SuiteModule {
 ; A window that Wonder Windows positions by hand leaves its cascade at once.
 CascadeForgetManualWindow(hwnd)
 {
-    global placement_reservations
     monitor := GetManagedCascadeMonitor(hwnd)
     CancelPlacementStabilization(hwnd)
-    if placement_reservations.Has(hwnd)
-        placement_reservations.Delete(hwnd)
     RemoveCascadeWindowFromHistory(hwnd)
     RemoveWindowFromMinimizeState(hwnd)
     if monitor

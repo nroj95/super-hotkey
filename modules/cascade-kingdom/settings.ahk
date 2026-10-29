@@ -32,7 +32,7 @@ cascade_restore_timeout_ms := 5000
 cascade_close_timeout_ms := 5000
 
 ; Keep one late safety check in case an application changes geometry again.
-placement_stabilize_delays_ms := [500]
+placement_stabilize_delay_ms := 500
 placement_stabilize_tolerance := 6
 
 ; A busy window may not process an asynchronous placement immediately.
@@ -76,7 +76,6 @@ focus_tab_color_presets := Map("White", "FFFFFF", "Grey", "808080", "Red", "F443
 
 ; Inactive-slot tabs stay faint while active-slot tabs use stronger opacity.
 ; Alpha 1 is reserved for the hidden state so overlays remain hit-testable.
-focus_corner_visible := true
 focus_corner_inactive_slot_alpha := 128
 focus_corner_active_slot_alpha := 255
 
@@ -109,7 +108,7 @@ placement_stabilization_generation_counter := 0
 pending_adoption_undo := 0
 cascade_poll_ms := 1000
 cascade_history := Map()
-; A display snapshot is refreshed by notifications and the existing slow fallback.
+; A display snapshot is refreshed by notifications and the slow polling fallback.
 ; Logical slots survive transient geometry/display changes; they are not reload persistence.
 cascade_displays := Map()
 cascade_dpi_probes := Map()
@@ -144,9 +143,5 @@ focus_tab_click_generation := 0
 current_foreground_hwnd := WinExist("A")
 
 win_event_callback := 0
-foreground_hook := 0
-window_show_hook := 0
-window_destroy_hook := 0
-window_move_size_hook := 0
-window_restore_hook := 0
+win_event_hooks := []
 }

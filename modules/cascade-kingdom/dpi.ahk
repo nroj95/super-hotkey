@@ -87,7 +87,7 @@ GetCascadeMonitorDpi(monitor_index)
 
 GetCascadeWindowMonitorDpi(hwnd)
 {
-    return GetCascadeMonitorDpi(GetMonitorForWindow(hwnd))
+    return GetCascadeMonitorDpi(WindowMonitorIndex(hwnd))
 }
 
 FindCascadeMonitorDevice(device, displays := 0)

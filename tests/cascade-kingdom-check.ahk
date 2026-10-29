@@ -22,14 +22,14 @@ class CascadeChecks {
             cascade_displays := Map(1, {device: "left"}, 2, {device: "right"})
             this.Assert(ResolveCascadeDestination(2) = 2,
                 "All displays retains the requested destination")
-            this.Assert(!cascade_history.Count && HasCascadeDropDestination(1)
-                && HasCascadeDropDestination(2),
+            this.Assert(!cascade_history.Count && CascadeDisplayAllowed(1)
+                && CascadeDisplayAllowed(2),
                 "empty cascades allow dropping onto either display")
             cascade_target_display := "right"
             this.Assert(ResolveCascadeDestination(1) = 2 && CascadeDisplayAllowed(2)
                 && !CascadeDisplayAllowed(1),
                 "a single display redirects adoption and excludes other drop zones")
-            this.Assert(!HasCascadeDropDestination(1) && HasCascadeDropDestination(2),
+            this.Assert(!CascadeDisplayAllowed(1) && CascadeDisplayAllowed(2),
                 "an excluded display cannot remain a drag destination")
             cascade_displays := Map(1, {device: "right"}, 2, {device: "left"})
             this.Assert(ResolveCascadeDestination(2) = 1,
@@ -157,7 +157,7 @@ class CascadeChecks {
         try {
             SuiteShowCentered(source, 320, 240)
             SuiteShowCentered(target, 340, 260)
-            sourceMonitor := GetMonitorForWindow(source.Hwnd)
+            sourceMonitor := WindowMonitorIndex(source.Hwnd)
             WinMinimize(source.Hwnd)
             this.Assert(WindowMonitorIndex(source.Hwnd) = sourceMonitor,
                 "a minimized window retains its restored monitor")

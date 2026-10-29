@@ -122,7 +122,7 @@ class InterfaceChecks {
             editor.GetClientPos(, , &firstWidth, &firstHeight)
             this.AssertCentered(editor, "Keybindings")
             expectedKeybindingsHeight := Min(860, Max(560, A_ScreenHeight - 125))
-            monitor := GetMonitorForWindow(editor.Hwnd)
+            monitor := WindowMonitorIndex(editor.Hwnd)
             MonitorGetWorkArea(monitor, &workLeft, &workTop, &workRight, &workBottom)
             expectedSize := SuiteFitClientSize(editor, 1060, expectedKeybindingsHeight,
                 workRight - workLeft, workBottom - workTop)
@@ -746,7 +746,7 @@ class InterfaceChecks {
             SuiteShowCentered(window, 1600, 1200, 0, true)
             rect := Buffer(16, 0)
             DllCall("GetWindowRect", "ptr", window.Hwnd, "ptr", rect, "int")
-            monitor := GetMonitorForWindow(window.Hwnd)
+            monitor := WindowMonitorIndex(window.Hwnd)
             MonitorGetWorkArea(monitor, &left, &top, &right, &bottom)
             this.Assert(NumGet(rect, 0, "int") >= left && NumGet(rect, 4, "int") >= top
                 && NumGet(rect, 8, "int") <= right && NumGet(rect, 12, "int") <= bottom,

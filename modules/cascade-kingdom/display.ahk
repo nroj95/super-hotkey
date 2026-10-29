@@ -1,10 +1,11 @@
-; Cascade Kingdom display changes: notifications, the slow polling fallback
-; and logical slots that survive transient geometry changes.
+; Cascade Kingdom display changes: notifications, the display half of the
+; slow polling fallback in events.ahk, and logical slots that survive
+; transient geometry changes.
 ; Refresh display geometry in this process; never Reload or reconstruct membership
 ; from whatever windows happen to be visible after a scale change.
 
 ; =============================================================================
-; display notifications and the existing slow polling fallback
+; display notifications and polling
 ; =============================================================================
 
 InitializeCascadeDisplays()
@@ -102,7 +103,6 @@ RefreshCascadeDisplays()
     global cascade_displays, cascade_display_signature, cascade_display_change_pending
     global cascade_display_refreshing, cascade_display_generation, cascade_membership_generation
     global cascade_history, cascade_window_slots, cascade_display_reflow
-    global placement_reservations, placement_stabilization_generations, placement_dpi_generations
     global cascade_minimized_windows, cascade_restore_batches, cascade_close_batches
     global cascade_compaction_pending
 

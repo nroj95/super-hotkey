@@ -20,7 +20,8 @@ class CascadeDropGuides {
                 return
             }
             monitor := GetMonitorForPoint(frame_x, frame_y)
-            if !HasCascadeDropDestination(monitor) {
+            ; Canonical slots are valid before the first window joins the cascade.
+            if !CascadeDisplayAllowed(monitor) {
                 this.Hide()
                 return
             }

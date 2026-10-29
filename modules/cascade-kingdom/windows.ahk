@@ -1,4 +1,4 @@
-; Cascade Kingdom window filtering, visible frames and monitor lookup.
+; Cascade Kingdom window filtering, Z-order, visible frames and point lookup.
 
 ; =============================================================================
 ; window filtering
@@ -29,9 +29,8 @@ IsPlausibleTopLevelWindow(hwnd, allow_manual := false)
 
 IsCascadeWindow(hwnd, allow_manual := false)
 {
-    if !DllCall("IsWindowVisible", "ptr", hwnd, "int") || IsIgnoredByCascade(hwnd, allow_manual)
-        || !IsTopLevelAppWindow(hwnd, &window_class) || IsWindowCloaked(hwnd)
-        || window_class = "#32770" || window_class = "OperationStatusWindow"
+    if !DllCall("IsWindowVisible", "ptr", hwnd, "int") || IsWindowCloaked(hwnd)
+        || !IsPlausibleTopLevelWindow(hwnd, allow_manual)
         return false
 
     try {
@@ -60,6 +59,10 @@ IsCascadeWindowTopmost(hwnd)
         return -1
 }
 
+; Moves a window in the Z-order only: no move, resize, activation or owner change.
+SetCascadeZOrder(hwnd, insert_after) => DllCall("SetWindowPos", "ptr", hwnd, "ptr", insert_after,
+    "int", 0, "int", 0, "int", 0, "int", 0, "uint", 0x0213, "int") ; NOSIZE|NOMOVE|NOACTIVATE|NOOWNERZORDER
+
 
 ; =============================================================================
 ; visible frame geometry
@@ -78,23 +81,8 @@ TryGetWindowCenter(hwnd, &center_x, &center_y)
 
 
 ; =============================================================================
-; monitor lookup
+; monitor lookup (core's WindowMonitorIndex finds a window's display)
 ; =============================================================================
-
-GetMonitorForWindow(hwnd)
-{
-    try {
-        WinGetPosPixels(&x, &y, &width, &height, "ahk_id " hwnd)
-    }
-    catch {
-        return 0
-    }
-
-    if width <= 0 || height <= 0
-        return 0
-
-    return GetMonitorForPoint(x + Floor(width / 2), y + Floor(height / 2))
-}
 
 GetMonitorForPoint(x, y)
 {
