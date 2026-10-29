@@ -1,5 +1,5 @@
-; Cascade Kingdom implementation; included by the Super Hotkey launcher.
-; Included into the same script; functions share the existing global state.
+; Cascade Kingdom minimize / restore (Caps + M), activity startup and
+; paused-window bookkeeping.
 ;
 ; New-window adoption follows the configured automatic mode and cascade key.
 

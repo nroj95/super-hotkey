@@ -1,4 +1,5 @@
-; Cascade Kingdom implementation; included by the Super Hotkey launcher.
+; Cascade Kingdom display changes: notifications, the slow polling fallback
+; and logical slots that survive transient geometry changes.
 ; Refresh display geometry in this process; never Reload or reconstruct membership
 ; from whatever windows happen to be visible after a scale change.
 

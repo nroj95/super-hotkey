@@ -1,5 +1,5 @@
-; Cascade Kingdom implementation; included by the Super Hotkey launcher.
-; Included into the same script; functions share the existing global state.
+; Cascade Kingdom window discovery: Windows event hooks, the placement queue
+; and cleanup after destroyed windows.
 
 ; =============================================================================
 ; window discovery and placement queue

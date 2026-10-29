@@ -1,5 +1,4 @@
-; Wonder Windows implementation. Launch the suite, not this file.
-; Included into the same script; functions share the existing global state.
+; Wonder Windows moving onto, or swapping with, the nearest window in a direction.
 
 ; =============================================================================
 ; moving onto or swapping with the nearest window in a direction

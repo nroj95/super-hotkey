@@ -1,5 +1,5 @@
-; Wonder Windows implementation. Launch the suite, not this file.
-; Included into the same script; functions share the existing global state.
+; Wonder Windows switchers for stacked windows and for maximized or
+; fullscreen windows.
 
 ; =============================================================================
 ; stacked window switcher

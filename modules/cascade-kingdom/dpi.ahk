@@ -1,4 +1,4 @@
-; Cascade Kingdom implementation; included by the Super Hotkey launcher.
+; Cascade Kingdom displays, per-monitor DPI and physical-pixel GUIs.
 ; All shared geometry is in physical virtual-screen pixels, never system-DPI units.
 
 ; =============================================================================

@@ -1,5 +1,4 @@
-; Cascade Kingdom implementation; included by the Super Hotkey launcher.
-; Included into the same script; functions share the existing global state.
+; Cascade Kingdom focus tabs: updates, placement, lifetime and visibility.
 
 ; =============================================================================
 ; overlay updates

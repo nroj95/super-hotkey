@@ -1,4 +1,4 @@
-; Wonder Windows implementation. Launch the suite, not this file.
+; Wonder Windows ratio layouts and collision-limited horizontal extension.
 
 ; =============================================================================
 ; ratio layouts

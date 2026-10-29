@@ -1,5 +1,5 @@
-; Cascade Kingdom implementation; included by the Super Hotkey launcher.
-; Included into the same script; functions share the existing global state.
+; Cascade Kingdom logging, and window and focus-tab diagnostics that run
+; only with verbose logging.
 
 ; =============================================================================
 ; debug logging

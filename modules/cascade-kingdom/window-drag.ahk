@@ -1,5 +1,5 @@
-; Cascade Kingdom implementation; included by the Super Hotkey launcher.
-; Included into the same script; functions share the existing global state.
+; Cascade Kingdom window drags: move-loop tracking and one release-time
+; snap, adopt or detach decision.
 ;
 ; Drop contract:
 ; - preserve the original membership/slot throughout a native mouse drag;

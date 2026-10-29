@@ -1,5 +1,4 @@
-; Cascade Kingdom implementation; included by the Super Hotkey launcher.
-; Included into the same script; functions share the existing global state.
+; Cascade Kingdom focus-tab clicks and their release pairing.
 ;
 ; Click contract:
 ; - inactive slot: focus its exposed window on press;

@@ -1,5 +1,4 @@
-; Wonder Windows implementation. Launch the suite, not this file.
-; Included into the same script; functions share the existing global state.
+; Wonder Windows stretching and the placement state that undoes it.
 
 ; =============================================================================
 ; window stretch

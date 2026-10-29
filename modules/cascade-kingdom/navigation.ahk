@@ -1,5 +1,5 @@
-; Cascade Kingdom implementation; included by the Super Hotkey launcher.
-; Included into the same script; functions share the existing global state.
+; Cascade Kingdom navigation: focusing, swapping and rotating windows,
+; bringing a cascade forward and recovering focus for new windows.
 
 ; =============================================================================
 ; current-layer focus and swapping
