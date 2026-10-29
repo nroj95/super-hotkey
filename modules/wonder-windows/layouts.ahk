@@ -35,12 +35,7 @@ WW_StretchWindowVertically()
             return
         }
 
-        monitor_handle := DllCall(
-            "MonitorFromWindow",
-            "ptr", hwnd,
-            "uint", 2, ; MONITOR_DEFAULTTONEAREST
-            "ptr"
-        )
+        monitor_handle := WindowMonitor(hwnd)
 
         WW_GetWindowMonitorWorkArea(hwnd, &work_left, &work_top, &work_right, &work_bottom)
 
@@ -83,7 +78,7 @@ WW_CycleFullStretch()
             WinRestore(hwnd)
 
         WW_PruneFullStretchWindows()
-        monitor := DllCall("MonitorFromWindow", "ptr", hwnd, "uint", 2, "ptr")
+        monitor := WindowMonitor(hwnd)
         work := WW_GetLayoutWorkArea(hwnd)
         current := WW_GetWindowLayoutRectangle(hwnd)
         original := current
@@ -154,12 +149,7 @@ WW_ResetWindowStretch()
         return
     }
 
-    current_monitor := DllCall(
-        "MonitorFromWindow",
-        "ptr", hwnd,
-        "uint", 2, ; MONITOR_DEFAULTTONEAREST
-        "ptr"
-    )
+    current_monitor := WindowMonitor(hwnd)
 
     ; Restore vertical stretch first. Horizontal restore preserves the resulting
     ; Y/height, so both axes can be reset independently in one command.
@@ -252,12 +242,7 @@ WW_ToggleHorizontalStretch(side)
             return
         }
 
-        monitor_handle := DllCall(
-            "MonitorFromWindow",
-            "ptr", hwnd,
-            "uint", 2, ; MONITOR_DEFAULTTONEAREST
-            "ptr"
-        )
+        monitor_handle := WindowMonitor(hwnd)
 
         WW_GetWindowMonitorWorkArea(hwnd, &work_left, &work_top, &work_right, &work_bottom)
 
@@ -347,7 +332,7 @@ WW_GetHorizontalStretchObstacles(active_hwnd, monitor_handle)
     for hwnd in WinGetList() {
         if hwnd = active_hwnd || !IsSwitchableWindow(hwnd)
             continue
-        candidate_monitor := DllCall("MonitorFromWindow", "ptr", hwnd, "uint", 2, "ptr")
+        candidate_monitor := WindowMonitor(hwnd)
         if candidate_monitor != monitor_handle
             continue
         try obstacles.Push(WW_GetWindowLayoutRectangle(hwnd))
@@ -548,11 +533,7 @@ WW_GetPlacementTarget(&fresh_entry)
     }
 }
 
-WW_GetLayoutWorkArea(hwnd)
-{
-    WW_GetWindowMonitorWorkArea(hwnd, &left, &top, &right, &bottom)
-    return [left, top, right, bottom]
-}
+WW_GetLayoutWorkArea(hwnd) => MonitorRects(WindowMonitor(hwnd)).work
 
 WW_GetWindowLayoutRectangle(hwnd)
 {
@@ -664,7 +645,7 @@ WW_IsStretchStateCurrent(hwnd, saved, monitor_handle := 0, work_area := 0)
         return false
     try {
         if !monitor_handle
-            monitor_handle := DllCall("MonitorFromWindow", "ptr", hwnd, "uint", 2, "ptr")
+            monitor_handle := WindowMonitor(hwnd)
         if !work_area
             work_area := WW_GetLayoutWorkArea(hwnd)
         return saved["monitor"] = monitor_handle

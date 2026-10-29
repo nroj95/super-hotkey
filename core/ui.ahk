@@ -112,11 +112,7 @@ class SuiteFullscreen {
         NumPut("uint", placement.Size, placement)
         if !DllCall("GetWindowPlacement", "ptr", hwnd, "ptr", placement, "int")
             throw OSError(A_LastError, "Save Super Hotkey placement")
-        monitor := DllCall("MonitorFromWindow", "ptr", hwnd, "uint", 2, "ptr")
-        info := Buffer(40, 0) ; MONITORINFO, including full display bounds
-        NumPut("uint", info.Size, info)
-        if !monitor || !DllCall("GetMonitorInfoW", "ptr", monitor, "ptr", info, "int")
-            throw OSError(A_LastError, "Find Super Hotkey monitor")
+        bounds := MonitorRects(WindowMonitor(hwnd)).monitor
 
         window.Restore()
         style := WinGetStyle(target)
@@ -124,12 +120,10 @@ class SuiteFullscreen {
         this.placements[hwnd] := {placement: placement, style: style, exStyle: exStyle}
         WinSetStyle((style & ~0xC40000) | 0x80000000, target) ; popup, no caption/resize border
         WinSetExStyle(exStyle & ~0x300, target) ; no client/window edge
-        left := NumGet(info, 4, "int")
-        top := NumGet(info, 8, "int")
         if !DllCall("SetWindowPos", "ptr", hwnd, "ptr", 0,
-            "int", left, "int", top,
-            "int", NumGet(info, 12, "int") - left,
-            "int", NumGet(info, 16, "int") - top,
+            "int", bounds[1], "int", bounds[2],
+            "int", bounds[3] - bounds[1],
+            "int", bounds[4] - bounds[2],
             "uint", 0x34, "int") ; FRAMECHANGED | NOACTIVATE | NOZORDER
             throw OSError(A_LastError, "Enter Super Hotkey fullscreen")
         SuiteSizeGrip.Move(window)

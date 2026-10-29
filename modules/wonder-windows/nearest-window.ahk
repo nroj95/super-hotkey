@@ -20,7 +20,7 @@ WW_MoveOntoWindow(direction)
 
     try {
         WW_PrepareWindowForPlacement(hwnd)
-        monitor := DllCall("MonitorFromWindow", "ptr", hwnd, "uint", 2, "ptr")
+        monitor := WindowMonitor(hwnd)
         WW_PruneLogicalZones()
         target := WW_FindDirectionalTarget(hwnd, monitor, direction)
         if !target
@@ -48,7 +48,7 @@ WW_SwapWindow(direction)
 
     try {
         WW_PrepareWindowForPlacement(hwnd)
-        monitor := DllCall("MonitorFromWindow", "ptr", hwnd, "uint", 2, "ptr")
+        monitor := WindowMonitor(hwnd)
         WW_PruneLogicalZones()
         target := WW_FindDirectionalTarget(hwnd, monitor, direction)
         if !target
@@ -171,7 +171,7 @@ WW_IsDirectionalCandidate(hwnd, monitor_handle)
     if IsWindowCloaked(hwnd)
         return false
 
-    candidate_monitor := DllCall("MonitorFromWindow", "ptr", hwnd, "uint", 2, "ptr")
+    candidate_monitor := WindowMonitor(hwnd)
 
     return candidate_monitor = monitor_handle
 }
@@ -245,7 +245,7 @@ WW_SaveLogicalZone(hwnd, zone)
         return
     }
     WW_logical_zones[hwnd] := Map("pid", WinGetPID(hwnd),
-        "monitor", DllCall("MonitorFromWindow", "ptr", hwnd, "uint", 2, "ptr"),
+        "monitor", WindowMonitor(hwnd),
         "work_area", WW_GetLayoutWorkArea(hwnd), "zone", zone.Clone(), "applied", actual)
 }
 

@@ -138,12 +138,9 @@ class SuiteFocusBorder {
 
     ; The display rectangle [left, top, right, bottom] in physical pixels, or 0.
     static MonitorBounds(hwnd) {
-        info := Buffer(40, 0) ; MONITORINFO
-        NumPut("uint", info.Size, info)
-        monitor := DllCall("MonitorFromWindow", "ptr", hwnd, "uint", 2, "ptr") ; MONITOR_DEFAULTTONEAREST
-        if !monitor || !PhysicalDllCall("GetMonitorInfoW", "ptr", monitor, "ptr", info, "int")
+        try return CallWithDpiContext(-3, MonitorRects, WindowMonitor(hwnd)).monitor
+        catch
             return 0
-        return [NumGet(info, 4, "int"), NumGet(info, 8, "int"), NumGet(info, 12, "int"), NumGet(info, 16, "int")]
     }
 
     ; The part of [x, y, width, height] inside bounds, or 0 when none remains.

@@ -576,18 +576,36 @@ DescribeWindow(hwnd) {
         . ' path="' processPath '"'
 }
 
-; The display Windows assigns a window to: the largest intersection, or the
-; restored rectangle when it is minimized. 0 when no display matches.
-WindowMonitorIndex(hwnd) => MonitorHandleIndex(
-    DllCall("MonitorFromWindow", "ptr", hwnd, "uint", 2, "ptr")) ; MONITOR_DEFAULTTONEAREST
+; The native handle of the display Windows assigns a window to: the largest
+; intersection, or the restored rectangle when it is minimized.
+WindowMonitor(hwnd) => DllCall("MonitorFromWindow", "ptr", hwnd, "uint", 2, "ptr") ; MONITOR_DEFAULTTONEAREST
+
+; A display's MONITORINFOEXW: rcMonitor at 4, rcWork at 20, device name at 40.
+; Rectangles follow the calling thread's DPI context.
+ReadMonitorInfo(monitor) {
+    info := Buffer(104, 0)
+    NumPut("uint", info.Size, info)
+    if !monitor || !DllCall("GetMonitorInfoW", "ptr", monitor, "ptr", info, "int")
+        throw OSError(A_LastError, "GetMonitorInfoW")
+    return info
+}
+
+; A display's bounds and work area, each as [left, top, right, bottom].
+MonitorRects(monitor) {
+    info := ReadMonitorInfo(monitor)
+    Rect(offset) => [NumGet(info, offset, "int"), NumGet(info, offset + 4, "int"),
+        NumGet(info, offset + 8, "int"), NumGet(info, offset + 12, "int")]
+    return {monitor: Rect(4), work: Rect(20)}
+}
+
+; The AutoHotkey index of the display a window is on, or 0.
+WindowMonitorIndex(hwnd) => MonitorHandleIndex(WindowMonitor(hwnd))
 
 ; The AutoHotkey index of a native display handle, or 0.
 MonitorHandleIndex(monitor) {
-    info := Buffer(104, 0) ; MONITORINFOEXW
-    NumPut("uint", info.Size, info)
-    if !monitor || !DllCall("GetMonitorInfoW", "ptr", monitor, "ptr", info, "int")
+    try device := StrGet(ReadMonitorInfo(monitor).Ptr + 40, 32, "UTF-16")
+    catch
         return 0
-    device := StrGet(info.Ptr + 40, 32, "UTF-16")
     Loop MonitorGetCount() {
         if MonitorGetName(A_Index) = device
             return A_Index

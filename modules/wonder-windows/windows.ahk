@@ -43,43 +43,16 @@ WW_WindowStateMatchesProcess(hwnd, saved)
 
 WW_GetWindowMonitorBounds(hwnd, &left, &top, &right, &bottom)
 {
-    monitor_info := WW_GetWindowMonitorInfo(hwnd)
-
     ; rcMonitor includes the taskbar area.
-    left := NumGet(monitor_info, 4, "int")
-    top := NumGet(monitor_info, 8, "int")
-    right := NumGet(monitor_info, 12, "int")
-    bottom := NumGet(monitor_info, 16, "int")
+    rect := MonitorRects(WindowMonitor(hwnd)).monitor
+    left := rect[1], top := rect[2], right := rect[3], bottom := rect[4]
 }
 
 WW_GetWindowMonitorWorkArea(hwnd, &left, &top, &right, &bottom)
 {
-    monitor_info := WW_GetWindowMonitorInfo(hwnd)
-
     ; rcWork excludes the taskbar.
-    left := NumGet(monitor_info, 20, "int")
-    top := NumGet(monitor_info, 24, "int")
-    right := NumGet(monitor_info, 28, "int")
-    bottom := NumGet(monitor_info, 32, "int")
-}
-
-WW_GetWindowMonitorInfo(hwnd)
-{
-    monitor_handle := DllCall(
-        "MonitorFromWindow",
-        "ptr", hwnd,
-        "uint", 2, ; MONITOR_DEFAULTTONEAREST
-        "ptr"
-    )
-
-    monitor_info := Buffer(40, 0)
-    NumPut("uint", monitor_info.Size, monitor_info, 0)
-
-    if !DllCall("GetMonitorInfo", "ptr", monitor_handle, "ptr", monitor_info) {
-        throw OSError()
-    }
-
-    return monitor_info
+    rect := MonitorRects(WindowMonitor(hwnd)).work
+    left := rect[1], top := rect[2], right := rect[3], bottom := rect[4]
 }
 
 ; =============================================================================

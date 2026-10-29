@@ -256,7 +256,7 @@ WW_IsMaximizedFullscreenSwitcherWindow(hwnd)
 
         ; Native fullscreen is a normal-state window filling a physical monitor.
         ; Its current minimized rectangle cannot identify that saved geometry.
-        return WW_WindowPlacementFillsPhysicalMonitor(placement, WW_GetWindowMonitorInfo(hwnd))
+        return WW_WindowPlacementFillsPhysicalMonitor(placement, ReadMonitorInfo(WindowMonitor(hwnd)))
     }
     catch
         return false
