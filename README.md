@@ -54,7 +54,13 @@ Hold CapsLock or Pause and press another key for extra hotkeys, or tap it first 
 
 Install [AutoHotkey v2](https://www.autohotkey.com/) **64-bit**, extract the project and run `super-hotkey.ahk`.
 
-Press `Ctrl + Alt + K` to see and change every hotkey. Right-click the tray icon for guides, settings and **Modules...**, where you can turn off what you don't need. Paper Pad needs Notepad3 and offers setup when it can't find it.
+Try these first:
+
+- Hold `Win` and scroll to walk the active window through zones.
+- Press `Win + F12` to open the Paper Pad notes drawer. It needs Notepad3 and offers setup when it can't find it.
+- Press `Ctrl + Alt + K` to see and change every hotkey.
+
+Right-click the tray icon for guides, settings and **Modules...**, where you can turn off what you don't need.
 
 Settings and logs live in `%LOCALAPPDATA%\nroj\SuperHotkey`.
 
