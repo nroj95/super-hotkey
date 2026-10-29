@@ -579,84 +579,75 @@ class InterfaceChecks {
                 && app.ui.helpLayouts["paper-pad"].statusColor = "B02020",
                 "disabled Help pages show a centered red status")
             app.ui.CloseWindow("help:paper-pad")
-            for page in ["log", "modules"] {
-                switch page {
-                    case "log": app.ui.OpenLog()
-                    case "modules": app.ui.ShowModules()
+            page := "modules"
+            app.ui.ShowModules()
+            window := app.ui.windows[page]
+            layout := app.ui.pageLayouts[page]
+            window.GetClientPos(, , &pageW, &pageH)
+            style := WinGetStyle("ahk_id " window.Hwnd)
+            this.Assert(!!(style & 0x00040000) && !!(style & 0x00010000),
+                "all shared utility windows support resize and maximize: " page)
+            this.Assert(pageW = layout.width && pageH = layout.height,
+                "utility page opens at its intended size: " page)
+            this.Assert(layout.minWidth < layout.width && layout.minHeight < layout.height,
+                "utility page allows smaller manual sizes: " page)
+            this.AssertCentered(window, page)
+            this.Assert(layout.footer.buttons.Length >= 2,
+                "utility footer has its buttons: " page)
+            this.Assert(app.ui.moduleControls.Count = 5,
+                "Modules presents all five renamed features")
+            obsoleteLine := false
+            for control in window
+                if control.Type = "Text" && InStr(control.Text, "Disabled modules keep")
+                    obsoleteLine := true
+            this.Assert(!obsoleteLine,
+                "Modules no longer has the redundant line under Secret Layers")
+            appSettingsFound := false
+            for control in window
+                if control.Type = "Button" && control.Text = "App settings..."
+                    appSettingsFound := true
+            this.Assert(!appSettingsFound,
+                "Modules has no redundant App settings button")
+            descriptionCount := 0
+            for id in SuiteSettings.ModuleOrder {
+                app.ui.moduleControls[id].GetPos(, &checkY, , &checkHeight)
+                this.Assert(checkHeight < 40,
+                    "Module checkbox keeps its natural height: " id)
+                checkboxFont := SendMessage(0x0031, 0, 0, ,
+                    app.ui.moduleControls[id].Hwnd)
+                checkboxData := Buffer(92, 0)
+                this.Assert(checkboxFont
+                    && DllCall("GetObjectW", "ptr", checkboxFont, "int",
+                        checkboxData.Size, "ptr", checkboxData, "int") = checkboxData.Size
+                    && (StrGet(checkboxData.Ptr + 28, 32, "UTF-16") = "Cascadia Mono"
+                        || StrGet(checkboxData.Ptr + 28, 32, "UTF-16") = "Consolas"),
+                    "Module controls use the Help-page font: " id)
+                for control in window {
+                    if control.Type != "Text"
+                        || control.Text != SuiteSettings.ModuleDescriptions[id]
+                        continue
+                    control.GetPos(, &descriptionY, , &descriptionHeight)
+                    this.Assert(descriptionY > checkY
+                        && descriptionHeight < 40
+                        && descriptionY + descriptionHeight <= checkY + 58,
+                        "Module description remains readable without overlap: " id)
+                    descriptionCount += 1
                 }
-                window := app.ui.windows[page]
-                layout := app.ui.pageLayouts[page]
-                window.GetClientPos(, , &pageW, &pageH)
-                style := WinGetStyle("ahk_id " window.Hwnd)
-                this.Assert(!!(style & 0x00040000) && !!(style & 0x00010000),
-                    "all shared utility windows support resize and maximize: " page)
-                this.Assert(pageW = layout.width && pageH = layout.height,
-                    "utility page opens at its intended size: " page)
-                this.Assert(layout.minWidth < layout.width && layout.minHeight < layout.height,
-                    "utility page allows smaller manual sizes: " page)
-                this.AssertCentered(window, page)
-                this.Assert(layout.footer.buttons.Length >= 2,
-                    "utility footer has its buttons: " page)
-                if page = "log"
-                    this.Assert(window["verbose"].Value = 0,
-                        "one global logging checkbox is available")
-                if page = "modules" {
-                    this.Assert(app.ui.moduleControls.Count = 5,
-                        "Modules presents all five renamed features")
-                    obsoleteLine := false
-                    for control in window
-                        if control.Type = "Text" && InStr(control.Text, "Disabled modules keep")
-                            obsoleteLine := true
-                    this.Assert(!obsoleteLine,
-                        "Modules no longer has the redundant line under Secret Layers")
-                    appSettingsFound := false
-                    for control in window
-                        if control.Type = "Button" && control.Text = "App settings..."
-                            appSettingsFound := true
-                    this.Assert(!appSettingsFound,
-                        "Modules has no redundant App settings button")
-                    descriptionCount := 0
-                    for id in SuiteSettings.ModuleOrder {
-                        app.ui.moduleControls[id].GetPos(, &checkY, , &checkHeight)
-                        this.Assert(checkHeight < 40,
-                            "Module checkbox keeps its natural height: " id)
-                        checkboxFont := SendMessage(0x0031, 0, 0, ,
-                            app.ui.moduleControls[id].Hwnd)
-                        checkboxData := Buffer(92, 0)
-                        this.Assert(checkboxFont
-                            && DllCall("GetObjectW", "ptr", checkboxFont, "int",
-                                checkboxData.Size, "ptr", checkboxData, "int") = checkboxData.Size
-                            && (StrGet(checkboxData.Ptr + 28, 32, "UTF-16") = "Cascadia Mono"
-                                || StrGet(checkboxData.Ptr + 28, 32, "UTF-16") = "Consolas"),
-                            "Module controls use the Help-page font: " id)
-                        for control in window {
-                            if control.Type != "Text"
-                                || control.Text != SuiteSettings.ModuleDescriptions[id]
-                                continue
-                            control.GetPos(, &descriptionY, , &descriptionHeight)
-                            this.Assert(descriptionY > checkY
-                                && descriptionHeight < 40
-                                && descriptionY + descriptionHeight <= checkY + 58,
-                                "Module description remains readable without overlap: " id)
-                            descriptionCount += 1
-                        }
-                    }
-                    this.Assert(descriptionCount = 5,
-                        "all five Module descriptions are actually present and visible")
-                }
-                window.Show("w" (layout.width + 100) " h" (layout.height + 130))
-                window.GetClientPos(, , &pageW, &pageH)
-                app.ui.ResizePage(page, window, 0, pageW, pageH)
-                layout.footer.divider.GetPos(, &footerDividerY)
-                this.Assert(footerDividerY = pageH - 64,
-                    "shared utility footer follows resizing: " page)
-                window.Show("w" layout.minWidth " h" layout.minHeight)
-                window.GetClientPos(, , &pageW, &pageH)
-                app.ui.ResizePage(page, window, 0, pageW, pageH)
-                this.Assert(pageW = layout.minWidth && pageH = layout.minHeight,
-                    "utility page shrinks to its smaller minimum: " page)
-                app.ui.CloseWindow(page)
             }
+            this.Assert(descriptionCount = 5,
+                "all five Module descriptions are actually present and visible")
+            window.Show("w" (layout.width + 100) " h" (layout.height + 130))
+            window.GetClientPos(, , &pageW, &pageH)
+            app.ui.ResizePage(page, window, 0, pageW, pageH)
+            layout.footer.divider.GetPos(, &footerDividerY)
+            this.Assert(footerDividerY = pageH - 64,
+                "shared utility footer follows resizing: " page)
+            window.Show("w" layout.minWidth " h" layout.minHeight)
+            window.GetClientPos(, , &pageW, &pageH)
+            app.ui.ResizePage(page, window, 0, pageW, pageH)
+            this.Assert(pageW = layout.minWidth && pageH = layout.minHeight,
+                "utility page shrinks to its smaller minimum: " page)
+            app.ui.CloseWindow(page)
             this.Assert(app.manager.paused && app.modules["wonder-windows"].pending.Count = 0,
                 "interface navigation keeps dry-run inputs and Wonder Windows effects inactive")
         }

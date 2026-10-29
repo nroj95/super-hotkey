@@ -13,8 +13,6 @@ class SuiteInterface {
         this.helpSizingInstalled := false
         this.pageLayouts := Map()
         this.pageFooters := Map()
-        this.logColorCallback := ObjBindMethod(this, "ColorLog")
-        OnMessage(0x0138, this.logColorCallback) ; WM_CTLCOLORSTATIC for read-only Edit
         this.startupPath := A_Startup "\Super Hotkey.lnk"
     }
 
@@ -29,7 +27,7 @@ class SuiteInterface {
         for id in SuiteSettings.ModuleOrder
             A_TrayMenu.Add(SuiteSettings.ModuleNames[id], ObjBindMethod(this, "ShowHelp", id))
         A_TrayMenu.Add()
-        A_TrayMenu.Add("Debug log", ObjBindMethod(this, "OpenLog"))
+        A_TrayMenu.Add("Debug log", ObjBindMethod(this, "OpenLogFile"))
         A_TrayMenu.Add("Verbose logging", ObjBindMethod(this, "ToggleVerboseTray"))
         A_TrayMenu.Add("Open settings folder", ObjBindMethod(this, "OpenSettingsFolder"))
         A_TrayMenu.Add()
@@ -114,8 +112,7 @@ class SuiteInterface {
                 continue
             control.GetPos(&x, &y, &w, &h)
             controls.Push({control: control, x: x, y: y, w: w, h: h,
-                stretchWidth: x + w >= width - 50 && w >= 300,
-                stretchHeight: key = "log" && control.Type = "Edit" && h >= 200})
+                stretchWidth: x + w >= width - 50 && w >= 300})
         }
         this.pageLayouts[key] := {footer: footer, controls: controls,
             width: width, height: height, minWidth: minWidth, minHeight: minHeight,
@@ -137,8 +134,7 @@ class SuiteInterface {
         positions := []
         for item in layout.controls {
             positions.Push({control: item.control, x: item.x, y: item.y,
-                w: item.stretchWidth ? Max(45, item.w + dx) : item.w,
-                h: item.stretchHeight ? Max(45, item.h + dy) : item.h})
+                w: item.stretchWidth ? Max(45, item.w + dx) : item.w, h: item.h})
         }
         positions.Push({control: layout.footer.divider, x: 20,
             y: height - 64, w: width - 40, h: 2})
@@ -176,7 +172,6 @@ class SuiteInterface {
             this.helpSizingInstalled := false
         }
         this.helpWindowIds.Clear()
-        OnMessage(0x0138, this.logColorCallback, 0)
     }
 
     CloseModules(*) => this.CloseWindow("modules")
@@ -508,25 +503,6 @@ class SuiteInterface {
     ; Global logging and application preferences
     ; =========================================================================
 
-    OpenLog(*) {
-        if this.Existing("log") {
-            this.RefreshLog()
-            return
-        }
-        window := this.NewWindow("log", SuiteApplication.Name " - Debug log")
-        verbose := window.AddCheckbox("x20 y18 w750 vverbose", "Verbose debugging")
-        verbose.Value := SuiteState.Log.verbose
-        verbose.OnEvent("Click", ObjBindMethod(this, "SetVerbose"))
-        window.AddText("x20 y50 w760", "Showing recent entries only. Copy or Open file to access the full log.")
-        window.AddEdit("x20 y85 w760 h335 ReadOnly +VScroll vlog", SuiteState.Log.ReadRecent())
-        footer := this.Footer(window, [["Copy", ObjBindMethod(this, "CopyLog"), 100],
-            ["Clear...", ObjBindMethod(this, "ClearLog"), 100],
-            ["Open file", ObjBindMethod(this, "OpenLogFile"), 115],
-            ["Close", ObjBindMethod(this, "CloseWindow", "log"), 100]], 455)
-        footer.divider.Visible := false
-        this.ShowPage("log", 800, 505, 560, 430)
-    }
-
     UpdateVerboseTray() {
         if SuiteState.Log.verbose
             A_TrayMenu.Check("Verbose logging")
@@ -538,36 +514,13 @@ class SuiteInterface {
         this.app.Settings.Save(this.app.Settings.modules, this.app.Settings.layers, enabled)
         SuiteState.Log.verbose := enabled
         SuiteState.Log.Write("Core", "verbose debugging " (enabled ? "enabled" : "disabled"))
-        if this.windows.Has("log")
-            this.windows["log"]["verbose"].Value := enabled
         this.UpdateVerboseTray()
-        this.RefreshLog()
     }
 
     ToggleVerboseTray(*) {
         try this.ApplyVerbose(!SuiteState.Log.verbose)
         catch Error as failure
             this.Report(failure, "Core / logging preference")
-    }
-
-    SetVerbose(control, *) {
-        try this.ApplyVerbose(control.Value != 0)
-        catch Error as failure {
-            control.Value := SuiteState.Log.verbose
-            this.Report(failure, "Core / logging preference")
-        }
-    }
-
-    ColorLog(hdc, controlHwnd, *) {
-        if !this.windows.Has("log") || controlHwnd != this.windows["log"]["log"].Hwnd
-            return
-        DllCall("SetBkColor", "ptr", hdc, "uint", 0xFFFFFF)
-        return DllCall("GetStockObject", "int", 0, "ptr") ; WHITE_BRUSH
-    }
-
-    RefreshLog(*) {
-        if this.windows.Has("log")
-            this.windows["log"]["log"].Value := SuiteState.Log.ReadRecent()
     }
 
     CopyLog(*) {
@@ -581,17 +534,11 @@ class SuiteInterface {
         }
     }
 
+    ; No confirmation: the clear and copy hotkeys bracket a reproduction, and
+    ; the previous log survives as debug.log.old.
     ClearLog(*) {
-        if MsgBox("Clear the current log? Its previous contents will be retained in debug.log.old.",
-            SuiteApplication.Name, "YesNo Default2 Icon?") = "Yes"
-            this.ClearLogNow()
-    }
-
-    ; The debug hotkey skips the confirmation used by the GUI Clear button.
-    ClearLogNow(*) {
         try {
             SuiteState.Log.Clear()
-            this.RefreshLog()
             return true
         }
         catch Error as failure {

@@ -215,7 +215,7 @@ class SuiteApplication {
         if kind = "copy"
             SuiteNotice.Show("status", this.ui.CopyLog() ? "Debug log copied" : "Debug log copy failed", 1400)
         else
-            SuiteNotice.Show("status", this.ui.ClearLogNow() ? "Debug log cleared" : "Debug log clear failed", 1400)
+            SuiteNotice.Show("status", this.ui.ClearLog() ? "Debug log cleared" : "Debug log clear failed", 1400)
     }
 
     ; Restart on release, so the new process never inherits held keys.

@@ -14,7 +14,7 @@ class CoreChecks {
         this.ApplicationSuspension()
         this.DisabledModuleWarning()
         this.PowerCancellation()
-        this.LargeDebugLog()
+        this.LogClearing()
         this.WorkingMonitor()
         this.CenteredNotices()
         this.FocusReturn()
@@ -674,32 +674,14 @@ class CoreChecks {
         }
     }
 
-    static LargeDebugLog() {
-        app := SuiteApplication(true, SuiteChecks.directory "\release-large-log")
+    static LogClearing() {
+        app := SuiteApplication(true, SuiteChecks.directory "\log-clearing")
         app.ui := SuiteInterface(app)
         try {
-            ; A full-size verbose log must not exceed the native Edit control limit.
-            line := StrReplace(Format("{:1024}", "log entry"), " ", ".") "`n"
-            fixture := ""
-            Loop 1500
-                fixture .= line
-            FileAppend(fixture "recent-tail-marker`n", SuiteState.Log.path, "UTF-8-RAW")
-            this.Assert(FileGetSize(SuiteState.Log.path) > 1000000,
-                "debug viewer regression uses a large disposable log")
-            app.ui.OpenLog()
-            preview := app.ui.windows["log"]["log"].Value
-            this.Assert(StrLen(preview) < 26000 && InStr(preview, "recent-tail-marker"),
-                "large debug log opens with a bounded recent preview")
-            SuiteState.Log.Write("Core", "refresh-tail-marker")
-            app.ui.RefreshLog()
-            refreshed := app.ui.windows["log"]["log"].Value
-            this.Assert(StrLen(refreshed) < 26000 && InStr(refreshed, "refresh-tail-marker"),
-                "refreshing a large log remains bounded and shows newest entries")
-            this.Assert(StrLen(SuiteState.Log.Read()) > 1000000,
-                "preview does not truncate the full log on disk")
-            this.Assert(app.ui.ClearLogNow() && FileExist(SuiteState.Log.path ".old")
+            SuiteState.Log.Write("Core", "before-clear-marker")
+            this.Assert(app.ui.ClearLog() && InStr(FileRead(SuiteState.Log.path ".old"), "before-clear-marker")
                 && InStr(SuiteState.Log.Read(), "log cleared; previous log retained"),
-                "debug hotkey clears a disposable log without a confirmation dialog")
+                "clearing the log keeps the previous log as debug.log.old without asking")
         }
         finally app.ui.CloseAll()
     }
