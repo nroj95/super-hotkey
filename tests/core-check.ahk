@@ -98,7 +98,7 @@ class CoreChecks {
                 && !manager.actions.Has("wonder-windows.focus-left")
                 && !manager.actions.Has("wonder-windows.focus-right"),
                 "focus moves up and down with Win + PgUp/PgDn")
-            this.Assert(configuration["wonder-windows.isolate"].bindings[1] = Keybindings.Parse("Win + Home").signature
+            this.Assert(!manager.actions.Has("wonder-windows.isolate")
                 && configuration["core.close-active"].bindings[1]
                     = Keybindings.Parse("Caps + Delete").signature
                 && configuration["core.close-active"].bindings[2]
@@ -106,7 +106,7 @@ class CoreChecks {
                 && !manager.actions.Has("cascade-kingdom.close-active")
                 && !manager.actions.Has("wonder-windows.close-active")
                 && manager.actions["core.close-active"].category = "Global",
-                "isolate uses Win + Home; a Global action closes with Caps + Delete or Win + Delete")
+                "Win + Home is left to Windows; a Global action closes with Caps + Delete or Win + Delete")
             this.Assert(configuration["wonder-windows.help"].bindings[1] = Keybindings.Parse("Ctrl + Alt + H").signature
                 && configuration["wonder-windows.help"].bindings[2] = Keybindings.Parse("Caps + Win + H").signature,
                 "Wonder Windows help opens with Ctrl + Alt + H, or Caps + Win + H")

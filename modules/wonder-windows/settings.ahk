@@ -8,8 +8,6 @@ WW_InitializeState() {
 ; =============================================================================
 
 WW_last_minimized_hwnd := 0
-WW_isolation_minimized_windows := []
-WW_isolation_active_hwnd := 0
 WW_stretched_windows := Map()
 WW_logical_zones := Map()
 WW_layout_cycle_windows := Map()

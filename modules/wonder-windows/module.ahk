@@ -46,8 +46,6 @@ class WonderWindowsModule extends SuiteModule {
         this.Add("cycle-stacked", "cycle windows in current stack", WW_CycleMonitorWindows, ["Win + Enter"])
         this.Add("minimize", "minimize / restore last minimized window",
             WW_MinimizeActiveWindow, ["Win + Backspace"])
-        this.Add("isolate", "minimize / restore other windows", WW_ToggleOtherWindows,
-            ["Win + Home"])
     }
 
     Add(id, label, command, bindings, arguments := unset) {
@@ -231,11 +229,8 @@ class WonderWindowsModule extends SuiteModule {
             . "`r`nWin + PgDn and PgUp step focus through every window on screen in reading "
             . "order: displays left to right, columns left to right, top before bottom. "
             . "A stack of overlapping windows counts once, as its front window. "
-            . "Move a window onto its nearest neighbor to stack it in front, "
-            . "or temporarily minimize a group. Bring forward the next window stacked with the active one, "
+            . "Move a window onto its nearest neighbor to stack it in front. Bring forward the next window stacked with the active one, "
             . "and cycle a window between maximized and half-height positions. Layout actions exit F11 fullscreen before repositioning a window. "
-            . "Minimize / restore other windows hides every window but the active one; use it "
-            . "again to restore them. "
             . "Keybindings below shows the current hotkey for each action."
     }
 }
