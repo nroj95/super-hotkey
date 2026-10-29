@@ -8,6 +8,8 @@ Fewer, smarter hotkeys: this version cuts features that overlapped and hands sev
 
 - If you customized these hotkeys, set them again in Keybindings: Clear log, Copy log, Toggle Caps Lock and Power-Up help have new action IDs and start from their defaults.
 - **Paper Pad:** `Win + PgUp` now goes to the previous page and `Win + PgDn` to the next, like PgUp and PgDn everywhere else. Saved hotkeys keep the old order, so swap them in Keybindings.
+- **Cascade Kingdom:** `Caps + M` only hides the cascade; `Caps + Shift + M` brings it back, like `Win + M` and `Win + Shift + M`. Hiding again before restoring adds to what comes back, so nothing hidden is left behind.
+- **Cascade Kingdom:** pressing `Caps + Insert` again no longer undoes. `Caps + Shift + Insert` takes the active window out of its cascade and returns it to where it was before it joined, maximized or not, whenever you press it. Windows dropped onto a slot remember their place too.
 - **Windows Terminal helpers** send Terminal's default shortcuts (`Ctrl + Shift + A`, `C` and `K`). If you remapped those in Terminal, restore them.
 
 ### Changes

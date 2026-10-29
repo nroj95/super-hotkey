@@ -30,7 +30,7 @@ Windows can also sit side by side with others stacked behind them: `Win + Enter`
 
 Keep windows in an overlapping cascade, which helps most when many apps are open. Every window keeps 80% of the display's width and height, however many you add.
 
-Each slot in the cascade gets a small colored focus tab, so every slot stays one click away: click a tab to bring its window forward, and click it again to cycle through the windows sharing that slot. From the keyboard, `Caps + PgUp/PgDn` steps through them. `Caps + M` hides the cascade and brings it back together.
+Each slot in the cascade gets a small colored focus tab, so every slot stays one click away: click a tab to bring its window forward, and click it again to cycle through the windows sharing that slot. From the keyboard, `Caps + PgUp/PgDn` steps through them. `Caps + M` hides the cascade and `Caps + Shift + M` brings it back together.
 
 With two displays, for example, keep focused work in narrow zones on one, wide apps like file managers, video players or Discord on the other, and secondary apps in a cascade on whichever display you choose in Settings.
 

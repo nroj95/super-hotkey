@@ -25,8 +25,6 @@ class CascadeKingdomModule extends SuiteModule {
         manager.Observe("*LButton", CanStartFocusTabClick, (*) => BeginFocusTabClick())
         manager.Observe("*LButton Up", HasFocusTabClick, (*) => FinishFocusTabClick(), true)
         manager.Observe("~*LButton", IsCascadeEnabled, (*) => CaptureCascadeMousePress())
-        for key in ["RButton", "MButton", "XButton1", "XButton2"]
-            manager.Observe("~*" key, IsCascadeEnabled, (*) => CancelPendingAdoptionUndo())
         manager.Observe("~*LButton Up", IsCascadeEnabled, (*) => CaptureCascadeMouseRelease())
         manager.Observe("~*Escape", HasCascadeWindowDrag, (*) => CancelCascadeWindowDrop())
         SuiteWindowOwnership.OnClaim(CascadeForgetManualWindow)
@@ -145,8 +143,9 @@ class CascadeKingdomModule extends SuiteModule {
             . "and neatly organized, switch between them effortlessly, and avoid digging "
             . "through a messy pile of overlapping windows."
             . "`r`n`r`nADD A WINDOW"
-            . "`r`nPress Caps + Insert to add the active window; press it again straight away "
-            . "to undo. Or drag a window: corner guides mark the slots, and releasing with its "
+            . "`r`nPress Caps + Insert to add the active window, and Caps + Shift + Insert to take "
+            . "it out again: it returns to where it was before it joined. Or drag a window: "
+            . "corner guides mark the slots, and releasing with its "
             . "top-left corner on one adds it. Resizing never adds a window, and dragging a "
             . "member away from its slot releases it. With one display selected in Settings, "
             . "added windows move there and dragging to another display leaves a window "

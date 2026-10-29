@@ -105,7 +105,7 @@ placement_reservations := Map()
 placement_stabilization_generations := Map()
 placement_dpi_generations := Map()
 placement_stabilization_generation_counter := 0
-pending_adoption_undo := 0
+cascade_join_positions := Map()
 cascade_poll_ms := 1000
 cascade_history := Map()
 ; A display snapshot is refreshed by notifications and the slow polling fallback.
@@ -130,7 +130,7 @@ cascade_restore_batches := Map()
 cascade_restore_request_depth := 0
 cascade_close_batches := Map()
 cascade_target_display := IniRead(settings_path, "Controls", "Display", "All")
-cascade_minimize_toggle_in_progress := false
+cascade_minimize_in_progress := false
 cascade_minimized_windows := []
 
 focus_corner_overlays := Map()
@@ -139,8 +139,6 @@ focus_corner_update_pending := false
 focus_tab_pending_press := 0
 focus_tab_click := 0
 focus_tab_click_generation := 0
-
-current_foreground_hwnd := WinExist("A")
 
 win_event_callback := 0
 win_event_hooks := []

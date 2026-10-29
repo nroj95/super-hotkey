@@ -10,35 +10,16 @@ AdoptActiveWindow()
     if !IsCascadeEnabled()
         return
 
-    global pending_adoption_undo
-
     hwnd := WinExist("A")
 
     if !hwnd || IsShellSurfaceWindow(hwnd)
         return
 
-    ; A second Caps + Insert is the one-shot undo only while nothing else has
-    ; consumed it. After cancellation this same command returns to normal re-slot.
-    if IsPendingAdoptionUndoFor(hwnd) {
-        UndoPendingAdoption()
-        return
-    }
-
-    CancelPendingAdoptionUndo()
-
-    managed_monitor := GetManagedCascadeMonitor(hwnd)
-
     ; Prune stale membership before deciding whether this is a true adoption.
-    ; A window released by a completed drop is adoptable again.
-    if managed_monitor {
-        GetLiveCascadeHistory(managed_monitor)
-        managed_monitor := GetManagedCascadeMonitor(hwnd)
-    }
-
-    undo_snapshot := 0
-
-    if !managed_monitor
-        undo_snapshot := CaptureAdoptionUndoSnapshot(hwnd)
+    ; A window released by a completed drop is adoptable again. A member is
+    ; moved to the least-used slot and keeps its join position.
+    managed_monitor := GetLiveCascadeMonitor(hwnd)
+    join_position := managed_monitor ? 0 : CaptureCascadeJoinPosition(hwnd)
 
     target_monitor := ResolveCascadeDestination(WindowMonitorIndex(hwnd))
 
@@ -46,97 +27,94 @@ AdoptActiveWindow()
         return
 
     was_manual := SuiteWindowOwnership.Release(hwnd)
-    if undo_snapshot
-        undo_snapshot["was_manual"] := was_manual
     if !PlaceCascadeWindowOnMonitor(hwnd, target_monitor) {
         if was_manual
             SuiteWindowOwnership.Claim(hwnd)
         return
     }
 
-    if undo_snapshot
-        pending_adoption_undo := undo_snapshot
+    if !managed_monitor
+        RememberCascadeJoinPosition(hwnd, join_position, was_manual)
 }
 
-CaptureAdoptionUndoSnapshot(hwnd)
+; The display of a cascade member after pruning stale membership, or 0.
+GetLiveCascadeMonitor(hwnd)
+{
+    if monitor := GetManagedCascadeMonitor(hwnd) {
+        GetLiveCascadeHistory(monitor)
+        monitor := GetManagedCascadeMonitor(hwnd)
+    }
+    return monitor
+}
+
+; Where a window was before it joined, including a maximized window's normal
+; rectangle, or 0.
+CaptureCascadeJoinPosition(hwnd)
 {
     try {
-        ; Keep the maximized state AND its original normal restore rectangle.
-        maximized_placement := WinGetMinMax(hwnd) = 1 ? CaptureWindowPlacement(hwnd) : 0
-        WinGetPosPixels(&window_x, &window_y, &window_width, &window_height, "ahk_id " hwnd)
+        placement := WinGetMinMax(hwnd) = 1 ? CaptureWindowPlacement(hwnd) : 0
+        WinGetPosPixels(&x, &y, &width, &height, "ahk_id " hwnd)
+        return {pid: WinGetPID(hwnd), x: x, y: y, width: width, height: height, placement: placement}
     }
-    catch {
+    catch
         return 0
+}
+
+; Each join replaces a window's join position, so a position never outlives
+; the membership it belongs to.
+RememberCascadeJoinPosition(hwnd, position, was_manual)
+{
+    global cascade_join_positions
+
+    if IsObject(position) {
+        position.was_manual := was_manual
+        cascade_join_positions[hwnd] := position
+    }
+    else if cascade_join_positions.Has(hwnd)
+        cascade_join_positions.Delete(hwnd)
+}
+
+; Caps + Shift + Insert: the active window leaves its cascade and returns to
+; where it was before it joined.
+ReleaseActiveCascadeWindow()
+{
+    if !IsCascadeEnabled()
+        return
+
+    global cascade_join_positions
+
+    hwnd := WinExist("A")
+    if !hwnd || !GetLiveCascadeMonitor(hwnd) {
+        SuiteNotice.Show("status", "Not in a cascade", 1400)
+        return
     }
 
-    return Map("hwnd", hwnd, "x", window_x, "y", window_y, "width", window_width,
-        "height", window_height, "maximized_placement", maximized_placement)
+    position := cascade_join_positions.Has(hwnd) ? cascade_join_positions.Delete(hwnd) : 0
+    ReleaseCascadeWindow(hwnd)
+    ReturnToCascadeJoinPosition(hwnd, position)
 }
 
-IsPendingAdoptionUndoFor(hwnd)
+; A window whose old display is gone stays where it is.
+ReturnToCascadeJoinPosition(hwnd, position)
 {
-    global pending_adoption_undo
-
-    return IsObject(pending_adoption_undo)
-        && pending_adoption_undo.Has("hwnd")
-        && pending_adoption_undo["hwnd"] = hwnd
-}
-
-CancelPendingAdoptionUndo()
-{
-    global pending_adoption_undo
-
-    pending_adoption_undo := 0
-}
-
-UndoPendingAdoption()
-{
-    global pending_adoption_undo
-
-    if !IsObject(pending_adoption_undo)
-        return false
-
-    snapshot := pending_adoption_undo
-    pending_adoption_undo := 0
-    hwnd := snapshot["hwnd"]
-
-    if !hwnd || !WinExist("ahk_id " hwnd)
-        return false
-
-    managed_monitor := GetManagedCascadeMonitor(hwnd)
-
-    ; Stop the delayed placement correction before restoring the old geometry.
-    CancelPlacementStabilization(hwnd)
-
     try {
-        if snapshot["maximized_placement"] {
-            if !DllCall("SetWindowPlacement", "ptr", hwnd,
-                "ptr", snapshot["maximized_placement"], "int")
+        if !IsObject(position) || WinGetPID(hwnd) != position.pid
+            || !GetMonitorForPoint(position.x + position.width // 2, position.y + position.height // 2)
+            return false
+        if position.placement {
+            if !DllCall("SetWindowPlacement", "ptr", hwnd, "ptr", position.placement, "int")
                 throw OSError()
-        } else {
-            WinMovePixels(snapshot["x"], snapshot["y"], snapshot["width"], snapshot["height"],
-                "ahk_id " hwnd)
         }
+        else
+            WinMovePixels(position.x, position.y, position.width, position.height, "ahk_id " hwnd)
+        if position.was_manual
+            SuiteWindowOwnership.Claim(hwnd)
+        return true
     }
-    catch {
-        ; If restoration fails, keep the window managed rather than leaving a
-        ; half-undone state. A fresh placement also re-enables stabilization.
-        if managed_monitor
-            PlaceCascadeWindowOnMonitor(hwnd, managed_monitor)
-
+    catch Error as err {
+        DebugError("Return a window to its join position", err)
         return false
     }
-
-    RemoveCascadeWindowFromHistory(hwnd)
-    RemoveWindowFromMinimizeState(hwnd)
-
-    if managed_monitor
-        QueueCascadeCompaction(managed_monitor)
-
-    if snapshot.Has("was_manual") && snapshot["was_manual"]
-        SuiteWindowOwnership.Claim(hwnd)
-    QueueFocusCornerUpdate()
-    return true
 }
 
 GatherCascadesToCommandMonitor()

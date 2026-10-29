@@ -74,10 +74,7 @@ BeginFocusTabClick(*)
     focus_tab_click := press
     focus_tab_click_generation += 1
 
-    try {
-        CancelPendingAdoptionUndo()
-        ActivateFocusTabClick(press)
-    }
+    try ActivateFocusTabClick(press)
     catch Error as err {
         DebugError("BeginFocusTabClick", err)
     }

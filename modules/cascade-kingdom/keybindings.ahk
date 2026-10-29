@@ -14,8 +14,10 @@ RegisterCascadeActions(manager)
         ["swap-down", "swap visible window down", "Caps + Down"],
         ["rotate-next", "show next window in each slot", "Caps + Space"],
         ["adopt", "place active window in cascade", "Caps + Insert"],
+        ["release", "take active window out of cascade", "Caps + Shift + Insert"],
         ["bring-forward", "bring cascade on this display to front", "Caps + Home"],
-        ["minimize", "minimize / restore all cascade windows", "Caps + M"],
+        ["minimize", "hide cascade windows", "Caps + M"],
+        ["restore", "restore hidden cascade windows", "Caps + Shift + M"],
         ["gather", "gather all cascades onto one display", "Caps + Alt + Enter"],
         ["close-monitor", "close cascade windows on this display", "Caps + F4"]]
         manager.AddAction("cascade-kingdom." item[1], item[2], CascadeBindingEvent.Bind(item[1]),

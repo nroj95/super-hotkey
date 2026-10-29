@@ -322,8 +322,8 @@ class InterfaceChecks {
                 this.Assert(StrLen(guide) >= 600,
                     "each Help guide provides substantial practical usage details: " id)
                 if id = "cascade-kingdom"
-                    this.Assert(InStr(guide, "press it again straight away to undo") > 0,
-                        "Cascade Kingdom explains how to undo adding a window")
+                    this.Assert(InStr(guide, "Caps + Shift + Insert to take it out again") > 0,
+                        "Cascade Kingdom explains how to take a window out again")
                 window.GetClientPos(, , &helpWidth, &helpHeight)
                 expectedHelpHeight := Max(480, 145 + app.ui.HelpTextHeight(id, 820) + 12)
                 this.Assert(helpWidth = 820 && helpHeight = expectedHelpHeight,

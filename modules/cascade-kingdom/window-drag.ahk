@@ -21,7 +21,6 @@ CaptureCascadeMousePress(*)
     ; Finish the previous released drag before snapshotting a rapid new press.
     if HasCascadeWindowDrag()
         WatchCascadeWindowDrag()
-    CancelPendingAdoptionUndo()
     cascade_mouse_press := 0
     if HasFocusTabClick()
         return
@@ -44,12 +43,15 @@ GetCascadeMousePressSnapshot(hwnd)
 
         ; Snapshot on down, not at the later event callback: a quick drag may
         ; already have moved by the time EVENT_SYSTEM_MOVESIZESTART is delivered.
+        ; A window dropped onto a slot keeps this as its join position.
+        minmax := WinGetMinMax(hwnd)
         return {
             hwnd: hwnd, pid: WinGetPID(hwnd),
             x: x, y: y, width: width, height: height,
             frame_x: frame_x, frame_y: frame_y,
             monitor: WindowMonitorIndex(hwnd),
-            minmax: WinGetMinMax(hwnd),
+            minmax: minmax,
+            placement: minmax = 1 ? CaptureWindowPlacement(hwnd) : 0,
             dpi: GetCascadeWindowMonitorDpi(hwnd),
             resize: !!RegExMatch(A_Cursor, "^Size(NS|WE|NWSE|NESW)$"),
             down_tick: A_TickCount, up_tick: 0, cancelled: false
@@ -129,8 +131,7 @@ BeginCascadeWindowDrag(hwnd, event_time)
     cascade_window_drag := drag
     cascade_drag_generation += 1
 
-    ; Manual interaction takes priority over pending undo and old corrections.
-    CancelPendingAdoptionUndo()
+    ; Manual interaction takes priority over old corrections.
     CancelCascadeDisplayPlacement(hwnd)
     RemoveWindowFromCascadeRestore(hwnd)
     CancelPlacementStabilization(hwnd)
@@ -335,6 +336,9 @@ CompleteCascadeWindowDrop(drag)
             RemoveWindowFromMinimizeState(hwnd)
             if drag.source_monitor
                 QueueCascadeCompaction(drag.source_monitor)
+            else
+                RememberCascadeJoinPosition(hwnd, {pid: drag.pid, x: drag.x, y: drag.y,
+                    width: drag.width, height: drag.height, placement: drag.placement}, was_manual)
             ; Keep this explicit destination while background windows fill gaps.
             QueueCascadeCompaction(monitor_index, hwnd)
             DebugLog("Cascade drop snapped. | hwnd=" hwnd
@@ -363,5 +367,5 @@ ReleaseCascadeWindow(hwnd)
     if source_monitor
         QueueCascadeCompaction(source_monitor)
     QueueFocusCornerUpdate()
-    DebugLog("Cascade drop released. | hwnd=" hwnd " | source-monitor=" source_monitor)
+    DebugLog("Cascade window released. | hwnd=" hwnd " | source-monitor=" source_monitor)
 }

@@ -98,14 +98,14 @@ DrainCascadeCommandQueue(*)
 
 DispatchCascadeCommand(command)
 {
-    global cascade_minimize_toggle_in_progress
+    global cascade_minimize_in_progress
 
     name := command.name
-    if cascade_minimize_toggle_in_progress
+    if cascade_minimize_in_progress
         return
 
-    if name = "minimize" {
-        ToggleCascadeMinimize()
+    if name = "minimize" || name = "restore" {
+        RunCascadeMinimizeCommand(name = "minimize" ? MinimizeCascadeWindows : RestoreMinimizedCascadeWindows)
         return
     }
 
@@ -133,9 +133,6 @@ DispatchCascadeCommand(command)
     if ActiveWindowBlocksCascadeCommands(name = "adopt")
         return
 
-    if name != "adopt"
-        CancelPendingAdoptionUndo()
-
     switch name {
         case "focus-previous": FocusCascadeLayerWindow(-1)
         case "focus-next": FocusCascadeLayerWindow(1)
@@ -145,6 +142,7 @@ DispatchCascadeCommand(command)
         case "swap-down": SwapActiveCascadeWindow(1)
         case "rotate-next": RotateCascadeLayers(1)
         case "adopt": AdoptActiveWindow()
+        case "release": ReleaseActiveCascadeWindow()
         case "bring-forward": BringCascadeForward(SuiteWorkingMonitor.Get())
         case "gather": GatherCascadesToCommandMonitor()
         case "close-monitor": CloseCommandMonitorCascade()

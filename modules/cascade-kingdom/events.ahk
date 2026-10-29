@@ -63,7 +63,6 @@ StopWindowHooks()
 
 HandleWinEvent(hook_handle, event, hwnd, object_id, child_id, event_thread, event_time)
 {
-    global current_foreground_hwnd
     try {
         EVENT_SYSTEM_FOREGROUND := 0x0003
         EVENT_OBJECT_DESTROY := 0x8001
@@ -76,12 +75,6 @@ HandleWinEvent(hook_handle, event, hwnd, object_id, child_id, event_thread, even
         CHILDID_SELF := 0
 
         if event = EVENT_SYSTEM_FOREGROUND {
-            ; Moving to another window expires a pending Caps + Insert undo.
-            if hwnd && hwnd != current_foreground_hwnd {
-                CancelPendingAdoptionUndo()
-                current_foreground_hwnd := hwnd
-                DebugLog("Foreground changed." . " | current=" DescribeWindow(hwnd))
-            }
             QueueFocusCornerUpdate()
             return
         }
@@ -143,7 +136,7 @@ HandleWinEvent(hook_handle, event, hwnd, object_id, child_id, event_thread, even
 
 ForgetWindow(hwnd)
 {
-    global pending_adoption_undo, current_foreground_hwnd
+    global cascade_join_positions
 
     ; Do not wait for the next visual sweep: a destroyed target must never leave
     ; its script-owned focus GUI behind.
@@ -154,13 +147,10 @@ ForgetWindow(hwnd)
     if IsCascadeWindowBeingDragged(hwnd)
         StopCascadeWindowDrag()
 
-    if IsPendingAdoptionUndoFor(hwnd)
-        pending_adoption_undo := 0
+    if cascade_join_positions.Has(hwnd)
+        cascade_join_positions.Delete(hwnd)
 
     CancelPlacementStabilization(hwnd)
-
-    if current_foreground_hwnd = hwnd
-        current_foreground_hwnd := 0
 
     RemoveWindowFromMinimizeState(hwnd)
 

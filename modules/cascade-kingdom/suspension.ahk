@@ -1,5 +1,5 @@
-; Cascade Kingdom's enabled state, minimize / restore (Caps + M), activity
-; startup and minimized-window cleanup on exit.
+; Cascade Kingdom's enabled state, hiding and restoring (Caps + M and
+; Caps + Shift + M), activity startup and hidden-window cleanup on exit.
 
 IsCascadeEnabled() {
     app := SuiteState.App
@@ -8,33 +8,33 @@ IsCascadeEnabled() {
 }
 
 ; =============================================================================
-; Caps + M minimize / restore
+; Caps + M hide / Caps + Shift + M restore
 ; =============================================================================
 
-ToggleCascadeMinimize(*)
+; Caps + M adds the visible cascade windows to the hidden list; Caps + Shift + M
+; brings back everything on it. A window restored, closed or released another
+; way leaves the list; a window minimized by hand never joins it.
+RunCascadeMinimizeCommand(command)
 {
-    global cascade_minimize_toggle_in_progress, cascade_minimized_windows
+    global cascade_minimize_in_progress
 
-    if cascade_minimize_toggle_in_progress
+    if cascade_minimize_in_progress
         return
     ; Do not hide a target in the middle of a native drag or paired tab click.
     if HasCascadeWindowDrag() || HasFocusTabClick() || GetKeyState("LButton", "P")
         return
 
     previous_critical := Critical("On")
-    cascade_minimize_toggle_in_progress := true
+    cascade_minimize_in_progress := true
     try {
         PruneMinimizedCascadeWindows()
-        if cascade_minimized_windows.Length
-            RestoreMinimizedCascadeWindows()
-        else
-            MinimizeCascadeWindows()
+        command()
     }
     catch Error as err {
-        DebugError("Toggle cascade minimized state", err)
+        DebugError("Hide or restore cascade windows", err)
     }
     finally {
-        cascade_minimize_toggle_in_progress := false
+        cascade_minimize_in_progress := false
         QueueFocusCornerUpdate()
         Critical(previous_critical)
     }
@@ -44,8 +44,9 @@ MinimizeCascadeWindows()
 {
     global cascade_minimized_windows
 
+    ; The newest batch goes first, so it comes back on top.
     targets := CaptureCascadeMinimizeTargets()
-    cascade_minimized_windows := []
+    added := 0
 
     for target in targets {
         if !IsSameMinimizedCascadeWindow(target)
@@ -56,7 +57,7 @@ MinimizeCascadeWindows()
                 continue
 
             ; Publish ownership before WinMinimize can yield to a lifetime callback.
-            cascade_minimized_windows.Push(target)
+            cascade_minimized_windows.InsertAt(++added, target)
             CancelPlacementStabilization(target.hwnd)
             RemoveWindowFromCascadeRestore(target.hwnd)
             WinMinimize(target.hwnd)
@@ -74,7 +75,7 @@ MinimizeCascadeWindows()
         }
     }
 
-    DebugLog("Cascade windows minimized. | saved-windows=" cascade_minimized_windows.Length)
+    DebugLog("Cascade windows minimized. | added=" added " | saved-windows=" cascade_minimized_windows.Length)
 }
 
 RestoreMinimizedCascadeWindows()

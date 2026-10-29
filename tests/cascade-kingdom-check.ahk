@@ -289,7 +289,7 @@ class CascadeChecks {
     }
 
     static MaximizedAdoption() {
-        global cascade_window_drag, pending_adoption_undo
+        global cascade_window_drag
         global cascade_displays
         app := SuiteApplication(true, SuiteChecks.directory "\maximized-adoption")
         InitializeCascadeState()
@@ -297,7 +297,7 @@ class CascadeChecks {
         previousCritical := Critical("On")
         try {
             ; Stay in dry run: no hooks, desktop discovery or real adoption.
-            ; Only the test-owned window is restored/moved by the undo check.
+            ; Only the test-owned window is restored/moved by the join-position check.
             ; Populate display geometry without starting hooks or discovery.
             cascade_displays := ReadCascadeDisplays().displays
             window.Show("x60 y60 w320 h220")
@@ -315,26 +315,30 @@ class CascadeChecks {
                 "maximized adoption still respects an active native drag")
             cascade_window_drag := 0
 
-            pending_adoption_undo := CaptureAdoptionUndoSnapshot(hwnd)
-            this.Assert(IsObject(pending_adoption_undo)
-                && IsObject(pending_adoption_undo["maximized_placement"]),
+            position := CaptureCascadeJoinPosition(hwnd)
+            this.Assert(IsObject(position) && IsObject(position.placement),
                 "maximized adoption snapshots native placement before restoring")
+            position.was_manual := false
             WinRestore(hwnd)
             WinMove(100, 100, 420, 280, hwnd)
-            this.Assert(UndoPendingAdoption() && WinGetMinMax(hwnd) = 1,
-                "adoption undo restores maximized state")
+            this.Assert(ReturnToCascadeJoinPosition(hwnd, position) && WinGetMinMax(hwnd) = 1,
+                "taking a window out restores its maximized state")
             restored := CaptureWindowPlacement(hwnd)
             sameRectangle := true
             for offset in [28, 32, 36, 40]
                 sameRectangle := sameRectangle
                     && NumGet(original, offset, "int") = NumGet(restored, offset, "int")
             this.Assert(sameRectangle,
-                "maximized adoption undo preserves the original normal restore rectangle")
+                "taking a window out preserves its original normal restore rectangle")
 
             WinRestore(hwnd)
-            normalSnapshot := CaptureAdoptionUndoSnapshot(hwnd)
-            this.Assert(IsObject(normalSnapshot) && !normalSnapshot["maximized_placement"],
-                "normal-window adoption retains its existing geometry-only undo")
+            normalPosition := CaptureCascadeJoinPosition(hwnd)
+            this.Assert(IsObject(normalPosition) && !normalPosition.placement,
+                "a normal window's join position is geometry only")
+            normalPosition.was_manual := false
+            normalPosition.x := -100000
+            this.Assert(!ReturnToCascadeJoinPosition(hwnd, normalPosition),
+                "a window whose old display is gone stays where it is")
 
             WinSetStyle((WinGetStyle(hwnd) & ~0xC40000) | 0x80000000, hwnd)
             WinSetExStyle(WinGetExStyle(hwnd) & ~0x300, hwnd)
@@ -345,7 +349,6 @@ class CascadeChecks {
                 "allowing maximized adoption does not bypass the fullscreen guard")
         }
         finally {
-            CancelPendingAdoptionUndo()
             StopCascadeDisplays()
             InitializeCascadeState()
             window.Destroy()
