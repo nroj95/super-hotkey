@@ -88,7 +88,9 @@ class SuiteApplication {
         DetectHiddenWindows true
         SetTitleMatchMode 2
         SetStoreCapsLockMode false
-        A_MenuMaskKey := "vkE8"
+        ; Hides a Win release from Start. Shell tools use vkFF for this too and
+        ; ignore it, while vkE8 can count as a key pressed with the next Win hold.
+        A_MenuMaskKey := "vkFF"
         CoordMode "Mouse", "Screen"
         SuiteState.Log.Write("Core", "starting " SuiteApplication.Version " / AutoHotkey " A_AhkVersion)
         if !FileExist(this.Settings.path)
