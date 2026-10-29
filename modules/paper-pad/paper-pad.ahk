@@ -1604,8 +1604,6 @@ class PaperPadController
         }
     }
 
-    ShowHelp(*) => SuiteState.App.ui.ToggleHelp("paper-pad")
-
     OnScriptExit(exit_reason, exit_code)
     {
         SetTimer this.autosave_callback, 0

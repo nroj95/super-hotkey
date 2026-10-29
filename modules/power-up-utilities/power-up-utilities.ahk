@@ -22,7 +22,9 @@ class PowerUpUtilities extends SuiteModule {
     ; Registration order is the Keybindings display order.
     Register(manager) {
         this.manager := manager
-        this.AddAction("help", "help", "show Power-Up Utilities help", "help", "", "Pause + H")
+        manager.AddAction("power-up-utilities.help", "show Power-Up Utilities help",
+            ObjBindMethod(this.app, "HelpShortcutEvent", this.id), ["Pause + H"],
+            {category: "Power-Up Utilities", available: (*) => this.app.ModuleActive(this.id)})
         this.AddAction("speaker-wake", "system.wake-speakers", "wake speakers",
             "speaker-wake", "", "Pause + Pause")
         this.AddAction("sleep", "system.sleep", "put computer to sleep", "sleep", "", "Pause + Escape")
@@ -193,7 +195,6 @@ class PowerUpUtilities extends SuiteModule {
                 case "terminal-clear": this.terminal.Clear(job)
                 case "speaker-wake": this.utilities.WakeSpeakers(job)
                 case "sleep": this.utilities.SleepComputer(job)
-                case "help": SuiteState.App.ui.ToggleHelp("power-up-utilities")
                 default: throw Error("Unknown action kind: " job.action.kind)
             }
         }
