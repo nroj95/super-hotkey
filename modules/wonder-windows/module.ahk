@@ -65,9 +65,6 @@ class WonderWindowsModule extends SuiteModule {
             ["Win + Home"])
         this.Add("Minimize and restore", "minimize-all", "minimize / restore all windows", WW_ToggleAllWindows,
             ["Win + M"])
-        manager.AddMigration("wonderDefaults", "1", WW_MigrateKeybindingDefaults)
-        manager.AddMigration("wonderZoneDefaults", "1", WW_MigrateZoneKeybindingDefaults)
-        manager.AddMigration("wonderMoveOntoDefaults", "1", WW_MigrateMoveOntoKeybindingDefaults)
     }
 
     Add(group, id, label, command, bindings, arguments := unset) {
@@ -258,53 +255,6 @@ class WonderWindowsModule extends SuiteModule {
             . "Minimize / restore other windows hides every window but the active one; use it "
             . "again to restore them. "
             . "Keybindings below shows the current hotkey for each action."
-    }
-}
-
-; Shift legacy Wonder Windows defaults in memory without rewriting custom keys.
-; Files that recorded debugDefaults=2 were written after these defaults changed.
-WW_MigrateKeybindingDefaults(configuration, meta := 0)
-{
-    if IsObject(meta) && meta.Has("debugDefaults") && meta["debugDefaults"] = "2"
-        return
-    changes := [
-        ["wonder-windows.stretch-full-cycle", 1, "Caps + Win + Enter", "Shift + Win + Enter"],
-        ["wonder-windows.reset-stretch", 2, "Caps + Win + Backspace", ""],
-        ["wonder-windows.cycle-expanded", 1, "Win + Shift + Tab", "Caps + Win + Enter"]
-    ]
-    for direction in ["up", "down"]
-        changes.Push(["wonder-windows.focus-" direction, 1,
-            "Caps + Win + " direction, "Win + Alt + " direction])
-    for change in changes {
-        actionId := change[1]
-        if !configuration.Has(actionId)
-            continue
-        slot := change[2]
-        if configuration[actionId].bindings[slot] = Keybindings.Parse(change[3]).signature
-            configuration[actionId].bindings[slot] := change[4] = ""
-                ? "" : Keybindings.Parse(change[4]).signature
-    }
-}
-
-; Zone cycling replaced the tile and side-layout hotkeys, freeing Win + Home and
-; Win + PgUp/PgDn. Move unchanged stock bindings onto them.
-WW_MigrateZoneKeybindingDefaults(configuration, meta := 0)
-{
-    Keybindings.MigrateDefault(configuration, "wonder-windows.focus-up", 1, "Win + Alt + Up", "Win + PgUp")
-    Keybindings.MigrateDefault(configuration, "wonder-windows.focus-down", 1, "Win + Alt + Down", "Win + PgDn")
-    Keybindings.MigrateDefault(configuration, "wonder-windows.isolate", 1, "Win + Shift + Home", "Win + Home")
-}
-
-; Moving onto a window took over swap's stock Win + Alt hotkeys; swap keeps
-; Caps + Win. An unchanged swap key moves over, and a key the user gave
-; another action stays with that action.
-WW_MigrateMoveOntoKeybindingDefaults(configuration, meta := 0)
-{
-    for direction in ["up", "down", "left", "right"] {
-        key := "Win + Alt + " direction
-        Keybindings.MigrateDefault(configuration, "wonder-windows.swap-" direction, 1, key, "")
-        if !Keybindings.MigrateDefault(configuration, "wonder-windows.move-onto-" direction, 1, key, key)
-            Keybindings.MigrateDefault(configuration, "wonder-windows.move-onto-" direction, 1, key, "")
     }
 }
 

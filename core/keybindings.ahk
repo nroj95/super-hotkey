@@ -22,7 +22,6 @@ class Keybindings {
         this.statusCallback := Keybindings.Option(options, "statusCallback", 0)
         this.scopes := Map()
         this.disjointPairs := Map()
-        this.migrations := []
         this.loadWarnings := []
         this.observerGroups := Map()
         this.actions := Map()
@@ -451,10 +450,6 @@ class Keybindings {
                 list .= "`n- " label
             this._KeepDamagedFile("Some saved hotkeys could not be read and use their defaults:" list)
         }
-        meta := document.Has("meta") ? document["meta"] : Map()
-        for migration in this.migrations
-            if KB_Manifest.Get(document, "meta", migration.key) != migration.value
-                migration.callback.Call(this.configuration, meta)
     }
 
     _KeepDamagedFile(message) {
@@ -537,8 +532,6 @@ class Keybindings {
 
     _MakeDocument(configuration) {
         document := Map("meta", Map("schema", "1", "id", this.id, "name", this.name), "bindings", Map())
-        for migration in this.migrations
-            document["meta"][migration.key] := migration.value
         for actionId, setting in configuration
             document["bindings"][actionId] := (setting.enabled ? "1" : "0")
                 . "`t" setting.bindings[1] "`t" setting.bindings[2]
@@ -967,35 +960,6 @@ class Keybindings {
             throw Error("Define each input scope once before starting Keybindings.")
         Keybindings.Id(name)
         this.scopes[name] := predicate
-    }
-
-    ; A migration runs once for an existing settings file whose meta[key] is not
-    ; value: callback(configuration, meta) adjusts the loaded assignments. Every
-    ; save records value, so new installations never run it.
-    AddMigration(key, value, callback) {
-        if this.running || !HasMethod(callback, "Call")
-            throw Error("Register keybinding migrations before Start().")
-        this.migrations.Push({key: key, value: value, callback: callback})
-    }
-
-    ; For migrations: replace a stock binding only while it is unchanged and no
-    ; other action uses the new hotkey. Editor-scoped actions may share it.
-    static MigrateDefault(configuration, actionId, slot, previous, replacement) {
-        if !configuration.Has(actionId)
-            return false
-        expected := previous = "" ? "" : Keybindings.Parse(previous).signature
-        if configuration[actionId].bindings[slot] != expected
-            return false
-        target := replacement = "" ? "" : Keybindings.Parse(replacement).signature
-        actions := IsObject(Keybindings.Current) ? Keybindings.Current.actions : Map()
-        if target != ""
-            for otherId, setting in configuration
-                for otherSlot, binding in setting.bindings
-                    if binding = target && (otherId != actionId || otherSlot != slot)
-                        && !(actions.Has(otherId) && actions[otherId].scope != "")
-                        return false
-        configuration[actionId].bindings[slot] := target
-        return true
     }
 
     RegisterDisjointScopes(first, second) {

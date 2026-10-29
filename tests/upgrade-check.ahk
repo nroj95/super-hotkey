@@ -64,8 +64,6 @@ class SuiteUpgradeChecks {
         this.ApplicationSuspension()
         this.DisabledModuleWarning()
         this.ScopesAndObservers()
-        this.WonderDefaultMigration()
-        this.MoveOntoDefaultMigration()
         this.GeometryAndOwnership()
         this.ActiveShortcutVisibility()
         this.StagedKeybindings()
@@ -924,83 +922,6 @@ class SuiteUpgradeChecks {
         }
     }
 
-    static MoveOntoDefaultMigration() {
-        Signature(text) => Keybindings.Parse(text).signature
-        Setting(first, second) {
-            return {enabled: true, bindings: [first, second]}
-        }
-        altUp := Signature("Win + Alt + up")
-        capsUp := Signature("Caps + Win + up")
-        custom := Signature("Ctrl + Win + up")
-
-        ; The stock Win + Alt key moves to the new action; swap keeps Caps + Win.
-        configuration := Map("wonder-windows.swap-up", Setting(altUp, capsUp),
-            "wonder-windows.move-onto-up", Setting(altUp, ""))
-        WW_MigrateMoveOntoKeybindingDefaults(configuration)
-        this.Assert(configuration["wonder-windows.swap-up"].bindings[1] = ""
-            && configuration["wonder-windows.swap-up"].bindings[2] = capsUp
-            && configuration["wonder-windows.move-onto-up"].bindings[1] = altUp,
-            "the stock Win + Alt swap hotkey moves to moving onto a window")
-
-        ; A customized swap key stays with swap.
-        configuration := Map("wonder-windows.swap-up", Setting(custom, capsUp),
-            "wonder-windows.move-onto-up", Setting(altUp, ""))
-        WW_MigrateMoveOntoKeybindingDefaults(configuration)
-        this.Assert(configuration["wonder-windows.swap-up"].bindings[1] = custom
-            && configuration["wonder-windows.swap-up"].bindings[2] = capsUp
-            && configuration["wonder-windows.move-onto-up"].bindings[1] = altUp,
-            "a customized swap hotkey stays with swap")
-
-        ; A stock key the user gave another action stays with that action.
-        configuration := Map("wonder-windows.swap-up", Setting("", capsUp),
-            "wonder-windows.move-onto-up", Setting(altUp, ""),
-            "wonder-windows.focus-up", Setting(altUp, ""))
-        WW_MigrateMoveOntoKeybindingDefaults(configuration)
-        this.Assert(configuration["wonder-windows.focus-up"].bindings[1] = altUp
-            && configuration["wonder-windows.move-onto-up"].bindings[1] = ""
-            && configuration["wonder-windows.swap-up"].bindings[2] = capsUp,
-            "moving onto a window gives up a stock key the user assigned elsewhere")
-    }
-
-    static WonderDefaultMigration() {
-        actionId := "wonder-windows.cycle-expanded"
-        oldBinding := Keybindings.Parse("Win + Shift + Tab").signature
-        newBinding := Keybindings.Parse("Caps + Win + Enter").signature
-        for migrated in [false, true] {
-            directory := SuiteChecks.directory "\wonder-migration-" migrated
-            DirCreate directory
-            loop 2 {
-                firstLoad := A_Index = 1
-                manager := Keybindings("wonder-migration", "Wonder migration", {directory: directory})
-                try {
-                    manager.AddAction(actionId, "Cycle expanded windows", (*) => 0,
-                        ["Caps + Win + Enter"])
-                    manager.AddMigration("wonderDefaults", "1", WW_MigrateKeybindingDefaults)
-                    manager.SetPaused(true)
-                    if firstLoad {
-                        document := Map("meta", Map("schema", "1", "id", manager.id,
-                            "name", manager.name), "bindings", Map(actionId, "1`t" oldBinding "`t"))
-                        if migrated
-                            document["meta"]["debugDefaults"] := "2"
-                        KB_Manifest.WriteAtomic(manager.path, document)
-                    }
-                    manager.Start()
-                    expected := firstLoad && !migrated ? newBinding : oldBinding
-                    this.Assert(manager.GetConfiguration()[actionId].bindings[1] = expected,
-                        "Wonder migration preserves explicit choices: current=" migrated ", first=" firstLoad)
-                    this.Assert(KB_Manifest.Get(KB_Manifest.Read(manager.path), "meta", "wonderDefaults") = "1",
-                        "Wonder migration completion is persisted")
-                    if firstLoad {
-                        configuration := manager.GetConfiguration()
-                        configuration[actionId].bindings[1] := oldBinding
-                        manager.Apply(configuration)
-                    }
-                }
-                finally manager.Stop()
-            }
-        }
-    }
-
     static GeometryAndOwnership() {
         app := SuiteApplication(true, SuiteChecks.directory "\geometry")
         app.InitializeCatalog()
@@ -1037,61 +958,6 @@ class SuiteUpgradeChecks {
                 && WW_DirectionalScore(0, -60, "up") = 60
                 && WW_DirectionalScore(0, 60, "down") = 60,
                 "moving onto a window selects only windows on the requested side")
-            oldDefaults := app.manager._DefaultConfiguration()
-            oldDefaults["wonder-windows.focus-up"].bindings[1] := Keybindings.Parse("Caps + Win + Up").signature
-            oldDefaults["wonder-windows.stretch-full-cycle"].bindings[1] := Keybindings.Parse("Caps + Win + Enter").signature
-            oldDefaults["wonder-windows.reset-stretch"].bindings[2] := Keybindings.Parse("Caps + Win + Backspace").signature
-            oldDefaults["wonder-windows.cycle-expanded"].bindings[1] := Keybindings.Parse("Win + Shift + Tab").signature
-            oldDefaults["wonder-windows.focus-down"].bindings[1] := Keybindings.Parse("Pause + Z").signature
-            WW_MigrateKeybindingDefaults(oldDefaults)
-            this.Assert(oldDefaults["wonder-windows.focus-up"].bindings[1]
-                    = Keybindings.Parse("Win + Alt + Up").signature
-                && oldDefaults["wonder-windows.stretch-full-cycle"].bindings[1]
-                    = Keybindings.Parse("Shift + Win + Enter").signature
-                && oldDefaults["wonder-windows.reset-stretch"].bindings[2] = ""
-                && oldDefaults["wonder-windows.cycle-expanded"].bindings[1]
-                    = Keybindings.Parse("Caps + Win + Enter").signature
-                && oldDefaults["wonder-windows.focus-down"].bindings[1]
-                    = Keybindings.Parse("Pause + Z").signature,
-                "legacy default shortcuts migrate without changing customized bindings")
-            oldDefaults["wonder-windows.isolate"].bindings[1] := Keybindings.Parse("Win + Shift + Home").signature
-            WW_MigrateZoneKeybindingDefaults(oldDefaults)
-            this.Assert(oldDefaults["wonder-windows.focus-up"].bindings[1]
-                    = Keybindings.Parse("Win + PgUp").signature
-                && oldDefaults["wonder-windows.isolate"].bindings[1]
-                    = Keybindings.Parse("Win + Home").signature
-                && oldDefaults["wonder-windows.focus-down"].bindings[1]
-                    = Keybindings.Parse("Pause + Z").signature,
-                "zone-era defaults move stock focus and isolate hotkeys, sharing Paper Pad's editor keys")
-            oldDefaults["wonder-windows.minimize"].bindings[2] := ""
-            this.Assert(!Keybindings.MigrateDefault(oldDefaults, "wonder-windows.minimize", 2, "", "Win + Delete")
-                && oldDefaults["wonder-windows.minimize"].bindings[2] = "",
-                "a migration never takes a hotkey another global action uses")
-            oldDefaults["core.close-active"].bindings[2] := ""
-            this.Assert(Keybindings.MigrateDefault(oldDefaults, "wonder-windows.minimize", 2, "", "Win + Delete")
-                && oldDefaults["wonder-windows.minimize"].bindings[2]
-                    = Keybindings.Parse("Win + Delete").signature,
-                "a migration takes a new hotkey once it is free")
-            oldDefaults["cascade-kingdom.reset-log"].bindings[1] := Keybindings.Parse("Caps + F5").signature
-            oldDefaults["cascade-kingdom.copy-log"].bindings[1] := Keybindings.Parse("Pause + F9").signature
-            SuiteMigrateLogKeybindingDefaults(oldDefaults)
-            this.Assert(oldDefaults["cascade-kingdom.reset-log"].bindings[1]
-                    = Keybindings.Parse("Pause + F1").signature
-                && oldDefaults["cascade-kingdom.copy-log"].bindings[1]
-                    = Keybindings.Parse("Pause + F9").signature,
-                "old clear-log defaults migrate without replacing customized log shortcuts")
-            oldDefaults["cascade-kingdom.copy-log"].bindings[1] := Keybindings.Parse("Caps + F6").signature
-            oldDefaults["paper-pad.help"].bindings[2] := Keybindings.Parse("Pause + F2").signature
-            SuiteMigrateLogKeybindingDefaults(oldDefaults)
-            this.Assert(oldDefaults["cascade-kingdom.copy-log"].bindings[1]
-                    = Keybindings.Parse("Caps + F6").signature,
-                "migration preserves an existing assignment of the desired hotkey")
-            oldDefaults["cascade-kingdom.reset-log"].bindings[1] := Keybindings.Parse("Caps + F5").signature
-            oldDefaults["cascade-kingdom.reset-log"].bindings[2] := Keybindings.Parse("Pause + F1").signature
-            SuiteMigrateLogKeybindingDefaults(oldDefaults)
-            this.Assert(oldDefaults["cascade-kingdom.reset-log"].bindings[1]
-                    = Keybindings.Parse("Caps + F5").signature,
-                "migration preserves a secondary binding on the same action")
             this.Assert(WW_NextMaximizeCycleIndex(false, false, 0) = 0,
                 "Win + Up maximizes a normal window first")
             this.Assert(WW_NextMaximizeCycleIndex(false, true, 0) = 1,
@@ -1219,7 +1085,7 @@ class SuiteUpgradeChecks {
                 "horizontal stretch stops at the nearest facing edge")
             this.Assert(WW_GetCollisionLimitedEdge("left", [400, 0, 200, 300], [[450, 0, 200, 300]], 0) = 0,
                 "pre-existing overlap does not collapse a stretched window")
-            window := SuiteGui("+ToolWindow", "Owned migration test window")
+            window := SuiteGui("+ToolWindow", "Owned test window")
             try {
                 this.Assert(!SuiteSizeGrip.handles.Has(window.Hwnd),
                     "non-resizable suite windows have no sizing grip")

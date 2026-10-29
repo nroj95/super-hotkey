@@ -82,8 +82,6 @@ class SuiteApplication {
             throw Error("Another Super Hotkey instance is running. Close it before starting another copy.")
         OnExit(this.exitCallback)
         OnError(this.errorCallback)
-        if !this.dryRun
-            this.CheckOriginalScripts()
         Persistent true
         SetWinDelay 0
         SetControlDelay -1
@@ -175,7 +173,6 @@ class SuiteApplication {
             ObjBindMethod(this, "LogShortcutEvent", "copy"), ["Pause + F2"], {category: "Global"})
         this.manager.AddAction("core.restart", "restart Super Hotkey", ObjBindMethod(this, "RestartEvent"),
             ["Pause + F3"], {category: "Global"})
-        this.manager.AddMigration("debugDefaults", "2", SuiteMigrateLogKeybindingDefaults)
         for id in SuiteApplication.KeybindingsOrder
             this.modules[id].Register(this.manager)
     }
@@ -425,32 +422,4 @@ class SuiteApplication {
         ; Retain AutoHotkey's normal error dialog/termination instead of hiding faults.
         return 0
     }
-
-    ; Two keyboard hooks for the same keys would fight; the old standalone
-    ; scripts must not run beside the suite.
-    CheckOriginalScripts() {
-        previous := A_DetectHiddenWindows
-        DetectHiddenWindows true
-        try {
-            for hwnd in WinGetList("ahk_class AutoHotkey") {
-                if hwnd = A_ScriptHwnd
-                    continue
-                try title := WinGetTitle(hwnd)
-                catch
-                    continue
-                if RegExMatch(title, "i)\\(?:window-cascade|win-key-overhaul|windows-key-overhaul|window-hotkeys|power-hotkey|power-up-utilities|scratchpad|paper-pad|caps-pause-layers|capslock-layer|pause-command-mode)(?:\([^\\]*\))?\.ahk - AutoHotkey")
-                    throw Error("Close the original AutoHotkey utilities before starting the suite."
-                        . "`nNo process was stopped automatically.`n`nDetected: " title)
-            }
-        }
-        finally DetectHiddenWindows previous
-    }
-}
-
-; The debug-log hotkeys moved from Caps + F5/F6. Replace only those old stock
-; bindings and never take a hotkey another action already uses.
-SuiteMigrateLogKeybindingDefaults(configuration, meta := 0)
-{
-    Keybindings.MigrateDefault(configuration, "cascade-kingdom.reset-log", 1, "Caps + F5", "Pause + F1")
-    Keybindings.MigrateDefault(configuration, "cascade-kingdom.copy-log", 1, "Caps + F6", "Pause + F2")
 }
