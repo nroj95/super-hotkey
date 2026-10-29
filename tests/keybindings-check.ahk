@@ -518,15 +518,19 @@ class KeybindingsChecks {
                 this.Assert(manager.observers.Length = 1, "identical passive observers share one native variant: " suffix)
                 manager._DispatchObserver("~*F24")
                 this.Assert(this.observerCalls = 2, "both modules receive the passive observation: " suffix)
-                ; Core's click observer starts before Cascade's focus-tab claim on
-                ; the same native hotkey; the claim must still win on a tab.
+                ; Pass-through observers are global variants, so the hook never
+                ; waits on this thread for them; AutoHotkey ranks a global variant
+                ; last, so a claim such as a focus-tab click still wins on a tab.
                 claiming := false
                 manager.Observe("*F24", (*) => claiming, (*) => 0, true)
-                this.Assert(manager._ObserverEligible("~*F24") && !manager._ObserverEligible("*F24"),
-                    "an earlier pass-through observer keeps ordinary input: " suffix)
+                this.Assert(!manager.observerGroups["~*F24"].predicate
+                    && IsObject(manager.observerGroups["*F24"].predicate),
+                    "only observers that claim input keep a context check: " suffix)
+                this.Assert(!manager._ObserverEligible("*F24"),
+                    "a claiming observer stays out of ordinary input: " suffix)
                 claiming := true
-                this.Assert(!manager._ObserverEligible("~*F24") && manager._ObserverEligible("*F24"),
-                    "a claiming observer wins over an earlier pass-through one: " suffix)
+                this.Assert(manager._ObserverEligible("*F24"),
+                    "a claiming observer takes the input when its context holds: " suffix)
             }
             finally {
                 manager.Stop()

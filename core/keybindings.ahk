@@ -120,7 +120,8 @@ class Keybindings {
         this.pressed.Clear()
         this.blocked.Clear()
         for observer in this.observers {
-            HotIf observer.predicate
+            if observer.predicate
+                HotIf observer.predicate
             try Hotkey(observer.key, "Off")
             finally HotIf()
         }
@@ -945,9 +946,17 @@ class Keybindings {
         ; AHK chooses one matching variant, not every variant. Fan out identical
         ; passive observations so one module cannot hide another module's click.
         if !this.observerGroups.Has(key) {
-            group := {key: key, callbacks: [], predicate: ObjBindMethod(this, "_ObserverEligible", key)}
+            ; A context check makes the hook hold the input until this thread
+            ; answers, so a busy timer delays or loses clicks everywhere. A
+            ; pass-through observer never blocks input and filters when it runs,
+            ; so it is a global variant; global variants rank below the others,
+            ; which keeps one that claims the input, such as a focus-tab click.
+            passThrough := SubStr(key, 1, 1) = "~"
+            group := {key: key, callbacks: [],
+                predicate: passThrough ? 0 : ObjBindMethod(this, "_ObserverEligible", key)}
             this.observerGroups[key] := group
-            HotIf group.predicate
+            if group.predicate
+                HotIf group.predicate
             try Hotkey(key, ObjBindMethod(this, "_DispatchObserver", key), "On I100 B0")
             finally HotIf()
             this.observers.Push(group)
@@ -1006,11 +1015,6 @@ class Keybindings {
 
     _ObserverEligible(key, *) {
         if !this.running || !this.observerGroups.Has(key)
-            return false
-        ; ~*Key and *Key are variants of one native hotkey, and only the first
-        ; created whose criterion holds runs. A pass-through observer created
-        ; earlier must not hide one that claims the input, such as a focus-tab click.
-        if SubStr(key, 1, 1) = "~" && this._ObserverEligible(SubStr(key, 2))
             return false
         for item in this.observerGroups[key].callbacks
             if (item.releaseGuard || !this.gated) && item.context.Call()
