@@ -90,12 +90,6 @@ GetCascadeWindowMonitorDpi(hwnd)
     return GetCascadeMonitorDpi(GetMonitorForWindow(hwnd))
 }
 
-GetCascadeMonitorDevice(monitor_index)
-{
-    global cascade_displays
-    return cascade_displays.Has(monitor_index) ? cascade_displays[monitor_index].device : ""
-}
-
 FindCascadeMonitorDevice(device, displays := 0)
 {
     global cascade_displays

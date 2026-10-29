@@ -9,7 +9,7 @@ ActiveWindowBlocksCascadeCommands(allow_maximized := false)
     ; Do not rotate, gather or reposition windows underneath a native drag.
     if HasCascadeWindowDrag() || IsCascadeDisplayTransition()
         return true
-    command_monitor := GetCommandMonitor()
+    command_monitor := SuiteWorkingMonitor.Get()
     if command_monitor && (CascadeMonitorNeedsRefresh(command_monitor)
         || HasPendingCascadeDisplayLayout(command_monitor))
         return true

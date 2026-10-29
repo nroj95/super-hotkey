@@ -10,7 +10,7 @@ FocusCascadeLayerWindow(direction)
     if !IsCascadeEnabled()
         return
 
-    monitor_index := GetCommandMonitor()
+    monitor_index := SuiteWorkingMonitor.Get()
 
     if !monitor_index
         return
@@ -337,7 +337,7 @@ RotateCascadeLayers(direction := 1)
     if !IsCascadeEnabled()
         return
 
-    monitor_index := GetCommandMonitor()
+    monitor_index := SuiteWorkingMonitor.Get()
 
     if !monitor_index
         return
@@ -485,7 +485,7 @@ ActivateCascadeWindow(hwnd)
 
 BringCommandMonitorCascadeForward()
 {
-    monitor_index := GetCommandMonitor()
+    monitor_index := SuiteWorkingMonitor.Get()
 
     if !monitor_index
         return

@@ -223,42 +223,6 @@ RefreshCascadeDisplays()
 ; logical slots preserve intended placement across transient geometry changes
 ; =============================================================================
 
-GetRememberedCascadePlacement(hwnd, monitor_index := 0)
-{
-    global cascade_window_slots, cascade_displays
-
-    if !hwnd || !cascade_window_slots.Has(hwnd)
-        return 0
-
-    slot := cascade_window_slots[hwnd]
-    try {
-        if WinGetPID(hwnd) != slot.pid
-            return 0
-    }
-    catch {
-        return 0
-    }
-
-    if monitor_index && slot.monitor != monitor_index
-        return 0
-    if !cascade_displays.Has(slot.monitor)
-        return 0
-
-    geometry := cascade_displays[slot.monitor].geometry
-    if slot.slot < 1 || slot.slot > geometry.slots.Length
-        return 0
-
-    position := geometry.slots[slot.slot]
-    return {
-        monitor: slot.monitor,
-        slot: slot.slot,
-        x: position[1],
-        y: position[2],
-        width: geometry.width,
-        height: geometry.height
-    }
-}
-
 RememberCascadeSlot(hwnd, monitor_index, x?, y?)
 {
     global cascade_window_slots, cascade_displays

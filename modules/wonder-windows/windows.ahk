@@ -48,13 +48,6 @@ WW_GetWindowMonitorBounds(hwnd, &left, &top, &right, &bottom)
     left := rect[1], top := rect[2], right := rect[3], bottom := rect[4]
 }
 
-WW_GetWindowMonitorWorkArea(hwnd, &left, &top, &right, &bottom)
-{
-    ; rcWork excludes the taskbar.
-    rect := MonitorRects(WindowMonitor(hwnd)).work
-    left := rect[1], top := rect[2], right := rect[3], bottom := rect[4]
-}
-
 ; =============================================================================
 ; native placement snapshots and frame refresh
 ; =============================================================================

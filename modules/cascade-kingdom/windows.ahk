@@ -78,10 +78,8 @@ TryGetWindowCenter(hwnd, &center_x, &center_y)
 
 
 ; =============================================================================
-; monitor selection and lookup
+; monitor lookup
 ; =============================================================================
-
-GetCommandMonitor() => SuiteWorkingMonitor.Get()
 
 GetMonitorForWindow(hwnd)
 {

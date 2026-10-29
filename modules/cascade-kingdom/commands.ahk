@@ -149,7 +149,7 @@ GatherCascadesToCommandMonitor()
 
     global cascade_history
 
-    target_monitor := ResolveCascadeDestination(GetCommandMonitor())
+    target_monitor := ResolveCascadeDestination(SuiteWorkingMonitor.Get())
     if !target_monitor
         return
 
@@ -186,7 +186,7 @@ CloseCommandMonitorCascade()
     if !IsCascadeEnabled()
         return
 
-    monitor_index := GetCommandMonitor()
+    monitor_index := SuiteWorkingMonitor.Get()
     if !monitor_index
         return
 
