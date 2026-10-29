@@ -728,7 +728,7 @@ StabilizePlacedWindow(hwnd, target_x, target_y, target_width, target_height,
 
     try {
         ; Do not fight an intentional maximize/minimize transition.
-        if WinGetMinMax("ahk_id " hwnd) != 0 || IsIgnoredByWindowCascade(hwnd)
+        if WinGetMinMax("ahk_id " hwnd) != 0 || IsIgnoredByCascade(hwnd)
             || IsCascadeWindowBeingDragged(hwnd) {
             FinishPlacementStabilization(hwnd, stabilization_generation)
 

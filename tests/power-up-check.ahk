@@ -9,11 +9,11 @@ class PowerUpChecks {
 
     static SleepPolicyRecovery() {
         folder := SuiteChecks.directory "\sleep-policy"
-        policy := PH_SleepPolicyProbe(folder)
+        policy := PU_SleepPolicyProbe(folder)
         policy.Begin()
         this.Assert(policy.values["AC"] = 0 && policy.values["DC"] = 0
             && FileExist(policy.path), "sleep changes both power sources with a recovery record")
-        recovered := PH_SleepPolicyProbe(folder, policy.values)
+        recovered := PU_SleepPolicyProbe(folder, policy.values)
         recovered.Recover()
         this.Assert(recovered.values["AC"] = 1 && recovered.values["DC"] = 1
             && !FileExist(policy.path), "a new process restores an interrupted sleep transaction")
@@ -32,7 +32,7 @@ class PowerUpChecks {
     }
 }
 
-class PH_SleepPolicyProbe extends PH_SleepPolicy {
+class PU_SleepPolicyProbe extends PU_SleepPolicy {
     __New(directory, values := 0) {
         super.__New(directory)
         this.activeScheme := "{11111111-1111-1111-1111-111111111111}"

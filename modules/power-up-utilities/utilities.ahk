@@ -6,13 +6,13 @@
 ; Sleep keeps wake events enabled and does not attempt automatic elevation.
 ; =============================================================================
 
-class PH_Utilities {
+class PU_Utilities {
     __New(app) {
         this.app := app
         this.speakerRestore := 0
         this.speakerSound := A_WinDir "\Media\Windows Balloon.wav"
         this.wakeVolume := 0.16
-        this.sleepPolicy := PH_SleepPolicy(SuiteState.App.Settings.directory)
+        this.sleepPolicy := PU_SleepPolicy(SuiteState.App.Settings.directory)
     }
 
     WakeSpeakers(job) {
@@ -50,7 +50,7 @@ class PH_Utilities {
         if !IsObject(restoration)
             return
         ComCall(9, restoration.endpoint, "float*", &currentVolume := 0)
-        if PH_Utilities.ShouldRestoreVolume(currentVolume, restoration.boosted)
+        if PU_Utilities.ShouldRestoreVolume(currentVolume, restoration.boosted)
             ComCall(7, restoration.endpoint, "float", restoration.original, "ptr", 0)
         ; Retain the record if COM failed, so exit cleanup can attempt it again.
         this.speakerRestore := 0
@@ -121,7 +121,7 @@ class PH_Utilities {
 
 ; An explicit sleep request may otherwise become Away Mode. Journal the original
 ; plan's AC/DC values before changing either, and restore without switching plans.
-class PH_SleepPolicy {
+class PU_SleepPolicy {
     static sleepSubgroup := "{238C9FA8-0AAD-41ED-83F4-97BE242C8F20}"
     static awaySetting := "{25DFA149-5DD1-4736-B5AB-E8A37B5B8187}"
 
@@ -156,8 +156,8 @@ class PH_SleepPolicy {
 
     ReadValue(scheme, source) {
         value := 0
-        subgroup := PH_SleepPolicy.Guid(PH_SleepPolicy.sleepSubgroup)
-        setting := PH_SleepPolicy.Guid(PH_SleepPolicy.awaySetting)
+        subgroup := PU_SleepPolicy.Guid(PU_SleepPolicy.sleepSubgroup)
+        setting := PU_SleepPolicy.Guid(PU_SleepPolicy.awaySetting)
         api := source = "AC" ? "PowerReadACValueIndex" : "PowerReadDCValueIndex"
         errorCode := DllCall("PowrProf\" api, "ptr", 0, "ptr", scheme.Ptr,
             "ptr", subgroup.Ptr, "ptr", setting.Ptr,
@@ -170,8 +170,8 @@ class PH_SleepPolicy {
     }
 
     WriteValue(scheme, source, value) {
-        subgroup := PH_SleepPolicy.Guid(PH_SleepPolicy.sleepSubgroup)
-        setting := PH_SleepPolicy.Guid(PH_SleepPolicy.awaySetting)
+        subgroup := PU_SleepPolicy.Guid(PU_SleepPolicy.sleepSubgroup)
+        setting := PU_SleepPolicy.Guid(PU_SleepPolicy.awaySetting)
         api := source = "AC" ? "PowerWriteACValueIndex" : "PowerWriteDCValueIndex"
         errorCode := DllCall("PowrProf\" api, "ptr", 0, "ptr", scheme.Ptr,
             "ptr", subgroup.Ptr, "ptr", setting.Ptr,
@@ -202,7 +202,7 @@ class PH_SleepPolicy {
         ; Never discard an older unresolved recovery record.
         this.Restore()
         schemeId := this.GetActiveGuid()
-        scheme := PH_SleepPolicy.Guid(schemeId)
+        scheme := PU_SleepPolicy.Guid(schemeId)
         ac := this.ReadValue(scheme, "AC")
         dc := this.ReadValue(scheme, "DC")
         if !ac && !dc
@@ -262,7 +262,7 @@ class PH_SleepPolicy {
             return
         }
         record := this.ReadJournal()
-        scheme := PH_SleepPolicy.Guid(record.scheme)
+        scheme := PU_SleepPolicy.Guid(record.scheme)
         ; Respect changes made by another process after our own 0 writes.
         if record.ac && this.ReadValue(scheme, "AC") = 0
             this.WriteValue(scheme, "AC", record.ac)

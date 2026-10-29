@@ -3,7 +3,7 @@
 ; adoption releases them. Modules react through handlers instead of core
 ; reaching into their state.
 class SuiteWindowOwnership {
-    static marker := "nroj.SuperHotkeyWorld.ManualLayout"
+    static marker := "nroj.SuperHotkey.ManualLayout"
     static windows := Map()
     static claimHandlers := []    ; handler(hwnd) after a window becomes manual
     static releaseHandlers := []  ; handler(hwnd) before adoption; false keeps it manual

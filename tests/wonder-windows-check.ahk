@@ -187,7 +187,7 @@ class WonderWindowsChecks {
                     "private suite tool windows are recognized")
                 this.Assert(!SuiteWindowOwnership.AllowsWonderWindows(window.Hwnd),
                     "private suite tool windows are excluded from Wonder Windows")
-                this.Assert(IsIgnoredByWindowCascade(window.Hwnd), "suite GUI is marked before it can be cascaded")
+                this.Assert(IsIgnoredByCascade(window.Hwnd), "suite GUI is marked before it can be cascaded")
                 SuiteWindowOwnership.Claim(window.Hwnd)
                 this.Assert(SuiteWindowOwnership.IsManual(window.Hwnd), "manual geometry ownership is recorded per HWND and process")
                 global WW_horizontal_stretch_windows, WW_vertical_stretch_windows, WW_normal_window_placements
@@ -255,7 +255,7 @@ class WonderWindowsChecks {
                     WW_GetWindowLayoutRectangle(guiProbe.Hwnd), 2)
                     && !WW_logical_zones.Has(guiProbe.Hwnd),
                     "manual GUI resize invalidates its remembered logical zone")
-                this.Assert(IsIgnoredByWindowCascade(guiProbe.Hwnd),
+                this.Assert(IsIgnoredByCascade(guiProbe.Hwnd),
                     "Cascade Kingdom continues to ignore normal suite GUIs")
                 DllCall("SetPropW", "ptr", guiProbe.Hwnd, "str", "nroj.PaperPad.Notepad3Window", "ptr", 1, "int")
                 this.Assert(SuiteWindowOwnership.AllowsWonderWindows(guiProbe.Hwnd),

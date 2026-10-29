@@ -6,7 +6,7 @@
 
 ; Suite surfaces are never cascaded. Windows positioned by hand are left alone
 ; too, unless allow_manual says the user is moving one right now.
-IsIgnoredByWindowCascade(hwnd, allow_manual := false)
+IsIgnoredByCascade(hwnd, allow_manual := false)
 {
     if !hwnd
         return false
@@ -15,21 +15,21 @@ IsIgnoredByWindowCascade(hwnd, allow_manual := false)
         return false
 
     return (!allow_manual && SuiteWindowOwnership.IsManual(hwnd))
-        || !!DllCall("GetPropW", "ptr", hwnd, "str", "nroj.WindowCascade.Ignore", "ptr")
+        || !!DllCall("GetPropW", "ptr", hwnd, "str", "nroj.SuperHotkey.CascadeIgnore", "ptr")
 }
 
 ; Standard Windows dialogs, Explorer file-operation prompts and hung-window
 ; ghosts are transient UI, not standalone application windows.
 IsPlausibleTopLevelWindow(hwnd, allow_manual := false)
 {
-    return !IsIgnoredByWindowCascade(hwnd, allow_manual) && IsTopLevelAppWindow(hwnd, &window_class)
+    return !IsIgnoredByCascade(hwnd, allow_manual) && IsTopLevelAppWindow(hwnd, &window_class)
         && window_class != "#32770" && window_class != "OperationStatusWindow"
         && window_class != "Ghost"
 }
 
 IsCascadeWindow(hwnd, allow_manual := false)
 {
-    if !DllCall("IsWindowVisible", "ptr", hwnd, "int") || IsIgnoredByWindowCascade(hwnd, allow_manual)
+    if !DllCall("IsWindowVisible", "ptr", hwnd, "int") || IsIgnoredByCascade(hwnd, allow_manual)
         || !IsTopLevelAppWindow(hwnd, &window_class) || IsWindowCloaked(hwnd)
         || window_class = "#32770" || window_class = "OperationStatusWindow"
         return false

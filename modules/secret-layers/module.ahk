@@ -22,8 +22,7 @@ class SecretLayersModule extends SuiteModule {
         manager.AddAction("secret-layers.help", "show Secret Layers help",
             ObjBindMethod(this.app, "HelpShortcutEvent", this.id), [],
             {category: "Secret Layers", available: ObjBindMethod(this, "Available")})
-        ; Retain the old ID so saved shortcuts survive the change of module owner.
-        manager.AddAction("power-up-utilities.keyboard.toggle-caps", "toggle Caps Lock",
+        manager.AddAction("secret-layers.toggle-caps", "toggle Caps Lock",
             ObjBindMethod(this, "ToggleCapsLockEvent"), [],
             {category: "Secret Layers", available: ObjBindMethod(this, "Available")})
         settings := this.app.Settings

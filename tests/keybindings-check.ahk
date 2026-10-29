@@ -557,7 +557,7 @@ class KeybindingsChecks {
 
     static CheckDisplayOrder(rows) {
         this.AssertDisplaySequence(rows, [
-            "core.keybindings", "core.close-active", "cascade-kingdom.reset-log", "cascade-kingdom.copy-log",
+            "core.keybindings", "core.close-active", "core.clear-log", "core.copy-log",
             "core.restart"],
             "Global shortcuts group application first, logs together, then restart")
         this.AssertDisplaySequence(rows, [
@@ -590,7 +590,7 @@ class KeybindingsChecks {
             "wonder-windows.minimize", "wonder-windows.isolate", "wonder-windows.minimize-all"],
             "Wonder Windows groups placing, resizing, relocating, switching and minimizing")
         this.AssertDisplaySequence(rows, [
-            "power-up-utilities.interface.open", "power-up-utilities.system.wake-speakers",
+            "power-up-utilities.help", "power-up-utilities.system.wake-speakers",
             "power-up-utilities.system.sleep",
             "power-up-utilities.terminal.copy", "power-up-utilities.terminal.clear"],
             "Power-Up Utilities groups system and Terminal controls")
@@ -608,7 +608,7 @@ class KeybindingsChecks {
             "power-up-utilities.text.timestamp"],
             "text utilities keep characters together before timestamp")
         this.AssertDisplaySequence(rows, [
-            "secret-layers.help", "power-up-utilities.keyboard.toggle-caps"],
+            "secret-layers.help", "secret-layers.toggle-caps"],
             "Secret Layers keeps Help first")
         powerHeadings := []
         for row in rows
@@ -653,7 +653,7 @@ class KeybindingsChecks {
                 "Power-Up Utilities / Text and symbols", 0)
             for actionId, action in manager.actions {
                 if InStr(actionId, "power-up-utilities.") != 1
-                    || actionId = "power-up-utilities.keyboard.toggle-caps"
+                    || actionId = "secret-layers.toggle-caps"
                     continue
                 this.Assert(groups.Has(action.category),
                     "Power-Up Utilities keeps only useful subcategories: " actionId)
@@ -669,12 +669,9 @@ class KeybindingsChecks {
             this.Assert(groups["Power-Up Utilities"] > 0,
                 "individual utilities remain directly under Power-Up Utilities")
             this.Assert(manager.actions["core.keybindings"].category = "Global"
-                && manager.actions["cascade-kingdom.copy-log"].category = "Global"
-                && manager.actions["cascade-kingdom.reset-log"].category = "Global",
+                && manager.actions["core.copy-log"].category = "Global"
+                && manager.actions["core.clear-log"].category = "Global",
                 "core and debug actions share one Global display heading")
-            this.Assert(manager.actions["core.keybindings"].id = "core.keybindings"
-                && manager.actions["cascade-kingdom.copy-log"].id = "cascade-kingdom.copy-log",
-                "Global rename leaves saved action IDs unchanged")
             rows := Keybindings.DisplayRows(manager.Catalog())
             this.CheckDisplayOrder(rows)
             actionScopes := Map()
@@ -738,7 +735,7 @@ class KeybindingsChecks {
             expectedHelp := Map("Paper Pad", "paper-pad.help",
                 "Cascade Kingdom", "cascade-kingdom.help",
                 "Wonder Windows", "wonder-windows.help",
-                "Power-Up Utilities", "power-up-utilities.interface.open",
+                "Power-Up Utilities", "power-up-utilities.help",
                 "Secret Layers", "secret-layers.help")
             for index, row in rows {
                 if row.id != "" || !expectedHelp.Has(row.label)
@@ -747,9 +744,9 @@ class KeybindingsChecks {
                     row.label " displays its Help shortcut first")
             }
             saved := manager.GetConfiguration()
-            this.Assert(saved["cascade-kingdom.reset-log"].bindings[1]
+            this.Assert(saved["core.clear-log"].bindings[1]
                     = Keybindings.Parse("Pause + F1").signature
-                && saved["cascade-kingdom.copy-log"].bindings[1]
+                && saved["core.copy-log"].bindings[1]
                     = Keybindings.Parse("Pause + F2").signature,
                 "debug log hotkeys default to Pause + F1/F2")
             this.Assert(saved["paper-pad.help"].bindings[1]
@@ -759,14 +756,14 @@ class KeybindingsChecks {
             this.Assert(saved["secret-layers.help"].bindings[1] = ""
                 && saved["secret-layers.help"].bindings[2] = "",
                 "Secret Layers Help remains unassigned by default")
-            this.Assert(manager.actions["power-up-utilities.keyboard.toggle-caps"].category = "Secret Layers"
-                && saved["power-up-utilities.keyboard.toggle-caps"].bindings[1] = "",
+            this.Assert(manager.actions["secret-layers.toggle-caps"].category = "Secret Layers"
+                && saved["secret-layers.toggle-caps"].bindings[1] = "",
                 "Caps Lock toggle belongs to Secret Layers and defaults unassigned")
             this.Assert(saved["cascade-kingdom.help"].bindings[1]
                 = Keybindings.Parse("Caps + H").signature
                 && saved["wonder-windows.help"].bindings[1]
                     = Keybindings.Parse("Ctrl + Alt + H").signature
-                && saved["power-up-utilities.interface.open"].bindings[1]
+                && saved["power-up-utilities.help"].bindings[1]
                     = Keybindings.Parse("Pause + H").signature,
                 "existing module Help shortcuts retain their original defaults")
             this.Assert(this.RouteExists(manager, "paper-pad.help"),

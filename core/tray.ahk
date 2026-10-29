@@ -238,7 +238,6 @@ class SuiteInterface {
         state := this.app.ModuleActive(id) ? "enabled" : "disabled"
         if this.app.dryRun && this.app.ModuleActive(id)
             state := "dry run; feature effects are inactive"
-        ; The original Window Cascade help used regular Cascadia Mono at 10 pt.
         window.SetFont("s10", "Cascadia Mono")
         header := window.AddText("x20 y18 w400 h25", name " - ")
         statusColor := !this.app.ModuleActive(id) ? "B02020"

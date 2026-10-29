@@ -165,11 +165,10 @@ class SuiteApplication {
         this.manager.AddAction("core.close-active", "close active window", ObjBindMethod(this, "CloseWindowEvent"),
             ["Caps + Delete", "Win + Delete"], {category: "Global",
                 context: (*) => SuiteWindowOwnership.AllowsWonderWindows(DllCall("GetForegroundWindow", "ptr"))})
-        ; The log actions keep their original IDs so saved assignments survive.
         ; Listed in default-key order: F1 clear, F2 copy, F3 restart.
-        this.manager.AddAction("cascade-kingdom.reset-log", "clear debug log",
+        this.manager.AddAction("core.clear-log", "clear debug log",
             ObjBindMethod(this, "LogShortcutEvent", "clear"), ["Pause + F1"], {category: "Global"})
-        this.manager.AddAction("cascade-kingdom.copy-log", "copy debug log",
+        this.manager.AddAction("core.copy-log", "copy debug log",
             ObjBindMethod(this, "LogShortcutEvent", "copy"), ["Pause + F2"], {category: "Global"})
         this.manager.AddAction("core.restart", "restart Super Hotkey", ObjBindMethod(this, "RestartEvent"),
             ["Pause + F3"], {category: "Global"})

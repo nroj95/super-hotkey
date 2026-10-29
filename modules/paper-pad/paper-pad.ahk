@@ -41,7 +41,7 @@ class PaperPadController
         this.page_lock_handle := 0
         this.page_lock_path := ""
         this.window_marker := "nroj.PaperPad.Notepad3Window"
-        this.cascade_ignore_marker := "nroj.WindowCascade.Ignore"
+        this.cascade_ignore_marker := "nroj.SuperHotkey.CascadeIgnore"
         this.data_directory := dataDirectory
         this.settings_path := this.data_directory "\settings.ini"
         this.state_path := this.data_directory "\state.ini"

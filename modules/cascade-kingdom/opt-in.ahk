@@ -60,7 +60,7 @@ CascadeTakeHiddenStartupExplorerReveal(hwnd)
         if WinGetPID("ahk_id " hwnd) != expected_pid
             || WinGetClass("ahk_id " hwnd) != "CabinetWClass"
             || StrLower(WinGetProcessName("ahk_id " hwnd)) != "explorer.exe"
-            || IsIgnoredByWindowCascade(hwnd)
+            || IsIgnoredByCascade(hwnd)
             return 0
     }
     catch

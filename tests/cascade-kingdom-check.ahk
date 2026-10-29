@@ -400,7 +400,7 @@ class CascadeChecks {
 
             ; Simulate a successful first placement. The existing ignore marker
             ; is removed only from this fixture, never from a personal window.
-            DllCall("RemovePropW", "ptr", target.Hwnd, "str", "nroj.WindowCascade.Ignore", "ptr")
+            DllCall("RemovePropW", "ptr", target.Hwnd, "str", "nroj.SuperHotkey.CascadeIgnore", "ptr")
             GetVisibleWindowBounds(target.Hwnd, &x, &y, &width, &height)
             handled_windows[target.Hwnd] := true
             placement_stabilization_generations[target.Hwnd] := 101
@@ -540,7 +540,7 @@ class CascadeChecks {
             for window in CascadeDropGuides.windows {
                 style := WinGetExStyle(window.Hwnd)
                 this.Assert((style & 0x08000020) = 0x08000020
-                    && WinGetTransparent(window.Hwnd) = 255 && IsIgnoredByWindowCascade(window.Hwnd),
+                    && WinGetTransparent(window.Hwnd) = 255 && IsIgnoredByCascade(window.Hwnd),
                     "drop guides are opaque, non-activating, click-through and excluded from adoption")
             }
             this.Assert(DllCall("GetForegroundWindow", "ptr") = foreground,

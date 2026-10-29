@@ -1,13 +1,13 @@
 ; =============================================================================
 ; keyboard.ahk - F13-F24 and Numpad 0-9 output with owned-release tracking
 ; =============================================================================
-; Keep the old layer's SendLevel-1 / Blind output behavior. Physically held
+; Output uses SendLevel 1 and Blind mode. Physically held
 ; Ctrl/Alt/Shift/Win modifiers are preserved; these are remaps, not text macros.
 ; Reference counts keep primary/secondary bindings from releasing each other's
 ; shared output. One-shot activations send a pulse rather than holding a key.
 ; =============================================================================
 
-class PH_Keyboard {
+class PU_Keyboard {
     __New(app) {
         this.app := app
         this.held := Map()

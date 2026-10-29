@@ -1,5 +1,5 @@
 ; =============================================================================
-; terminal.ahk - the two Windows Terminal macros from the old CapsLock layer
+; terminal.ahk - the two Windows Terminal macros: copy as Markdown and clear
 ; =============================================================================
 ; Discover effective Terminal shortcuts without modifying Terminal's settings.
 ; Clearing still sends Ctrl+C and Enter between two clear actions and can
@@ -7,7 +7,7 @@
 ; Never activate another window to finish a macro after the user changes focus.
 ; =============================================================================
 
-class PH_Terminal {
+class PU_Terminal {
     __New(app) {
         this.app := app
         this.clipboardRestore := 0
@@ -132,7 +132,7 @@ class PH_Terminal {
             if !this.Ready(job)
                 return
             copiedSequence := DllCall("GetClipboardSequenceNumber", "uint")
-            formatted := PH_Terminal.FormatBuffer(A_Clipboard)
+            formatted := PU_Terminal.FormatBuffer(A_Clipboard)
             ; Preserve a newer clipboard copy, even when the original Terminal
             ; still has focus. Sequence checking also protects intervening apps.
             if this.Ready(job) && DllCall("GetClipboardSequenceNumber", "uint") = copiedSequence

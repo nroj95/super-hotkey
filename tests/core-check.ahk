@@ -182,9 +182,9 @@ class CoreChecks {
             manager.Apply(configuration)
             this.Assert(!SuiteChecks.HasRoute(manager, "power-up-utilities.keyboard.f13"), "disabled module releases its routes")
             capsConfiguration := manager.GetConfiguration()
-            capsConfiguration["power-up-utilities.keyboard.toggle-caps"].bindings[1] := "Ctrl + Alt + F10"
+            capsConfiguration["secret-layers.toggle-caps"].bindings[1] := "Ctrl + Alt + F10"
             manager.Apply(capsConfiguration)
-            this.Assert(SuiteChecks.HasRoute(manager, "power-up-utilities.keyboard.toggle-caps"),
+            this.Assert(SuiteChecks.HasRoute(manager, "secret-layers.toggle-caps"),
                 "Caps Lock shortcut works with Power-Up Utilities disabled")
             manager.Apply(configuration)
             rows := Keybindings.DisplayRows(manager.Catalog())
