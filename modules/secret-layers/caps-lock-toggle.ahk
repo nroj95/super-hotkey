@@ -61,7 +61,7 @@ class CapsLockShiftToggle {
             return
         }
         if this.HandleUp(vk, sc, A_TickCount, this.OtherModifiersHeld())
-            SecretLayersModule.ToggleCapsLock()
+            SetCapsLockState(GetKeyState("CapsLock", "T") ? "Off" : "On")
     }
 
     HandleDown(vk, sc, tick, otherHeld) {

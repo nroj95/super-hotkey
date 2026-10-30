@@ -5,7 +5,6 @@ class SecretLayersModule extends SuiteModule {
 
     __New(app) {
         super.__New(app, "secret-layers")
-        this.manager := 0
         this.capsToggle := 0
     }
 
@@ -18,12 +17,8 @@ class SecretLayersModule extends SuiteModule {
     }
 
     Register(manager) {
-        this.manager := manager
         manager.AddAction("secret-layers.help", "show Secret Layers help",
             ObjBindMethod(this.app, "HelpShortcutEvent", this.id), [],
-            {category: "Secret Layers", available: ObjBindMethod(this, "Available")})
-        manager.AddAction("secret-layers.toggle-caps", "toggle Caps Lock",
-            ObjBindMethod(this, "ToggleCapsLockEvent"), [],
             {category: "Secret Layers", available: ObjBindMethod(this, "Available")})
         if this.Available() && this.app.activeLayers["caps"]
             this.capsToggle := CapsLockShiftToggle()
@@ -44,15 +39,6 @@ class SecretLayersModule extends SuiteModule {
     CancelWork() {
         if IsObject(this.capsToggle)
             this.capsToggle.Reset()
-    }
-
-    static ToggleCapsLock() => SetCapsLockState(GetKeyState("CapsLock", "T") ? "Off" : "On")
-
-    ToggleCapsLockEvent(event) {
-        app := this.app
-        if event.phase = "up" && !app.dryRun && !app.stopping && !app.suspended
-            && !this.manager.gated && this.Available()
-            SecretLayersModule.ToggleCapsLock()
     }
 
     ShowSettings(ui) {
@@ -98,7 +84,6 @@ class SecretLayersModule extends SuiteModule {
             . "`r`n`r`nTOGGLE CAPS LOCK"
             . "`r`nDouble-tap Shift to toggle Caps Lock while its layer is enabled. "
             . "Only two quick taps of the same Shift key count, without another key "
-            . "in between. Turn off the CapsLock layer and the key works normally again. "
-            . "You can also assign a hotkey in Keybindings."
+            . "in between. Turn off the CapsLock layer and the key works normally again."
     }
 }

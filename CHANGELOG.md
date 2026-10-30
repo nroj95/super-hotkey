@@ -4,7 +4,7 @@
 
 ### Breaking changes
 
-- **Secret Layers:** double-tapping Shift always toggles Caps Lock while the CapsLock layer is enabled. The checkbox and the Ctrl and Alt choices are gone; turn off the CapsLock layer to give the key back to Windows.
+- **Secret Layers:** double-tapping Shift always toggles Caps Lock while the CapsLock layer is enabled. The checkbox, the Ctrl and Alt choices and the Toggle Caps Lock action are gone; turn off the CapsLock layer to give the key back to Windows.
 
 ### Changes
 

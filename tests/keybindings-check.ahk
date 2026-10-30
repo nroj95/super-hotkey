@@ -667,9 +667,6 @@ class KeybindingsChecks {
             "power-up-utilities.text.nbsp", "power-up-utilities.text.sharp-s",
             "power-up-utilities.text.timestamp"],
             "text utilities keep characters together before timestamp")
-        this.AssertDisplaySequence(rows, [
-            "secret-layers.help", "secret-layers.toggle-caps"],
-            "Secret Layers keeps Help first")
         powerHeadings := []
         for row in rows
             if row.id = "" && InStr(row.label, "Power-Up Utilities") = 1
@@ -711,7 +708,6 @@ class KeybindingsChecks {
                 "Power-Up Utilities / Text and symbols", 0)
             for actionId, action in manager.actions {
                 if InStr(actionId, "power-up-utilities.") != 1
-                    || actionId = "secret-layers.toggle-caps"
                     continue
                 this.Assert(groups.Has(action.category),
                     "Power-Up Utilities keeps only useful subcategories: " actionId)
@@ -814,9 +810,6 @@ class KeybindingsChecks {
             this.Assert(saved["secret-layers.help"].bindings[1] = ""
                 && saved["secret-layers.help"].bindings[2] = "",
                 "Secret Layers Help remains unassigned by default")
-            this.Assert(manager.actions["secret-layers.toggle-caps"].category = "Secret Layers"
-                && saved["secret-layers.toggle-caps"].bindings[1] = "",
-                "Caps Lock toggle belongs to Secret Layers and defaults unassigned")
             this.Assert(saved["cascade-kingdom.help"].bindings[1]
                 = Keybindings.Parse("Caps + H").signature
                 && saved["wonder-windows.help"].bindings[1]
