@@ -511,12 +511,19 @@ class CoreChecks {
             this.Assert(!cascade_compaction_pending.Count,
                 "suspended Cascade Kingdom discards new compaction requests")
             if IsObject(manager.client)
-                this.Assert(!manager.client.running,
-                    "suspension releases the native CapsLock and Pause hooks")
+                this.Assert(manager.client.running = manager.client.LayerEnabled("pause"),
+                    "suspension keeps only the Pause layer the suspend toggle needs")
             this.Assert(!manager._Eligible(Keybindings.Parse("Ctrl + Alt + K").signature),
                 "ordinary configured hotkeys are unavailable while suspended")
+            this.Assert(manager._Passes(KeybindingsChecks.Route(manager, "core.suspend"))
+                && !manager._Passes(KeybindingsChecks.Route(manager, "core.keybindings")),
+                "only the suspend toggle passes the gate while suspended")
 
             app.systemSuspended := true
+            app.RefreshInputGate()
+            this.Assert(!manager._Passes(KeybindingsChecks.Route(manager, "core.suspend"))
+                && (!IsObject(manager.client) || !manager.client.running),
+                "a Windows suspend silences the suspend toggle and every layer")
             app.ui.ToggleSuspension()
             this.Assert(!app.suspended && manager.gated,
                 "resuming the app cannot override a pending Windows suspend")
@@ -1119,7 +1126,7 @@ class CheckInputGate {
     applying := false
     disposed := false
 
-    SetPaused(paused) => this.gated := paused
+    SetPaused(paused, *) => this.gated := paused
 }
 
 class CheckBorderProbe {

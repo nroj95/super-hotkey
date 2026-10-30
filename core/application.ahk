@@ -175,6 +175,9 @@ class SuiteApplication {
             ObjBindMethod(this, "LogShortcutEvent", "copy"), ["Pause + F2"], {category: "Global"})
         this.manager.AddAction("core.restart", "restart Super Hotkey", ObjBindMethod(this, "RestartEvent"),
             ["Pause + F3"], {category: "Global"})
+        ; The one action that still answers while suspended, so it can resume.
+        this.manager.AddAction("core.suspend", "suspend / resume Super Hotkey", ObjBindMethod(this, "SuspendEvent"),
+            ["Pause + F4"], {category: "Global", whilePaused: true})
         for id in SuiteApplication.KeybindingsOrder
             this.modules[id].Register(this.manager)
     }
@@ -230,6 +233,22 @@ class SuiteApplication {
             return
         }
         this.QueueInput(ObjBindMethod(this, "Restart"))
+    }
+
+    SuspendEvent(event) {
+        if event.phase != "down" || this.stopping
+            return
+        if this.dryRun {
+            SuiteState.Log.Write("Core", "dry run: " event.actionId)
+            return
+        }
+        ; Not QueueInput: queued input does not run while suspended.
+        SetTimer((*) => this.ToggleSuspended(), -1)
+    }
+
+    ToggleSuspended() {
+        this.SetSuspended(!this.suspended)
+        SuiteNotice.Show("status", "Super Hotkey " (this.suspended ? "suspended" : "resumed"), 1400)
     }
 
     Restart(*) {
@@ -314,14 +333,17 @@ class SuiteApplication {
             this.suspended := false
             this.RefreshInputGate()
         }
+        if IsObject(this.ui)
+            this.ui.UpdateSuspension()
         SuiteState.Log.Write("Core", "application " (suspend ? "suspended" : "resumed"))
     }
 
     RefreshInputGate() {
         if !IsObject(this.manager) || this.manager.disposed
             return
-        this.manager.SetPaused(this.dryRun || this.stopping
-            || this.systemSuspended || this.sessionLocked || this.suspended)
+        other := this.dryRun || this.stopping || this.systemSuspended || this.sessionLocked
+        ; Only a suspension the user chose can be ended with the suspend toggle.
+        this.manager.SetPaused(other || this.suspended, !other)
     }
 
     PowerEvent(event, *) {

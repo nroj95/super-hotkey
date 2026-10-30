@@ -7,6 +7,7 @@ class KeybindingsChecks {
         this.LayerDoubleTapGestures()
         this.LayerChordReleaseOrder()
         this.LayerDispatch()
+        this.WhilePausedRoutes()
         this.LayerRecordingGestures()
         this.LayerIndicatorDelay()
         this.ScopesAndObservers()
@@ -285,6 +286,37 @@ class KeybindingsChecks {
     }
 
     ; Layer suffixes and ordinary hotkeys share one dispatcher.
+    ; Only a whilePaused action answers during a pause that allows it, such as
+    ; the suspend toggle while the suite is suspended.
+    static WhilePausedRoutes() {
+        pauseChord := Keybindings.Parse("Pause + C").signature
+        previousCritical := Critical("On")
+        try {
+            fixture := this.LayerFixture("while-paused")
+            manager := fixture.manager
+            layers := fixture.layers
+            try {
+                this.Route(manager, "fixture.pause").action.whilePaused := true
+                manager.paused := manager.gated := true
+                this.HoldLayer(layers, "pause")
+                this.Assert(!manager._Eligible(pauseChord),
+                    "a pause that does not allow it silences a whilePaused action")
+                manager.whilePausedOpen := true
+                this.Assert(manager._Eligible(pauseChord), "a whilePaused action answers while suspended")
+                this.Assert(!manager._Eligible(Keybindings.Parse("C").signature),
+                    "ordinary actions stay silent while suspended")
+                this.HoldLayer(layers, "caps")
+                this.Assert(!manager._Eligible(Keybindings.Parse("Caps + C").signature),
+                    "other layer actions stay silent while suspended")
+                this.HoldLayer(layers, "pause")
+                manager.externalCapture := true
+                this.Assert(!manager._Eligible(pauseChord), "recording a hotkey silences even a whilePaused action")
+            }
+            finally manager.Stop()
+        }
+        finally Critical(previousCritical)
+    }
+
     static LayerDispatch() {
         key := Keybindings.Parse("C").key
         capsChord := Keybindings.Parse("Caps + C").signature
@@ -562,7 +594,7 @@ class KeybindingsChecks {
     static CheckDisplayOrder(rows) {
         this.AssertDisplaySequence(rows, [
             "core.keybindings", "core.close-active", "core.clear-log", "core.copy-log",
-            "core.restart"],
+            "core.restart", "core.suspend"],
             "Global shortcuts group application first, logs together, then restart")
         this.AssertDisplaySequence(rows, [
             "paper-pad.help", "paper-pad.toggle", "paper-pad.hide",

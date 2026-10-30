@@ -47,6 +47,7 @@ class Keybindings {
         this.client := 0
         this.externalCapture := false
         this.paused := false
+        this.whilePausedOpen := false  ; whilePaused actions answer during this pause
         this.gated := false
         this.observers := []
         this.releaseCallback := ObjBindMethod(this, "_CheckReleases")
@@ -78,6 +79,9 @@ class Keybindings {
             defaultEnabled: !!Keybindings.Option(options, "enabled", true),
             available: Keybindings.Option(options, "available", true),
             context: Keybindings.Option(options, "context", 0),
+            ; Answers while the manager is paused with allowWhilePaused, such as
+            ; a suspend toggle that must be able to resume.
+            whilePaused: !!Keybindings.Option(options, "whilePaused", false),
             defaults: this._NormalizeSlots(IsObject(defaults) ? defaults : [])
         }
         this.actionOrder.Push(this.actions[actionId])
@@ -211,12 +215,22 @@ class Keybindings {
 
     ; Consumers can pause inputs for a module selector or power transition
     ; without erasing enabled flags, releasing registry ownership or restarting.
-    SetPaused(paused := true) {
+    ; allowWhilePaused keeps whilePaused actions, and only the layers their
+    ; bindings use, answering during this pause.
+    SetPaused(paused := true, allowWhilePaused := false) {
         if this.disposed
             return
+        open := !!paused && !!allowWhilePaused
+        changed := open != this.whilePausedOpen
         this.paused := !!paused
-        if this.running
-            this._RefreshGate()
+        this.whilePausedOpen := open
+        if !this.running
+            return
+        this._RefreshGate()
+        if changed && this.gated && IsObject(this.client) {
+            this.client.Stop()
+            this._StartClient()
+        }
     }
 
     ; =========================================================================
@@ -611,8 +625,31 @@ class Keybindings {
         }
         this._UpdateReleaseTimer()
         this._RefreshGate()
-        if IsObject(this.client) && !this.gated && this.running
+        this._StartClient()
+    }
+
+    ; A route passes the gate when input is open, or when it is a whilePaused
+    ; action during a pause that allows them.
+    _Passes(route) => !this.gated || this.whilePausedOpen && route.action.whilePaused
+        && this.paused && !this.externalCapture && this.running
+
+    ; The prefix engine runs every layer while input is open; during a pause
+    ; that allows whilePaused actions, only the layers their bindings use.
+    _StartClient() {
+        if !IsObject(this.client) || !this.running
+            return
+        if !this.gated {
             this.client.Start()
+            return
+        }
+        if !this.whilePausedOpen || this.externalCapture
+            return
+        layers := Map()
+        for route in this.routes
+            if route.enabled && route.action.whilePaused && route.binding.layer != "normal"
+                layers[route.binding.layer] := true
+        if layers.Count
+            this.client.Start(layers)
     }
 
     _EnsureVariant(binding) {
@@ -643,10 +680,10 @@ class Keybindings {
     }
 
     _Eligible(signature, *) {
-        if !this.running || this.gated || this.applying
+        if !this.running || this.applying
             return false
         route := this._SelectedRoute(signature)
-        if !IsObject(route)
+        if !IsObject(route) || !this._Passes(route)
             return false
         binding := route.binding
         if this.blocked.Has(binding.key) || Keybindings.ModifierMask() != binding.modifiers
@@ -728,7 +765,7 @@ class Keybindings {
     _PressInvalid(press) {
         route := press.route
         binding := route.binding
-        if this.gated || !route.enabled || this.applying || !this.ContextActive(route.action)
+        if !this._Passes(route) || !route.enabled || this.applying || !this.ContextActive(route.action)
             return true
         if press.oneShot
             return false
@@ -785,10 +822,10 @@ class Keybindings {
 
     ; A completed double-tap is one complete, non-repeating press.
     _LayerDoubleTap(layer) {
-        if !this.running || this.gated || this.applying
+        if !this.running || this.applying
             return
         route := this._SelectedRoute(Keybindings.Parse(layer = "caps" ? "Caps + Caps" : "Pause + Pause").signature)
-        if !IsObject(route)
+        if !IsObject(route) || !this._Passes(route)
             return
         foreground := SuiteWorkingMonitor.UserWindow()
         this._QueueEvent(route, "down", foreground, true)
@@ -850,7 +887,7 @@ class Keybindings {
                 phase := item.event.phase
                 if phase = "down" {
                     if item.token <= this.cancelledThroughToken
-                        || this.gated || this.applying || !item.route.enabled
+                        || !this._Passes(item.route) || this.applying || !item.route.enabled
                         || ((A_TickCount - item.tick) & 0xFFFFFFFF) > 500
                         continue
                     this._StepAroundOverlay(item.event.foregroundHwnd)
@@ -910,6 +947,7 @@ class Keybindings {
                 press.finished := true
             if IsObject(this.client)
                 this.client.Stop()
+            this._StartClient()
         } else {
             ; Never activate a new shortcut halfway through a key which was
             ; already held while capture/settings temporarily disabled input.
@@ -918,8 +956,10 @@ class Keybindings {
                     && GetKeyState(route.binding.key, "P")
                     this.blocked[route.binding.key] := true
             this._UpdateReleaseTimer()
-            if IsObject(this.client)
-                this.client.Start()
+            if IsObject(this.client) {
+                this.client.Stop()
+                this._StartClient()
+            }
         }
     }
 

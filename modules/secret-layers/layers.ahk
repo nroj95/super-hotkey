@@ -5,6 +5,7 @@
 ; a layer ends, is cancelled or is double-tapped.
 class KeyboardLayers {
     static TapMaxMs := 250
+    static PrefixLayers := Map("CapsLock", "caps", "Pause", "pause", "CtrlBreak", "pause")
     static OneShotMs := 1400
     static ReleasePollMs := 15
 
@@ -66,12 +67,14 @@ class KeyboardLayers {
         return true
     }
 
-    Start() {
+    ; only: a Map of the layers to run, such as the one layer a suspend toggle
+    ; needs while the suite is suspended; the other prefixes stay native.
+    Start(only := 0) {
         if this.disposed || this.running
             return
         HotIf()
         if !this.hooksInstalled {
-            for key, layer in Map("CapsLock", "caps", "Pause", "pause", "CtrlBreak", "pause") {
+            for key, layer in KeyboardLayers.PrefixLayers {
                 if !this.LayerEnabled(layer)
                     continue
                 Hotkey("$*" key, ObjBindMethod(this, "_PrefixDown", layer, key), "On I100 B0")
@@ -79,12 +82,12 @@ class KeyboardLayers {
                 this.prefixes.Push(key)
             }
             this.hooksInstalled := true
-        } else {
-            ; Restore prefix interception only after the suite input gate reopens.
-            for key in this.prefixes {
-                Hotkey("$*" key, "On")
-                Hotkey("$*" key " Up", "On")
-            }
+        }
+        ; Restore prefix interception only after the suite input gate reopens.
+        for key in this.prefixes {
+            state := !IsObject(only) || only.Has(KeyboardLayers.PrefixLayers[key]) ? "On" : "Off"
+            Hotkey("$*" key, state)
+            Hotkey("$*" key " Up", state)
         }
         this.running := true
         this.Reset()

@@ -50,10 +50,7 @@ class SuiteInterface {
             A_TrayMenu.Uncheck("Suspend")
     }
 
-    ToggleSuspension(*) {
-        this.app.SetSuspended(!this.app.suspended)
-        this.UpdateSuspension()
-    }
+    ToggleSuspension(*) => this.app.SetSuspended(!this.app.suspended)
 
     Existing(key) {
         if !this.windows.Has(key)
