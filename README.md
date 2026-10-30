@@ -6,6 +6,8 @@ Built by a non-programmer: ChatGPT wrote the early versions and Claude Code the 
 
 ![Super Hotkey arranging, switching and stretching windows](assets/super-hotkey-showcase.gif)
 
+*This recording shows an older version: some keys and behavior have changed since. I'll record a new one once things settle.*
+
 ## Modules
 
 Use any module on its own or combine them.
