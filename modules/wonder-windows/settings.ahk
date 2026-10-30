@@ -8,6 +8,7 @@ WW_InitializeState() {
 ; =============================================================================
 
 WW_last_minimized_hwnd := 0
+WW_minimized_stack := []  ; windows minimized with Win + Backspace, newest first: {hwnd, pid}
 WW_stretched_windows := Map()
 WW_logical_zones := Map()
 WW_layout_cycle_windows := Map()

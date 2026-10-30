@@ -44,8 +44,9 @@ class WonderWindowsModule extends SuiteModule {
         this.Add("focus-up", "focus previous visible window", WW_CycleWindowFocus, ["Win + PgUp"], ["up"])
         this.Add("focus-down", "focus next visible window", WW_CycleWindowFocus, ["Win + PgDn"], ["down"])
         this.Add("cycle-stacked", "cycle windows in current stack", WW_CycleMonitorWindows, ["Win + Enter"])
-        this.Add("minimize", "minimize / restore last minimized window",
-            WW_MinimizeActiveWindow, ["Win + Backspace"])
+        this.Add("minimize", "minimize active window", WW_MinimizeActiveWindow, ["Win + Backspace"])
+        this.Add("restore-minimized", "restore last minimized window", WW_RestoreMinimizedWindow,
+            ["Win + Shift + Backspace"])
     }
 
     Add(id, label, command, bindings, arguments := unset) {
@@ -224,7 +225,9 @@ class WonderWindowsModule extends SuiteModule {
             . "`r`nWin + Shift + Enter stretches a window across to its neighbors, then "
             . "also up and down so it fills the free space, then back to its original size. "
             . "Win + Down restores a placed window's original shape; pressed "
-            . "again it minimizes the window, and once more it brings it back."
+            . "again it minimizes the window, and once more it brings it back. "
+            . "Win + Backspace minimizes the active window, and Win + Shift + Backspace "
+            . "brings back the windows it minimized, newest first."
             . "`r`n`r`nFOCUS, STACKS AND FULLSCREEN"
             . "`r`nWin + PgDn and PgUp step focus through every window on screen in reading "
             . "order: displays left to right, columns left to right, top before bottom. "

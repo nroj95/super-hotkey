@@ -90,51 +90,61 @@ WW_NextMaximizeCycleIndex(was_fullscreen, maximized, tile_index)
     return tile_index = 1 ? 2 : 0
 }
 
+; Win + Backspace minimizes the active window; Win + Shift + Backspace brings
+; back the windows it minimized, newest first. Never minimize Explorer, the
+; taskbar or another shell surface.
 WW_MinimizeActiveWindow()
 {
     Critical "On"
 
-    global WW_last_minimized_hwnd
+    global WW_last_minimized_hwnd, WW_minimized_stack
 
     hwnd := WinExist("A")
-
-    ; When focus has fallen back to the shell/desktop, use Win+Backspace as a
-    ; toggle for the most recent window minimized with this shortcut. Never
-    ; minimize Explorer, the taskbar, StartAllBack, or another shell surface.
     if !hwnd || !IsSwitchableWindow(hwnd) {
-        if WW_last_minimized_hwnd
-            && WinExist("ahk_id " WW_last_minimized_hwnd)
-        {
-            restore_hwnd := WW_last_minimized_hwnd
-            WW_last_minimized_hwnd := 0
-
-            try {
-                if WinGetMinMax(restore_hwnd) = -1
-                    WinRestore(restore_hwnd)
-
-                WW_EndFocusNavigationSession()
-                WinActivate(restore_hwnd)
-            }
-            catch Error as err {
-                WW_DebugError("Restore last minimized window", err)
-            }
-        } else {
-            WW_last_minimized_hwnd := 0
-            WW_EndFocusNavigationSession()
-        }
-
+        WW_EndFocusNavigationSession()
         return
     }
 
     try {
         WinMinimize(hwnd)
         WW_last_minimized_hwnd := hwnd
+        for index, entry in WW_minimized_stack
+            if entry.hwnd = hwnd {
+                WW_minimized_stack.RemoveAt(index)
+                break
+            }
+        WW_minimized_stack.InsertAt(1, {hwnd: hwnd, pid: WinGetPID(hwnd)})
 
         ; Move focus forward without clearing the just-minimized restore target.
         WW_FocusAfterMinimize(hwnd)
     }
     catch Error as err {
         WW_DebugError("Minimize active window", err)
+    }
+}
+
+; Windows restored or closed another way are skipped as they come up.
+WW_RestoreMinimizedWindow()
+{
+    Critical "On"
+
+    global WW_last_minimized_hwnd, WW_minimized_stack
+
+    while WW_minimized_stack.Length {
+        entry := WW_minimized_stack.RemoveAt(1)
+        try {
+            if !WinExist("ahk_id " entry.hwnd) || WinGetPID("ahk_id " entry.hwnd) != entry.pid
+                || WinGetMinMax("ahk_id " entry.hwnd) != -1
+                continue
+            if entry.hwnd = WW_last_minimized_hwnd
+                WW_last_minimized_hwnd := 0
+            WinRestore("ahk_id " entry.hwnd)
+            if ActivateWindow(entry.hwnd)
+                WW_BeginSpatialFocus(entry.hwnd)
+            return
+        }
+        catch Error as err
+            WW_DebugError("Restore minimized window", err)
     }
 }
 
