@@ -19,7 +19,6 @@ WW_CycleWindowFocus(direction)
     ; The first press outlines the current window instead of leaving it. A
     ; manual focus change also starts a new session from that window.
     if !WW_focus_navigation_active || active_hwnd != WW_focus_navigation_hwnd {
-        WW_ForgetLastMinimizedWindow()
         WW_focus_navigation_active := true
         WW_focus_navigation_hwnd := active_hwnd
         WW_HighlightFocusedWindow(active_hwnd)
@@ -36,7 +35,6 @@ WW_CycleWindowFocus(direction)
     if windows[index] = active_hwnd
         return
 
-    WW_ForgetLastMinimizedWindow()
     if ActivateWindow(windows[index]) {
         WW_focus_navigation_hwnd := windows[index]
         WW_HighlightFocusedWindow(windows[index])

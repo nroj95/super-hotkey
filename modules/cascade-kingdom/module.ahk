@@ -28,6 +28,7 @@ class CascadeKingdomModule extends SuiteModule {
         manager.Observe("~*LButton Up", IsCascadeEnabled, (*) => CaptureCascadeMouseRelease())
         manager.Observe("~*Escape", HasCascadeWindowDrag, (*) => CancelCascadeWindowDrop())
         SuiteWindowOwnership.OnClaim(CascadeForgetManualWindow)
+        SuiteWindowOwnership.OnReturn(CascadeTakeBackWindow)
     }
 
     Suspend() {
@@ -66,6 +67,7 @@ class CascadeKingdomModule extends SuiteModule {
     Stop(*) {
         global cascade_command_queue
         SuiteWindowOwnership.OffClaim(CascadeForgetManualWindow)
+        SuiteWindowOwnership.OffReturn(CascadeTakeBackWindow)
         CascadeDropGuides.Destroy()
         cascade_command_queue := []
         SetTimer(DrainCascadeCommandQueue, 0)
@@ -158,14 +160,42 @@ class CascadeKingdomModule extends SuiteModule {
     }
 }
 
-; A window that Wonder Windows positions by hand leaves its cascade at once.
+; A window that Wonder Windows positions by hand leaves its cascade at once,
+; lent rather than lost: its slot is kept until it returns, closes or joins anew.
 CascadeForgetManualWindow(hwnd)
 {
+    global cascade_window_slots, cascade_lent_windows
     monitor := GetManagedCascadeMonitor(hwnd)
+    if monitor && !cascade_window_slots.Has(hwnd)
+        RememberCascadeSlot(hwnd, monitor)
+    if monitor && cascade_window_slots.Has(hwnd)
+        cascade_lent_windows[hwnd] := cascade_window_slots[hwnd].Clone()
     CancelPlacementStabilization(hwnd)
     RemoveCascadeWindowFromHistory(hwnd)
     RemoveWindowFromMinimizeState(hwnd)
     if monitor
         QueueCascadeCompaction(monitor)
     QueueFocusCornerUpdate()
+}
+
+; Wonder Windows returned a lent window to its original shape: it rejoins its
+; slot, keeping its join position for Caps + Shift + Insert.
+CascadeTakeBackWindow(hwnd)
+{
+    global cascade_lent_windows, cascade_displays
+    if !cascade_lent_windows.Has(hwnd)
+        return
+    lent := cascade_lent_windows.Delete(hwnd)
+    try {
+        if WinGetPID(hwnd) != lent.pid
+            return
+    }
+    catch
+        return
+    monitor := FindCascadeMonitorDevice(lent.device)
+    if !CascadeDisplayAllowed(monitor)
+        return
+    slots := cascade_displays[monitor].geometry.slots
+    if PlaceCascadeWindowOnMonitor(hwnd, monitor, slots[Min(lent.slot, slots.Length)])
+        QueueCascadeCompaction(monitor, hwnd)
 }

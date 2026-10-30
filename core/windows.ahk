@@ -1,16 +1,20 @@
 ; Window ownership shared by the modules. Windows that Wonder Windows
 ; positioned by hand are left alone by automatic placement until an explicit
-; adoption releases them. Modules react through handlers instead of core
-; reaching into their state.
+; adoption releases them, or until Wonder Windows returns them to their
+; original shape. Modules react through handlers instead of core reaching
+; into their state.
 class SuiteWindowOwnership {
     static marker := "nroj.SuperHotkey.ManualLayout"
     static windows := Map()
     static claimHandlers := []    ; handler(hwnd) after a window becomes manual
     static releaseHandlers := []  ; handler(hwnd) before adoption; false keeps it manual
+    static returnHandlers := []   ; handler(hwnd) after a window is back at its original shape
 
     static OnClaim(handler) => this._AddHandler(this.claimHandlers, handler)
     static OffClaim(handler) => this._RemoveHandler(this.claimHandlers, handler)
     static OnRelease(handler) => this._AddHandler(this.releaseHandlers, handler)
+    static OnReturn(handler) => this._AddHandler(this.returnHandlers, handler)
+    static OffReturn(handler) => this._RemoveHandler(this.returnHandlers, handler)
 
     static _AddHandler(handlers, handler) {
         for existing in handlers
@@ -89,6 +93,16 @@ class SuiteWindowOwnership {
         if IsObject(SuiteState.Log)
             SuiteState.Log.Debug("Core", "Window no longer positioned by hand. | adoption=" (forAdoption ? 1 : 0)
                 . " | " DescribeWindow(hwnd))
+        return true
+    }
+
+    ; A window positioned by hand is back at its original shape: it stops being
+    ; manual, and a module that lent it, such as Cascade Kingdom, takes it back.
+    static Return(hwnd) {
+        if !this.Release(hwnd, false)
+            return false
+        for handler in this.returnHandlers.Clone()
+            handler.Call(hwnd)
         return true
     }
 

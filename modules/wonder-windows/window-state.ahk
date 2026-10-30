@@ -4,28 +4,9 @@
 ; target selection
 ; =============================================================================
 
-WW_GetWindowControlTarget(restore_minimized := true)
+; Every Wonder Windows key acts on the active window.
+WW_GetWindowControlTarget()
 {
-    global WW_last_minimized_hwnd
-
-    if WW_last_minimized_hwnd {
-        hwnd := WW_last_minimized_hwnd
-        WW_last_minimized_hwnd := 0
-
-        if WinExist("ahk_id " hwnd) {
-            if !restore_minimized
-                return hwnd
-
-            try {
-                if WinGetMinMax("ahk_id " hwnd) = -1
-                    WinRestore("ahk_id " hwnd)
-
-                WinActivate("ahk_id " hwnd)
-                return hwnd
-            }
-        }
-    }
-
     hwnd := WinExist("A")
     if !SuiteWindowOwnership.AllowsWonderWindows(hwnd)
         return 0
@@ -35,19 +16,13 @@ WW_GetWindowControlTarget(restore_minimized := true)
 }
 
 
-WW_ForgetLastMinimizedWindow()
-{
-    global WW_last_minimized_hwnd
-    WW_last_minimized_hwnd := 0
-}
-
 ; =============================================================================
 ; maximize / minimize / restore
 ; =============================================================================
 
 WW_MaximizeWindowTarget()
 {
-    hwnd := WW_GetWindowControlTarget(false)
+    hwnd := WW_GetWindowControlTarget()
     if !hwnd
         return
 
@@ -97,7 +72,7 @@ WW_MinimizeActiveWindow()
 {
     Critical "On"
 
-    global WW_last_minimized_hwnd, WW_minimized_stack
+    global WW_minimized_stack
 
     hwnd := WinExist("A")
     if !hwnd || !IsSwitchableWindow(hwnd) {
@@ -107,7 +82,6 @@ WW_MinimizeActiveWindow()
 
     try {
         WinMinimize(hwnd)
-        WW_last_minimized_hwnd := hwnd
         for index, entry in WW_minimized_stack
             if entry.hwnd = hwnd {
                 WW_minimized_stack.RemoveAt(index)
@@ -115,7 +89,6 @@ WW_MinimizeActiveWindow()
             }
         WW_minimized_stack.InsertAt(1, {hwnd: hwnd, pid: WinGetPID(hwnd)})
 
-        ; Move focus forward without clearing the just-minimized restore target.
         WW_FocusAfterMinimize(hwnd)
     }
     catch Error as err {
@@ -128,7 +101,7 @@ WW_RestoreMinimizedWindow()
 {
     Critical "On"
 
-    global WW_last_minimized_hwnd, WW_minimized_stack
+    global WW_minimized_stack
 
     while WW_minimized_stack.Length {
         entry := WW_minimized_stack.RemoveAt(1)
@@ -136,8 +109,6 @@ WW_RestoreMinimizedWindow()
             if !WinExist("ahk_id " entry.hwnd) || WinGetPID("ahk_id " entry.hwnd) != entry.pid
                 || WinGetMinMax("ahk_id " entry.hwnd) != -1
                 continue
-            if entry.hwnd = WW_last_minimized_hwnd
-                WW_last_minimized_hwnd := 0
             WinRestore("ahk_id " entry.hwnd)
             if ActivateWindow(entry.hwnd)
                 WW_BeginSpatialFocus(entry.hwnd)
@@ -148,17 +119,13 @@ WW_RestoreMinimizedWindow()
     }
 }
 
-; Win + Down: a placed, maximized or fullscreen window returns to its normal
-; rectangle; a window already there is minimized; the next press restores it.
+; Win + Down steps down: a placed, maximized or fullscreen window returns to
+; its normal rectangle; a window already there is minimized. Win + Shift +
+; Backspace brings it back.
 WW_RestoreOrMinimizeWindow()
 {
-    global WW_last_minimized_hwnd, WW_normal_window_placements
+    global WW_normal_window_placements
     Critical "On"
-    if WW_last_minimized_hwnd && WinExist("ahk_id " WW_last_minimized_hwnd) {
-        WW_EndFocusNavigationSession()
-        WW_GetWindowControlTarget() ; restores and activates the minimized window
-        return
-    }
     hwnd := WinExist("A")
     if !hwnd || !IsSwitchableWindow(hwnd)
         return
@@ -185,7 +152,6 @@ WW_RestoreWindowTarget()
     if !hwnd || !WW_SetNativeFullscreen(hwnd, false)
         return
 
-    SuiteWindowOwnership.Claim(hwnd)
     try {
         if !WW_RestoreNormalWindowPlacement(hwnd) {
             WinRestore(hwnd)
@@ -195,6 +161,9 @@ WW_RestoreWindowTarget()
         WW_ForgetStretch(hwnd)
         WW_ForgetWindowLayoutCycle(hwnd)
         WinActivate(hwnd)
+        ; Back at its original shape, the window is no longer placed by hand;
+        ; a cascade window rejoins its cascade.
+        SuiteWindowOwnership.Return(hwnd)
     }
     catch Error as err
         WW_DebugError("Restore normal window", err)

@@ -184,6 +184,19 @@ class WonderWindowsChecks {
                     "adoption discards stretch cleanup that would otherwise undo the new cascade")
                 this.Assert(!WW_normal_window_placements.Has(window.Hwnd),
                     "adoption starts a fresh manual-restore history")
+                returned := []
+                handler := (hwnd) => returned.Push(hwnd)
+                SuiteWindowOwnership.OnReturn(handler)
+                try {
+                    this.Assert(!SuiteWindowOwnership.Return(window.Hwnd) && !returned.Length,
+                        "a window never placed by hand has nothing to return")
+                    SuiteWindowOwnership.Claim(window.Hwnd)
+                    this.Assert(SuiteWindowOwnership.Return(window.Hwnd)
+                        && !SuiteWindowOwnership.IsManual(window.Hwnd)
+                        && returned.Length = 1 && returned[1] = window.Hwnd,
+                        "returning a window to its original shape ends manual ownership and tells the lender")
+                }
+                finally SuiteWindowOwnership.OffReturn(handler)
                 SuiteWindowOwnership.Claim(window.Hwnd)
                 DllCall("RemovePropW", "ptr", window.Hwnd, "str", SuiteWindowOwnership.marker, "ptr")
                 this.Assert(!SuiteWindowOwnership.IsManual(window.Hwnd), "a lost per-window marker invalidates cached manual ownership")

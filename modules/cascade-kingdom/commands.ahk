@@ -61,10 +61,14 @@ CaptureCascadeJoinPosition(hwnd)
 }
 
 ; Each join replaces a window's join position, so a position never outlives
-; the membership it belongs to.
+; the membership it belongs to; a window lent to Wonder Windows keeps it until
+; it returns. A fresh join also ends a loan.
 RememberCascadeJoinPosition(hwnd, position, was_manual)
 {
-    global cascade_join_positions
+    global cascade_join_positions, cascade_lent_windows
+
+    if cascade_lent_windows.Has(hwnd)
+        cascade_lent_windows.Delete(hwnd)
 
     if IsObject(position) {
         position.was_manual := was_manual

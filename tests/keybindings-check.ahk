@@ -8,6 +8,7 @@ class KeybindingsChecks {
         this.LayerChordReleaseOrder()
         this.LayerDispatch()
         this.WhilePausedRoutes()
+        this.HiddenActions()
         this.LayerRecordingGestures()
         this.LayerIndicatorDelay()
         this.ScopesAndObservers()
@@ -317,6 +318,31 @@ class KeybindingsChecks {
         finally Critical(previousCritical)
     }
 
+    ; A hidden action stays out of the list and on its default keys.
+    static HiddenActions() {
+        manager := Keybindings("hidden-actions", "Hidden fixture",
+            {directory: SuiteChecks.directory "\hidden-actions"})
+        record := (*) => 0
+        manager.AddAction("fixture.listed", "listed key", record, ["Ctrl + Alt + F9"])
+        manager.AddAction("fixture.hidden", "improved native key", record, ["Win + Down"], {hidden: true})
+        try {
+            configuration := manager._DefaultConfiguration()
+            configuration["fixture.hidden"].bindings[1] := "Ctrl + Alt + F8"
+            configuration["fixture.hidden"].enabled := false
+            candidate := manager._CandidateRoutes(configuration)
+            manager.configuration := candidate.configuration
+            hidden := candidate.configuration["fixture.hidden"]
+            this.Assert(hidden.enabled && hidden.bindings[1] = Keybindings.Parse("Win + Down").signature,
+                "a hidden action ignores saved changes and keeps its default keys")
+            listed := ""
+            for row in Keybindings.DisplayRows(manager.Catalog())
+                listed .= row.id ","
+            this.Assert(InStr(listed, "fixture.listed,") && !InStr(listed, "fixture.hidden"),
+                "a hidden action never appears in Keybindings")
+        }
+        finally manager.Stop()
+    }
+
     static LayerDispatch() {
         key := Keybindings.Parse("C").key
         capsChord := Keybindings.Parse("Caps + C").signature
@@ -612,7 +638,7 @@ class KeybindingsChecks {
         this.AssertDisplaySequence(rows, [
             "wonder-windows.help",
             "wonder-windows.zones-from-left", "wonder-windows.zones-from-right",
-            "wonder-windows.maximize", "wonder-windows.restore", "wonder-windows.stretch",
+            "wonder-windows.maximize", "wonder-windows.stretch",
             "wonder-windows.move-onto-up", "wonder-windows.move-onto-down",
             "wonder-windows.move-onto-left", "wonder-windows.move-onto-right",
             "wonder-windows.focus-up", "wonder-windows.focus-down",

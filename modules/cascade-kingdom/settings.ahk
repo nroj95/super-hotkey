@@ -95,6 +95,7 @@ placement_reservations := Map()
 placement_stabilization_generations := Map()
 placement_stabilization_generation_counter := 0
 cascade_join_positions := Map()
+cascade_lent_windows := Map()  ; members Wonder Windows placed: their slot until they return
 cascade_poll_ms := 1000
 cascade_history := Map()
 ; A display snapshot is refreshed by notifications and the slow polling fallback.

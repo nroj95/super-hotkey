@@ -82,8 +82,7 @@ WW_GetStretchObstacles(active_hwnd, monitor_handle)
 
 WW_GetPlacementTarget(&fresh_entry)
 {
-    global WW_last_minimized_hwnd
-    fresh_entry := !!WW_last_minimized_hwnd
+    fresh_entry := false
     hwnd := WW_GetWindowControlTarget()
     if !hwnd
         return 0

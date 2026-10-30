@@ -35,7 +35,8 @@ class WonderWindowsModule extends SuiteModule {
         this.Add("zones-from-right", "cycle zones from the right", WW_CycleZone,
             ["Win + WheelUp", "Win + Right"], ["up"])
         this.Add("maximize", "cycle maximized / upper half / lower half", WW_MaximizeWindowTarget, ["Win + Up"])
-        this.Add("restore", "restore normal size / minimize", WW_RestoreOrMinimizeWindow, ["Win + Down"])
+        this.Add("restore", "undo placement, then minimize", WW_RestoreOrMinimizeWindow, ["Win + Down"],
+            , {hidden: true})
         this.Add("stretch", "stretch to neighbors: across / fill / back", WW_CycleNeighborStretch,
             ["Win + Shift + Enter"])
         for side in [["up", "above"], ["down", "below"], ["left", "to the left"], ["right", "to the right"]]
@@ -49,13 +50,14 @@ class WonderWindowsModule extends SuiteModule {
             ["Win + Shift + Backspace"])
     }
 
-    Add(id, label, command, bindings, arguments := unset) {
+    Add(id, label, command, bindings, arguments := unset, options := {}) {
         actionId := "wonder-windows." id
         arguments := IsSet(arguments) ? arguments : []
         this.catalog[actionId] := {command: command, arguments: arguments}
         this.manager.AddAction(actionId, label, ObjBindMethod(this, "Event"), bindings,
             {category: "Wonder Windows", available: ObjBindMethod(this, "Available"),
-                context: ObjBindMethod(this, "WindowContext")})
+                context: ObjBindMethod(this, "WindowContext"),
+                hidden: Keybindings.Option(options, "hidden", false)})
     }
 
     Available(*) => this.app.ModuleActive(this.id)
@@ -63,9 +65,6 @@ class WonderWindowsModule extends SuiteModule {
     WindowContext(*) => SuiteWindowOwnership.AllowsWonderWindows(SuiteWorkingMonitor.UserWindow())
 
     Start() {
-        ; The observer is passive and shares its callback group with Cascade Kingdom.
-        for key in ["LButton", "RButton", "MButton"]
-            this.manager.Observe("~*" key, ObjBindMethod(this, "Available"), WW_ForgetLastMinimizedWindow)
         this.PollCompatibility()
         SetTimer(this.pollCallback, 5000)
     }
@@ -224,8 +223,8 @@ class WonderWindowsModule extends SuiteModule {
             . "`r`n`r`nARRANGE YOUR WINDOWS"
             . "`r`nWin + Shift + Enter stretches a window across to its neighbors, then "
             . "also up and down so it fills the free space, then back to its original size. "
-            . "Win + Down restores a placed window's original shape; pressed "
-            . "again it minimizes the window, and once more it brings it back. "
+            . "Win + Down restores a placed window's original shape, and a cascade window "
+            . "back in its cascade; pressed again it minimizes the window. "
             . "Win + Backspace minimizes the active window, and Win + Shift + Backspace "
             . "brings back the windows it minimized, newest first."
             . "`r`n`r`nFOCUS, STACKS AND FULLSCREEN"

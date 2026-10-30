@@ -136,7 +136,7 @@ HandleWinEvent(hook_handle, event, hwnd, object_id, child_id, event_thread, even
 
 ForgetWindow(hwnd)
 {
-    global cascade_join_positions
+    global cascade_join_positions, cascade_lent_windows
 
     ; Do not wait for the next visual sweep: a destroyed target must never leave
     ; its script-owned focus GUI behind.
@@ -149,6 +149,8 @@ ForgetWindow(hwnd)
 
     if cascade_join_positions.Has(hwnd)
         cascade_join_positions.Delete(hwnd)
+    if cascade_lent_windows.Has(hwnd)
+        cascade_lent_windows.Delete(hwnd)
 
     CancelPlacementStabilization(hwnd)
 

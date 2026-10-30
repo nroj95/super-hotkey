@@ -14,6 +14,7 @@ Fewer, smarter hotkeys: this version cuts features that overlapped and hands sev
 - **Cascade Kingdom** corrects a window that resizes itself after a move, as Firefox and Discord do when they reach a display with a different scale, once and then leaves it to the app, instead of retrying for up to two and a half minutes.
 - **Wonder Windows:** `Win + Backspace` only minimizes; on the desktop it no longer brings back the last minimized window. `Win + Shift + Backspace` does that instead, wherever focus is, and each press brings back one more window minimized with `Win + Backspace` or `Win + Down`, newest first.
 - **Suspend:** `Pause + F4` suspends and resumes Super Hotkey with an on-screen notice. While suspended it is the only key that still answers; CapsLock and every other hotkey behave natively, and Pause stays a prefix only for the suspend key's own combination.
+- **Wonder Windows:** `Win + Down` steps down: it undoes a placement, then minimizes. It no longer brings a window back on a third press (`Win + Shift + Backspace` does), and after a minimize every Wonder Windows key acts on the window you are in, never on the one just minimized. As an improved Windows key, it no longer has a row in Keybindings.
 - **Windows Terminal helpers** send Terminal's default shortcuts (`Ctrl + Shift + A`, `C` and `K`). If you remapped those in Terminal, restore them.
 
 ### Changes
@@ -27,6 +28,7 @@ Fewer, smarter hotkeys: this version cuts features that overlapped and hands sev
 
 - Clicks are no longer held while a hotkey checks its context, so a busy moment can't delay or drop clicks, for example in the tray menu.
 - Windows moved to another display with Windows' own keys stay in the right cascade.
+- A cascade window placed with Wonder Windows rejoins its slot when `Win + Down` returns it to its original shape, instead of only looking cascaded.
 - **Cascade Kingdom** reads each display's scale from Windows. Its hidden helper windows kept the old scale after a change, so cascade slots, focus tabs and drop guides could stay sized for the previous scale.
 - **Cascade Kingdom** retries focusing a window when Windows refuses at first, and a window spanning two displays belongs to the one holding most of it, as Windows decides.
 - A hotkey pressed while an overlay pops up in front, such as a shortcut guide shown while Win is held, now acts on the window underneath instead of falling through to another action, and the next Win hold shows the guide as usual.

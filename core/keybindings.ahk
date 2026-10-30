@@ -82,6 +82,9 @@ class Keybindings {
             ; Answers while the manager is paused with allowWhilePaused, such as
             ; a suspend toggle that must be able to resume.
             whilePaused: !!Keybindings.Option(options, "whilePaused", false),
+            ; Not listed in Keybindings and always on its default keys: an
+            ; improved native key that would only puzzle users as a row.
+            hidden: !!Keybindings.Option(options, "hidden", false),
             defaults: this._NormalizeSlots(IsObject(defaults) ? defaults : [])
         }
         this.actionOrder.Push(this.actions[actionId])
@@ -198,7 +201,7 @@ class Keybindings {
         settings := IsSet(configuration) ? configuration : this.configuration
         for action in this.actionOrder {
             setting := settings[action.id]
-            if !setting.enabled || !this.IsAvailable(action)
+            if action.hidden || !setting.enabled || !this.IsAvailable(action)
                 || !this._ActionInSettingsModule(action.id, moduleId)
                 continue
             result.Push({id: action.id, label: action.label, category: action.category,
@@ -480,7 +483,8 @@ class Keybindings {
         for actionId, action in this.actions {
             if !configuration.Has(actionId)
                 throw ValueError("Missing action settings: " actionId)
-            setting := configuration[actionId]
+            setting := action.hidden ? {enabled: action.defaultEnabled, bindings: action.defaults}
+                : configuration[actionId]
             slots := this._NormalizeSlots(setting.bindings)
             normalized[actionId] := {enabled: !!setting.enabled, bindings: slots}
             if !setting.enabled || !this.IsAvailable(action)
