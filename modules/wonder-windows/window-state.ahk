@@ -67,7 +67,8 @@ WW_NextMaximizeCycleIndex(was_fullscreen, maximized, tile_index)
 
 ; Win + Backspace minimizes the active window; Win + Shift + Backspace brings
 ; back the windows it minimized, newest first. Never minimize Explorer, the
-; taskbar or another shell surface.
+; taskbar or another shell surface. Focus stays on the window's display while
+; it has windows left.
 WW_MinimizeActiveWindow()
 {
     Critical "On"
@@ -79,6 +80,7 @@ WW_MinimizeActiveWindow()
         return
 
     try {
+        monitor := WindowMonitorIndex(hwnd)
         WinMinimize(hwnd)
         for index, entry in WW_minimized_stack
             if entry.hwnd = hwnd {
@@ -87,7 +89,7 @@ WW_MinimizeActiveWindow()
             }
         WW_minimized_stack.InsertAt(1, {hwnd: hwnd, pid: WinGetPID(hwnd)})
 
-        WW_FocusAfterMinimize(hwnd)
+        WW_FocusAfterMinimize(hwnd, monitor)
     }
     catch Error as err {
         WW_DebugError("Minimize active window", err)

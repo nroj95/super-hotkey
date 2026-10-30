@@ -372,6 +372,18 @@ class WonderWindowsChecks {
             && WW_NextMonitorCycleWindow([], 0, 0) = 0,
             "a display with no other window has no target")
 
+        ; Display 1 is in the middle, 2 on the right and 3 on the left.
+        lefts := [0, 1920, -1920]
+        order := WW_DisplayOrderFrom(1, lefts)
+        this.Assert(order.Length = 3 && order[1] = 1 && order[2] = 2 && order[3] = 3,
+            "focus after a minimize tries the window's display, then the next to the right")
+        order := WW_DisplayOrderFrom(2, lefts)
+        this.Assert(order[1] = 2 && order[2] = 3 && order[3] = 1,
+            "the rightmost display wraps around to the leftmost")
+        order := WW_DisplayOrderFrom(0, lefts)
+        this.Assert(order[1] = 3 && order[2] = 1 && order[3] = 2,
+            "an unknown display starts at the leftmost")
+
         ; Activating 102 moves it to the front; its place in the cycle stays.
         merged := WW_MergeCycleOrder(cycle, [102, 104, 101, 103])
         this.Assert(merged.Length = 4 && merged[1] = 101 && merged[2] = 102

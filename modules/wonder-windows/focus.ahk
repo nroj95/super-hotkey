@@ -97,37 +97,56 @@ WW_SortFocusEntries(entries)
 ; focus after minimize
 ; =============================================================================
 
-WW_FocusAfterMinimize(minimized_hwnd)
+; Windows hands focus to the next window in Z-order, possibly on another
+; display while windows are left on this one. Instead the topmost window on
+; the minimized window's display gets focus and an outline; once that display
+; is empty, the topmost on the next display, left to right. With no window
+; anywhere, focus stays with the desktop.
+WW_FocusAfterMinimize(minimized_hwnd, monitor)
 {
-    ; Prefer the foreground window Windows naturally selects after minimization.
-    ; Wait briefly because shell focus transitions are not always immediate.
+    ; Windows' own handoff is asynchronous; let it settle first.
     Loop 8 {
-        if A_Index > 1
-            Sleep 25
-
-        foreground_hwnd := DllCall("GetForegroundWindow", "ptr")
-
-        if foreground_hwnd != minimized_hwnd
-            && IsSwitchableWindow(foreground_hwnd)
-        {
-            SuiteFocusBorder.Show(foreground_hwnd, "wonder-windows")
-            return
-        }
+        if DllCall("GetForegroundWindow", "ptr") != minimized_hwnd
+            break
+        Sleep 25
     }
 
-    ; If Windows left focus on the shell, activate the topmost eligible window
-    ; on the current desktop. Cloaked/minimized/shell windows are filtered out.
-    for hwnd in WinGetList() {
-        if hwnd = minimized_hwnd
-            continue
+    candidates := []
+    for hwnd in WinGetList()
+        if hwnd != minimized_hwnd && IsSwitchableWindow(hwnd)
+            candidates.Push({hwnd: hwnd, monitor: WindowMonitorIndex(hwnd)})
 
-        if !IsSwitchableWindow(hwnd)
-            continue
-
-        if ActivateWindow(hwnd) {
-            SuiteFocusBorder.Show(hwnd, "wonder-windows")
-            return
-        }
+    lefts := []
+    Loop MonitorGetCount() {
+        MonitorGetPixels(A_Index, &left)
+        lefts.Push(left)
     }
-    ; With no other eligible window, focus stays with the Windows shell/desktop.
+    for display in WW_DisplayOrderFrom(monitor, lefts)
+        for candidate in candidates
+            if candidate.monitor = display && ActivateWindow(candidate.hwnd) {
+                SuiteFocusBorder.Show(candidate.hwnd, "wonder-windows")
+                return
+            }
+}
+
+; Display indexes starting at monitor, then the rest left to right, wrapping.
+; lefts holds each display's left edge by index; an unknown monitor starts
+; at the leftmost display.
+WW_DisplayOrderFrom(monitor, lefts)
+{
+    sorted := []
+    for index, left in lefts {
+        position := sorted.Length + 1
+        while position > 1 && left < lefts[sorted[position - 1]]
+            position -= 1
+        sorted.InsertAt(position, index)
+    }
+    start := 1
+    for position, index in sorted
+        if index = monitor
+            start := position
+    order := []
+    Loop sorted.Length
+        order.Push(sorted[Mod(start + A_Index - 2, sorted.Length) + 1])
+    return order
 }
