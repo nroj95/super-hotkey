@@ -61,6 +61,7 @@ class KeyboardLayers {
     Use(layer) {
         if this.IsHeld(layer) {
             this.layers[layer].used := true
+            this._UpdateIndicator()
             return false
         }
         this.Disarm()
@@ -300,7 +301,8 @@ class KeyboardLayers {
         if this.selected = ""
             return false
         layer := this.layers[this.selected]
-        return layer.down && KeyboardLayers.Now() - layer.started > KeyboardLayers.TapMaxMs
+        ; Once a hotkey has answered, the held notice gives way to its notices.
+        return layer.down && !layer.used && KeyboardLayers.Now() - layer.started > KeyboardLayers.TapMaxMs
     }
 
     _UpdateIndicator(*) {

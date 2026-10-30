@@ -488,6 +488,9 @@ class KeybindingsChecks {
         this.Assert(!layers.HeldIndicatorReady(), "quick Caps tap hides held indicator")
         caps.started := KeyboardLayers.Now() - tapMs - 50
         this.Assert(layers.HeldIndicatorReady(), "held Caps passes tap threshold")
+        caps.used := true
+        this.Assert(!layers.HeldIndicatorReady(), "a held Caps hotkey hides the held indicator")
+        caps.used := false
         caps.down := false
         this.Assert(!layers.HeldIndicatorReady(), "Caps release cancels held indicator")
         layers.selected := "pause"

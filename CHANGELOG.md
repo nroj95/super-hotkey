@@ -20,6 +20,7 @@
 - **Cascade Kingdom** keeps a window lent to Wonder Windows across restarts, so `Win + Down` still returns it to its slot.
 - **Cascade Kingdom:** when a display disconnects, its cascade joins the one on the primary display and spreads into free slots instead of landing on top of it, two windows to a slot. When the display reconnects, those windows return to its cascade.
 - **Cascade Kingdom:** dragging a window that Windows Snap arranged shows the drop guides on the first drag and can join the cascade. Windows giving it back its earlier size no longer counts as a resize.
+- **Secret Layers:** the "Caps held" and "Pause held" notices go away once a hotkey answers, so they no longer show next to that hotkey's own notice.
 
 ## v1.0.0-beta.2
 
