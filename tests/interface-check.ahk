@@ -187,7 +187,8 @@ class InterfaceChecks {
             app.manager.editor.Resize(editor, 0, adjustedWidth, adjustedHeight)
             this.Assert(markerRow.title.Text = "layout-only marker",
                 "width-only resize does not re-render shortcut labels")
-            expectedWidth := 160 + Floor((adjustedWidth - 820) * 0.32)
+            expectedWidth := KeybindingsEditor.BindingWidth
+                + Floor((adjustedWidth - KeybindingsEditor.MinWidth) * 0.32)
             expectedPrimaryX := adjustedWidth - 142 - 2 * expectedWidth
             markerRow.primary.GetPos(&actualPrimaryX, , &actualPrimaryWidth)
             markerRow.secondary.GetPos(&actualSecondaryX, , &actualSecondaryWidth)
@@ -222,9 +223,20 @@ class InterfaceChecks {
             this.Assert(Abs(applyX + applyW - (adjustedWidth - 46)) <= 2
                 && Abs(applyX - (restoreX + restoreW + 14)) <= 2,
                 "Keybindings footer buttons are right-aligned with consistent gaps")
-            editor.Show("w820 h420")
+            editor.Show("w" KeybindingsEditor.MinWidth " h420")
             editor.GetClientPos(, , &compactWidth, &compactHeight)
             app.manager.editor.Resize(editor, 0, compactWidth, compactHeight)
+            ; At the minimum width the longest title and four-key hotkey still fit.
+            hotkeyProbe := editor.AddText("Hidden", "Caps + Shift + Win + Enter")
+            titleProbe := editor.AddText("Hidden", "restore hidden cascade windows on this display")
+            hotkeyProbe.GetPos(, , &hotkeyWidth)
+            titleProbe.GetPos(, , &titleWidth)
+            compactRow := app.manager.editor.visibleRows[1]
+            compactRow.primary.GetPos(&compactPrimaryX, , &compactBindingWidth)
+            this.Assert(compactBindingWidth >= hotkeyWidth + 24 && compactPrimaryX - 30 >= titleWidth,
+                "the narrowest Keybindings window fits the longest title and hotkey (box "
+                . compactBindingWidth ", hotkey " hotkeyWidth ", title room " (compactPrimaryX - 30)
+                . ", title " titleWidth ")")
             this.Assert(app.manager.editor.visibleRows.Length < expandedRows,
                 "resizing smaller reduces the visible row count without losing the catalog")
             app.manager.editor.search.Value := "page"

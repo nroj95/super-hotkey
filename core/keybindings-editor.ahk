@@ -2,6 +2,11 @@
 ; hotkey slots. Edits stay in a draft until Apply; the manager validates and
 ; saves them. Rows are a fixed pool of controls reused while scrolling.
 class KeybindingsEditor {
+    ; The narrowest layout that fits: 398px for the longest title, two 232px
+    ; binding boxes for the longest four-key hotkey, their gaps and Reset.
+    static MinWidth := 1004
+    static BindingWidth := 232
+
     __New(manager) {
         this.manager := manager
         this.window := 0
@@ -55,7 +60,7 @@ class KeybindingsEditor {
         this.moduleId := moduleId
         this.draft := this.manager.GetConfiguration()
         ; Buffer child-window painting while the editor updates many row controls.
-        window := SuiteGui("+Resize +MinSize820x520 +0x02000000 +E0x02000000", this.Title())
+        window := SuiteGui("+Resize +MinSize" KeybindingsEditor.MinWidth "x520 +0x02000000 +E0x02000000", this.Title())
         this.window := window
         window.BackColor := "FAF7F2"
         SuiteWindowOwnership.AllowArranging(window)
@@ -160,7 +165,7 @@ class KeybindingsEditor {
             return
         if this.resizing
             return
-        width := Max(820, width)
+        width := Max(KeybindingsEditor.MinWidth, width)
         height := Max(320, height)
         widthChanged := width != this.renderedWidth
         heightChanged := height != this.renderedHeight
@@ -194,8 +199,7 @@ class KeybindingsEditor {
             }
 
             if widthChanged {
-                extraWidth := width - 820
-                searchWidth := 400 + Min(200, Floor(extraWidth * 0.5))
+                searchWidth := Min(600, width // 2)
                 positions.Push({control: this.search,
                     x: Floor((width - searchWidth) / 2), y: 13, w: searchWidth, h: 23})
             }
@@ -203,7 +207,8 @@ class KeybindingsEditor {
             if widthChanged || rowsChanged {
                 ; Both binding boxes share one width, so either fits the longest
                 ; hotkey; titles take the rest and the reset button stays fixed.
-                bindingWidth := 160 + Floor((width - 820) * 0.32)
+                bindingWidth := KeybindingsEditor.BindingWidth
+                    + Floor((width - KeybindingsEditor.MinWidth) * 0.32)
                 resetX := width - 122
                 secondaryX := resetX - bindingWidth - 10
                 primaryX := secondaryX - bindingWidth - 10
