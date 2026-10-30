@@ -322,7 +322,7 @@ ApplyPendingCascadeDisplayLayout()
                     move_error := A_LastError
                     if moved
                         SchedulePlacementStabilization(hwnd, position[1], position[2],
-                            geometry.width, geometry.height, true)
+                            geometry.width, geometry.height)
                     else {
                         CancelPlacementStabilization(hwnd)
                         DebugLog("Display reflow refused. | hwnd=" hwnd " | last-error=" move_error)

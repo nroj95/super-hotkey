@@ -1,4 +1,4 @@
-; Cascade Kingdom placement on a display and asynchronous stabilization.
+; Cascade Kingdom placement on a display and the check that confirms it.
 
 ; =============================================================================
 ; explicit placement on a monitor
@@ -18,7 +18,6 @@ PlaceCascadeWindowOnMonitor(hwnd, target_monitor, requested_position := 0,
 
     window := "ahk_id " hwnd
     display_generation := cascade_display_generation
-    dpi_transition := GetCascadeWindowMonitorDpi(hwnd) != GetCascadeMonitorDpi(target_monitor)
     CancelCascadeDisplayPlacement(hwnd)
     CancelPlacementStabilization(hwnd)
     previous_monitor := GetManagedCascadeMonitor(hwnd)
@@ -102,8 +101,7 @@ PlaceCascadeWindowOnMonitor(hwnd, target_monitor, requested_position := 0,
 
         RecordCascadeWindow(target_monitor, hwnd)
 
-        SchedulePlacementStabilization(hwnd, target_x, target_y, window_width, window_height,
-            dpi_transition)
+        SchedulePlacementStabilization(hwnd, target_x, target_y, window_width, window_height)
 
         if previous_monitor && previous_monitor != target_monitor
             QueueCascadeCompaction(previous_monitor)
@@ -132,15 +130,18 @@ PlaceCascadeWindowOnMonitor(hwnd, target_monitor, requested_position := 0,
 }
 
 ; =============================================================================
-; asynchronous placement stabilization
+; placement check
 ; =============================================================================
+
+; Moves are posted without waiting on the target application, so a short check
+; confirms each one and keeps its slot reserved meanwhile. An application can
+; still override the result, for example by resizing itself for a new display
+; scale: one correction, then the application wins and Cascade never fights it.
 
 CancelPlacementStabilization(hwnd)
 {
-    global placement_stabilization_generations, placement_reservations, placement_dpi_generations
+    global placement_stabilization_generations, placement_reservations
 
-    if hwnd && placement_dpi_generations.Has(hwnd)
-        placement_dpi_generations.Delete(hwnd)
     if hwnd && placement_stabilization_generations.Has(hwnd)
         placement_stabilization_generations.Delete(hwnd)
     if hwnd && placement_reservations.Has(hwnd)
@@ -152,266 +153,80 @@ FinishPlacementStabilization(hwnd, generation)
     if !IsCurrentPlacementStabilization(hwnd, generation)
         return
     CancelPlacementStabilization(hwnd)
-    ; Do not queue a fresh compaction here: an application-enforced offset could
-    ; otherwise restart the same correction cycle indefinitely after its limit.
     QueueFocusCornerUpdate()
 }
 
-SchedulePlacementStabilization(hwnd, target_x, target_y, target_width, target_height,
-    dpi_transition := false)
+SchedulePlacementStabilization(hwnd, target_x, target_y, target_width, target_height)
 {
     if !IsCascadeEnabled()
         return
 
     global placement_stabilize_delay_ms
-    global placement_stabilization_generations
-    global placement_stabilization_generation_counter, placement_dpi_generations
+    global placement_stabilization_generations, placement_stabilization_generation_counter
 
     placement_stabilization_generation_counter += 1
-    stabilization_generation :=
-        placement_stabilization_generation_counter
-
-    placement_stabilization_generations[hwnd] :=
-        stabilization_generation
-    if dpi_transition
-        placement_dpi_generations[hwnd] := stabilization_generation
-    else if placement_dpi_generations.Has(hwnd)
-        placement_dpi_generations.Delete(hwnd)
+    generation := placement_stabilization_generation_counter
+    placement_stabilization_generations[hwnd] := generation
     RememberCascadeSlot(hwnd, GetManagedCascadeMonitor(hwnd), target_x, target_y)
-
     SetTimer(StabilizePlacedWindow.Bind(hwnd, target_x, target_y, target_width, target_height,
-        stabilization_generation, placement_stabilize_delay_ms), -placement_stabilize_delay_ms)
+        generation), -placement_stabilize_delay_ms)
 }
 
-IsCurrentPlacementStabilization(hwnd, stabilization_generation)
+IsCurrentPlacementStabilization(hwnd, generation)
 {
     global placement_stabilization_generations
 
     return IsCascadeEnabled() && placement_stabilization_generations.Has(hwnd)
-        && placement_stabilization_generations[hwnd]
-            = stabilization_generation
+        && placement_stabilization_generations[hwnd] = generation
 }
 
-StabilizePlacedWindow(hwnd, target_x, target_y, target_width, target_height,
-    stabilization_generation, delay_ms, attempt := 0, passive_stage := 0, confirmation_count := 0)
+StabilizePlacedWindow(hwnd, target_x, target_y, target_width, target_height, generation,
+    corrected := false)
 {
-    global placement_stabilize_tolerance
-    global placement_stabilize_retry_ms
-    global placement_stabilize_retry_limit
-    global placement_stabilize_confirmation_ms, placement_stabilize_confirmation_limit
-    global placement_stabilize_backoff_delays_ms, placement_dpi_generations
+    global placement_stabilize_tolerance, placement_stabilize_verify_ms
 
-    if !IsCurrentPlacementStabilization(hwnd, stabilization_generation)
+    if !IsCurrentPlacementStabilization(hwnd, generation)
         return
-
     if IsCascadeDisplayTransition() {
         SetTimer(StabilizePlacedWindow.Bind(hwnd, target_x, target_y, target_width,
-            target_height, stabilization_generation, delay_ms, attempt, passive_stage,
-            confirmation_count), -200)
-        return
-    }
-    dpi_transition := placement_dpi_generations.Has(hwnd)
-        && placement_dpi_generations[hwnd] = stabilization_generation
-
-    DebugLog("Stabilization callback." . " | generation=" stabilization_generation
-        . " | delay-ms=" delay_ms . " | attempt=" attempt . " | passive-stage=" passive_stage
-        . " | hwnd=" hwnd)
-
-    ; Never correct a window that has left the cascade.
-    if !GetManagedCascadeMonitor(hwnd) {
-        FinishPlacementStabilization(hwnd, stabilization_generation)
-
-        return
-    }
-
-    if !WinExist("ahk_id " hwnd) {
-        FinishPlacementStabilization(hwnd, stabilization_generation)
-
+            target_height, generation, corrected), -200)
         return
     }
 
     try {
-        ; Do not fight an intentional maximize/minimize transition.
-        if WinGetMinMax("ahk_id " hwnd) != 0 || IsIgnoredByCascade(hwnd)
-            || IsCascadeWindowBeingDragged(hwnd) {
-            FinishPlacementStabilization(hwnd, stabilization_generation)
-
+        ; Never correct a window that left the cascade, closed, changed state
+        ; or is being moved by hand.
+        if !GetManagedCascadeMonitor(hwnd) || !WinExist("ahk_id " hwnd)
+            || WinGetMinMax("ahk_id " hwnd) != 0 || IsIgnoredByCascade(hwnd)
+            || IsCascadeWindowBeingDragged(hwnd) || !(frame := GetWindowFrame(hwnd)) {
+            FinishPlacementStabilization(hwnd, generation)
+            return
+        }
+        matched := Abs(frame.x - target_x) <= placement_stabilize_tolerance
+            && Abs(frame.y - target_y) <= placement_stabilize_tolerance
+            && Abs(frame.width - target_width) <= placement_stabilize_tolerance
+            && Abs(frame.height - target_height) <= placement_stabilize_tolerance
+        DebugLog("Placement check. | matched=" matched " | corrected=" (corrected ? 1 : 0)
+            . " | actual=(" frame.x "," frame.y " " frame.width "x" frame.height ")"
+            . " | requested=(" target_x "," target_y " " target_width "x" target_height ")"
+            . " | " DescribeWindow(hwnd))
+        if matched || corrected {
+            FinishPlacementStabilization(hwnd, generation)
             return
         }
 
-        if !(current_frame := GetWindowFrame(hwnd)) {
-            FinishPlacementStabilization(hwnd, stabilization_generation)
-
+        raw := VisibleToRawRect(hwnd, target_x, target_y, target_width, target_height)
+        if !PhysicalDllCall("SetWindowPos", "ptr", hwnd, "ptr", 0,
+            "int", raw[1], "int", raw[2], "int", raw[3], "int", raw[4],
+            "uint", 0x4014, "int") { ; ASYNC | NOACTIVATE | NOZORDER
+            FinishPlacementStabilization(hwnd, generation)
             return
         }
-        current_x := current_frame.x
-        current_y := current_frame.y
-        current_width := current_frame.width
-        current_height := current_frame.height
-
-        needs_correction := (Abs(current_x - target_x) > placement_stabilize_tolerance
-            || Abs(current_y - target_y) > placement_stabilize_tolerance
-            || Abs(current_width - target_width) > placement_stabilize_tolerance
-            || Abs(current_height - target_height) > placement_stabilize_tolerance)
-
-        DebugLog("Stabilization check." . " | generation=" stabilization_generation
-            . " | delay-ms=" delay_ms . " | matched=" (!needs_correction) . " | actual=("
-            . current_x "," current_y " " . current_width "x" current_height . ")"
-            . " | requested=(" . target_x "," target_y " " . target_width "x" target_height . ")"
-            . " | hwnd=" hwnd)
-
-        if !needs_correction {
-            ; A DPI transfer can settle after the first match; check it once more.
-            confirmation_delay := GetCascadeConfirmationDelay(dpi_transition, confirmation_count)
-            if confirmation_delay {
-                SetTimer(StabilizePlacedWindow.Bind(hwnd, target_x, target_y, target_width,
-                    target_height, stabilization_generation, confirmation_delay,
-                    attempt, passive_stage, confirmation_count + 1), -confirmation_delay)
-                return
-            }
-            FinishPlacementStabilization(hwnd, stabilization_generation)
-
-            DebugLog("Placement reservation released." . " | reason=matched"
-                . " | generation=" stabilization_generation . " | hwnd=" hwnd)
-
-            return
-        }
-
-        if attempt >= placement_stabilize_retry_limit {
-            ; Bound confirmation-only polling as well as corrective moves.
-            if confirmation_count >= placement_stabilize_confirmation_limit {
-                DebugLog("Placement stabilization exhausted. | hwnd=" hwnd)
-                FinishPlacementStabilization(hwnd, stabilization_generation)
-                return
-            }
-            SetTimer(
-                StabilizePlacedWindow.Bind(hwnd, target_x, target_y, target_width, target_height,
-                    stabilization_generation, placement_stabilize_confirmation_ms, attempt,
-                    passive_stage, confirmation_count + 1),
-                -placement_stabilize_confirmation_ms
-            )
-
-            DebugLog("Stabilization confirmation-only recheck scheduled."
-                . " | generation=" stabilization_generation . " | attempts=" attempt
-                . " | delay-ms=" placement_stabilize_confirmation_ms . " | hwnd=" hwnd)
-
-            return
-        }
-
-        ; A mismatch does not immediately mean that Cascade needs to fight the
-        ; application. Give the window progressively more time to finish its
-        ; own asynchronous geometry changes.
-        ; A wrong monitor is not a cosmetic size disagreement. Correct the first
-        ; three misses promptly even when both displays use the same DPI.
-        current_monitor := GetMonitorForPoint(current_x + current_width / 2,
-            current_y + current_height / 2)
-        target_monitor := GetMonitorForPoint(target_x + target_width / 2,
-            target_y + target_height / 2)
-        if !ShouldCorrectCascadeMonitorPromptly(dpi_transition, current_monitor, target_monitor, attempt)
-            && passive_stage < placement_stabilize_backoff_delays_ms.Length {
-            next_passive_stage := passive_stage + 1
-
-            passive_delay_ms :=
-                placement_stabilize_backoff_delays_ms[next_passive_stage]
-
-            SetTimer(
-                StabilizePlacedWindow.Bind(hwnd, target_x, target_y, target_width, target_height,
-                    stabilization_generation, passive_delay_ms, attempt, next_passive_stage,
-                    confirmation_count),
-                -passive_delay_ms
-            )
-
-            DebugLog("Stabilization passive recheck scheduled."
-                . " | generation=" stabilization_generation . " | stage=" next_passive_stage
-                . "/" placement_stabilize_backoff_delays_ms.Length . " | delay-ms=" passive_delay_ms
-                . " | hwnd=" hwnd)
-
-            return
-        }
-
-        ; The full passive grace period expired and the window is still wrong.
-        ; Post one asynchronous correction, then begin a fresh passive cycle if
-        ; the application overrides that correction too.
-        next_attempt := attempt + 1
-
-        raw_target := VisibleToRawRect(hwnd, target_x, target_y, target_width, target_height)
-        raw_target_x := raw_target[1]
-        raw_target_y := raw_target[2]
-        raw_target_width := raw_target[3]
-        raw_target_height := raw_target[4]
-
-        swp_flags := (
-            0x4000  ; SWP_ASYNCWINDOWPOS
-            | 0x0010  ; SWP_NOACTIVATE
-            | 0x0004  ; SWP_NOZORDER
-        )
-
-        ; The callback may have been interrupted by a newer placement while it
-        ; was checking geometry. Recheck immediately before posting the move.
-        if !IsCurrentPlacementStabilization(hwnd, stabilization_generation) {
-            return
-        }
-
-        if IsCascadeDisplayTransition() {
-            SetTimer(StabilizePlacedWindow.Bind(hwnd, target_x, target_y, target_width,
-                target_height, stabilization_generation, delay_ms, attempt, passive_stage,
-                confirmation_count), -200)
-            return
-        }
-
-        DebugLog("Stabilization SetWindowPos begin." . " | generation=" stabilization_generation
-            . " | attempt=" next_attempt . " | passive-grace-complete=1" . " | hwnd=" hwnd)
-
-        stabilization_start_tick := A_TickCount
-
-        stabilization_result := PhysicalDllCall("SetWindowPos", "ptr", hwnd, "ptr", 0,
-            "int", raw_target_x, "int", raw_target_y, "int", raw_target_width,
-            "int", raw_target_height, "uint", swp_flags, "int")
-
-        stabilization_error := A_LastError
-        stabilization_elapsed_ms :=
-            (A_TickCount - stabilization_start_tick) & 0xFFFFFFFF
-
-        DebugLog("Stabilization SetWindowPos returned." . " | result=" stabilization_result
-            . " | generation=" stabilization_generation . " | attempt=" next_attempt
-            . " | elapsed-ms=" stabilization_elapsed_ms . " | hwnd=" hwnd)
-
-        if !stabilization_result {
-            FinishPlacementStabilization(hwnd, stabilization_generation)
-
-            DebugLog("Placement reservation released." . " | reason=stabilization-failed"
-                . " | generation=" stabilization_generation . " | last-error=" stabilization_error
-                . " | hwnd=" hwnd)
-
-            return
-        }
-
-        SetTimer(
-            StabilizePlacedWindow.Bind(hwnd, target_x, target_y, target_width, target_height,
-                stabilization_generation, placement_stabilize_retry_ms, next_attempt, 0,
-                confirmation_count),
-            -placement_stabilize_retry_ms
-        )
-
-        DebugLog("Stabilization recheck scheduled." . " | generation=" stabilization_generation
-            . " | attempt=" next_attempt . " | passive-stage=0"
-            . " | delay-ms=" placement_stabilize_retry_ms . " | hwnd=" hwnd)
+        SetTimer(StabilizePlacedWindow.Bind(hwnd, target_x, target_y, target_width, target_height,
+            generation, true), -placement_stabilize_verify_ms)
     }
     catch Error as err {
-        FinishPlacementStabilization(hwnd, stabilization_generation)
+        FinishPlacementStabilization(hwnd, generation)
         DebugError("StabilizePlacedWindow", err)
     }
-}
-
-
-ShouldCorrectCascadeMonitorPromptly(dpi_transition, current_monitor, target_monitor, attempt)
-{
-    return attempt < 3 && (dpi_transition
-        || (current_monitor && target_monitor && current_monitor != target_monitor))
-}
-
-GetCascadeConfirmationDelay(dpi_transition, confirmation_count)
-{
-    global placement_stabilize_retry_ms
-    return dpi_transition && confirmation_count < 1 ? placement_stabilize_retry_ms : 0
 }

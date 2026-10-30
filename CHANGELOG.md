@@ -11,6 +11,7 @@ Fewer, smarter hotkeys: this version cuts features that overlapped and hands sev
 - **Cascade Kingdom:** `Caps + M` only hides the cascade; `Caps + Shift + M` brings it back, like `Win + M` and `Win + Shift + M`. Hiding again before restoring adds to what comes back, so nothing hidden is left behind.
 - **Cascade Kingdom:** pressing `Caps + Insert` again no longer undoes. `Caps + Shift + Insert` takes the active window out of its cascade and returns it to where it was before it joined, maximized or not, whenever you press it. Windows dropped onto a slot remember their place too.
 - **Cascade Kingdom:** bringing the cascade forward moves to `Caps + Shift + Space`, showing the next window in each slot to `Caps + Shift + Enter`, and gathering all cascades to `Caps + Home`. Shift keeps a stray Caps tap followed by Space or Enter from moving focus while you type. Saved hotkeys keep the old keys, so set them again in Keybindings.
+- **Cascade Kingdom** corrects a window that resizes itself after a move, as Firefox and Discord do when they reach a display with a different scale, once and then leaves it to the app, instead of retrying for up to two and a half minutes.
 - **Windows Terminal helpers** send Terminal's default shortcuts (`Ctrl + Shift + A`, `C` and `K`). If you remapped those in Terminal, restore them.
 
 ### Changes

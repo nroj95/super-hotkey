@@ -148,7 +148,6 @@ class CascadeChecks {
 
     static PlacementStabilization() {
         global cascade_history, placement_reservations, placement_stabilization_generations
-        global placement_stabilize_retry_ms
         app := SuiteApplication(true, SuiteChecks.directory "\placement-stabilization")
         InitializeCascadeState()
         source := SuiteGui("+Resize", "Stabilization source")
@@ -163,20 +162,6 @@ class CascadeChecks {
                 "a minimized window retains its restored monitor")
             WinRestore(source.Hwnd)
 
-            this.Assert(ShouldCorrectCascadeMonitorPromptly(false, 1, 2, 0),
-                "equal-DPI wrong-monitor placement gets a prompt correction")
-            this.Assert(ShouldCorrectCascadeMonitorPromptly(false, 2, 1, 2)
-                && !ShouldCorrectCascadeMonitorPromptly(false, 2, 1, 3),
-                "prompt monitor corrections stop after three attempts")
-            this.Assert(!ShouldCorrectCascadeMonitorPromptly(false, 2, 2, 0)
-                && !ShouldCorrectCascadeMonitorPromptly(false, 0, 2, 0),
-                "same-monitor or unknown geometry retains the passive backoff")
-            this.Assert(ShouldCorrectCascadeMonitorPromptly(true, 2, 2, 0),
-                "DPI transitions retain their prompt correction path")
-            this.Assert(GetCascadeConfirmationDelay(true, 0) = placement_stabilize_retry_ms
-                && !GetCascadeConfirmationDelay(true, 1) && !GetCascadeConfirmationDelay(false, 0),
-                "only a DPI transfer gets one bounded confirmation")
-
             ; Simulate a placed member. The ignore marker is removed only from
             ; this fixture, never from a personal window.
             app.dryRun := false
@@ -185,17 +170,22 @@ class CascadeChecks {
             cascade_history[sourceMonitor] := [target.Hwnd]
             placement_stabilization_generations[target.Hwnd] := 101
             placement_reservations[target.Hwnd] := Map("monitor", sourceMonitor, "x", x, "y", y)
-            StabilizePlacedWindow(target.Hwnd, x, y, width, height, 101, 500)
+            StabilizePlacedWindow(target.Hwnd, x, y, width, height, 101)
             this.Assert(!placement_stabilization_generations.Has(target.Hwnd)
                 && !placement_reservations.Has(target.Hwnd),
                 "a matching stabilization check releases its reservation")
-            StabilizePlacedWindow(target.Hwnd, x + 100, y + 100, width, height, 101, 500)
+            placement_stabilization_generations[target.Hwnd] := 103
+            StabilizePlacedWindow(target.Hwnd, x + 100, y + 100, width, height, 103, true)
+            GetVisibleWindowBounds(target.Hwnd, &afterX, &afterY, &afterWidth, &afterHeight)
+            this.Assert(afterX = x && afterY = y && !placement_stabilization_generations.Has(target.Hwnd),
+                "after its one correction, a window that is still off is left to its application")
+            StabilizePlacedWindow(target.Hwnd, x + 100, y + 100, width, height, 101)
             GetVisibleWindowBounds(target.Hwnd, &afterX, &afterY, &afterWidth, &afterHeight)
             this.Assert(afterX = x && afterY = y && afterWidth = width && afterHeight = height,
                 "an expired stabilization callback cannot move a window")
             cascade_history.Clear()
             placement_stabilization_generations[target.Hwnd] := 102
-            StabilizePlacedWindow(target.Hwnd, x + 100, y + 100, width, height, 102, 500)
+            StabilizePlacedWindow(target.Hwnd, x + 100, y + 100, width, height, 102)
             GetVisibleWindowBounds(target.Hwnd, &afterX, &afterY, &afterWidth, &afterHeight)
             this.Assert(afterX = x && afterY = y && !placement_stabilization_generations.Has(target.Hwnd),
                 "stabilization never moves a window that left the cascade")

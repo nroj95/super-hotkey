@@ -31,21 +31,11 @@ cascade_restore_timeout_ms := 5000
 ; This only expires bookkeeping; it never forces a window to close.
 cascade_close_timeout_ms := 5000
 
-; Keep one late safety check in case an application changes geometry again.
+; A placed window is checked once; if it is off by more than the tolerance, it
+; is moved back once and checked again, then left to its application.
 placement_stabilize_delay_ms := 500
+placement_stabilize_verify_ms := 1000
 placement_stabilize_tolerance := 6
-
-; A busy window may not process an asynchronous placement immediately.
-; Keep its slot reserved while retrying without blocking Cascade Kingdom.
-placement_stabilize_retry_ms := 500
-placement_stabilize_retry_limit := 20
-; A final confirmation is bounded too; never poll a failed placement forever.
-placement_stabilize_confirmation_ms := 2000
-placement_stabilize_confirmation_limit := 3
-
-; If an application overrides a Cascade placement, give it time to finish
-; managing its own geometry before posting another corrective move.
-placement_stabilize_backoff_delays_ms := [1000, 2000, 4000]
 
 ; If Windows stops reporting native move-loop state after mouse release, abandon
 ; the snap decision instead of leaving the cascade permanently locked in a drag.
@@ -103,7 +93,6 @@ cascade_command_draining := false
 
 placement_reservations := Map()
 placement_stabilization_generations := Map()
-placement_dpi_generations := Map()
 placement_stabilization_generation_counter := 0
 cascade_join_positions := Map()
 cascade_poll_ms := 1000
