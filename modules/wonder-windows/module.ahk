@@ -108,12 +108,20 @@ class WonderWindowsModule extends SuiteModule {
 
     Drain(*) {
         for token, job in this.pending.Clone() {
-            if !this.CanRun() || job.generation != this.generation
-                || ((A_TickCount - job.created) & 0xFFFFFFFF) > 5000
-                || DllCall("GetForegroundWindow", "ptr") != job.event.foregroundHwnd
-                || WindowProcessId(job.event.foregroundHwnd) != job.pid
-                || !this.manager.ContextActive(this.manager.actions[job.event.actionId]) {
+            foreground := DllCall("GetForegroundWindow", "ptr")
+            dropped := !this.CanRun() ? "not running"
+                : job.generation != this.generation ? "reconfigured"
+                : ((A_TickCount - job.created) & 0xFFFFFFFF) > 5000 ? "expired"
+                : foreground != job.event.foregroundHwnd ? "focus moved"
+                : WindowProcessId(job.event.foregroundHwnd) != job.pid ? "window replaced"
+                : !this.manager.ContextActive(this.manager.actions[job.event.actionId]) ? "out of context"
+                : ""
+            if dropped {
                 this.pending.Delete(token)
+                if SuiteState.Log.verbose
+                    WW_DebugLog("Key dropped. | action=" job.event.actionId " | reason=" dropped
+                        . " | pressed-in=" DescribeWindow(job.event.foregroundHwnd)
+                        . " | foreground=" DescribeWindow(foreground))
                 continue
             }
             this.pending.Delete(token)

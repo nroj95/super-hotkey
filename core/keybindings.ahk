@@ -687,7 +687,11 @@ class Keybindings {
         if !this.running || this.applying
             return false
         route := this._SelectedRoute(signature)
-        if !IsObject(route) || !this._Passes(route)
+        if !IsObject(route) {
+            this._LogPassedThrough(signature)
+            return false
+        }
+        if !this._Passes(route)
             return false
         binding := route.binding
         if this.blocked.Has(binding.key) || Keybindings.ModifierMask() != binding.modifiers
@@ -696,6 +700,27 @@ class Keybindings {
         if binding.layer = "normal"
             return !IsObject(this.client) || !this.client.Busy()
         return this.client.Active(binding.layer)
+    }
+
+    ; Verbose logs say why an assigned hotkey went to Windows instead of its
+    ; action. Keys outside their scope, such as Escape outside Paper Pad, pass
+    ; through by design and are left out. The predicate only queues the write,
+    ; like every input callback.
+    _LogPassedThrough(signature) {
+        if !IsObject(SuiteState.Log) || !SuiteState.Log.verbose || !this.routeMap.Has(signature)
+            return
+        reasons := ""
+        for route in this.routeMap[signature]
+            if this._ScopeActive(route.action)
+                reasons .= " | " route.action.id "=" (!route.enabled ? "disabled"
+                    : !this.IsAvailable(route.action) ? "unavailable" : "out of context")
+        if reasons = ""
+            return
+        label := this.routeMap[signature][1].binding.label
+        foreground := DllCall("GetForegroundWindow", "ptr")
+        user := SuiteWorkingMonitor.UserWindow()
+        SetTimer(() => SuiteState.Log.Debug("Keybindings", "Hotkey passed to Windows. | hotkey=" label
+            . reasons " | foreground=" DescribeWindow(foreground) " | user-window=" DescribeWindow(user)), -1)
     }
 
     _GuardEligible(key, *) => this.running && this.pressed.Has(key)
@@ -983,16 +1008,17 @@ class Keybindings {
     }
 
     ContextActive(action) {
-        if !this.IsAvailable(action)
+        if !this.IsAvailable(action) || !this._ScopeActive(action)
             return false
-        if action.scope != "" {
-            inverse := SubStr(action.scope, 1, 1) = "!"
-            name := inverse ? SubStr(action.scope, 2) : action.scope
-            active := !!this.scopes[name].Call()
-            if active = inverse
-                return false
-        }
         return !HasMethod(action.context, "Call") || !!action.context.Call()
+    }
+
+    _ScopeActive(action) {
+        if action.scope = ""
+            return true
+        inverse := SubStr(action.scope, 1, 1) = "!"
+        name := inverse ? SubStr(action.scope, 2) : action.scope
+        return !!this.scopes[name].Call() != inverse
     }
 
     Observe(key, context, callback, releaseGuard := false) {
