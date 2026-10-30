@@ -201,15 +201,6 @@ class PaperPadController
         ; session so it cannot affect Escape after PaperPad is reopened.
         if command = "hide" || command = "toggle"
             this.ConsumeSystemTextInputEscape()
-
-        ; Size settings are already stored; one pending resize applies the latest
-        ; width and height without interrupting a show/hide animation.
-        if command = "resize" {
-            for request in this.command_queue {
-                if request.name = "resize"
-                    return
-            }
-        }
         if this.command_queue.Length >= 8
             return
         this.command_queue.Push({name: command, source_window: WinExist("A"),
@@ -256,11 +247,6 @@ class PaperPadController
                 this.DeleteCurrentPage()
             return
         }
-        if request.name = "resize" {
-            this.ApplyWindowSize()
-            return
-        }
-
         was_visible := this.IsVisible()
         this.EnsureWindow(request.source_window)
         if request.name = "toggle" && was_visible {
@@ -1408,24 +1394,8 @@ class PaperPadController
     }
 
     ; =========================================================================
-    ; window size, help and suite exit
+    ; suite exit
     ; =========================================================================
-
-    ApplyWindowSize()
-    {
-        if !this.IsVisible()
-            return
-        try {
-            bounds := this.GetBounds()
-            WinMovePixels(bounds.x, bounds.y, bounds.w, bounds.h, "ahk_id " this.window_hwnd)
-            WinGetPosPixels(&actual_x, &actual_y, &actual_width, &actual_height, "ahk_id " this.window_hwnd)
-            this.last_bounds := {x: actual_x, y: actual_y, w: actual_width, h: actual_height}
-        }
-        catch as failure {
-            MsgBox("The size was saved, but the current window could not be resized.`n`n"
-                . failure.Message, "Paper Pad window size", "Iconx 4096")
-        }
-    }
 
     OnScriptExit(exit_reason, exit_code)
     {
