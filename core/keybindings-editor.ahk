@@ -2,10 +2,12 @@
 ; hotkey slots. Edits stay in a draft until Apply; the manager validates and
 ; saves them. Rows are a fixed pool of controls reused while scrolling.
 class KeybindingsEditor {
-    ; The narrowest layout that fits: 398px for the longest title, two 232px
-    ; binding boxes for the longest four-key hotkey, their gaps and Reset.
-    static MinWidth := 1004
+    ; Binding boxes never shrink below the longest four-key hotkey; in a
+    ; narrower window titles give up the space and end in an ellipsis.
+    ; FullWidth adds 398px for the longest title, the gaps and Reset.
+    static MinWidth := 820
     static BindingWidth := 232
+    static FullWidth := 1004
 
     __New(manager) {
         this.manager := manager
@@ -205,10 +207,10 @@ class KeybindingsEditor {
             }
 
             if widthChanged || rowsChanged {
-                ; Both binding boxes share one width, so either fits the longest
-                ; hotkey; titles take the rest and the reset button stays fixed.
+                ; Both binding boxes share one width, growing only once every
+                ; title fits; titles take the rest and the reset button stays fixed.
                 bindingWidth := KeybindingsEditor.BindingWidth
-                    + Floor((width - KeybindingsEditor.MinWidth) * 0.32)
+                    + Max(0, Floor((width - KeybindingsEditor.FullWidth) * 0.32))
                 resetX := width - 122
                 secondaryX := resetX - bindingWidth - 10
                 primaryX := secondaryX - bindingWidth - 10
