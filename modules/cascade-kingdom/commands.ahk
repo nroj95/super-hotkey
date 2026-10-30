@@ -644,8 +644,10 @@ ReconcileCascadeRuntimeState()
             }
             try {
                 if WinGetMinMax(hwnd) = -1 {
-                    if !cascade_minimized_observed.Has(hwnd)
+                    if !cascade_minimized_observed.Has(hwnd) {
                         ObserveCascadeMinimizedWindow(hwnd)
+                        QueueCascadeCompaction(monitor_index)
+                    }
                 } else if cascade_minimized_observed.Has(hwnd) {
                     pid := cascade_minimized_observed[hwnd]
                     ForgetCascadeMinimizedObservation(hwnd)

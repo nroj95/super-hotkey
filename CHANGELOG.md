@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Changes
+
+- **Cascade Kingdom** closes the gap a minimized window leaves, as it does for a closed one. Restoring the window returns it to its slot, and the window that filled in moves back.
+
 ## v1.0.0-beta.2
 
 Fewer, smarter hotkeys: this version cuts features that overlapped and hands several keys back to Windows.

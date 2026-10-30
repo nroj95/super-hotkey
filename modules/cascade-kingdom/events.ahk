@@ -94,9 +94,11 @@ HandleWinEvent(hook_handle, event, hwnd, object_id, child_id, event_thread, even
         }
 
         if event = EVENT_SYSTEM_MINIMIZESTART {
-            if GetManagedCascadeMonitor(hwnd) {
+            if monitor := GetManagedCascadeMonitor(hwnd) {
                 ObserveCascadeMinimizedWindow(hwnd)
                 CancelPlacementStabilization(hwnd)
+                ; Close the gap; a restore returns the window to its slot.
+                QueueCascadeCompaction(monitor)
             }
             RemoveWindowFromCascadeRestore(hwnd)
             return

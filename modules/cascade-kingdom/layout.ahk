@@ -623,8 +623,7 @@ CompactCascadeLayout(monitor_index, preferred_hwnd := 0)
         )
     }
 
-    target_stacks := BuildStableCascadeCompactionPlan(ordered_stacks, managed_window_count,
-        preferred_hwnd)
+    target_stacks := BuildStableCascadeCompactionPlan(ordered_stacks, preferred_hwnd)
 
     ; Never apply an old plan after a newer drag or membership change, or while
     ; layout is deferred: queue it again instead.
@@ -702,7 +701,9 @@ CompactCascadeLayout(monitor_index, preferred_hwnd := 0)
 
 
 ; Plan without moving windows: preserve existing slots, then fill only holes.
-BuildStableCascadeCompactionPlan(ordered_stacks, managed_window_count, preferred_hwnd := 0)
+; Only visible windows count: a minimized member's hole is filled like any
+; other, and its restore returns it to its slot.
+BuildStableCascadeCompactionPlan(ordered_stacks, preferred_hwnd := 0)
 {
     slot_count := ordered_stacks.Length
     target_stacks := []
@@ -729,36 +730,6 @@ BuildStableCascadeCompactionPlan(ordered_stacks, managed_window_count, preferred
     remaining_windows := Mod(window_count, slot_count)
     Loop slot_count
         target_counts.Push(complete_layers + (A_Index <= remaining_windows))
-
-    if window_count < slot_count && managed_window_count > window_count {
-        ; Minimized members still count toward the user's total. Keep them hidden
-        ; and preserve visible slots rather than collapsing a merely hidden layer.
-        slot_limit := Min(slot_count, managed_window_count)
-        Loop slot_count
-            target_counts[A_Index] := 0
-        remaining_windows := window_count
-        if preferred_slot && preferred_slot <= slot_limit {
-            target_counts[preferred_slot] := 1
-            remaining_windows -= 1
-        }
-        Loop slot_limit {
-            slot_index := A_Index
-            if remaining_windows && !target_counts[slot_index]
-                && ordered_stacks[slot_index].Length
-            {
-                target_counts[slot_index] := 1
-                remaining_windows -= 1
-            }
-        }
-        Loop slot_limit {
-            if !remaining_windows
-                break
-            if !target_counts[A_Index] {
-                target_counts[A_Index] := 1
-                remaining_windows -= 1
-            }
-        }
-    }
 
     overflow_targets := Map()
     for slot_index, stack_windows in ordered_stacks {

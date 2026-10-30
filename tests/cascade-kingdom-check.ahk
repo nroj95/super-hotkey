@@ -1,5 +1,5 @@
-; Cascade Kingdom: destinations, settings, stabilization, drop guides, focus tabs, adoption
-; and cascades kept across restarts.
+; Cascade Kingdom: destinations, settings, stabilization, drop guides, focus tabs, adoption,
+; compaction plans and cascades kept across restarts.
 ; Disposable preferences, dry-run inputs and test-owned windows only.
 class CascadeChecks {
     static Run() {
@@ -8,12 +8,34 @@ class CascadeChecks {
         this.FocusTabDpi()
         WW_RunWindowCommand(ObjBindMethod(this, "MaximizedAdoption"))
         this.SavedCascades()
+        this.CompactionPlan()
         this.Policy()
         this.Settings()
         this.Guides()
     }
 
     static Assert(condition, label) => SuiteChecks.Assert(condition, label)
+
+    ; Stacks are front-to-back window lists per slot; numbers stand in for windows.
+    static CompactionPlan() {
+        Plan(stacks, preferred := 0) {
+            text := ""
+            for stack in BuildStableCascadeCompactionPlan(stacks, preferred) {
+                text .= "|"
+                for hwnd in stack
+                    text .= (A_Index > 1 ? "," : "") hwnd
+            }
+            return text "|"
+        }
+        this.Assert(Plan([[1], [2], [], [4], [5]]) = "|1|2|5|4||",
+            "a minimized window's hole is filled from the last slot")
+        this.Assert(Plan([[1], [2], [3, 5], [4], []]) = "|1|2|3|4|5|",
+            "a restored window takes its slot back and the filler returns")
+        this.Assert(Plan([[1, 6], [2], [], [4], [5]]) = "|1|2|6|4|5|",
+            "a hole is filled from a deeper stack first")
+        this.Assert(Plan([[1], [2], [], [4], [5, 3]], 3) = "|1|2|5|4|3|",
+            "a dropped window keeps its slot")
+    }
 
     static Policy() {
         global cascade_target_display, cascade_displays, cascade_history
