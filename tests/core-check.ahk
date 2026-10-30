@@ -820,6 +820,16 @@ class CoreChecks {
             SuiteNotice.notices["status"].window.GetPos(, &statusY, , &statusHeight)
             this.Assert(Abs(statusY + statusHeight // 2 - (top + bottom) // 2) <= 2,
                 "a status notice takes the center when no indicator shows")
+            ; Hold Caps again while it shows: the stack makes room, then closes up.
+            SuiteNotice.Show("layer", "Caps held")
+            SuiteNotice.notices["layer"].window.GetPos(, &layerY, , &layerHeight)
+            SuiteNotice.notices["status"].window.GetPos(, &statusY)
+            this.Assert(statusY >= layerY + layerHeight,
+                "a status notice moves below an indicator that appears after it")
+            SuiteNotice.Hide("layer")
+            SuiteNotice.notices["status"].window.GetPos(, &statusY, , &statusHeight)
+            this.Assert(Abs(statusY + statusHeight // 2 - (top + bottom) // 2) <= 2,
+                "a status notice returns to the center when the indicator hides")
         }
         finally SuiteNotice.Destroy()
         this.Assert(!SuiteNotice.notices.Count, "notices release every window")

@@ -135,7 +135,8 @@ SuiteMoveControls(window, positions) {
 
 ; Large, click-through notices centered on the working display, so keyboard
 ; users see them wherever the pointer rests, even over fullscreen windows.
-; Each slot shows one message; a newer message replaces it.
+; Each slot shows one message; a newer message replaces it. Shown notices
+; stack in order, laid out again whenever one shows or hides.
 class SuiteNotice {
     static order := ["layer", "status"] ; top to bottom when both show
     static notices := Map()
@@ -144,7 +145,8 @@ class SuiteNotice {
     ; index centers it there instead of on the working display.
     static Show(slot, text, durationMs := 0, monitor := 0) {
         if !this.notices.Has(slot)
-            this.notices[slot] := {window: 0, text: "", timer: ObjBindMethod(this, "Hide", slot)}
+            this.notices[slot] := {window: 0, text: "", monitor: 0, shown: false,
+                timer: ObjBindMethod(this, "Hide", slot)}
         notice := this.notices[slot]
         SetTimer(notice.timer, 0)
         if notice.text != text || !notice.window {
@@ -153,24 +155,9 @@ class SuiteNotice {
             notice.window := this._Build(text)
             notice.text := text
         }
-        notice.window.GetPos(, , &width, &height)
-        MonitorGetWorkArea(monitor || SuiteWorkingMonitor.Get(), &left, &top, &right, &bottom)
-        ; Centered unless an earlier notice is showing; then directly below it.
-        offset := 0
-        for name in this.order {
-            if name = slot
-                break
-            if this.notices.Has(name) && (earlier := this.notices[name].window)
-                && DllCall("IsWindowVisible", "ptr", earlier.Hwnd, "int") {
-                earlier.GetPos(, , , &earlierHeight)
-                offset += earlierHeight + 12
-            }
-        }
-        x := left + (right - left - width) // 2
-        y := top + (bottom - top - height) // 2 + offset
-        ; HWND_TOPMOST raises it above other topmost windows such as fullscreen video.
-        DllCall("SetWindowPos", "ptr", notice.window.Hwnd, "ptr", -1, "int", x, "int", y,
-            "int", 0, "int", 0, "uint", 0x51, "int") ; SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW
+        notice.monitor := monitor || SuiteWorkingMonitor.Get()
+        notice.shown := true
+        this._Arrange()
         if durationMs
             SetTimer(notice.timer, -durationMs)
     }
@@ -180,8 +167,39 @@ class SuiteNotice {
             return
         notice := this.notices[slot]
         SetTimer(notice.timer, 0)
+        notice.shown := false
         if notice.window
             notice.window.Hide()
+        this._Arrange()
+    }
+
+    ; The first shown notice on each display sits in its center, and each
+    ; later one, in order, directly below the one before.
+    static _Arrange() {
+        slots := []
+        listed := Map()
+        for slot in this.order {
+            slots.Push(slot)
+            listed[slot] := true
+        }
+        for slot in this.notices
+            if !listed.Has(slot)
+                slots.Push(slot)
+        offsets := Map()
+        for slot in slots {
+            if !this.notices.Has(slot) || !this.notices[slot].shown
+                continue
+            notice := this.notices[slot]
+            notice.window.GetPos(, , &width, &height)
+            MonitorGetWorkArea(notice.monitor, &left, &top, &right, &bottom)
+            offset := offsets.Has(notice.monitor) ? offsets[notice.monitor] : 0
+            offsets[notice.monitor] := offset + height + 12
+            x := left + (right - left - width) // 2
+            y := top + (bottom - top - height) // 2 + offset
+            ; HWND_TOPMOST raises it above other topmost windows such as fullscreen video.
+            DllCall("SetWindowPos", "ptr", notice.window.Hwnd, "ptr", -1, "int", x, "int", y,
+                "int", 0, "int", 0, "uint", 0x51, "int") ; SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW
+        }
     }
 
     static Destroy() {
