@@ -21,7 +21,7 @@ GetManagedCascadeMonitor(hwnd)
 
 RecordCascadeWindow(monitor_index, hwnd)
 {
-    global cascade_history, cascade_membership_generation
+    global cascade_history, cascade_membership_generation, cascade_home_devices
 
     RememberCascadeSlot(hwnd, monitor_index)
     if !cascade_history.Has(monitor_index)
@@ -33,6 +33,9 @@ RecordCascadeWindow(monitor_index, hwnd)
     }
     cascade_history[monitor_index].Push(hwnd)
     cascade_membership_generation += 1
+    ; Joining or moving to a display by choice makes it the window's home.
+    if cascade_home_devices.Has(hwnd)
+        cascade_home_devices.Delete(hwnd)
 
     QueueFocusCornerUpdate()
 }

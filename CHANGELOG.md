@@ -12,6 +12,7 @@
 - **Cascade Kingdom** no longer counts windows hidden to the tray as filling their slot, so new windows use it, and navigation and `Caps + Shift + Space` no longer pick a hidden window.
 - **Cascade Kingdom:** `Caps + Shift + Space`, `Caps + PgUp` and `Caps + PgDn` work while a maximized window has focus, bringing the cascade forward over it or focusing into it. Commands that rearrange the cascade still wait, and verbose logging says why a cascade command was skipped.
 - **Cascade Kingdom** keeps a window lent to Wonder Windows across restarts, so `Win + Down` still returns it to its slot.
+- **Cascade Kingdom:** when a display disconnects, its cascade joins the one on the primary display and spreads into free slots instead of landing on top of it, two windows to a slot. When the display reconnects, those windows return to its cascade.
 
 ## v1.0.0-beta.2
 

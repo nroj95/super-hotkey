@@ -1,5 +1,5 @@
 ; Cascade Kingdom: destinations, settings, stabilization, drop guides, focus tabs, adoption,
-; compaction plans and cascades kept across restarts.
+; compaction plans, home displays and cascades kept across restarts.
 ; Disposable preferences, dry-run inputs and test-owned windows only.
 class CascadeChecks {
     static Run() {
@@ -9,6 +9,7 @@ class CascadeChecks {
         WW_RunWindowCommand(ObjBindMethod(this, "MaximizedAdoption"))
         this.SavedCascades()
         this.CompactionPlan()
+        this.HomeDisplays()
         this.ShownWindows()
         this.Policy()
         this.Settings()
@@ -17,26 +18,45 @@ class CascadeChecks {
 
     static Assert(condition, label) => SuiteChecks.Assert(condition, label)
 
+    ; Display 1 is the primary; the left display may be unplugged.
+    static HomeDisplays() {
+        both := Map(1, {device: "RIGHT"}, 2, {device: "LEFT"})
+        right := Map(1, {device: "RIGHT"})
+        this.Assert(CascadeMemberDestination("LEFT", "", right, 1, &home) = 1 && home = "LEFT",
+            "a window whose display is unplugged moves to the primary and remembers its home")
+        this.Assert(CascadeMemberDestination("RIGHT", "LEFT", both, 1, &home) = 2 && home = "",
+            "a displaced window returns home when its display reconnects")
+        this.Assert(CascadeMemberDestination("RIGHT", "LEFT", right, 1, &home) = 1 && home = "LEFT",
+            "a displaced window keeps its home while that display stays away")
+        this.Assert(CascadeMemberDestination("RIGHT", "", both, 1, &home) = 1 && home = "",
+            "a window on a display that stays has no home to return to")
+        this.Assert(CascadeMemberDestination("", "", right, 1, &home) = 1 && home = "",
+            "a window from an unknown display falls back without a home")
+        this.Assert(this.Plan([[1, 5], [2, 6], [], []]) = "|1|2|5|6|",
+            "cascades merged onto one display spread out instead of sharing slots")
+    }
+
+    static Plan(stacks, preferred := 0) {
+        text := ""
+        for stack in BuildStableCascadeCompactionPlan(stacks, preferred) {
+            text .= "|"
+            for hwnd in stack
+                text .= (A_Index > 1 ? "," : "") hwnd
+        }
+        return text "|"
+    }
+
     ; Stacks are front-to-back window lists per slot; numbers stand in for windows.
     static CompactionPlan() {
-        Plan(stacks, preferred := 0) {
-            text := ""
-            for stack in BuildStableCascadeCompactionPlan(stacks, preferred) {
-                text .= "|"
-                for hwnd in stack
-                    text .= (A_Index > 1 ? "," : "") hwnd
-            }
-            return text "|"
-        }
-        this.Assert(Plan([[1], [2], [], [4], [5]]) = "|1|2|5|4||",
+        this.Assert(this.Plan([[1], [2], [], [4], [5]]) = "|1|2|5|4||",
             "a minimized window's hole is filled from the last slot")
-        this.Assert(Plan([[1], [2], [3, 5], [4], []]) = "|1|2|3|4|5|",
+        this.Assert(this.Plan([[1], [2], [3, 5], [4], []]) = "|1|2|3|4|5|",
             "a restored window takes its slot back and the filler returns")
-        this.Assert(Plan([[1, 6], [2], [], [4], [5]]) = "|1|2|6|4|5|",
+        this.Assert(this.Plan([[1, 6], [2], [], [4], [5]]) = "|1|2|6|4|5|",
             "a hole is filled from a deeper stack first")
-        this.Assert(Plan([[1], [2], [], [4], [5, 3]], 3) = "|1|2|5|4|3|",
+        this.Assert(this.Plan([[1], [2], [], [4], [5, 3]], 3) = "|1|2|5|4|3|",
             "a dropped window keeps its slot")
-        this.Assert(Plan([[1], [2], [], [], [3]], 3) = "|1|2|3|||",
+        this.Assert(this.Plan([[1], [2], [], [], [3]], 3) = "|1|2|3|||",
             "a drop past the end of the cascade lands at its end")
     }
 

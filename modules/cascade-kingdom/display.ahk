@@ -96,7 +96,7 @@ RefreshCascadeDisplays()
 {
     global cascade_displays, cascade_display_signature, cascade_display_change_pending
     global cascade_display_refreshing, cascade_display_generation, cascade_membership_generation
-    global cascade_history, cascade_window_slots, cascade_display_reflow
+    global cascade_history, cascade_window_slots, cascade_display_reflow, cascade_home_devices
     global cascade_minimized_windows, cascade_restore_batches, cascade_close_batches
     global cascade_compaction_pending
 
@@ -121,29 +121,32 @@ RefreshCascadeDisplays()
 
             ; Preserve each known member's last intended slot before Windows' own DPI
             ; resize makes its current top-left look like an intentional drag away.
+            fallback := MonitorGetPrimary()
+            if !new_displays.Has(fallback)
+                fallback := 1
             for old_monitor, history in cascade_history.Clone() {
                 device := old_displays.Has(old_monitor) ? old_displays[old_monitor].device : ""
-                destination := FindCascadeMonitorDevice(device, new_displays)
-                if !destination
-                    destination := MonitorGetPrimary()
-                if !new_displays.Has(destination)
-                    destination := 1
-                if !CascadeDisplayAllowed(destination, new_displays) {
-                    for hwnd in history.Clone()
-                        ReleaseCascadeWindow(hwnd)
-                    topology_changed := true
-                    continue
-                }
-                if destination != old_monitor || !old_displays.Has(old_monitor)
-                    topology_changed := true
-                if !remapped_history.Has(destination)
-                    remapped_history[destination] := []
-                changed := !old_displays.Has(old_monitor)
-                    || old_displays[old_monitor].signature != new_displays[destination].signature
                 for hwnd in history.Clone() {
                     if !DllCall("IsWindow", "ptr", hwnd, "int")
                         continue
+                    destination := CascadeMemberDestination(device, cascade_home_devices.Get(hwnd, ""),
+                        new_displays, fallback, &home)
+                    if home != ""
+                        cascade_home_devices[hwnd] := home
+                    else if cascade_home_devices.Has(hwnd)
+                        cascade_home_devices.Delete(hwnd)
+                    if !CascadeDisplayAllowed(destination, new_displays) {
+                        ReleaseCascadeWindow(hwnd)
+                        topology_changed := true
+                        continue
+                    }
+                    if destination != old_monitor || !old_displays.Has(old_monitor)
+                        topology_changed := true
+                    if !remapped_history.Has(destination)
+                        remapped_history[destination] := []
                     remapped_history[destination].Push(hwnd)
+                    changed := !old_displays.Has(old_monitor)
+                        || old_displays[old_monitor].signature != new_displays[destination].signature
                     if !changed && destination = old_monitor
                         continue
                     if !cascade_window_slots.Has(hwnd)
@@ -167,8 +170,10 @@ RefreshCascadeDisplays()
                     if !IsCascadeWindowBeingDragged(hwnd)
                         cascade_display_reflow[hwnd] := slot
                 }
-                if cascade_compaction_pending.Has(old_monitor)
+                if cascade_compaction_pending.Has(old_monitor) {
+                    destination := FindCascadeMonitorDevice(device, new_displays) || fallback
                     remapped_compactions[destination] := cascade_compaction_pending[old_monitor]
+                }
             }
 
             cascade_displays := new_displays
@@ -191,6 +196,10 @@ RefreshCascadeDisplays()
                 if cascade_window_slots.Has(target.hwnd)
                     target.monitor := cascade_window_slots[target.hwnd].monitor
             }
+            ; Merged, returned or rescaled cascades close up once their windows
+            ; have moved, so windows share a slot only when every slot is taken.
+            for monitor in cascade_history
+                QueueCascadeCompaction(monitor)
             cascade_display_change_pending := false
             DebugLog("Display geometry refreshed without reload. | displays=" new_displays.Count
                 " | pending-members=" cascade_display_reflow.Count " | signature=" snapshot.signature)
@@ -210,6 +219,23 @@ RefreshCascadeDisplays()
         QueueFocusCornerUpdate()
         SetTimer(ApplyPendingCascadeDisplayLayout, -50)
     }
+}
+
+; Where a cascade member on device goes after a display change. A window
+; whose display went missing moves to fallback and remembers that display as
+; its home, returning when it reconnects. new_home is the home to keep, or "".
+CascadeMemberDestination(device, home, displays, fallback, &new_home)
+{
+    if home != "" && (monitor := FindCascadeMonitorDevice(home, displays)) {
+        new_home := ""
+        return monitor
+    }
+    if monitor := FindCascadeMonitorDevice(device, displays) {
+        new_home := home
+        return monitor
+    }
+    new_home := home != "" ? home : device
+    return fallback
 }
 
 ; =============================================================================
@@ -238,9 +264,11 @@ RememberCascadeSlot(hwnd, monitor_index, x?, y?)
 
 ForgetCascadeSlot(hwnd)
 {
-    global cascade_window_slots, cascade_display_reflow
+    global cascade_window_slots, cascade_display_reflow, cascade_home_devices
     if cascade_window_slots.Has(hwnd)
         cascade_window_slots.Delete(hwnd)
+    if cascade_home_devices.Has(hwnd)
+        cascade_home_devices.Delete(hwnd)
     if cascade_display_reflow.Has(hwnd)
         cascade_display_reflow.Delete(hwnd)
 }

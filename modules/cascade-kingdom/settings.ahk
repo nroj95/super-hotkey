@@ -110,6 +110,7 @@ cascade_display_refreshing := false
 cascade_display_generation := 0
 cascade_display_refresh_delay_ms := 250
 cascade_window_slots := Map()
+cascade_home_devices := Map()  ; members moved off a missing display -> that display's device
 cascade_display_reflow := Map()
 cascade_membership_generation := 0
 cascade_minimized_observed := Map()
