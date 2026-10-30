@@ -105,7 +105,9 @@ DispatchCascadeCommand(command)
         return
 
     if name = "minimize" || name = "restore" {
-        RunCascadeMinimizeCommand(name = "minimize" ? MinimizeCascadeWindows : RestoreMinimizedCascadeWindows)
+        if monitor := SuiteWorkingMonitor.Get()
+            RunCascadeMinimizeCommand((name = "minimize" ? MinimizeCascadeWindows
+                : RestoreMinimizedCascadeWindows).Bind(monitor))
         return
     }
 

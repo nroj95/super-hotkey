@@ -11,9 +11,10 @@ IsCascadeEnabled() {
 ; Caps + M hide / Caps + Shift + M restore
 ; =============================================================================
 
-; Caps + M adds the visible cascade windows to the hidden list; Caps + Shift + M
-; brings back everything on it. A window restored, closed or released another
-; way leaves the list; a window minimized by hand never joins it.
+; Both act on the display the user is on. Caps + M adds that display's visible
+; cascade windows to the hidden list; Caps + Shift + M brings back the windows
+; hidden from that display. A window restored, closed or released another way
+; leaves the list; a window minimized by hand never joins it.
 RunCascadeMinimizeCommand(command)
 {
     global cascade_minimize_in_progress
@@ -40,24 +41,26 @@ RunCascadeMinimizeCommand(command)
     }
 }
 
-MinimizeCascadeWindows()
+MinimizeCascadeWindows(monitor)
 {
     global cascade_minimized_windows
 
     ; The newest batch goes first, so it comes back on top.
-    targets := CaptureCascadeMinimizeTargets()
+    targets := CaptureCascadeMinimizeTargets(monitor)
     added := 0
 
     for target in targets {
         if !IsSameMinimizedCascadeWindow(target)
             continue
 
+        listed := false
         try {
             if WinGetMinMax(target.hwnd) = -1
                 continue
 
             ; Publish ownership before WinMinimize can yield to a lifetime callback.
             cascade_minimized_windows.InsertAt(++added, target)
+            listed := true
             CancelPlacementStabilization(target.hwnd)
             RemoveWindowFromCascadeRestore(target.hwnd)
             WinMinimize(target.hwnd)
@@ -66,24 +69,67 @@ MinimizeCascadeWindows()
                 ObserveCascadeMinimizedWindow(target.hwnd)
             } else {
                 ForgetMinimizedCascadeWindow(target.hwnd)
+                added -= 1
                 DebugLog("Cascade minimize was not accepted. | hwnd=" target.hwnd)
             }
         }
         catch Error as err {
-            ForgetMinimizedCascadeWindow(target.hwnd)
+            if listed {
+                ForgetMinimizedCascadeWindow(target.hwnd)
+                added -= 1
+            }
             DebugError("Minimize cascade window", err)
         }
     }
 
-    DebugLog("Cascade windows minimized. | added=" added " | saved-windows=" cascade_minimized_windows.Length)
+    if added
+        FocusAfterCascadeHide(monitor, cascade_minimized_windows[1].hwnd)
+    DebugLog("Cascade windows minimized. | monitor=" monitor " | added=" added
+        . " | saved-windows=" cascade_minimized_windows.Length)
 }
 
-RestoreMinimizedCascadeWindows()
+; Focus stays on the display the cascade left: Windows would hand it to the
+; next window anywhere, possibly on another display where keystrokes would land
+; unseen. The next window on this display gets focus and an outline, like after
+; Win + Backspace; with none, the desktop does, and this display stays the
+; user's, so Caps + Shift + M brings the cascade straight back.
+FocusAfterCascadeHide(monitor, hidden_hwnd)
+{
+    ; Windows' own handoff is asynchronous; let it settle first.
+    Loop 8 {
+        foreground := DllCall("GetForegroundWindow", "ptr")
+        if foreground != hidden_hwnd && !DllCall("IsIconic", "ptr", foreground, "int")
+            break
+        Sleep 25
+    }
+    target := 0
+    if IsSwitchableWindow(foreground) && WindowMonitorIndex(foreground) = monitor
+        target := foreground
+    else
+        for hwnd in WinGetList()
+            if IsSwitchableWindow(hwnd) && WindowMonitorIndex(hwnd) = monitor {
+                target := hwnd
+                break
+            }
+    if target && ActivateWindow(target) {
+        SuiteFocusBorder.Show(target, "cascade-kingdom")
+        return
+    }
+    DllCall("SetForegroundWindow", "ptr", DllCall("GetShellWindow", "ptr"), "int")
+    SuiteWorkingMonitor.Return(hidden_hwnd)
+}
+
+RestoreMinimizedCascadeWindows(monitor)
 {
     global cascade_minimized_windows
 
     windows_to_restore := []
-    for target in cascade_minimized_windows.Clone() {
+    kept := []
+    for target in cascade_minimized_windows {
+        if target.monitor != monitor {
+            kept.Push(target)
+            continue
+        }
         if !IsSameMinimizedCascadeWindow(target)
             continue
 
@@ -97,24 +143,19 @@ RestoreMinimizedCascadeWindows()
         }
     }
 
+    cascade_minimized_windows := kept
     RestoreCascadeWindows(windows_to_restore)
-    cascade_minimized_windows := []
-    DebugLog("Cascade windows restored. | restored-windows=" windows_to_restore.Length)
+    DebugLog("Cascade windows restored. | monitor=" monitor " | restored-windows=" windows_to_restore.Length)
 }
 
-CaptureCascadeMinimizeTargets()
+CaptureCascadeMinimizeTargets(monitor)
 {
-    global cascade_history
-
     targets := Map()
-    for monitor_index, history in cascade_history.Clone() {
-        try history := GetLiveCascadeHistory(monitor_index)
-        catch
-            continue
-
-        for hwnd in history
-            CaptureCascadeMinimizeTarget(targets, hwnd, monitor_index)
-    }
+    try history := GetLiveCascadeHistory(monitor)
+    catch
+        history := []
+    for hwnd in history
+        CaptureCascadeMinimizeTarget(targets, hwnd, monitor)
 
     windows := []
     for hwnd in targets
