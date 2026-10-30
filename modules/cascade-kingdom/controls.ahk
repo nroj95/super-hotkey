@@ -4,37 +4,39 @@
 ; command availability
 ; =============================================================================
 
+; Why a cascade command must not run now, or "" when it may.
 ActiveWindowBlocksCascadeCommands(allow_maximized := false)
 {
     ; Do not rotate, gather or reposition windows underneath a native drag.
-    if HasCascadeWindowDrag() || IsCascadeDisplayTransition()
-        return true
+    if HasCascadeWindowDrag()
+        return "drag"
+    if IsCascadeDisplayTransition()
+        return "display-change"
     command_monitor := SuiteWorkingMonitor.Get()
     if command_monitor && (CascadeMonitorNeedsRefresh(command_monitor)
         || HasPendingCascadeDisplayLayout(command_monitor))
-        return true
+        return "display-change"
 
     active_hwnd := WinExist("A")
 
     if !active_hwnd || IsShellSurfaceWindow(active_hwnd)
-        return false
+        return ""
 
     try {
-        ; Explicit adoption restores maximized windows; other layout commands
-        ; must not rearrange the cascade underneath them.
         if WinGetMinMax("ahk_id " active_hwnd) = 1
-            return !allow_maximized
+            return allow_maximized ? "" : "maximized"
 
         WinGetPosPixels(&x, &y, &width, &height, "ahk_id " active_hwnd)
         monitor := CallWithDpiContext(-3, MonitorRects, WindowMonitor(active_hwnd)).monitor
     }
     catch {
-        return false
+        return ""
     }
 
     ; Borderless/exclusive fullscreen normally covers its display exactly.
     return Abs(x - monitor[1]) <= 2 && Abs(y - monitor[2]) <= 2
         && Abs(x + width - monitor[3]) <= 2 && Abs(y + height - monitor[4]) <= 2
+        ? "fullscreen" : ""
 }
 
 
@@ -132,8 +134,15 @@ DispatchCascadeCommand(command)
         return
     }
 
-    if ActiveWindowBlocksCascadeCommands(name = "adopt")
+    ; Adoption restores a maximized window, and bringing the cascade forward or
+    ; focusing it rises above one. Other commands would rearrange the cascade
+    ; underneath it.
+    allow_maximized := name = "adopt" || name = "bring-forward"
+        || name = "focus-previous" || name = "focus-next"
+    if reason := ActiveWindowBlocksCascadeCommands(allow_maximized) {
+        DebugLog("Cascade command skipped. | reason=" reason " | command=" name)
         return
+    }
 
     switch name {
         case "focus-previous": FocusCascadeLayerWindow(-1)

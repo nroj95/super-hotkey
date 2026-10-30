@@ -9,6 +9,7 @@
 ### Fixes
 
 - **Cascade Kingdom** no longer counts windows hidden to the tray as filling their slot, so new windows use it, and navigation and `Caps + Shift + Space` no longer pick a hidden window.
+- **Cascade Kingdom:** `Caps + Shift + Space`, `Caps + PgUp` and `Caps + PgDn` work while a maximized window has focus, bringing the cascade forward over it or focusing into it. Commands that rearrange the cascade still wait, and verbose logging says why a cascade command was skipped.
 
 ## v1.0.0-beta.2
 

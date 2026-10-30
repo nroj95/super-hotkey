@@ -347,7 +347,7 @@ class CascadeChecks {
                 "maximized adoption fixture owns foreground")
             this.Assert(ActiveWindowBlocksCascadeCommands()
                 && !ActiveWindowBlocksCascadeCommands(true),
-                "only explicit adoption bypasses the maximized-window command guard")
+                "only commands allowed over a maximized window bypass its guard")
             cascade_window_drag := {}
             this.Assert(ActiveWindowBlocksCascadeCommands(true),
                 "maximized adoption still respects an active native drag")
