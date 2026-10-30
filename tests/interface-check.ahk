@@ -187,8 +187,7 @@ class InterfaceChecks {
             app.manager.editor.Resize(editor, 0, adjustedWidth, adjustedHeight)
             this.Assert(markerRow.title.Text = "layout-only marker",
                 "width-only resize does not re-render shortcut labels")
-            expectedWidth := KeybindingsEditor.BindingWidth
-                + Max(0, Floor((adjustedWidth - KeybindingsEditor.FullWidth) * 0.32))
+            expectedWidth := 160 + Floor((adjustedWidth - KeybindingsEditor.MinWidth) * 0.32)
             expectedPrimaryX := adjustedWidth - 142 - 2 * expectedWidth
             markerRow.primary.GetPos(&actualPrimaryX, , &actualPrimaryWidth)
             markerRow.secondary.GetPos(&actualSecondaryX, , &actualSecondaryWidth)
@@ -200,6 +199,15 @@ class InterfaceChecks {
             this.Assert(Abs(actualSecondaryX - (actualPrimaryX + actualPrimaryWidth + 10)) <= 2
                 && Abs(actualResetX - (actualSecondaryX + actualSecondaryWidth + 10)) <= 2,
                 "binding boxes keep their gaps and the reset button alignment")
+            longHotkey := "Caps + Alt + Shift + Win + Enter"
+            app.manager.editor._SetBindingText(markerRow.secondary, longHotkey)
+            this.Assert(markerRow.secondary.Text = longHotkey
+                && app.manager.editor.bindingSizes[markerRow.secondary.Hwnd] < 10,
+                "a hotkey too long for its box keeps every key in a smaller font")
+            app.manager.editor._SetBindingText(markerRow.secondary, "Win + Enter")
+            this.Assert(markerRow.secondary.Text = "Win + Enter"
+                && app.manager.editor.bindingSizes[markerRow.secondary.Hwnd] = 10,
+                "a hotkey that fits returns to the editor's font")
             app.manager.editor.resetAllButton.GetPos(, &oldFooterY)
             editor.Show("w1080 h700")
             editor.GetClientPos(, , &shorterWidth, &shorterHeight)
@@ -226,19 +234,13 @@ class InterfaceChecks {
             editor.Show("w" KeybindingsEditor.MinWidth " h420")
             editor.GetClientPos(, , &compactWidth, &compactHeight)
             app.manager.editor.Resize(editor, 0, compactWidth, compactHeight)
-            ; The longest four-key hotkey fits even at the minimum width; the
-            ; longest title fits from FullWidth.
-            hotkeyProbe := editor.AddText("Hidden", "Caps + Shift + Win + Enter")
-            titleProbe := editor.AddText("Hidden", "restore hidden cascade windows on this display")
-            hotkeyProbe.GetPos(, , &hotkeyWidth)
-            titleProbe.GetPos(, , &titleWidth)
             compactRow := app.manager.editor.visibleRows[1]
-            compactRow.primary.GetPos(&compactPrimaryX, , &compactBindingWidth)
-            fullTitleRoom := KeybindingsEditor.FullWidth - 122 - 2 * (KeybindingsEditor.BindingWidth + 10) - 30
-            this.Assert(compactBindingWidth >= hotkeyWidth + 24 && fullTitleRoom >= titleWidth,
-                "hotkeys fit at the minimum width and titles from the full width (box "
-                . compactBindingWidth ", hotkey " hotkeyWidth ", title room " fullTitleRoom
-                . ", title " titleWidth ")")
+            app.manager.editor._SetBindingText(compactRow.secondary, longHotkey "+ Alt + Shift")
+            this.Assert(SubStr(compactRow.secondary.Text, -1) = "…"
+                && app.manager.editor.bindingSizes[compactRow.secondary.Hwnd]
+                    = KeybindingsEditor.BindingFontSizes[-1],
+                "a hotkey too long even at the smallest font ends in an ellipsis")
+            app.manager.editor.Render()
             this.Assert(app.manager.editor.visibleRows.Length < expandedRows,
                 "resizing smaller reduces the visible row count without losing the catalog")
             app.manager.editor.search.Value := "page"

@@ -1,13 +1,12 @@
 ; The Keybindings window: a searchable, staged editor for every action's two
 ; hotkey slots. Edits stay in a draft until Apply; the manager validates and
-; saves them. Rows are a fixed pool of controls reused while scrolling.
+; saves them. Rows are a fixed pool of controls reused while scrolling, and
+; a hotkey too long for its box shrinks its font rather than wrapping.
 class KeybindingsEditor {
-    ; Binding boxes never shrink below the longest four-key hotkey; in a
-    ; narrower window titles give up the space and end in an ellipsis.
-    ; FullWidth adds 398px for the longest title, the gaps and Reset.
     static MinWidth := 820
-    static BindingWidth := 232
-    static FullWidth := 1004
+    ; A hotkey keeps the editor's 10pt font while it fits its box, then steps
+    ; down; at the smallest size it ends in an ellipsis. Boxes never wrap.
+    static BindingFontSizes := [10, 9, 8]
 
     __New(manager) {
         this.manager := manager
@@ -21,6 +20,9 @@ class KeybindingsEditor {
         this.scrollPosition := 0
         this.wheelRemainder := 0
         this.captureMouse := Map()
+        this.bindingFonts := Map()  ; font size -> HFONT, for measuring
+        this.bindingTexts := Map()  ; box hwnd -> its full hotkey text
+        this.bindingSizes := Map()  ; box hwnd -> its current font size
         this.resizing := false
         this.renderedWidth := 0
         this.renderedHeight := 0
@@ -67,6 +69,12 @@ class KeybindingsEditor {
         window.BackColor := "FAF7F2"
         SuiteWindowOwnership.AllowArranging(window)
         window.SetFont("s10 w400", "Cascadia Mono")
+        this.bindingTexts := Map(), this.bindingSizes := Map(), this.bindingFonts := Map()
+        for size in KeybindingsEditor.BindingFontSizes {
+            probe := window.AddText("Hidden")
+            probe.SetFont("s" size)
+            this.bindingFonts[size] := SendMessage(0x0031, 0, 0, probe) ; WM_GETFONT
+        }
         this.search := window.AddEdit("x210 y13 w400 vsearch")
         DllCall("SendMessageW", "ptr", this.search.Hwnd, "uint", 0x1501, ; EM_SETCUEBANNER
             "uptr", 1, "str", "Search… (LMB to record, RMB to type)", "ptr")
@@ -151,8 +159,8 @@ class KeybindingsEditor {
         categoryTitle := window.AddText("Hidden x22 y48 w752 h25 Center", "")
         contextTag := window.AddText("Hidden x22 y48 w80 h16 Border Center c777777", "")
         contextTag.SetFont("s7.25 c777777", "Cascadia Mono")
-        primary := window.AddButton("Hidden x358 y48 w167 h29", "Unbound")
-        secondary := window.AddButton("Hidden x535 y48 w153 h29", "Unbound")
+        primary := window.AddButton("Hidden x358 y48 w167 h29 -Wrap", "Unbound")
+        secondary := window.AddButton("Hidden x535 y48 w153 h29 -Wrap", "Unbound")
         reset := window.AddButton("Hidden x698 y48 w76 h29", "Reset")
         primary.OnEvent("Click", ObjBindMethod(this, "BeginRecording", index, 1))
         secondary.OnEvent("Click", ObjBindMethod(this, "BeginRecording", index, 2))
@@ -207,10 +215,9 @@ class KeybindingsEditor {
             }
 
             if widthChanged || rowsChanged {
-                ; Both binding boxes share one width, growing only once every
-                ; title fits; titles take the rest and the reset button stays fixed.
-                bindingWidth := KeybindingsEditor.BindingWidth
-                    + Max(0, Floor((width - KeybindingsEditor.FullWidth) * 0.32))
+                ; Both binding boxes share the extra width; titles take the rest
+                ; and the reset button stays fixed.
+                bindingWidth := 160 + Floor((width - KeybindingsEditor.MinWidth) * 0.32)
                 resetX := width - 122
                 secondaryX := resetX - bindingWidth - 10
                 primaryX := secondaryX - bindingWidth - 10
@@ -251,6 +258,11 @@ class KeybindingsEditor {
             SuiteMoveControls(window, positions)
             if rowsChanged
                 this.Render()
+            else if widthChanged
+                for row in this.visibleRows
+                    if row.actionId != ""
+                        for control in [row.primary, row.secondary]
+                            this._FitBindingText(control)
             this.renderedWidth := width
             this.renderedHeight := height
         }
@@ -391,17 +403,63 @@ class KeybindingsEditor {
             for slot, control in [row.primary, row.secondary] {
                 parsed := Keybindings.Parse(setting.bindings[slot])
                 if !IsObject(parsed) {
-                    KeybindingsEditor._SetText(control, "+ Add")
+                    this._SetBindingText(control, "+ Add")
                     continue
                 }
                 ; A layer binding stays editable while its layer is off; it is only marked.
                 inactiveLayer := parsed.layer != "normal" && manager.BindingUnavailable(parsed) != ""
-                KeybindingsEditor._SetText(control, (inactiveLayer ? "⚠ " : "") parsed.label)
+                this._SetBindingText(control, (inactiveLayer ? "⚠ " : "") parsed.label)
             }
             defaults := manager.actions[entry.id].defaults
             KeybindingsEditor._SetEnabled(row.reset,
                 setting.bindings[1] != defaults[1] || setting.bindings[2] != defaults[2])
         }
+    }
+
+    _SetBindingText(control, text) {
+        this.bindingTexts[control.Hwnd] := text
+        this._FitBindingText(control)
+    }
+
+    ; Measures in the box's physical pixels, so it holds at any display scale.
+    _FitBindingText(control) {
+        text := this.bindingTexts.Get(control.Hwnd, control.Text)
+        rect := Buffer(16, 0)
+        DllCall("GetClientRect", "ptr", control.Hwnd, "ptr", rect)
+        room := NumGet(rect, 8, "int") - Round(16 * A_ScreenDPI / 96) ; the button's own padding
+        dc := DllCall("GetDC", "ptr", control.Hwnd, "ptr")
+        original := 0
+        try {
+            for candidate in KeybindingsEditor.BindingFontSizes {
+                previous := DllCall("SelectObject", "ptr", dc, "ptr", this.bindingFonts[candidate], "ptr")
+                original := original || previous
+                size := candidate
+                if fits := KeybindingsEditor._TextWidth(dc, text) <= room
+                    break
+            }
+            while !fits && StrLen(text) > 1 {
+                text := RTrim(SubStr(text, 1, -1))
+                fits := KeybindingsEditor._TextWidth(dc, text "…") <= room
+            }
+            if !(text == this.bindingTexts.Get(control.Hwnd, text))
+                text .= "…"
+        }
+        finally {
+            if original
+                DllCall("SelectObject", "ptr", dc, "ptr", original)
+            DllCall("ReleaseDC", "ptr", control.Hwnd, "ptr", dc)
+        }
+        if this.bindingSizes.Get(control.Hwnd, 10) != size {
+            control.SetFont("s" size, "Cascadia Mono")
+            this.bindingSizes[control.Hwnd] := size
+        }
+        KeybindingsEditor._SetText(control, text)
+    }
+
+    static _TextWidth(dc, text) {
+        size := Buffer(8, 0)
+        DllCall("GetTextExtentPoint32W", "ptr", dc, "str", text, "int", StrLen(text), "ptr", size)
+        return NumGet(size, 0, "int")
     }
 
     _ResetAction(index, *) {
