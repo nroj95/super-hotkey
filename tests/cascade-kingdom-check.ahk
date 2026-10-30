@@ -305,7 +305,7 @@ class CascadeChecks {
                 "maximized adoption still respects an active native drag")
             cascade_window_drag := 0
 
-            position := CaptureCascadeJoinPosition(hwnd)
+            position := CaptureWindowShape(hwnd)
             this.Assert(IsObject(position) && IsObject(position.placement),
                 "maximized adoption snapshots native placement before restoring")
             position.was_manual := false
@@ -322,7 +322,7 @@ class CascadeChecks {
                 "taking a window out preserves its original normal restore rectangle")
 
             WinRestore(hwnd)
-            normalPosition := CaptureCascadeJoinPosition(hwnd)
+            normalPosition := CaptureWindowShape(hwnd)
             this.Assert(IsObject(normalPosition) && !normalPosition.placement,
                 "a normal window's join position is geometry only")
             normalPosition.was_manual := false

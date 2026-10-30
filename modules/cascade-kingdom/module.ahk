@@ -179,8 +179,9 @@ CascadeForgetManualWindow(hwnd)
 }
 
 ; Wonder Windows returned a lent window to its original shape: it rejoins its
-; slot, keeping its join position for Caps + Shift + Insert.
-CascadeTakeBackWindow(hwnd)
+; slot, and Caps + Shift + Insert later returns it to the shape Wonder Windows
+; had given it, the last one the user saw outside the cascade.
+CascadeTakeBackWindow(hwnd, shape)
 {
     global cascade_lent_windows, cascade_displays
     if !cascade_lent_windows.Has(hwnd)
@@ -196,6 +197,8 @@ CascadeTakeBackWindow(hwnd)
     if !CascadeDisplayAllowed(monitor)
         return
     slots := cascade_displays[monitor].geometry.slots
-    if PlaceCascadeWindowOnMonitor(hwnd, monitor, slots[Min(lent.slot, slots.Length)])
-        QueueCascadeCompaction(monitor, hwnd)
+    if !PlaceCascadeWindowOnMonitor(hwnd, monitor, slots[Min(lent.slot, slots.Length)])
+        return
+    RememberCascadeJoinPosition(hwnd, shape, true)
+    QueueCascadeCompaction(monitor, hwnd)
 }

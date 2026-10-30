@@ -185,16 +185,17 @@ class WonderWindowsChecks {
                 this.Assert(!WW_normal_window_placements.Has(window.Hwnd),
                     "adoption starts a fresh manual-restore history")
                 returned := []
-                handler := (hwnd) => returned.Push(hwnd)
+                handler := (hwnd, shape) => returned.Push({hwnd: hwnd, shape: shape})
                 SuiteWindowOwnership.OnReturn(handler)
                 try {
                     this.Assert(!SuiteWindowOwnership.Return(window.Hwnd) && !returned.Length,
                         "a window never placed by hand has nothing to return")
                     SuiteWindowOwnership.Claim(window.Hwnd)
-                    this.Assert(SuiteWindowOwnership.Return(window.Hwnd)
+                    shape := CaptureWindowShape(window.Hwnd)
+                    this.Assert(SuiteWindowOwnership.Return(window.Hwnd, shape)
                         && !SuiteWindowOwnership.IsManual(window.Hwnd)
-                        && returned.Length = 1 && returned[1] = window.Hwnd,
-                        "returning a window to its original shape ends manual ownership and tells the lender")
+                        && returned.Length = 1 && returned[1].hwnd = window.Hwnd && returned[1].shape = shape,
+                        "returning a window to its original shape ends manual ownership and tells the lender where it was")
                 }
                 finally SuiteWindowOwnership.OffReturn(handler)
                 SuiteWindowOwnership.Claim(window.Hwnd)

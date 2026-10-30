@@ -19,7 +19,7 @@ AdoptActiveWindow()
     ; A window released by a completed drop is adoptable again. A member is
     ; moved to the least-used slot and keeps its join position.
     managed_monitor := GetLiveCascadeMonitor(hwnd)
-    join_position := managed_monitor ? 0 : CaptureCascadeJoinPosition(hwnd)
+    join_position := managed_monitor ? 0 : CaptureWindowShape(hwnd)
 
     target_monitor := ResolveCascadeDestination(WindowMonitorIndex(hwnd))
 
@@ -47,22 +47,10 @@ GetLiveCascadeMonitor(hwnd)
     return monitor
 }
 
-; Where a window was before it joined, including a maximized window's normal
-; rectangle, or 0.
-CaptureCascadeJoinPosition(hwnd)
-{
-    try {
-        placement := WinGetMinMax(hwnd) = 1 ? CaptureWindowPlacement(hwnd) : 0
-        WinGetPosPixels(&x, &y, &width, &height, "ahk_id " hwnd)
-        return {pid: WinGetPID(hwnd), x: x, y: y, width: width, height: height, placement: placement}
-    }
-    catch
-        return 0
-}
-
-; Each join replaces a window's join position, so a position never outlives
-; the membership it belongs to; a window lent to Wonder Windows keeps it until
-; it returns. A fresh join also ends a loan.
+; Where a window was before it joined (a CaptureWindowShape). Each join
+; replaces it, so a position never outlives the membership it belongs to; a
+; window back from Wonder Windows joins anew from where Wonder Windows had it.
+; A fresh join also ends a loan.
 RememberCascadeJoinPosition(hwnd, position, was_manual)
 {
     global cascade_join_positions, cascade_lent_windows

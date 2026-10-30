@@ -28,7 +28,7 @@ Fewer, smarter hotkeys: this version cuts features that overlapped and hands sev
 
 - Clicks are no longer held while a hotkey checks its context, so a busy moment can't delay or drop clicks, for example in the tray menu.
 - Windows moved to another display with Windows' own keys stay in the right cascade.
-- A cascade window placed with Wonder Windows rejoins its slot when `Win + Down` returns it to its original shape, instead of only looking cascaded.
+- A cascade window placed with Wonder Windows rejoins its slot when `Win + Down` returns it to its original shape, instead of only looking cascaded. `Caps + Shift + Insert` then takes it back to where Wonder Windows had placed it.
 - **Cascade Kingdom** reads each display's scale from Windows. Its hidden helper windows kept the old scale after a change, so cascade slots, focus tabs and drop guides could stay sized for the previous scale.
 - **Cascade Kingdom** retries focusing a window when Windows refuses at first, and a window spanning two displays belongs to the one holding most of it, as Windows decides.
 - A hotkey pressed while an overlay pops up in front, such as a shortcut guide shown while Win is held, now acts on the window underneath instead of falling through to another action, and the next Win hold shows the guide as usual.

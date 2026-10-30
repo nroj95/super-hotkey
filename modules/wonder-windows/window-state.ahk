@@ -153,6 +153,7 @@ WW_RestoreWindowTarget()
         return
 
     try {
+        placed := CaptureWindowShape(hwnd)
         if !WW_RestoreNormalWindowPlacement(hwnd) {
             WinRestore(hwnd)
             if WinGetMinMax(hwnd) = 1
@@ -162,8 +163,8 @@ WW_RestoreWindowTarget()
         WW_ForgetWindowLayoutCycle(hwnd)
         WinActivate(hwnd)
         ; Back at its original shape, the window is no longer placed by hand;
-        ; a cascade window rejoins its cascade.
-        SuiteWindowOwnership.Return(hwnd)
+        ; a cascade window rejoins its cascade, remembering where it was.
+        SuiteWindowOwnership.Return(hwnd, placed)
     }
     catch Error as err
         WW_DebugError("Restore normal window", err)

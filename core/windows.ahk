@@ -8,7 +8,7 @@ class SuiteWindowOwnership {
     static windows := Map()
     static claimHandlers := []    ; handler(hwnd) after a window becomes manual
     static releaseHandlers := []  ; handler(hwnd) before adoption; false keeps it manual
-    static returnHandlers := []   ; handler(hwnd) after a window is back at its original shape
+    static returnHandlers := []   ; handler(hwnd, shape) after a window is back at its original shape
 
     static OnClaim(handler) => this._AddHandler(this.claimHandlers, handler)
     static OffClaim(handler) => this._RemoveHandler(this.claimHandlers, handler)
@@ -98,11 +98,12 @@ class SuiteWindowOwnership {
 
     ; A window positioned by hand is back at its original shape: it stops being
     ; manual, and a module that lent it, such as Cascade Kingdom, takes it back.
-    static Return(hwnd) {
+    ; shape is the CaptureWindowShape it had by hand just before, or 0.
+    static Return(hwnd, shape := 0) {
         if !this.Release(hwnd, false)
             return false
         for handler in this.returnHandlers.Clone()
-            handler.Call(hwnd)
+            handler.Call(hwnd, shape)
         return true
     }
 
@@ -602,6 +603,18 @@ CaptureWindowPlacement(hwnd) {
     if !DllCall("GetWindowPlacement", "ptr", hwnd, "ptr", placement, "int")
         throw OSError()
     return placement
+}
+
+; Where a window is, in physical pixels, and a maximized window's placement
+; with its normal rectangle, or 0: {pid, x, y, width, height, placement}.
+CaptureWindowShape(hwnd) {
+    try {
+        placement := WinGetMinMax(hwnd) = 1 ? CaptureWindowPlacement(hwnd) : 0
+        WinGetPosPixels(&x, &y, &width, &height, "ahk_id " hwnd)
+        return {pid: WinGetPID(hwnd), x: x, y: y, width: width, height: height, placement: placement}
+    }
+    catch
+        return 0
 }
 
 ; A one-line window description for verbose logs; only the handle otherwise.
