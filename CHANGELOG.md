@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Breaking changes
+
+- **Secret Layers:** double-tapping Shift always toggles Caps Lock while the CapsLock layer is enabled. The checkbox and the Ctrl and Alt choices are gone; turn off the CapsLock layer to give the key back to Windows.
+
 ### Changes
 
 - **Wonder Windows:** `Win + Alt + Enter` cycles maximized and fullscreen windows again, now only on your display, with `Win + Alt + Shift + Enter` going back; `Caps + Win + Enter` and `Caps + Win + Shift + Enter` work too. Each press shows the next one, minimized or not, and minimizes the others there. The loop no longer stops with all of them minimized: from any other window the first press brings back the one shown last, and `Win + Backspace` puts it away. Maximized cascade windows take part too, and a notice says when there is no other maximized or fullscreen window to show.

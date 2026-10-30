@@ -147,10 +147,9 @@ class KeybindingsChecks {
     }
 
     static CapsLockDoubleTap() {
-        for choice in ["Shift", "Ctrl", "Alt"] {
-            vk := Map("Shift", 0xA0, "Ctrl", 0xA2, "Alt", 0xA4)[choice]
-            sc := Map("Shift", 0x02A, "Ctrl", 0x01D, "Alt", 0x038)[choice]
-            detector := CapsLockModifierToggle(choice)
+        for choice, key in Map("left Shift", [0xA0, 0x02A], "right Shift", [0xA1, 0x036]) {
+            vk := key[1], sc := key[2]
+            detector := CapsLockShiftToggle()
             detector.HandleDown(vk, sc, 100, false)
             this.Assert(!detector.HandleUp(vk, sc, 150, false),
                 "first " choice " tap does not toggle Caps Lock")
@@ -182,8 +181,11 @@ class KeybindingsChecks {
                 "key repeat does not count as a separate tap")
             detector.Stop()
         }
-        SuiteChecks.Rejects((*) => CapsLockModifierToggle("CapsLock"),
-            "CapsLock cannot be its own double-tap modifier")
+        detector := CapsLockShiftToggle()
+        detector.HandleDown(0xA2, 0x01D, 100, false)
+        detector.HandleUp(0xA2, 0x01D, 150, false)
+        detector.HandleDown(0xA2, 0x01D, 260, false)
+        this.Assert(!detector.HandleUp(0xA2, 0x01D, 300, false), "Ctrl double-taps do not toggle Caps Lock")
     }
 
     static LayerDoubleTapGestures() {

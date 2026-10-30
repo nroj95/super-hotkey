@@ -1,8 +1,8 @@
-; Physical, non-blocking modifier double-taps for the Secret Layers CapsLock layer.
-class CapsLockModifierToggle {
-    __New(modifier) {
-        SuiteSettings.ValidateCapsToggleModifier(modifier)
-        this.modifier := modifier
+; Double-tap Shift to toggle Caps Lock while the Secret Layers CapsLock layer
+; has taken over the CapsLock key. Physical and non-blocking: only two quick
+; taps of the same Shift key count, with no other key or modifier between them.
+class CapsLockShiftToggle {
+    __New() {
         this.hook := InputHook("V L0 I101")
         this.hook.KeyOpt("{All}", "N")
         this.hook.OnKeyDown := ObjBindMethod(this, "KeyDown")
@@ -11,7 +11,7 @@ class CapsLockModifierToggle {
     }
 
     Start() {
-        if this.modifier != "Disabled" && !this.hook.InProgress {
+        if !this.hook.InProgress {
             this.Reset()
             this.hook.Start()
         }
@@ -40,21 +40,12 @@ class CapsLockModifierToggle {
     }
 
     OtherModifiersHeld() {
-        return (this.modifier != "Shift" && GetKeyState("Shift", "P"))
-            || (this.modifier != "Ctrl" && GetKeyState("Ctrl", "P"))
-            || (this.modifier != "Alt" && GetKeyState("Alt", "P"))
+        return GetKeyState("Ctrl", "P") || GetKeyState("Alt", "P")
             || GetKeyState("LWin", "P") || GetKeyState("RWin", "P")
             || GetKeyState("CapsLock", "P") || GetKeyState("Pause", "P")
     }
 
-    IsSelected(vk) {
-        switch this.modifier {
-            case "Shift": return vk = 0x10 || vk = 0xA0 || vk = 0xA1
-            case "Ctrl": return vk = 0x11 || vk = 0xA2 || vk = 0xA3
-            case "Alt": return vk = 0x12 || vk = 0xA4 || vk = 0xA5
-        }
-        return false
-    }
+    static IsShift(vk) => vk = 0x10 || vk = 0xA0 || vk = 0xA1
 
     KeyDown(input, vk, sc) {
         if !this.Eligible() {
@@ -74,7 +65,7 @@ class CapsLockModifierToggle {
     }
 
     HandleDown(vk, sc, tick, otherHeld) {
-        if !this.IsSelected(vk) {
+        if !CapsLockShiftToggle.IsShift(vk) {
             this.lastKey := ""
             this.pressValid := false
             return
@@ -93,7 +84,7 @@ class CapsLockModifierToggle {
     }
 
     HandleUp(vk, sc, tick, otherHeld) {
-        if !this.IsSelected(vk) {
+        if !CapsLockShiftToggle.IsShift(vk) {
             this.lastKey := ""
             this.pressValid := false
             return false

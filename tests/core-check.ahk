@@ -449,25 +449,10 @@ class CoreChecks {
         settings := SuiteSettings(SuiteChecks.directory "\upgrade-preferences")
         this.Assert(settings.layers["caps"] && settings.layers["pause"] && !settings.verbose,
             "both keyboard layers default on; verbose debugging defaults off")
-        this.Assert(settings.capsToggleModifier = "Shift"
-            && settings.capsToggleModifierChoice = "Shift",
-            "Shift is the default enabled Caps Lock double-tap modifier")
         settings.Save(settings.modules, Map("caps", false, "pause", true), true)
         loaded := SuiteSettings(settings.directory)
         this.Assert(!loaded.layers["caps"] && loaded.layers["pause"] && loaded.verbose,
             "independent layers and the one global debug preference survive restart")
-        settings.Save(settings.modules, settings.layers, settings.verbose, "Alt")
-        this.Assert(SuiteSettings(settings.directory).capsToggleModifier = "Alt",
-            "selected Caps Lock modifier survives restart")
-        settings.Save(settings.modules, settings.layers, settings.verbose, "Disabled", "Alt")
-        disabled := SuiteSettings(settings.directory)
-        this.Assert(disabled.capsToggleModifier = "Disabled"
-            && disabled.capsToggleModifierChoice = "Alt",
-            "disabling Caps Lock double-tap remembers its selected modifier")
-        settings.Save(settings.modules, settings.layers, settings.verbose, "Alt")
-        this.Assert(SuiteSettings(settings.directory).capsToggleModifier = "Alt",
-            "re-enabling Caps Lock double-tap restores its selected modifier")
-        settings.Save(settings.modules, settings.layers, settings.verbose, "Shift")
         document := KB_Manifest.Read(settings.path)
         document["layers"]["pause"] := "invalid"
         KB_Manifest.WriteAtomic(settings.path, document)

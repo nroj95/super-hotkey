@@ -25,9 +25,8 @@ class SecretLayersModule extends SuiteModule {
         manager.AddAction("secret-layers.toggle-caps", "toggle Caps Lock",
             ObjBindMethod(this, "ToggleCapsLockEvent"), [],
             {category: "Secret Layers", available: ObjBindMethod(this, "Available")})
-        settings := this.app.Settings
-        if this.Available() && this.app.activeLayers["caps"] && settings.capsToggleModifier != "Disabled"
-            this.capsToggle := CapsLockModifierToggle(settings.capsToggleModifier)
+        if this.Available() && this.app.activeLayers["caps"]
+            this.capsToggle := CapsLockShiftToggle()
     }
 
     Available(*) => this.app.ModuleActive(this.id)
@@ -65,23 +64,11 @@ class SecretLayersModule extends SuiteModule {
         window.AddText("x20 y20 w560", "Modules is the master switch. These choices control each layer independently.")
         window.AddCheckbox("x20 y70 w540 vpause", "Enable Pause layer").Value := settings.layers["pause"]
         window.AddCheckbox("x20 y115 w540 vcaps", "Enable CapsLock layer").Value := settings.layers["caps"]
-        toggle := window.AddCheckbox("x20 y160 w415 vcapsToggleEnabled",
-            "Double-tap a modifier to toggle Caps Lock")
-        toggle.Value := settings.capsToggleModifier != "Disabled"
-        selector := window.AddDropDownList("x445 y158 w135 vcapsToggleModifier", ["Shift", "Ctrl", "Alt"])
-        selector.Choose(settings.capsToggleModifierChoice)
-        toggle.OnEvent("Click", ObjBindMethod(this, "UpdateSelectorEnabled", selector))
-        this.UpdateSelectorEnabled(selector, toggle)
-        ; A caption for the toggle above, aligned with its checkbox text.
-        window.AddText("x38 y192 w542", "Only works while the CapsLock layer is enabled."
-            . "`nAn optional shortcut is available in Keybindings.")
+        ; A caption for the checkbox above, aligned with its text.
+        window.AddText("x38 y147 w542", "Double-tap Shift to toggle Caps Lock while this layer is enabled.")
         ui.Footer(window, [["Apply and restart", ObjBindMethod(this, "SaveSettings", ui), 160],
-            ["Back", ObjBindMethod(ui, "BackToHelp", this.id), 100]], 260, 600)
-        ui.ShowPage(key, 600, 310, 560, 285)
-    }
-
-    UpdateSelectorEnabled(selector, checkbox, *) {
-        selector.Enabled := checkbox.Value != 0
+            ["Back", ObjBindMethod(ui, "BackToHelp", this.id), 100]], 195, 600)
+        ui.ShowPage(key, 600, 245, 560, 220)
     }
 
     SaveSettings(ui, *) {
@@ -90,10 +77,7 @@ class SecretLayersModule extends SuiteModule {
         settings := this.app.Settings
         try {
             settings.Save(settings.modules,
-                Map("caps", window["caps"].Value != 0, "pause", window["pause"].Value != 0),
-                settings.verbose,
-                window["capsToggleEnabled"].Value != 0 ? window["capsToggleModifier"].Text : "Disabled",
-                window["capsToggleModifier"].Text)
+                Map("caps", window["caps"].Value != 0, "pause", window["pause"].Value != 0))
             ui.CloseWindow(key)
             Reload()
         }
@@ -112,9 +96,9 @@ class SecretLayersModule extends SuiteModule {
             . "to hold both keys at once. Tap the same key again to cancel the layer or "
             . "trigger an assigned double-tap action. Only one layer can be active at a time."
             . "`r`n`r`nTOGGLE CAPS LOCK"
-            . "`r`nDouble-tap Shift (by default) to toggle Caps Lock while its layer "
-            . "is enabled. You can choose Ctrl or Alt instead, or disable this feature "
-            . "in Settings. Only two quick taps of the same modifier count, without "
-            . "another key in between. You can also assign a shortcut in Keybindings."
+            . "`r`nDouble-tap Shift to toggle Caps Lock while its layer is enabled. "
+            . "Only two quick taps of the same Shift key count, without another key "
+            . "in between. Turn off the CapsLock layer and the key works normally again. "
+            . "You can also assign a hotkey in Keybindings."
     }
 }

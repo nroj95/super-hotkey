@@ -28,7 +28,7 @@ class InterfaceChecks {
     static SettingsCheckboxes() {
         app := SuiteApplication(true, SuiteChecks.directory "\checkbox-settings")
         app.InitializeCatalog()
-        app.Settings.Save(app.Settings.modules, app.Settings.layers, false, "Disabled", "Alt")
+        app.Settings.Save(app.Settings.modules, Map("caps", true, "pause", false), false)
         manager := app.manager
         try {
             manager.SetPaused(true)
@@ -36,14 +36,8 @@ class InterfaceChecks {
             app.ui := SuiteInterface(app)
             app.ui.ShowModuleSettings("secret-layers")
             window := app.ui.windows["settings:secret-layers"]
-            this.Assert(!window["capsToggleEnabled"].Value
-                && !window["capsToggleModifier"].Enabled
-                && window["capsToggleModifier"].Text = "Alt",
-                "disabled Caps Lock double-tap keeps its saved dropdown selection")
-            window["capsToggleEnabled"].Value := true
-            app.modules["secret-layers"].UpdateSelectorEnabled(window["capsToggleModifier"], window["capsToggleEnabled"])
-            this.Assert(window["capsToggleModifier"].Enabled,
-                "Caps Lock double-tap checkbox enables the modifier dropdown")
+            this.Assert(window["caps"].Value && !window["pause"].Value,
+                "Secret Layers settings show each saved layer choice")
             app.ui.CloseWindow("settings:secret-layers")
             app.ui.ShowModuleSettings("cascade-kingdom")
             window := app.ui.windows["settings:cascade-kingdom"]

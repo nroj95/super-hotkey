@@ -588,7 +588,7 @@ class SuiteInterface {
     }
 
     ResetDefaults(*) {
-        if MsgBox("Re-enable all five modules and both layers, and restore default hotkeys, modifier toggle and preferences?"
+        if MsgBox("Re-enable all five modules and both layers, and restore default hotkeys and preferences?"
             . "`n`nNotes, their folder, editor path, Notepad3 preferences and page state will be kept."
             . "`nA settings backup will be created. The suite will restart.",
             SuiteApplication.Name, "YesNo Default2 Icon?") != "Yes"
@@ -608,7 +608,7 @@ class SuiteInterface {
             choices := Map()
             for id in SuiteSettings.ModuleOrder
                 choices[id] := true
-            app.Settings.Save(choices, Map("caps", true, "pause", true), false, "Shift")
+            app.Settings.Save(choices, Map("caps", true, "pause", true), false)
             app.Settings.ResetModulePreferences(sections)
             SuiteState.Log.Write("Core", "defaults restored; backup: " backup)
             Reload()
