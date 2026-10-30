@@ -168,6 +168,8 @@ class SuiteApplication {
         this.manager.AddAction("core.close-active", "close active window", ObjBindMethod(this, "CloseWindowEvent"),
             ["Caps + Delete", "Win + Delete"], {category: "Global",
                 context: (*) => SuiteWindowOwnership.AllowsWonderWindows(SuiteWorkingMonitor.UserWindow())})
+        this.manager.AddAction("core.focus-outline", "show focus outline", ObjBindMethod(this, "FocusOutlineEvent"),
+            ["Caps + Caps"], {category: "Global"})
         ; Listed in default-key order: F1 clear, F2 copy, F3 restart.
         this.manager.AddAction("core.clear-log", "clear debug log",
             ObjBindMethod(this, "LogShortcutEvent", "clear"), ["Pause + F1"], {category: "Global"})
@@ -203,6 +205,24 @@ class SuiteApplication {
         }
         hwnd := event.foregroundHwnd
         this.QueueInput(ObjBindMethod(SuiteCloseWindow, "Close", hwnd, WindowProcessId(hwnd)))
+    }
+
+    FocusOutlineEvent(event) {
+        if event.phase != "down"
+            return
+        if this.dryRun {
+            SuiteState.Log.Write("Core", "dry run: " event.actionId)
+            return
+        }
+        this.QueueInput(ObjBindMethod(this, "ShowFocusOutline"))
+    }
+
+    ; Where am I? Outlines the window the user is in, or says it is the desktop.
+    ShowFocusOutline(*) {
+        hwnd := SuiteWorkingMonitor.UserWindow()
+        if IsSwitchableWindow(hwnd) && SuiteFocusBorder.Show(hwnd, "core")
+            return
+        SuiteNotice.Show("status", "Desktop", 1400)
     }
 
     LogShortcutEvent(kind, event) {

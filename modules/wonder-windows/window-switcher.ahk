@@ -57,7 +57,6 @@ WW_CycleMonitorWindows()
         return
     }
 
-    WW_EndFocusNavigationSession()
     ; A window with an open dialog hands the foreground to that dialog.
     activated := ActivateWindow(target)
         || DllCall("GetAncestor", "ptr", DllCall("GetForegroundWindow", "ptr"), "uint", 3, "ptr") = target

@@ -1,4 +1,5 @@
-; Wonder Windows focus cycling, the focus highlight and focus after minimizing.
+; Wonder Windows focus cycling and focus after minimizing. The outline is core's
+; SuiteFocusBorder; Caps + Caps shows it on the current window.
 
 ; =============================================================================
 ; focus cycling
@@ -7,23 +8,13 @@
 ; Down steps to the next visible window in reading order, up to the previous
 ; one, wrapping at both ends: displays left to right, then columns left to
 ; right, then top before bottom. A stack of overlapping windows counts once,
-; as its front window; Win + Enter reaches the windows behind it.
+; as its front window; Win + Enter reaches the windows behind it. Every press
+; steps and outlines the window it lands on.
 WW_CycleWindowFocus(direction)
 {
-    global WW_focus_navigation_active, WW_focus_navigation_hwnd
-
     active_hwnd := WinExist("A")
     if !active_hwnd
         return
-
-    ; The first press outlines the current window instead of leaving it. A
-    ; manual focus change also starts a new session from that window.
-    if !WW_focus_navigation_active || active_hwnd != WW_focus_navigation_hwnd {
-        WW_focus_navigation_active := true
-        WW_focus_navigation_hwnd := active_hwnd
-        WW_HighlightFocusedWindow(active_hwnd)
-        return
-    }
 
     windows := []
     for entry in WW_SortFocusEntries(WW_FrontFocusEntries(WW_GetFocusEntries(), active_hwnd))
@@ -35,10 +26,8 @@ WW_CycleWindowFocus(direction)
     if windows[index] = active_hwnd
         return
 
-    if ActivateWindow(windows[index]) {
-        WW_focus_navigation_hwnd := windows[index]
-        WW_HighlightFocusedWindow(windows[index])
-    }
+    if ActivateWindow(windows[index])
+        SuiteFocusBorder.Show(windows[index], "wonder-windows")
 }
 
 WW_GetFocusEntries()
@@ -121,7 +110,7 @@ WW_FocusAfterMinimize(minimized_hwnd)
         if foreground_hwnd != minimized_hwnd
             && IsSwitchableWindow(foreground_hwnd)
         {
-            WW_BeginSpatialFocus(foreground_hwnd)
+            SuiteFocusBorder.Show(foreground_hwnd, "wonder-windows")
             return
         }
     }
@@ -136,57 +125,9 @@ WW_FocusAfterMinimize(minimized_hwnd)
             continue
 
         if ActivateWindow(hwnd) {
-            WW_BeginSpatialFocus(hwnd)
+            SuiteFocusBorder.Show(hwnd, "wonder-windows")
             return
         }
     }
-
-    ; With no other eligible window, leave focus to the Windows shell/desktop.
-    WW_EndFocusNavigationSession()
-}
-
-WW_BeginSpatialFocus(hwnd)
-{
-    global WW_focus_navigation_active, WW_focus_navigation_hwnd
-
-    if !hwnd || !WinExist("ahk_id " hwnd) {
-        WW_EndFocusNavigationSession()
-        return false
-    }
-
-    WW_focus_navigation_active := true
-    WW_focus_navigation_hwnd := hwnd
-    WW_HighlightFocusedWindow(hwnd)
-    return true
-}
-
-; =============================================================================
-; focus highlight and session lifetime
-; =============================================================================
-
-WW_HighlightFocusedWindow(hwnd)
-{
-    ; The border belongs to core. Wonder Windows owns only its navigation session.
-    if SuiteFocusBorder.Show(hwnd, "wonder-windows")
-        SetTimer WW_EndFocusNavigationSession, -SuiteFocusBorder.durationMs
-    else
-        WW_EndFocusNavigationSession()
-}
-
-WW_EndFocusNavigationSession()
-{
-    global WW_focus_navigation_active, WW_focus_navigation_hwnd
-
-    previous_critical := A_IsCritical
-    Critical "On"
-    try {
-        SetTimer WW_EndFocusNavigationSession, 0
-        WW_focus_navigation_active := false
-        WW_focus_navigation_hwnd := 0
-        ; A late Wonder Windows timer cannot erase a newer Cascade Kingdom border.
-        SuiteFocusBorder.Hide("wonder-windows")
-    }
-    finally {
-        Critical previous_critical
-    }
+    ; With no other eligible window, focus stays with the Windows shell/desktop.
 }

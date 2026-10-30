@@ -236,6 +236,7 @@ class KeybindingsChecks {
             manager.Start()
             config := manager.GetConfiguration()
             config["power-up-utilities.system.wake-speakers"].bindings[1] := ""
+            config["core.focus-outline"].bindings[1] := ""
             config["paper-pad.toggle"].bindings[1] := "Caps + Caps"
             config["paper-pad.help"].bindings[2] := "Pause + Pause"
             manager.Apply(config)
@@ -619,8 +620,8 @@ class KeybindingsChecks {
 
     static CheckDisplayOrder(rows) {
         this.AssertDisplaySequence(rows, [
-            "core.keybindings", "core.close-active", "core.clear-log", "core.copy-log",
-            "core.restart", "core.suspend"],
+            "core.keybindings", "core.close-active", "core.focus-outline", "core.clear-log",
+            "core.copy-log", "core.restart", "core.suspend"],
             "Global shortcuts group application first, logs together, then restart")
         this.AssertDisplaySequence(rows, [
             "paper-pad.help", "paper-pad.toggle", "paper-pad.hide",

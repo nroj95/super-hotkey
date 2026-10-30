@@ -75,10 +75,8 @@ WW_MinimizeActiveWindow()
     global WW_minimized_stack
 
     hwnd := WinExist("A")
-    if !hwnd || !IsSwitchableWindow(hwnd) {
-        WW_EndFocusNavigationSession()
+    if !hwnd || !IsSwitchableWindow(hwnd)
         return
-    }
 
     try {
         WinMinimize(hwnd)
@@ -111,7 +109,7 @@ WW_RestoreMinimizedWindow()
                 continue
             WinRestore("ahk_id " entry.hwnd)
             if ActivateWindow(entry.hwnd)
-                WW_BeginSpatialFocus(entry.hwnd)
+                SuiteFocusBorder.Show(entry.hwnd, "wonder-windows")
             return
         }
         catch Error as err
