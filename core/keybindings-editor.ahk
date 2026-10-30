@@ -201,17 +201,12 @@ class KeybindingsEditor {
             }
 
             if widthChanged || rowsChanged {
-                ; Binding boxes share the extra width; the reset button stays fixed.
-                extraWidth := width - 820
-                originalPrimaryX := 323 + Floor(extraWidth * 0.48)
-                originalPrimaryWidth := 185 + Floor(extraWidth * 0.28)
-                originalSecondaryWidth := 170 + extraWidth
-                    - (originalPrimaryX - 323) - (originalPrimaryWidth - 185)
-                primaryWidth := Round(originalPrimaryWidth * 0.9)
-                secondaryWidth := Round(originalSecondaryWidth * 0.9)
+                ; Both binding boxes share one width, so either fits the longest
+                ; hotkey; titles take the rest and the reset button stays fixed.
+                bindingWidth := 160 + Floor((width - 820) * 0.32)
                 resetX := width - 122
-                secondaryX := resetX - secondaryWidth - 10
-                primaryX := secondaryX - primaryWidth - 10
+                secondaryX := resetX - bindingWidth - 10
+                primaryX := secondaryX - bindingWidth - 10
                 for index, row in this.visibleRows {
                     y := 48 + (index - 1) * 35
                     tag := row.contextTag.Visible ? row.contextTag.Text : ""
@@ -223,9 +218,9 @@ class KeybindingsEditor {
                     positions.Push({control: row.categoryTitle,
                         x: 22, y: y + 6, w: width - 68, h: 25})
                     positions.Push({control: row.primary,
-                        x: primaryX, y: y, w: primaryWidth, h: 29})
+                        x: primaryX, y: y, w: bindingWidth, h: 29})
                     positions.Push({control: row.secondary,
-                        x: secondaryX, y: y, w: secondaryWidth, h: 29})
+                        x: secondaryX, y: y, w: bindingWidth, h: 29})
                     positions.Push({control: row.reset,
                         x: resetX, y: y, w: 76, h: 29})
                 }

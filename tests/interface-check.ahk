@@ -187,25 +187,18 @@ class InterfaceChecks {
             app.manager.editor.Resize(editor, 0, adjustedWidth, adjustedHeight)
             this.Assert(markerRow.title.Text = "layout-only marker",
                 "width-only resize does not re-render shortcut labels")
-            extraWidth := adjustedWidth - 820
-            originalPrimaryX := 323 + Floor(extraWidth * 0.48)
-            originalPrimaryWidth := 185 + Floor(extraWidth * 0.28)
-            originalSecondaryWidth := 170 + extraWidth
-                - (originalPrimaryX - 323) - (originalPrimaryWidth - 185)
-            expectedPrimaryWidth := Round(originalPrimaryWidth * 0.9)
-            expectedSecondaryWidth := Round(originalSecondaryWidth * 0.9)
-            expectedPrimaryX := adjustedWidth - 142
-                - expectedPrimaryWidth - expectedSecondaryWidth
+            expectedWidth := 160 + Floor((adjustedWidth - 820) * 0.32)
+            expectedPrimaryX := adjustedWidth - 142 - 2 * expectedWidth
             markerRow.primary.GetPos(&actualPrimaryX, , &actualPrimaryWidth)
             markerRow.secondary.GetPos(&actualSecondaryX, , &actualSecondaryWidth)
             markerRow.reset.GetPos(&actualResetX)
             this.Assert(Abs(actualPrimaryX - expectedPrimaryX) <= 2
-                && Abs(actualPrimaryWidth - expectedPrimaryWidth) <= 2
-                && Abs(actualSecondaryWidth - expectedSecondaryWidth) <= 2,
-                "both binding boxes are 10 percent narrower across resized window widths")
+                && Abs(actualPrimaryWidth - expectedWidth) <= 2
+                && Abs(actualSecondaryWidth - expectedWidth) <= 2,
+                "both binding boxes share one width across resized window widths")
             this.Assert(Abs(actualSecondaryX - (actualPrimaryX + actualPrimaryWidth + 10)) <= 2
                 && Abs(actualResetX - (actualSecondaryX + actualSecondaryWidth + 10)) <= 2,
-                "narrower binding boxes preserve the gaps and reset button alignment")
+                "binding boxes keep their gaps and the reset button alignment")
             app.manager.editor.resetAllButton.GetPos(, &oldFooterY)
             editor.Show("w1080 h700")
             editor.GetClientPos(, , &shorterWidth, &shorterHeight)
