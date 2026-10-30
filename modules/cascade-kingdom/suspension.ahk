@@ -1,5 +1,6 @@
 ; Cascade Kingdom's enabled state, hiding and restoring (Caps + M and
-; Caps + Shift + M), activity startup and hidden-window cleanup on exit.
+; Caps + Shift + M), activity startup, hidden-window cleanup on exit and the
+; cascades kept across restarts.
 
 IsCascadeEnabled() {
     app := SuiteState.App
@@ -273,4 +274,98 @@ RestoreMinimizedCascadeWindowsOnExit()
         }
     }
     cascade_minimized_windows := []
+}
+
+
+; =============================================================================
+; cascades kept across restarts
+; =============================================================================
+
+; Saved on exit, one line per member in join order: hwnd=pid|device|join.
+SaveCascades()
+{
+    global cascade_history, cascade_displays, cascade_join_positions, cascade_state_path
+
+    lines := ""
+    for monitor_index, history in cascade_history {
+        if !cascade_displays.Has(monitor_index)
+            continue
+        device := cascade_displays[monitor_index].device
+        for hwnd in history {
+            try pid := WinGetPID(hwnd)
+            catch
+                continue
+            join := cascade_join_positions.Has(hwnd)
+                ? FormatCascadeJoinPosition(cascade_join_positions[hwnd]) : ""
+            lines .= hwnd "=" pid "|" device "|" join "`n"
+        }
+    }
+    try {
+        SplitPath(cascade_state_path, , &directory)
+        DirCreate(directory)
+        IniWrite(lines, cascade_state_path, "Cascades")
+    }
+    catch Error as err
+        DebugError("Save cascades", err)
+}
+
+; A saved member rejoins only while it is the same window, by handle and
+; process, on an allowed display. GetLiveCascadeHistory then drops one that
+; was moved off its slot while Super Hotkey was not running.
+RestoreSavedCascades()
+{
+    global cascade_history, cascade_state_path
+
+    try saved := IniRead(cascade_state_path, "Cascades")
+    catch
+        return
+    restored := 0
+    for line in StrSplit(saved, "`n", "`r") {
+        try {
+            entry := StrSplit(line, "=", , 2)
+            fields := StrSplit(entry[2], "|")
+            hwnd := Integer(entry[1])
+            pid := Integer(fields[1])
+            if !DllCall("IsWindow", "ptr", hwnd, "int") || WinGetPID(hwnd) != pid
+                continue
+            monitor := FindCascadeMonitorDevice(fields[2])
+            if !CascadeDisplayAllowed(monitor)
+                continue
+            RecordCascadeWindow(monitor, hwnd)
+            if position := ParseCascadeJoinPosition(fields[3], pid)
+                RememberCascadeJoinPosition(hwnd, position, position.was_manual)
+            restored += 1
+        }
+    }
+    for monitor_index in cascade_history.Clone()
+        GetLiveCascadeHistory(monitor_index)
+    DebugLog("Saved cascades restored. | windows=" restored)
+}
+
+; A join position as text: x,y,width,height,was_manual[,placement in hex].
+FormatCascadeJoinPosition(position)
+{
+    text := position.x "," position.y "," position.width "," position.height
+        . "," (position.was_manual ? 1 : 0)
+    if position.placement {
+        text .= ","
+        Loop position.placement.Size
+            text .= Format("{:02X}", NumGet(position.placement, A_Index - 1, "uchar"))
+    }
+    return text
+}
+
+ParseCascadeJoinPosition(text, pid)
+{
+    parts := StrSplit(text, ",")
+    if parts.Length < 5
+        return 0
+    placement := 0
+    if parts.Length > 5 {
+        placement := Buffer(StrLen(parts[6]) // 2)
+        Loop placement.Size
+            NumPut("uchar", Integer("0x" SubStr(parts[6], 2 * A_Index - 1, 2)), placement, A_Index - 1)
+    }
+    return {pid: pid, x: Integer(parts[1]), y: Integer(parts[2]), width: Integer(parts[3]),
+        height: Integer(parts[4]), placement: placement, was_manual: parts[5] = "1"}
 }

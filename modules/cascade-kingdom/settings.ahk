@@ -73,6 +73,8 @@ focus_corner_active_slot_alpha := 255
 focus_tab_release_poll_ms := 50
 
 settings_path := SuiteState.App.Settings.directory "\cascade-kingdom\settings.ini"
+; Cascade members, saved on exit and restored on start; see SaveCascades().
+cascade_state_path := SuiteState.App.Settings.directory "\cascade-kingdom\state.ini"
 focus_corner_visible := IniRead(settings_path, "FocusTabs", "Visible", "1") = "1"
 
 focus_corner_inactive_slot_color_name := IniRead(settings_path, "FocusTabs", "InactiveSlotColor",
@@ -99,7 +101,8 @@ cascade_lent_windows := Map()  ; members Wonder Windows placed: their slot until
 cascade_poll_ms := 1000
 cascade_history := Map()
 ; A display snapshot is refreshed by notifications and the slow polling fallback.
-; Logical slots survive transient geometry/display changes; they are not reload persistence.
+; Logical slots survive transient geometry/display changes; restarts keep
+; membership only, through SaveCascades().
 cascade_displays := Map()
 cascade_display_signature := ""
 cascade_display_change_pending := false

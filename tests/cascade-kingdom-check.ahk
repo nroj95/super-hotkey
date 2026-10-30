@@ -1,4 +1,5 @@
-; Cascade Kingdom: destinations, settings, stabilization, drop guides, focus tabs and adoption.
+; Cascade Kingdom: destinations, settings, stabilization, drop guides, focus tabs, adoption
+; and cascades kept across restarts.
 ; Disposable preferences, dry-run inputs and test-owned windows only.
 class CascadeChecks {
     static Run() {
@@ -6,6 +7,7 @@ class CascadeChecks {
         this.PlacementStabilization()
         this.FocusTabDpi()
         WW_RunWindowCommand(ObjBindMethod(this, "MaximizedAdoption"))
+        this.SavedCascades()
         this.Policy()
         this.Settings()
         this.Guides()
@@ -342,6 +344,59 @@ class CascadeChecks {
             StopCascadeDisplays()
             InitializeCascadeState()
             window.Destroy()
+            Critical(previousCritical)
+        }
+    }
+
+    static SavedCascades() {
+        global cascade_displays, cascade_history, cascade_join_positions, cascade_state_path
+        app := SuiteApplication(true, SuiteChecks.directory "\saved-cascades")
+        InitializeCascadeState()
+        member := SuiteGui("+Resize", "Saved cascade member")
+        closed := SuiteGui("+Resize", "Saved cascade closed window")
+        previousCritical := Critical("On")
+        try {
+            cascade_displays := ReadCascadeDisplays().displays
+            member.Show("NA x60 y60 w320 h220")
+            closed.Show("NA x80 y80 w320 h220")
+            WinMaximize(member.Hwnd)
+            position := CaptureWindowShape(member.Hwnd)
+            position.was_manual := true
+            WinRestore(member.Hwnd)
+            monitor := WindowMonitorIndex(member.Hwnd)
+            slot := GetCanonicalCascadeGeometry(monitor).slots[1]
+            WinMovePixels(slot[1], slot[2], 400, 300, "ahk_id " member.Hwnd)
+            cascade_history[monitor] := [member.Hwnd, closed.Hwnd]
+            cascade_join_positions[member.Hwnd] := position
+            SaveCascades()
+
+            ; A closed window and a handle now owned by another process stay out.
+            closedHwnd := closed.Hwnd
+            closed.Destroy()
+            IniWrite(IniRead(cascade_state_path, "Cascades") "`n" A_ScriptHwnd "=1|"
+                . cascade_displays[monitor].device "|", cascade_state_path, "Cascades")
+            InitializeCascadeState()
+            cascade_displays := ReadCascadeDisplays().displays
+            RestoreSavedCascades()
+            this.Assert(GetManagedCascadeMonitor(member.Hwnd) = monitor
+                && !GetManagedCascadeMonitor(closedHwnd) && !GetManagedCascadeMonitor(A_ScriptHwnd),
+                "a restart keeps live cascade members and skips closed or reused windows")
+            restored := cascade_join_positions.Has(member.Hwnd) ? cascade_join_positions[member.Hwnd] : 0
+            samePlacement := IsObject(restored) && IsObject(restored.placement)
+                && restored.placement.Size = position.placement.Size
+            if samePlacement
+                Loop position.placement.Size
+                    samePlacement := samePlacement && NumGet(restored.placement, A_Index - 1, "uchar")
+                        = NumGet(position.placement, A_Index - 1, "uchar")
+            this.Assert(samePlacement && restored.x = position.x && restored.width = position.width
+                && restored.was_manual,
+                "a restored member keeps its join position, maximized placement included")
+        }
+        finally {
+            InitializeCascadeState()
+            SetTimer(RunQueuedFocusCornerUpdate, 0)
+            member.Destroy()
+            try closed.Destroy()
             Critical(previousCritical)
         }
     }

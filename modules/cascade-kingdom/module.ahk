@@ -20,6 +20,8 @@ class CascadeKingdomModule extends SuiteModule {
     Start() {
         manager := this.manager
         InitializeCascadeDisplays()
+        if IsCascadeEnabled()
+            RestoreSavedCascades()
         StartWindowHooks()
         StartCascadeActivity()
         manager.Observe("*LButton", CanStartFocusTabClick, (*) => BeginFocusTabClick())
@@ -66,6 +68,10 @@ class CascadeKingdomModule extends SuiteModule {
 
     Stop(*) {
         global cascade_command_queue
+        ; A restart keeps the cascades; a dry run or a module that never
+        ; started leaves the saved ones alone.
+        if this.started && !this.app.dryRun
+            SaveCascades()
         SuiteWindowOwnership.OffClaim(CascadeForgetManualWindow)
         SuiteWindowOwnership.OffReturn(CascadeTakeBackWindow)
         CascadeDropGuides.Destroy()

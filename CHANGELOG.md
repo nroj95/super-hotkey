@@ -22,6 +22,7 @@ Fewer, smarter hotkeys: this version cuts features that overlapped and hands sev
 
 - **Wonder Windows:** `Win + Shift + Enter` replaces the stretch actions. It stretches a window across to its neighbors, then into all the free space around it, then back, and Windows' own `Win + Shift + arrows` work again. Swap with neighbor and the maximized and fullscreen cycle are gone, `Win + M` and `Win + Home` belong to Windows again, and stacking on the nearest window also works with `Caps + Win + arrows`.
 - **Cascade Kingdom:** windows join a cascade only through `Caps + Insert` or a drop onto a slot. Automatic mode, launching while holding the cascade key, `Caps` + double-click on a title bar and the Cascade key setting are gone, so Cascade Kingdom no longer needs Secret Layers. Active focus tabs and drop guides follow the Windows accent color.
+- **Cascade Kingdom** keeps your cascades when Super Hotkey restarts: windows still in their slots rejoin, and `Caps + Shift + Insert` still returns them to where they were before they joined.
 - **Paper Pad** no longer installs Notepad3 or locks the open page; the lock could block sync clients. The slide always takes 180 ms unless Windows' Animation effects are off.
 - **Suite windows** use standard Windows title bars and borders. Tray > Debug log opens the log in Notepad, and Keybindings names every action by what it does.
 
