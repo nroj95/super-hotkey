@@ -45,9 +45,20 @@ GetCascadeMousePressSnapshot(hwnd)
         ; already have moved by the time EVENT_SYSTEM_MOVESIZESTART is delivered.
         ; A window dropped onto a slot keeps this as its join position.
         minmax := WinGetMinMax(hwnd)
+        ; Dragging a window that Windows Snap arranged first gives it back its
+        ; earlier size, kept as the normal rectangle; that is no edge resize.
+        normal_width := width, normal_height := height
+        if minmax = 0 {
+            try {
+                normal := CallWithDpiContext(-3, CaptureWindowPlacement, hwnd)
+                normal_width := NumGet(normal, 36, "int") - NumGet(normal, 28, "int")
+                normal_height := NumGet(normal, 40, "int") - NumGet(normal, 32, "int")
+            }
+        }
         return {
             hwnd: hwnd, pid: WinGetPID(hwnd),
             x: x, y: y, width: width, height: height,
+            normal_width: normal_width, normal_height: normal_height,
             frame_x: frame_x, frame_y: frame_y,
             monitor: WindowMonitorIndex(hwnd),
             minmax: minmax,
@@ -288,7 +299,8 @@ CascadeDragIsResize(drag, width, height)
 {
     return drag.resize || (drag.minmax = 0
         && drag.dpi = GetCascadeWindowMonitorDpi(drag.hwnd)
-        && (width != drag.width || height != drag.height))
+        && (width != drag.width || height != drag.height)
+        && (width != drag.normal_width || height != drag.normal_height))
 }
 
 CompleteCascadeWindowDrop(drag)

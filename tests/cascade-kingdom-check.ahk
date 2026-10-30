@@ -1,5 +1,6 @@
 ; Cascade Kingdom: destinations, settings, stabilization, drop guides, focus tabs, adoption,
-; compaction plans, home displays, the next-cascade order and cascades kept across restarts.
+; compaction plans, home displays, the next-cascade order, snapped-window drags and
+; cascades kept across restarts.
 ; Disposable preferences, dry-run inputs and test-owned windows only.
 class CascadeChecks {
     static Run() {
@@ -11,6 +12,7 @@ class CascadeChecks {
         this.CompactionPlan()
         this.HomeDisplays()
         this.NextCascade()
+        this.DragResize()
         this.ShownWindows()
         this.Policy()
         this.Settings()
@@ -18,6 +20,18 @@ class CascadeChecks {
     }
 
     static Assert(condition, label) => SuiteChecks.Assert(condition, label)
+
+    ; A window snapped to half a display, 1294 x 1395, was 2062 x 1117 before.
+    static DragResize() {
+        drag := {hwnd: A_ScriptHwnd, dpi: GetCascadeWindowMonitorDpi(A_ScriptHwnd), minmax: 0,
+            resize: false, width: 1294, height: 1395, normal_width: 2062, normal_height: 1117}
+        this.Assert(!CascadeDragIsResize(drag, 1294, 1395), "a moved window keeps its size")
+        this.Assert(!CascadeDragIsResize(drag, 2062, 1117),
+            "a snapped window taking back its earlier size is no resize")
+        this.Assert(CascadeDragIsResize(drag, 1400, 1395), "any other size change is a resize")
+        drag.resize := true
+        this.Assert(CascadeDragIsResize(drag, 1294, 1395), "a press on an edge is a resize")
+    }
 
     ; Three displays side by side, monitor 2 on the left, 1 in the middle and
     ; 3 on the right, with a fourth stacked below the right one.
