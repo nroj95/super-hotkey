@@ -34,7 +34,8 @@ class WonderWindowsModule extends SuiteModule {
             ["Win + WheelDown", "Win + Left"], ["down"])
         this.Add("zones-from-right", "cycle zones from the right", WW_CycleZone,
             ["Win + WheelUp", "Win + Right"], ["up"])
-        this.Add("maximize", "cycle maximized / upper half / lower half", WW_MaximizeWindowTarget, ["Win + Up"])
+        this.Add("maximize", "maximize, then upper / lower half", WW_MaximizeWindowTarget, ["Win + Up"],
+            , {hidden: true})
         this.Add("restore", "undo placement, then minimize", WW_RestoreOrMinimizeWindow, ["Win + Down"],
             , {hidden: true})
         this.Add("stretch", "stretch to neighbors: across / fill / back", WW_CycleNeighborStretch,

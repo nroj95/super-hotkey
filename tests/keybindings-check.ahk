@@ -639,7 +639,7 @@ class KeybindingsChecks {
         this.AssertDisplaySequence(rows, [
             "wonder-windows.help",
             "wonder-windows.zones-from-left", "wonder-windows.zones-from-right",
-            "wonder-windows.maximize", "wonder-windows.stretch",
+            "wonder-windows.stretch",
             "wonder-windows.move-onto-up", "wonder-windows.move-onto-down",
             "wonder-windows.move-onto-left", "wonder-windows.move-onto-right",
             "wonder-windows.focus-up", "wonder-windows.focus-down",
