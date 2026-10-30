@@ -15,7 +15,7 @@ Fewer, smarter hotkeys: this version cuts features that overlapped and hands sev
 - **Wonder Windows:** `Win + Backspace` only minimizes; on the desktop it no longer brings back the last minimized window. `Win + Shift + Backspace` does that instead, wherever focus is, and each press brings back one more window minimized with `Win + Backspace` or `Win + Down`, newest first.
 - **Suspend:** `Pause + F4` suspends and resumes Super Hotkey with an on-screen notice. While suspended it is the only key that still answers; CapsLock and every other hotkey behave natively, and Pause stays a prefix only for the suspend key's own combination.
 - **Wonder Windows:** `Win + Down` steps down: it undoes a placement, then minimizes. It no longer brings a window back on a third press (`Win + Shift + Backspace` does), and after a minimize every Wonder Windows key acts on the window you are in, never on the one just minimized. As an improved Windows key, it no longer has a row in Keybindings.
-- **Focus outline:** double-tap Caps to outline the window you are in, or see "Desktop" when no window has focus. `Win + PgUp` and `PgDn` now step on the first press instead of only outlining the current window first.
+- **Focus outline:** double-tap Caps to outline the window you are in, or see "No window has focus" on the desktop. `Win + PgUp` and `PgDn` now step on the first press instead of only outlining the current window first.
 - **Windows Terminal helpers** send Terminal's default shortcuts (`Ctrl + Shift + A`, `C` and `K`). If you remapped those in Terminal, restore them.
 
 ### Changes

@@ -217,12 +217,12 @@ class SuiteApplication {
         this.QueueInput(ObjBindMethod(this, "ShowFocusOutline"))
     }
 
-    ; Where am I? Outlines the window the user is in, or says it is the desktop.
+    ; Where am I? Outlines the window the user is in, or says that none has focus.
     ShowFocusOutline(*) {
         hwnd := SuiteWorkingMonitor.UserWindow()
         if IsSwitchableWindow(hwnd) && SuiteFocusBorder.Show(hwnd, "core")
             return
-        SuiteNotice.Show("status", "Desktop", 1400)
+        SuiteNotice.Show("status", "No window has focus", 1400)
     }
 
     LogShortcutEvent(kind, event) {
