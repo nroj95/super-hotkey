@@ -76,7 +76,8 @@ WW_CycleMonitorWindows()
 ; Previous steps back. From any other window, the first press brings back the
 ; big window shown last; Win + Backspace puts it away again. The order stays
 ; fixed, because activation changes the Z-order. A maximized cascade window
-; counts too: its cascade fills the gap while it is minimized.
+; counts too: its cascade fills the gap while it is minimized. A notice says
+; when there is nothing else to show.
 WW_CycleMaximizedFullscreenWindows(direction)
 {
     Critical "On"
@@ -99,8 +100,14 @@ WW_CycleMaximizedFullscreenWindows(direction)
         return
     }
 
-    target := WW_NextMaximizedFullscreenWindow(windows, SuiteWorkingMonitor.UserWindow(),
-        WW_last_maximized_fullscreen_hwnd, direction = "previous")
+    active := SuiteWorkingMonitor.UserWindow()
+    target := WW_NextMaximizedFullscreenWindow(windows, active, WW_last_maximized_fullscreen_hwnd,
+        direction = "previous")
+    ; The only big window here is already out.
+    if target = active {
+        SuiteNotice.Show("status", "No other maximized windows here", 1400)
+        return
+    }
     WW_DebugLog("Expanded-window cycle step. | monitor=" monitor " | windows=" windows.Length
         . " | to=" DescribeWindow(target))
     if WW_ShowMaximizedFullscreenWindow(windows, target)
