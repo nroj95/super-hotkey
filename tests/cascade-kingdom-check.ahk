@@ -305,7 +305,7 @@ class CascadeChecks {
     }
 
     static FocusTabDpi() {
-        global focus_corner_overlays
+        global focus_corner_overlays, focus_corner_targets
         app := SuiteApplication(true, SuiteChecks.directory "\release-focus-tabs")
         InitializeCascadeState()
         window := SuiteGui("+Resize", "Release focus-tab target")
@@ -323,6 +323,23 @@ class CascadeChecks {
                 "unchanged focus-tab rendering reuses its GUI")
             ShowFocusCornerOverlay(window.Hwnd, 100, 100, 300, 200, 96)
             this.Assert(overlay.dpi = 96, "a changed DPI snapshot updates the existing focus tab")
+            ; At 96 DPI: 54 x 24 corner tabs, 36-wide full-height ones, 2 px inside.
+            WinGetPosPixels(&lx, &ly, &lw, &lh, overlay.guis[1].Hwnd)
+            WinGetPosPixels(&rx, &ry, &rw, &rh, overlay.guis[2].Hwnd)
+            this.Assert(lx = 48 && ly = 276 && lw = 54 && lh = 24,
+                "the left focus tab sits outside the window's lower-left corner")
+            this.Assert(rx = 398 && ry = 100 && rw = 54 && rh = 24,
+                "the right focus tab mirrors it outside the upper-right corner")
+            ShowFocusCornerOverlay(window.Hwnd, 100, 100, 300, 200, 96, true, true)
+            WinGetPosPixels(&lx, &ly, &lw, &lh, overlay.guis[1].Hwnd)
+            WinGetPosPixels(&rx, &ry, &rw, &rh, overlay.guis[2].Hwnd)
+            this.Assert(lx = 66 && ly = 100 && lw = 36 && lh = 200 && rx = 398 && ry = 100 && rw = 36 && rh = 200,
+                "full-height tabs run along both sides")
+            this.Assert(DllCall("GetWindow", "ptr", overlay.guis[1].Hwnd, "uint", 3, "ptr") = window.Hwnd
+                && DllCall("GetWindow", "ptr", overlay.guis[2].Hwnd, "uint", 3, "ptr") = overlay.guis[1].Hwnd,
+                "both tabs sit directly below their window")
+            this.Assert(focus_corner_targets.Get(overlay.guis[2].Hwnd, 0) = window.Hwnd,
+                "a click on the right tab finds its window")
         }
         finally {
             DestroyFocusCornerOverlay(window.Hwnd)

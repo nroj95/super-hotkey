@@ -160,7 +160,8 @@ class CascadeKingdomModule extends SuiteModule {
             . "outside the cascade. A disconnected selected display pauses adding until it "
             . "returns or you change Settings."
             . "`r`n`r`nFOCUS TABS"
-            . "`r`nClick a focus tab to select a slot. Click again to cycle windows sharing "
+            . "`r`nEach slot has a focus tab on both sides: at the lower left and the upper "
+            . "right. Click either to select a slot. Click again to cycle windows sharing "
             . "that slot. Active tabs and drop guides use your Windows accent color; "
             . "choose the inactive tab color in Settings."
     }

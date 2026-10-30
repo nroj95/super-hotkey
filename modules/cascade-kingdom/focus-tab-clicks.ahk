@@ -91,11 +91,12 @@ ActivateFocusTabClick(press)
     if !IsCascadeEnabled() || IsCascadeDisplayTransition()
         return
 
-    global focus_corner_overlays
+    global focus_corner_overlays, focus_corner_targets
 
     target_hwnd := press.target_hwnd
+    ; A destroyed tab no longer maps to its target, even if its handle is reused.
     if !focus_corner_overlays.Has(target_hwnd)
-        || focus_corner_overlays[target_hwnd].gui.Hwnd != press.overlay_hwnd
+        || focus_corner_targets.Get(press.overlay_hwnd, 0) != target_hwnd
         || !focus_corner_overlays[target_hwnd].shown
         || !IsCascadeWindowShown(target_hwnd)
         return
