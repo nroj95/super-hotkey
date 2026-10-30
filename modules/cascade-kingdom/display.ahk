@@ -23,33 +23,27 @@ InitializeCascadeDisplays()
     }
     OnMessage(0x007E, HandleCascadeDisplayMessage) ; WM_DISPLAYCHANGE
     OnMessage(0x001A, HandleCascadeDisplayMessage) ; WM_SETTINGCHANGE / work area
-    OnMessage(0x02E0, HandleCascadeDisplayMessage) ; WM_DPICHANGED, our windows only
+    OnMessage(0x02E0, HandleCascadeDisplayMessage) ; WM_DPICHANGED, focus tabs only
     OnMessage(0x0218, HandleCascadeDisplayMessage) ; WM_POWERBROADCAST / resume
 }
 
 HandleCascadeDisplayMessage(wparam, lparam, message, hwnd)
 {
-    global cascade_display_refreshing, cascade_dpi_probes
+    global cascade_display_refreshing
     global focus_corner_targets, focus_corner_overlays
 
+    ; A scale change reaches the script window as WM_DISPLAYCHANGE and
+    ; WM_SETTINGCHANGE; WM_DPICHANGED only re-anchors a tab that moved.
     if message = 0x02E0 {
-        if focus_corner_targets.Has(hwnd) {
-            target := focus_corner_targets[hwnd]
-            if focus_corner_overlays.Has(target)
-                focus_corner_overlays[target].dpi := 0
-            ; A tab moving between monitors is not a display-topology change.
-            ; Re-anchor to its target instead of using the suggested free-floating RECT.
-            QueueFocusCornerUpdate()
-            return 0
-        }
-        for device, probe in cascade_dpi_probes {
-            if probe.gui.Hwnd = hwnd {
-                if !cascade_display_refreshing
-                    QueueCascadeDisplayRefresh()
-                return 0
-            }
-        }
-        return
+        if !focus_corner_targets.Has(hwnd)
+            return
+        target := focus_corner_targets[hwnd]
+        if focus_corner_overlays.Has(target)
+            focus_corner_overlays[target].dpi := 0
+        ; A tab moving between monitors is not a display-topology change.
+        ; Re-anchor to its target instead of using the suggested free-floating RECT.
+        QueueFocusCornerUpdate()
+        return 0
     }
     if hwnd != A_ScriptHwnd || cascade_display_refreshing
         return
@@ -353,12 +347,8 @@ ApplyPendingCascadeDisplayLayout()
 
 StopCascadeDisplays()
 {
-    global cascade_dpi_probes
     SetTimer(RefreshCascadeDisplays, 0)
     SetTimer(ApplyPendingCascadeDisplayLayout, 0)
     for message in [0x007E, 0x001A, 0x02E0, 0x0218]
         OnMessage(message, HandleCascadeDisplayMessage, 0)
-    for device, probe in cascade_dpi_probes
-        try probe.gui.Destroy()
-    cascade_dpi_probes.Clear()
 }

@@ -111,7 +111,6 @@ cascade_history := Map()
 ; A display snapshot is refreshed by notifications and the slow polling fallback.
 ; Logical slots survive transient geometry/display changes; they are not reload persistence.
 cascade_displays := Map()
-cascade_dpi_probes := Map()
 cascade_display_signature := ""
 cascade_display_change_pending := false
 cascade_display_refreshing := false

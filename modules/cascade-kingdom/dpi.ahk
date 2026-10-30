@@ -13,10 +13,21 @@ ScaleForDpi(value, dpi) => Round(value * dpi / 96)
 ; monitor DPI independent of an external application's awareness
 ; =============================================================================
 
+; A display's effective DPI at a physical point, or 0. Read in per-monitor
+; context: the process is system aware and would see the system DPI everywhere.
+; Hidden windows are no substitute: they keep their DPI when a scale changes.
+GetCascadePointDpi(x, y)
+{
+    monitor := PhysicalDllCall("MonitorFromPoint", "int64", (y << 32) | (x & 0xFFFFFFFF), "uint", 0, "ptr")
+    dpi_x := dpi_y := 0
+    if !monitor || PhysicalDllCall("shcore\GetDpiForMonitor", "ptr", monitor, "int", 0,
+        "uint*", &dpi_x, "uint*", &dpi_y, "int") != 0 ; MDT_EFFECTIVE_DPI
+        return 0
+    return dpi_x
+}
+
 ReadCascadeDisplays()
 {
-    global cascade_dpi_probes
-
     displays := Map()
     live_devices := Map()
     signature := ""
@@ -30,22 +41,7 @@ ReadCascadeDisplays()
         if right <= left || bottom <= top || work_right <= work_left || work_bottom <= work_top
             throw Error("Display geometry is temporarily unavailable.")
 
-        center_x := left + Floor((right - left) / 2)
-        center_y := top + Floor((bottom - top) / 2)
-        if !cascade_dpi_probes.Has(device) {
-            ; GetDpiForWindow on a system-aware/unaware target reports its system
-            ; DPI/96, not this monitor's scale. Our hidden PM-aware probe avoids that.
-            probe_gui := CreatePhysicalGui("-Caption -DPIScale +ToolWindow +E0x08000000",
-                "Cascade Kingdom DPI Probe")
-            cascade_dpi_probes[device] := {gui: probe_gui, x: "", y: ""}
-        }
-        probe := cascade_dpi_probes[device]
-        if probe.x != center_x || probe.y != center_y {
-            ShowPhysicalGui(probe.gui, "Hide x" center_x " y" center_y " w1 h1")
-            probe.x := center_x
-            probe.y := center_y
-        }
-        dpi := DllCall("GetDpiForWindow", "ptr", probe.gui.Hwnd, "uint")
+        dpi := GetCascadePointDpi(left + (right - left) // 2, top + (bottom - top) // 2)
         if !dpi
             throw Error("Could not read the monitor DPI.", , device)
         live_devices[device] := true
@@ -62,27 +58,18 @@ ReadCascadeDisplays()
     }
     if !displays.Count
         throw Error("No active display is available.")
-    for device, probe in cascade_dpi_probes.Clone() {
-        if !live_devices.Has(device) {
-            try probe.gui.Destroy()
-            cascade_dpi_probes.Delete(device)
-        }
-    }
     return {displays: displays, signature: signature}
 }
 
 GetCascadeMonitorDpi(monitor_index)
 {
-    global cascade_displays, cascade_dpi_probes
+    global cascade_displays
     if !cascade_displays.Has(monitor_index)
         return 96
     display := cascade_displays[monitor_index]
-    if cascade_dpi_probes.Has(display.device) {
-        dpi := DllCall("GetDpiForWindow", "ptr", cascade_dpi_probes[display.device].gui.Hwnd, "uint")
-        if dpi
-            return dpi
-    }
-    return display.dpi
+    dpi := GetCascadePointDpi(display.left + (display.right - display.left) // 2,
+        display.top + (display.bottom - display.top) // 2)
+    return dpi ? dpi : display.dpi
 }
 
 GetCascadeWindowMonitorDpi(hwnd)
