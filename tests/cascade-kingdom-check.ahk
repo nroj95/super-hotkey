@@ -9,6 +9,7 @@ class CascadeChecks {
         WW_RunWindowCommand(ObjBindMethod(this, "MaximizedAdoption"))
         this.SavedCascades()
         this.CompactionPlan()
+        this.ShownWindows()
         this.Policy()
         this.Settings()
         this.Guides()
@@ -35,6 +36,29 @@ class CascadeChecks {
             "a hole is filled from a deeper stack first")
         this.Assert(Plan([[1], [2], [], [4], [5, 3]], 3) = "|1|2|5|4|3|",
             "a dropped window keeps its slot")
+        this.Assert(Plan([[1], [2], [], [], [3]], 3) = "|1|2|3|||",
+            "a drop past the end of the cascade lands at its end")
+    }
+
+    static ShownWindows() {
+        InitializeCascadeState()
+        window := SuiteGui("+Resize", "Shown check")
+        try {
+            SuiteShowCentered(window, 320, 240)
+            this.Assert(IsCascadeWindowShown(window.Hwnd), "a restored window occupies its slot")
+            WinMaximize(window.Hwnd)
+            maximized := IsCascadeWindowShown(window.Hwnd)
+            WinRestore(window.Hwnd)
+            WinMinimize(window.Hwnd)
+            minimized := IsCascadeWindowShown(window.Hwnd)
+            WinRestore(window.Hwnd)
+            window.Hide()
+            this.Assert(!maximized && !minimized && !IsCascadeWindowShown(window.Hwnd),
+                "maximized, minimized and hidden windows give up their slot")
+        }
+        finally {
+            window.Destroy()
+        }
     }
 
     static Policy() {

@@ -339,7 +339,8 @@ CompleteCascadeWindowDrop(drag)
             else
                 RememberCascadeJoinPosition(hwnd, {pid: drag.pid, x: drag.x, y: drag.y,
                     width: drag.width, height: drag.height, placement: drag.placement}, was_manual)
-            ; Keep this explicit destination while background windows fill gaps.
+            ; Keep the dropped window in its slot while others fill gaps. The
+            ; cascade stays gap-free, so a drop past its end lands at its end.
             QueueCascadeCompaction(monitor_index, hwnd)
             DebugLog("Cascade drop snapped. | hwnd=" hwnd
                 " | monitor=" monitor_index " | slot=" slot_index)

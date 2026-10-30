@@ -83,27 +83,16 @@ GetLiveCascadeHistory(monitor_index)
             live_history.Push(hwnd)
             continue
         }
-        try {
-            state := WinGetMinMax(hwnd)
-            if state = -1 {
-                live_history.Push(hwnd)
-                continue
-            }
-            if state != 0
-                continue
-            ; A failed geometry query is not evidence that a live member left.
-            if !TryGetCascadeLayoutOrigin(hwnd, &layout_monitor, &x, &y) {
-                live_history.Push(hwnd)
-                continue
-            }
-            if layout_monitor = monitor_index
-                && FindNearestCascadeSlot(x, y, geometry.slots, cascade_slot_tolerance)
-                live_history.Push(hwnd)
-        }
-        catch {
-            if DllCall("IsWindow", "ptr", hwnd, "int")
-                live_history.Push(hwnd)
-        }
+        ; Only a shown member leaves by being moved off its slot; window state
+        ; never ends membership. A failed geometry query is not evidence either.
+        try moved_off := IsCascadeWindowShown(hwnd)
+            && TryGetCascadeLayoutOrigin(hwnd, &layout_monitor, &x, &y)
+            && (layout_monitor != monitor_index
+                || !FindNearestCascadeSlot(x, y, geometry.slots, cascade_slot_tolerance))
+        catch
+            moved_off := false
+        if !moved_off
+            live_history.Push(hwnd)
     }
 
     previous_critical := Critical("On")
@@ -253,7 +242,7 @@ BuildCascadeSlotStacks(windows, tolerance)
 
     for hwnd in windows {
         try {
-            if !IsCascadeWindowBeingDragged(hwnd) && WinGetMinMax(hwnd) != 0
+            if !IsCascadeWindowShown(hwnd)
                 continue
             if !TryGetCascadeLayoutOrigin(hwnd, &monitor_index, &window_x, &window_y)
                 continue
@@ -408,16 +397,8 @@ GetCascadeSlotCounts(monitor_index, slots, tolerance, excluded_hwnd := 0)
                 continue
 
             if !TryGetCascadeLayoutOrigin(hwnd, &layout_monitor, &window_x, &window_y)
-                || layout_monitor != monitor_index
+                || layout_monitor != monitor_index || !IsCascadeWindowShown(hwnd)
                 continue
-
-            try {
-                if !IsCascadeWindowBeingDragged(hwnd) && WinGetMinMax("ahk_id " hwnd) != 0
-                    continue
-            }
-            catch {
-                continue
-            }
 
             best_slot_index := FindNearestCascadeSlot(window_x, window_y, slots, tolerance)
 
@@ -595,7 +576,7 @@ CompactCascadeLayout(monitor_index, preferred_hwnd := 0)
     managed_window_count := windows.Length
     membership_generation := cascade_membership_generation
 
-    ; Stack construction excludes minimized members without restoring them.
+    ; Stack construction excludes members that are not shown, without touching them.
     if windows.Length = 0
         return
 
@@ -701,8 +682,8 @@ CompactCascadeLayout(monitor_index, preferred_hwnd := 0)
 
 
 ; Plan without moving windows: preserve existing slots, then fill only holes.
-; Only visible windows count: a minimized member's hole is filled like any
-; other, and its restore returns it to its slot.
+; Only shown windows count: a hidden member's hole is filled like any other,
+; and showing it again returns it to its slot.
 BuildStableCascadeCompactionPlan(ordered_stacks, preferred_hwnd := 0)
 {
     slot_count := ordered_stacks.Length

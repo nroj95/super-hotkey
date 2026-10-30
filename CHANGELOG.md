@@ -4,7 +4,11 @@
 
 ### Changes
 
-- **Cascade Kingdom** closes the gap a minimized window leaves, as it does for a closed one. Restoring the window returns it to its slot, and the window that filled in moves back.
+- **Cascade Kingdom** closes the gap a window leaves when you minimize or maximize it, hide it to the tray or move it to another virtual desktop, as it does for a closed one. The window stays in its cascade: bring it back and it returns to its slot while the window that filled in moves back. Maximizing no longer takes a window out of its cascade.
+
+### Fixes
+
+- **Cascade Kingdom** no longer counts windows hidden to the tray as filling their slot, so new windows use it, and navigation and `Caps + Shift + Space` no longer pick a hidden window.
 
 ## v1.0.0-beta.2
 

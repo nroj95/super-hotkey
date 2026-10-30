@@ -457,12 +457,10 @@ BringCascadeForward(monitor_index)
     originally_topmost := Map()
 
     for hwnd in ordered_windows {
-        if !WinExist("ahk_id " hwnd)
+        if !WinExist("ahk_id " hwnd) || !IsCascadeWindowShown(hwnd)
             continue
 
         try {
-            if WinGetMinMax("ahk_id " hwnd) = -1
-                continue
             originally_topmost[hwnd] := !!(WinGetExStyle(hwnd) & 0x8) ; WS_EX_TOPMOST
         }
         catch {

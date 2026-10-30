@@ -172,14 +172,11 @@ CaptureCascadeMinimizeTarget(targets, hwnd, monitor_index)
 {
     if targets.Has(hwnd) || !hwnd || !DllCall("IsWindow", "ptr", hwnd, "int")
         return false
-    if !DllCall("IsWindowVisible", "ptr", hwnd, "int") || IsWindowCloaked(hwnd)
+    ; Windows minimized, maximized or hidden on their own are never owned by Caps + M.
+    if !IsCascadeWindowShown(hwnd)
         return false
 
     try {
-        ; Independently minimized windows are never owned by Caps + M.
-        if WinGetMinMax(hwnd) = -1
-            return false
-
         targets[hwnd] := {
             hwnd: hwnd,
             pid: WinGetPID(hwnd),

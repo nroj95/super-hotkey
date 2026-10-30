@@ -27,10 +27,10 @@ StartWindowHooks()
 
     win_event_callback := CallbackCreate(HandleWinEvent)
     ; Foreground, move/size start and end, minimize start and end, and window
-    ; destroy and show, out of context and skipping our own process.
+    ; destroy, show and hide, out of context and skipping our own process.
     ; MINIMIZEEND announces a restore, not settled geometry. The shared
     ; completion watcher confirms readiness before requesting compaction.
-    for range in [[0x0003, 0x0003], [0x000A, 0x000B], [0x0016, 0x0017], [0x8001, 0x8002]] {
+    for range in [[0x0003, 0x0003], [0x000A, 0x000B], [0x0016, 0x0017], [0x8001, 0x8003]] {
         hook := DllCall("SetWinEventHook", "uint", range[1], "uint", range[2], "ptr", 0,
             "ptr", win_event_callback, "uint", 0, "uint", 0, "uint", 0x0002, "ptr")
         if !hook {
@@ -67,6 +67,7 @@ HandleWinEvent(hook_handle, event, hwnd, object_id, child_id, event_thread, even
         EVENT_SYSTEM_FOREGROUND := 0x0003
         EVENT_OBJECT_DESTROY := 0x8001
         EVENT_OBJECT_SHOW := 0x8002
+        EVENT_OBJECT_HIDE := 0x8003
         EVENT_SYSTEM_MOVESIZESTART := 0x000A
         EVENT_SYSTEM_MOVESIZEEND := 0x000B
         EVENT_SYSTEM_MINIMIZESTART := 0x0016
@@ -123,8 +124,13 @@ HandleWinEvent(hook_handle, event, hwnd, object_id, child_id, event_thread, even
             return
         }
 
-        if event = EVENT_OBJECT_SHOW && GetManagedCascadeMonitor(hwnd)
+        ; A member hidden to the tray gives up its slot; shown again, it takes it back.
+        if (event = EVENT_OBJECT_SHOW || event = EVENT_OBJECT_HIDE)
+            && (monitor := GetManagedCascadeMonitor(hwnd))
+        {
+            QueueCascadeCompaction(monitor)
             QueueFocusCornerUpdate()
+        }
     }
     catch Error as err {
         DebugError("HandleWinEvent", err)

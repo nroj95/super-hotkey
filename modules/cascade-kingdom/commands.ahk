@@ -157,7 +157,7 @@ CloseCommandMonitorCascade()
     if !monitor_index
         return
 
-    ; Caps + F4 owns every visible, non-minimized managed layer on this monitor.
+    ; Caps + F4 owns every shown cascade window on this monitor.
     CloseCascadeWindowList(GetCascadeWindowsForMonitorClose(monitor_index), monitor_index)
 }
 
@@ -176,7 +176,7 @@ GetCascadeWindowsForMonitorClose(monitor_index)
         windows.Push(hwnd)
     }
 
-    ; Include visible, non-minimized windows already reserved for this monitor even if
+    ; Include shown windows already reserved for this monitor even if
     ; asynchronous placement has not reached cascade history yet.
     for hwnd, reservation in placement_reservations {
         if reservation["monitor"] != monitor_index
@@ -191,17 +191,7 @@ GetCascadeWindowsForMonitorClose(monitor_index)
     return windows
 }
 
-IsCascadeCloseEligible(hwnd)
-{
-    if !hwnd || !WinExist("ahk_id " hwnd)
-        return false
-    if !DllCall("IsWindowVisible", "ptr", hwnd, "int") || IsWindowCloaked(hwnd)
-        return false
-
-    try return WinGetMinMax(hwnd) != -1
-    catch
-        return false
-}
+IsCascadeCloseEligible(hwnd) => hwnd && WinExist("ahk_id " hwnd) && IsCascadeWindowShown(hwnd)
 
 CloseCascadeWindowList(windows, monitor_index)
 {
@@ -633,21 +623,26 @@ ReconcileCascadeRuntimeState()
         return
 
     global cascade_history, cascade_minimized_observed, cascade_compaction_pending
+    static shown_members := Map()
 
     ; A missed MINIMIZEEND must not require another user toggle, and a queued
     ; compaction must not depend on one timer delivery.
+    shown_now := Map()
     for monitor_index, history in cascade_history.Clone() {
         for hwnd in history.Clone() {
             if !DllCall("IsWindow", "ptr", hwnd, "int") {
                 ForgetWindow(hwnd)
                 continue
             }
+            ; Catch slot changes no event announces, such as a maximize or a
+            ; move to another virtual desktop.
+            shown_now[hwnd] := IsCascadeWindowShown(hwnd)
+            if shown_members.Has(hwnd) && shown_members[hwnd] != shown_now[hwnd]
+                QueueCascadeCompaction(monitor_index)
             try {
                 if WinGetMinMax(hwnd) = -1 {
-                    if !cascade_minimized_observed.Has(hwnd) {
+                    if !cascade_minimized_observed.Has(hwnd)
                         ObserveCascadeMinimizedWindow(hwnd)
-                        QueueCascadeCompaction(monitor_index)
-                    }
                 } else if cascade_minimized_observed.Has(hwnd) {
                     pid := cascade_minimized_observed[hwnd]
                     ForgetCascadeMinimizedObservation(hwnd)
@@ -661,6 +656,7 @@ ReconcileCascadeRuntimeState()
             }
         }
     }
+    shown_members := shown_now
     for hwnd in cascade_minimized_observed.Clone() {
         if !GetManagedCascadeMonitor(hwnd) || !DllCall("IsWindow", "ptr", hwnd, "int")
             ForgetCascadeMinimizedObservation(hwnd)

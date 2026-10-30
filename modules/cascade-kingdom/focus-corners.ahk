@@ -56,17 +56,8 @@ UpdateFocusCornerOverlays()
 
     for hwnd, managed_monitor in live_windows {
 
-        ; Cloaked windows may still have WS_VISIBLE on another virtual desktop.
-        if !DllCall("IsWindowVisible", "ptr", hwnd, "int") || IsWindowCloaked(hwnd)
+        if !IsCascadeWindowShown(hwnd)
             continue
-
-        try {
-            if WinGetMinMax("ahk_id " hwnd) != 0
-                continue
-        }
-        catch {
-            continue
-        }
 
         if !GetVisibleWindowBounds(hwnd, &window_x, &window_y, &window_width, &window_height) {
             continue

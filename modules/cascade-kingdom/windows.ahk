@@ -49,6 +49,20 @@ IsCascadeWindow(hwnd, allow_manual := false)
         && width >= 1 && height >= 1 && title != ""
 }
 
+; The one rule for slots: a member occupies its slot only while shown, that
+; is visible on this virtual desktop and neither minimized nor maximized.
+; Minimized, maximized, hidden and cloaked members stay members without one.
+IsCascadeWindowShown(hwnd)
+{
+    if IsCascadeWindowBeingDragged(hwnd)
+        return true
+    if !DllCall("IsWindowVisible", "ptr", hwnd, "int") || IsWindowCloaked(hwnd)
+        return false
+    try return WinGetMinMax(hwnd) = 0
+    catch
+        return false
+}
+
 IsCascadeWindowTopmost(hwnd)
 {
     if !hwnd || !DllCall("IsWindow", "ptr", hwnd, "int")
