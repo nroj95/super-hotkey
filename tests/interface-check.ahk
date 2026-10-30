@@ -62,9 +62,9 @@ class InterfaceChecks {
         try {
             app.Start()
             this.Assert(SuiteApplication.Name = "Super Hotkey"
-                && SuiteApplication.Version = "1.0.0-beta.1",
-                "application identity is Super Hotkey v1.0.0-beta.1")
-            this.Assert(A_IconTip = "Super Hotkey v1.0.0-beta.1 - dry run",
+                && SuiteApplication.Version = "1.0.0-beta.2",
+                "application identity is Super Hotkey v1.0.0-beta.2")
+            this.Assert(A_IconTip = "Super Hotkey v1.0.0-beta.2 - dry run",
                 "tray hover text includes its assigned version and dry-run suffix")
             count := DllCall("GetMenuItemCount", "ptr", A_TrayMenu.Handle, "int")
             this.Assert(count = 19,

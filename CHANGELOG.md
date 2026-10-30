@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v1.0.0-beta.2
 
 Fewer, smarter hotkeys: this version cuts features that overlapped and hands several keys back to Windows.
 
@@ -35,6 +35,15 @@ Fewer, smarter hotkeys: this version cuts features that overlapped and hands sev
 - **Cascade Kingdom** retries focusing a window when Windows refuses at first, and a window spanning two displays belongs to the one holding most of it, as Windows decides.
 - A hotkey pressed while an overlay pops up in front, such as a shortcut guide shown while Win is held, now acts on the window underneath instead of falling through to another action, and the next Win hold shows the guide as usual.
 - `&nbsp;` shows correctly in Keybindings.
+
+### Install
+
+Install [AutoHotkey v2](https://www.autohotkey.com/) **64-bit**, download and extract the source code below, and run `super-hotkey.ahk`. Settings and logs live in `%LOCALAPPDATA%\nroj\SuperHotkey`; this version keeps those from beta.1.
+
+### Known limitations
+
+- PowerToys FancyZones isn't supported; disable it in PowerToys while using Super Hotkey.
+- Paper Pad needs Notepad3 and asks you to install it or locate it when it can't find it.
 
 ## v1.0.0-beta.1
 
