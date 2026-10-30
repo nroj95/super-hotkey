@@ -47,9 +47,9 @@ class WonderWindowsModule extends SuiteModule {
         this.Add("focus-down", "focus next visible window", WW_CycleWindowFocus, ["Win + PgDn"], ["down"])
         this.Add("cycle-stacked", "cycle windows in current stack", WW_CycleMonitorWindows, ["Win + Enter"])
         this.Add("cycle-expanded-next", "show next maximized or fullscreen window",
-            WW_CycleMaximizedFullscreenWindows, ["Win + Alt + Enter"], ["next"])
+            WW_CycleMaximizedFullscreenWindows, ["Win + Alt + Enter", "Caps + Win + Enter"], ["next"])
         this.Add("cycle-expanded-previous", "show previous maximized or fullscreen window",
-            WW_CycleMaximizedFullscreenWindows, ["Win + Alt + Shift + Enter"], ["previous"])
+            WW_CycleMaximizedFullscreenWindows, ["Win + Alt + Shift + Enter", "Caps + Win + Shift + Enter"], ["previous"])
         this.Add("minimize", "minimize active window", WW_MinimizeActiveWindow, ["Win + Backspace"])
         this.Add("restore-minimized", "restore last minimized window", WW_RestoreMinimizedWindow,
             ["Win + Shift + Backspace"])

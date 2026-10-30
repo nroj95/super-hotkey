@@ -136,8 +136,12 @@ class CoreChecks {
                     = Keybindings.Parse("Win + Enter").signature
                 && configuration["wonder-windows.cycle-expanded-next"].bindings[1]
                     = Keybindings.Parse("Win + Alt + Enter").signature
+                && configuration["wonder-windows.cycle-expanded-next"].bindings[2]
+                    = Keybindings.Parse("Caps + Win + Enter").signature
                 && configuration["wonder-windows.cycle-expanded-previous"].bindings[1]
-                    = Keybindings.Parse("Win + Alt + Shift + Enter").signature,
+                    = Keybindings.Parse("Win + Alt + Shift + Enter").signature
+                && configuration["wonder-windows.cycle-expanded-previous"].bindings[2]
+                    = Keybindings.Parse("Caps + Win + Shift + Enter").signature,
                 "Win + Enter cycles the stack; Win + Alt + Enter and its Shift twin cycle big windows")
             this.Assert(!manager.actions.Has("wonder-windows.swap-next")
                 && !manager.actions.Has("wonder-windows.swap-previous"),
