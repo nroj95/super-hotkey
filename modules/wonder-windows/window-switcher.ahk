@@ -75,7 +75,8 @@ WW_CycleMonitorWindows()
 ; display and minimizes the others there, so one big window is out at a time.
 ; Previous steps back. From any other window, the first press brings back the
 ; big window shown last; Win + Backspace puts it away again. The order stays
-; fixed, because activation changes the Z-order.
+; fixed, because activation changes the Z-order. A maximized cascade window
+; counts too: its cascade fills the gap while it is minimized.
 WW_CycleMaximizedFullscreenWindows(direction)
 {
     Critical "On"
@@ -84,7 +85,7 @@ WW_CycleMaximizedFullscreenWindows(direction)
     ; One order for every display, so each display keeps its own while you switch.
     detected := []
     for hwnd in WinGetList()
-        if !SuiteManagedWindows.Monitor(hwnd) && WW_IsMaximizedOrFullscreen(hwnd)
+        if WW_IsMaximizedOrFullscreen(hwnd)
             detected.Push(hwnd)
     WW_maximized_fullscreen_cycle := WW_MergeCycleOrder(WW_maximized_fullscreen_cycle, detected)
 
