@@ -187,8 +187,6 @@ UpdateFocusCornerOverlays()
     ; External applications can still change foreground focus during rendering.
     if active_hwnd != DllCall("GetForegroundWindow", "ptr")
         QueueFocusCornerUpdate()
-
-    DebugFocusCornerAppearance(active_hwnd, active_slot_targets)
 }
 
 GetCascadeWindowsForOverlay()
