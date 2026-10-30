@@ -22,7 +22,7 @@ Use any module on its own or combine them.
 
 ### Wonder Windows
 
-This is my take on window management that builds on the `Win` key shortcuts you already know, so it feels familiar from the start, while making the ones I found frustrating or incomplete more useful and predictable.
+There are plenty of window managers for Windows, but the ones I tried tiled windows smaller than I liked, took a while to learn, or spread things across so many workspaces that I lost track of them. Small costs, but they added up. This is my take on window management that builds on the `Win` key shortcuts you already know and makes the ones I found frustrating or incomplete more predictable.
 
 Hold `Win` and scroll, or press `Win + Left/Right`, to walk the active window through zones: full-height fourths and halves first, then the same zones in the upper and lower half of the display. The other direction steps back, and releasing `Win` starts over next time. Settings offers thirds instead.
 
