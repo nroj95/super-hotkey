@@ -1,4 +1,5 @@
-; Wonder Windows: geometry, ownership, tiles, stacking, stack cycling and fullscreen detection.
+; Wonder Windows: geometry, ownership, tiles, stacking, stack and expanded-window
+; cycling, and fullscreen detection.
 ; Disposable preferences, dry-run inputs and test-owned windows only.
 class WonderWindowsChecks {
     static Run() {
@@ -6,6 +7,7 @@ class WonderWindowsChecks {
         this.OversizedTile()
         this.MoveOntoZone()
         this.FullscreenDetection()
+        this.ExpandedWindowCycle()
         this.MonitorWindowCycle()
     }
 
@@ -356,7 +358,40 @@ class WonderWindowsChecks {
         this.Assert(!WW_RectCoversMonitor([-2560, 0, 2560, 1440], display, left),
             "a window stretched over both displays does not fill either")
 
+        placement := Buffer(44, 0)
+        monitorInfo := Buffer(40, 0)
+        NumPut("int", -1920, "int", -1080, "int", 0, "int", 0, monitorInfo, 4)
+        NumPut("int", -1880, "int", -1040, "int", 0, "int", 0, monitorInfo, 20)
+        NumPut("int", -1960, "int", -1120, "int", -40, "int", -40, placement, 28)
+        this.Assert(WW_WindowPlacementFillsPhysicalMonitor(placement, monitorInfo, []),
+            "minimized fullscreen geometry accounts for workspace offsets and negative monitors")
+        NumPut("int", -140, placement, 36)
+        this.Assert(!WW_WindowPlacementFillsPhysicalMonitor(placement, monitorInfo, []),
+            "a smaller restore rectangle is not fullscreen")
+        NumPut("int", -1961, "int", -1121, "int", 172, "int", -21, placement, 28)
+        this.Assert(WW_WindowPlacementFillsPhysicalMonitor(placement, monitorInfo, []),
+            "a minimized borderless game that overhangs its display stays fullscreen")
+
         WW_RunWindowCommand(ObjBindMethod(this, "FullscreenDetectionWindows"))
+    }
+
+    static ExpandedWindowCycle() {
+        cycle := [101, 102, 103]
+        this.Assert(WW_NextMaximizedFullscreenWindow(cycle, 101, 0) = 102
+            && WW_NextMaximizedFullscreenWindow(cycle, 103, 0) = 101,
+            "the expanded-window cycle loops with no all-minimized step")
+        this.Assert(WW_NextMaximizedFullscreenWindow(cycle, 101, 0, true) = 103
+            && WW_NextMaximizedFullscreenWindow(cycle, 102, 0, true) = 101,
+            "Shift steps the expanded-window cycle back")
+        this.Assert(WW_NextMaximizedFullscreenWindow(cycle, 999, 102) = 102
+            && WW_NextMaximizedFullscreenWindow(cycle, 999, 102, true) = 102,
+            "from another window the cycle brings back the big window shown last")
+        this.Assert(WW_NextMaximizedFullscreenWindow(cycle, 999, 0) = 101
+            && WW_NextMaximizedFullscreenWindow(cycle, 999, 0, true) = 103
+            && WW_NextMaximizedFullscreenWindow(cycle, 999, 888) = 101,
+            "without a last window here the cycle starts at its first, or its last going back")
+        this.Assert(WW_NextMaximizedFullscreenWindow([101], 101, 101) = 101,
+            "a single big window stays out")
     }
 
     static MonitorWindowCycle() {
@@ -465,6 +500,22 @@ class WonderWindowsChecks {
             WW_GetWindowMonitorBounds(fullscreen, &left, &top, &right, &bottom)
             WinMove(left, top, right - left, bottom - top, fullscreen)
             this.Assert(WW_IsNativeFullscreen(fullscreen), "borderless fixture is native fullscreen")
+
+            maximized := windows[1].Hwnd
+            WinMaximize(maximized)
+            WinMinimize(maximized)
+            WinMinimize(fullscreen)
+            this.Assert(WW_IsMaximizedOrFullscreen(maximized) && WW_IsMaximizedOrFullscreen(fullscreen),
+                "minimized windows that restore maximized or fullscreen count as big windows")
+
+            ; Only explicit test-owned handles reach the executor; never enumerate the desktop.
+            cycle := [maximized, fullscreen]
+            this.Assert(WW_ShowMaximizedFullscreenWindow(cycle, maximized)
+                && WinGetMinMax(maximized) = 1 && WinGetMinMax(fullscreen) = -1,
+                "the cycle restores a maximized window and leaves the other big window minimized")
+            this.Assert(WW_ShowMaximizedFullscreenWindow(cycle, fullscreen)
+                && WinGetMinMax(maximized) = -1 && WW_IsNativeFullscreen(fullscreen),
+                "showing the fullscreen window minimizes the maximized one")
         }
         finally {
             for window in windows {

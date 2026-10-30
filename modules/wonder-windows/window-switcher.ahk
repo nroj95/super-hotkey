@@ -1,4 +1,5 @@
-; Wonder Windows switcher for the windows stacked with the active one.
+; Wonder Windows switchers: the windows stacked with the active one, and the
+; maximized and fullscreen windows on the working display.
 
 ; =============================================================================
 ; stacked window switcher
@@ -64,6 +65,74 @@ WW_CycleMonitorWindows()
     WW_monitor_cycle_refused_from := activated ? 0 : current
     WW_DebugLog("Stacked window cycle focused a window. | activated=" (activated ? 1 : 0)
         . " | " DescribeWindow(target))
+}
+
+; =============================================================================
+; maximized and fullscreen cycle
+; =============================================================================
+
+; Each press shows the next maximized or fullscreen window on the working
+; display and minimizes the others there, so one big window is out at a time.
+; Previous steps back. From any other window, the first press brings back the
+; big window shown last; Win + Backspace puts it away again. The order stays
+; fixed, because activation changes the Z-order.
+WW_CycleMaximizedFullscreenWindows(direction)
+{
+    Critical "On"
+    global WW_maximized_fullscreen_cycle, WW_last_maximized_fullscreen_hwnd
+
+    ; One order for every display, so each display keeps its own while you switch.
+    detected := []
+    for hwnd in WinGetList()
+        if !SuiteManagedWindows.Monitor(hwnd) && WW_IsMaximizedOrFullscreen(hwnd)
+            detected.Push(hwnd)
+    WW_maximized_fullscreen_cycle := WW_MergeCycleOrder(WW_maximized_fullscreen_cycle, detected)
+
+    monitor := SuiteWorkingMonitor.Get()
+    windows := []
+    for hwnd in WW_maximized_fullscreen_cycle
+        if WindowMonitorIndex(hwnd) = monitor
+            windows.Push(hwnd)
+    if !windows.Length {
+        SuiteNotice.Show("status", "No maximized windows here", 1400)
+        return
+    }
+
+    target := WW_NextMaximizedFullscreenWindow(windows, SuiteWorkingMonitor.UserWindow(),
+        WW_last_maximized_fullscreen_hwnd, direction = "previous")
+    WW_DebugLog("Expanded-window cycle step. | monitor=" monitor " | windows=" windows.Length
+        . " | to=" DescribeWindow(target))
+    if WW_ShowMaximizedFullscreenWindow(windows, target)
+        WW_last_maximized_fullscreen_hwnd := target
+}
+
+; The window after the active one, wrapping around. From outside the cycle,
+; the last window shown, or else the first (the last going backwards).
+WW_NextMaximizedFullscreenWindow(windows, active_hwnd, last_hwnd, backwards := false)
+{
+    if index := WW_FindWindowIndex(windows, active_hwnd)
+        return windows[WW_GetNextCycleIndex(index, windows.Length, backwards)]
+    if WW_FindWindowIndex(windows, last_hwnd)
+        return last_hwnd
+    return windows[backwards ? windows.Length : 1]
+}
+
+; Shows the target first, then minimizes the others: minimizing a background
+; window never moves focus.
+WW_ShowMaximizedFullscreenWindow(windows, target_hwnd)
+{
+    if !ActivateWindow(target_hwnd) {
+        WW_DebugLog("Expanded-window cycle could not activate a window. | " DescribeWindow(target_hwnd))
+        return false
+    }
+    for hwnd in windows {
+        if hwnd = target_hwnd || DllCall("IsIconic", "ptr", hwnd, "int")
+            continue
+        try WinMinimize(hwnd)
+        catch Error as err
+            WW_DebugError("Expanded-window cycle minimize", err)
+    }
+    return true
 }
 
 ; The next window after from, wrapping around and skipping the active one.

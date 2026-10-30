@@ -39,6 +39,46 @@ WW_SetNativeFullscreen(hwnd, enabled)
     return false
 }
 
+; A maximized or fullscreen window, including a minimized one that will
+; restore that way. Minimized windows count, so the expanded-window cycle
+; reaches the ones put away.
+WW_IsMaximizedOrFullscreen(hwnd)
+{
+    if !IsSwitchableWindow(hwnd, true)
+        return false
+    try {
+        state := WinGetMinMax(hwnd)
+        if state != -1
+            return state = 1 || WW_IsNativeFullscreen(hwnd)
+
+        placement := CaptureWindowPlacement(hwnd)
+        ; Windows remembers whether an iconic window should restore maximized.
+        if NumGet(placement, 4, "uint") & 0x0002 ; WPF_RESTORETOMAXIMIZED
+            return true
+
+        ; Native fullscreen is a normal-state window filling a physical monitor.
+        ; Its current minimized rectangle cannot identify that saved geometry.
+        return WW_WindowPlacementFillsPhysicalMonitor(placement, ReadMonitorInfo(WindowMonitor(hwnd)))
+    }
+    catch
+        return false
+}
+
+; others: the remaining displays, or 0 to read them.
+WW_WindowPlacementFillsPhysicalMonitor(placement, monitor_info, others := 0, tolerance := 2)
+{
+    ; Candidates exclude tool windows, so rcNormalPosition uses workspace
+    ; coordinates. Convert to screen coordinates, including top/left taskbars.
+    offset_x := NumGet(monitor_info, 20, "int") - NumGet(monitor_info, 4, "int")
+    offset_y := NumGet(monitor_info, 24, "int") - NumGet(monitor_info, 8, "int")
+    monitor := [NumGet(monitor_info, 4, "int"), NumGet(monitor_info, 8, "int"),
+        NumGet(monitor_info, 12, "int"), NumGet(monitor_info, 16, "int")]
+    return WW_RectCoversMonitor(
+        [NumGet(placement, 28, "int") + offset_x, NumGet(placement, 32, "int") + offset_y,
+            NumGet(placement, 36, "int") + offset_x, NumGet(placement, 40, "int") + offset_y],
+        monitor, IsObject(others) ? others : WW_OtherMonitorRects(monitor), tolerance)
+}
+
 ; A window fills its display when it covers every edge. Borderless games such
 ; as Chrono Trigger overhang their display, by more after each restore; that
 ; is fine where no other display is. A window reaching more than 1/16 of this

@@ -46,6 +46,10 @@ class WonderWindowsModule extends SuiteModule {
         this.Add("focus-up", "focus previous visible window", WW_CycleWindowFocus, ["Win + PgUp"], ["up"])
         this.Add("focus-down", "focus next visible window", WW_CycleWindowFocus, ["Win + PgDn"], ["down"])
         this.Add("cycle-stacked", "cycle windows in current stack", WW_CycleMonitorWindows, ["Win + Enter"])
+        this.Add("cycle-expanded-next", "show next maximized or fullscreen window",
+            WW_CycleMaximizedFullscreenWindows, ["Win + Alt + Enter"], ["next"])
+        this.Add("cycle-expanded-previous", "show previous maximized or fullscreen window",
+            WW_CycleMaximizedFullscreenWindows, ["Win + Alt + Shift + Enter"], ["previous"])
         this.Add("minimize", "minimize active window", WW_MinimizeActiveWindow, ["Win + Backspace"])
         this.Add("restore-minimized", "restore last minimized window", WW_RestoreMinimizedWindow,
             ["Win + Shift + Backspace"])
@@ -243,6 +247,8 @@ class WonderWindowsModule extends SuiteModule {
             . "A stack of overlapping windows counts once, as its front window. "
             . "Move a window onto its nearest neighbor to stack it in front. Bring forward the next window stacked with the active one, "
             . "and cycle a window between maximized and half-height positions. Layout actions exit F11 fullscreen before repositioning a window. "
+            . "Win + Alt + Enter shows the next maximized or fullscreen window on your display, minimized or not, and minimizes "
+            . "the others there, so one big window is out at a time; add Shift to go back. "
             . "Keybindings below shows the current hotkey for each action."
     }
 }
