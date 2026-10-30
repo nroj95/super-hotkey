@@ -134,11 +134,11 @@ DispatchCascadeCommand(command)
         return
     }
 
-    ; Adoption restores a maximized window, and bringing the cascade forward or
+    ; Adoption restores a maximized window, and bringing a cascade forward or
     ; focusing it rises above one. Other commands would rearrange the cascade
     ; underneath it.
     allow_maximized := name = "adopt" || name = "bring-forward"
-        || name = "focus-previous" || name = "focus-next"
+        || name = "focus-previous" || name = "focus-next" || name = "next-cascade"
     if reason := ActiveWindowBlocksCascadeCommands(allow_maximized) {
         DebugLog("Cascade command skipped. | reason=" reason " | command=" name)
         return
@@ -147,6 +147,7 @@ DispatchCascadeCommand(command)
     switch name {
         case "focus-previous": FocusCascadeLayerWindow(-1)
         case "focus-next": FocusCascadeLayerWindow(1)
+        case "next-cascade": FocusNextCascade()
         case "slot-previous": RotateCascadeSlotForWindow(WinExist("A"), -1)
         case "slot-next": RotateCascadeSlotForWindow(WinExist("A"), 1)
         case "swap-up": SwapActiveCascadeWindow(-1)

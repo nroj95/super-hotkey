@@ -8,6 +8,7 @@ RegisterCascadeActions(manager)
         {category: "Cascade Kingdom", available: CascadeModuleActive})
     for item in [["focus-previous", "focus visible window up", "Caps + PgUp"],
         ["focus-next", "focus visible window down", "Caps + PgDn"],
+        ["next-cascade", "focus next cascade", "Caps + Tab"],
         ["slot-previous", "show previous window in slot", "Caps + Left"],
         ["slot-next", "show next window in slot", "Caps + Right"],
         ["swap-up", "swap visible window up", "Caps + Up"],

@@ -1,5 +1,5 @@
-; Cascade Kingdom navigation: focusing, swapping and rotating windows and
-; bringing a cascade forward.
+; Cascade Kingdom navigation: focusing, swapping and rotating windows,
+; bringing a cascade forward and focusing the next cascade.
 
 ; =============================================================================
 ; current-layer focus and swapping
@@ -489,5 +489,68 @@ BringCascadeForward(monitor_index)
             try SetCascadeZOrder(hwnd, -2) ; HWND_NOTOPMOST
     }
 
-    ActivateWindow(last_used_hwnd)
+    return ActivateWindow(last_used_hwnd) ? last_used_hwnd : 0
+}
+
+; Brings the next cascade forward and outlines its front window: after the
+; current cascade, left to right and wrapping, or from outside a cascade the
+; first from the working display on. Hidden cascades do not count.
+FocusNextCascade()
+{
+    global cascade_history
+
+    if !IsCascadeEnabled()
+        return
+
+    entries := []
+    for monitor_index in cascade_history {
+        shown := false
+        for hwnd in GetLiveCascadeHistory(monitor_index)
+            if shown := IsCascadeWindowShown(hwnd)
+                break
+        if !shown
+            continue
+        try MonitorGetPixels(monitor_index, &left, &top)
+        catch
+            continue
+        insert_at := entries.Length + 1
+        for index, entry in entries
+            if left < entry.left || (left = entry.left && top < entry.top) {
+                insert_at := index
+                break
+            }
+        entries.InsertAt(insert_at, {monitor: monitor_index, left: left, top: top})
+    }
+    if !entries.Length {
+        SuiteNotice.Show("status", "No cascades", 1400)
+        return
+    }
+
+    active_hwnd := WinExist("A")
+    current := active_hwnd && IsCascadeWindowShown(active_hwnd) ? GetManagedCascadeMonitor(active_hwnd) : 0
+    working_left := working_top := 0
+    try MonitorGetPixels(SuiteWorkingMonitor.Get(), &working_left, &working_top)
+    target := NextCascadeMonitor(entries, current, working_left, working_top)
+    if !target {
+        SuiteNotice.Show("status", "No other cascades", 1400)
+        return
+    }
+    if hwnd := BringCascadeForward(target)
+        SuiteFocusBorder.Show(hwnd, "cascade-kingdom")
+}
+
+; Entries are {monitor, left, top}, sorted left to right then top to bottom.
+; Returns 0 when the only cascade is the current one.
+NextCascadeMonitor(entries, current_monitor, working_left, working_top)
+{
+    for index, entry in entries {
+        if current_monitor {
+            if entry.monitor = current_monitor {
+                next := entries[Mod(index, entries.Length) + 1].monitor
+                return next = current_monitor ? 0 : next
+            }
+        } else if entry.left > working_left || (entry.left = working_left && entry.top >= working_top)
+            return entry.monitor
+    }
+    return entries[1].monitor
 }

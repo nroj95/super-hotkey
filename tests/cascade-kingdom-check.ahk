@@ -1,5 +1,5 @@
 ; Cascade Kingdom: destinations, settings, stabilization, drop guides, focus tabs, adoption,
-; compaction plans, home displays and cascades kept across restarts.
+; compaction plans, home displays, the next-cascade order and cascades kept across restarts.
 ; Disposable preferences, dry-run inputs and test-owned windows only.
 class CascadeChecks {
     static Run() {
@@ -10,6 +10,7 @@ class CascadeChecks {
         this.SavedCascades()
         this.CompactionPlan()
         this.HomeDisplays()
+        this.NextCascade()
         this.ShownWindows()
         this.Policy()
         this.Settings()
@@ -17,6 +18,26 @@ class CascadeChecks {
     }
 
     static Assert(condition, label) => SuiteChecks.Assert(condition, label)
+
+    ; Three displays side by side, monitor 2 on the left, 1 in the middle and
+    ; 3 on the right, with a fourth stacked below the right one.
+    static NextCascade() {
+        all := [{monitor: 2, left: -1920, top: 0}, {monitor: 1, left: 0, top: 0},
+            {monitor: 3, left: 1920, top: 0}, {monitor: 4, left: 1920, top: 1080}]
+        this.Assert(NextCascadeMonitor(all, 1, 0, 0) = 3, "the next cascade is the one to the right")
+        this.Assert(NextCascadeMonitor(all, 3, 1920, 0) = 4, "a display below comes after the one above it")
+        this.Assert(NextCascadeMonitor(all, 4, 1920, 1080) = 2, "the last cascade wraps to the leftmost")
+        this.Assert(NextCascadeMonitor(all, 0, 0, 0) = 1,
+            "from outside a cascade, the one on the working display comes first")
+        middle := [all[1], all[3]]
+        this.Assert(NextCascadeMonitor(middle, 0, 0, 0) = 3,
+            "from a display without a cascade, the next one to the right comes first")
+        this.Assert(NextCascadeMonitor(middle, 0, 1920, 1080) = 2,
+            "from the bottom-right display without a cascade, the search wraps to the left")
+        this.Assert(NextCascadeMonitor([all[2]], 1, 0, 0) = 0, "the only cascade has no next one")
+        this.Assert(NextCascadeMonitor([all[2]], 0, 1920, 0) = 1,
+            "the only cascade is focused from another display")
+    }
 
     ; Display 1 is the primary; the left display may be unplugged.
     static HomeDisplays() {

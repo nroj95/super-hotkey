@@ -631,7 +631,7 @@ class KeybindingsChecks {
             "Paper Pad shows and hides, then navigates, then deletes")
         this.AssertDisplaySequence(rows, [
             "cascade-kingdom.help", "cascade-kingdom.focus-previous", "cascade-kingdom.focus-next",
-            "cascade-kingdom.slot-previous", "cascade-kingdom.slot-next",
+            "cascade-kingdom.next-cascade", "cascade-kingdom.slot-previous", "cascade-kingdom.slot-next",
             "cascade-kingdom.swap-up", "cascade-kingdom.swap-down",
             "cascade-kingdom.rotate-next",
             "cascade-kingdom.adopt", "cascade-kingdom.release", "cascade-kingdom.bring-forward",
