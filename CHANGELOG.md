@@ -4,7 +4,7 @@
 
 ### Changes
 
-- **Wonder Windows:** `Win + Alt + Enter` cycles maximized and fullscreen windows again, now only on your display, with `Win + Alt + Shift + Enter` going back. Each press shows the next one, minimized or not, and minimizes the others there. The loop no longer stops with all of them minimized: from any other window the first press brings back the one shown last, and `Win + Backspace` puts it away. Maximized cascade windows take part too, and a notice says when there is no other big window to show.
+- **Wonder Windows:** `Win + Alt + Enter` cycles maximized and fullscreen windows again, now only on your display, with `Win + Alt + Shift + Enter` going back. Each press shows the next one, minimized or not, and minimizes the others there. The loop no longer stops with all of them minimized: from any other window the first press brings back the one shown last, and `Win + Backspace` puts it away. Maximized cascade windows take part too, and a notice says when there is no other maximized or fullscreen window to show.
 - **Cascade Kingdom** closes the gap a window leaves when you minimize or maximize it, hide it to the tray or move it to another virtual desktop, as it does for a closed one. The window stays in its cascade: bring it back and it returns to its slot while the window that filled in moves back. Maximizing no longer takes a window out of its cascade.
 
 ### Fixes

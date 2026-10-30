@@ -96,7 +96,7 @@ WW_CycleMaximizedFullscreenWindows(direction)
         if WindowMonitorIndex(hwnd) = monitor
             windows.Push(hwnd)
     if !windows.Length {
-        SuiteNotice.Show("status", "No maximized windows here", 1400)
+        SuiteNotice.Show("status", "No maximized or fullscreen windows here", 1400)
         return
     }
 
@@ -105,7 +105,7 @@ WW_CycleMaximizedFullscreenWindows(direction)
         direction = "previous")
     ; The only big window here is already out.
     if target = active {
-        SuiteNotice.Show("status", "No other maximized windows here", 1400)
+        SuiteNotice.Show("status", "No other maximized or fullscreen windows here", 1400)
         return
     }
     WW_DebugLog("Expanded-window cycle step. | monitor=" monitor " | windows=" windows.Length
