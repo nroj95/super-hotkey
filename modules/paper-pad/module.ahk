@@ -19,7 +19,7 @@ class PaperPadModule extends SuiteModule {
             ObjBindMethod(this.app, "HelpShortcutEvent", this.id), ["Pause + F12"],
             {category: "Paper Pad", available: ObjBindMethod(this, "Available")})
         manager.AddAction("paper-pad.toggle", "show / hide Paper Pad", ObjBindMethod(this, "Event", "toggle"),
-            ["Win + F12"], {category: "Paper Pad", available: ObjBindMethod(this, "Available")})
+            ["Win + F12", "Caps + F12"], {category: "Paper Pad", available: ObjBindMethod(this, "Available")})
         ; Showing and hiding, then page navigation, then the destructive delete.
         for item in [
             ["hide", "hide Paper Pad / dismiss completion", ["Escape"]],

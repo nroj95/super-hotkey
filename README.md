@@ -40,7 +40,7 @@ With two displays, for example, keep focused work in narrow zones on one, wide a
 
 ### Paper Pad
 
-A quick-notes drawer: `Win + F12` shows or hides a dedicated Notepad3 window that stays on top while it's open, so you can jot something down without hunting through other windows and tabs.
+A quick-notes drawer: `Win + F12` or `Caps + F12` shows or hides a dedicated Notepad3 window that stays on top while it's open, so you can jot something down without hunting through other windows and tabs.
 
 `Ctrl + N` creates a timestamped page, and `Win + Left/Right` move between pages inside the drawer. Changes are saved automatically when you switch pages, hide the drawer or exit, and pages stay ordinary files in your notes folder.
 

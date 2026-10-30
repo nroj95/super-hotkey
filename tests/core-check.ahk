@@ -206,7 +206,9 @@ class CoreChecks {
             this.Assert(SuiteChecks.HasRoute(manager, "power-up-utilities.keyboard.f13"), "restoring a valid configuration restores the module routes")
             manager.actions["paper-pad.toggle"].available := false
             defaults := manager._DefaultConfiguration()
-            this.Assert(defaults["paper-pad.toggle"].bindings[1] = Keybindings.Parse("Win + F12").signature, "shortcut defaults include disabled actions")
+            this.Assert(defaults["paper-pad.toggle"].bindings[1] = Keybindings.Parse("Win + F12").signature
+                && defaults["paper-pad.toggle"].bindings[2] = Keybindings.Parse("Caps + F12").signature,
+                "shortcut defaults include disabled actions")
             manager.actions["paper-pad.toggle"].available := true
 
             ; Direct callbacks exercise dry-run guards without emitting any input.
