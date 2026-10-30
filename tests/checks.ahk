@@ -33,7 +33,22 @@ class SuiteChecks {
         return false
     }
 
+    ; The checks open windows and test focus, so a key press or click while
+    ; they run can fail one. A countdown on every display asks for hands off;
+    ; it is gone before the first check.
+    static WarnHandsOff(seconds := 3) {
+        Loop seconds {
+            text := "Super Hotkey checks start in " (seconds - A_Index + 1)
+                . " s`nHands off the keyboard and mouse until they finish"
+            Loop MonitorGetCount()
+                SuiteNotice.Show("checks-" A_Index, text, , A_Index)
+            Sleep 1000
+        }
+        SuiteNotice.Destroy()
+    }
+
     static Run() {
+        this.WarnHandsOff()
         DirCreate this.directory
         CoreChecks.Run()
         KeybindingsChecks.Run()

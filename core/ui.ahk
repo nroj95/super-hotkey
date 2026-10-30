@@ -140,8 +140,9 @@ class SuiteNotice {
     static order := ["layer", "status"] ; top to bottom when both show
     static notices := Map()
 
-    ; Shows text in slot until Hide, or for durationMs when given.
-    static Show(slot, text, durationMs := 0) {
+    ; Shows text in slot until Hide, or for durationMs when given. A monitor
+    ; index centers it there instead of on the working display.
+    static Show(slot, text, durationMs := 0, monitor := 0) {
         if !this.notices.Has(slot)
             this.notices[slot] := {window: 0, text: "", timer: ObjBindMethod(this, "Hide", slot)}
         notice := this.notices[slot]
@@ -153,7 +154,7 @@ class SuiteNotice {
             notice.text := text
         }
         notice.window.GetPos(, , &width, &height)
-        MonitorGetWorkArea(SuiteWorkingMonitor.Get(), &left, &top, &right, &bottom)
+        MonitorGetWorkArea(monitor || SuiteWorkingMonitor.Get(), &left, &top, &right, &bottom)
         ; Centered unless an earlier notice is showing; then directly below it.
         offset := 0
         for name in this.order {

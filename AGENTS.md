@@ -35,6 +35,7 @@ Super Hotkey is one AutoHotkey v2 64-bit process: a launcher, a small core and f
 ## checks
 
 - run `python tests/check.py` on Windows; `--autohotkey PATH` selects the interpreter. it runs the portable tests, a parse check and the native harness in dry-run mode.
+- the native checks open windows and test focus; a three-second countdown on every display asks for hands off the keyboard and mouse until they finish, which takes about 20 seconds.
 - tests use disposable preferences and dry-run inputs. never perform real system sleep, speaker actions or personal note operations in automated checks.
 - files are UTF-8 without a BOM, with LF line endings.
 - keep the root MIT license and the FatCow icon attribution in `assets/`.
