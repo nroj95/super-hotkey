@@ -1,4 +1,5 @@
-; Cascade Kingdom: destinations, settings, stabilization, drop guides, focus tabs, adoption,
+; Cascade Kingdom: destinations, settings, stabilization, drop guides, focus tabs and
+; their absence from a cascade of one window, adoption,
 ; compaction plans, home displays, the next-cascade order, snapped-window drags,
 ; mirroring and cascades kept across restarts.
 ; Disposable preferences, dry-run inputs and test-owned windows only.
@@ -7,6 +8,7 @@ class CascadeChecks {
         this.LiveCascadeSettings()
         this.PlacementStabilization()
         this.FocusTabDpi()
+        this.LoneWindowTabs()
         WW_RunWindowCommand(ObjBindMethod(this, "MaximizedAdoption"))
         this.SavedCascades()
         this.CompactionPlan()
@@ -416,6 +418,48 @@ class CascadeChecks {
             DestroyFocusCornerOverlay(window.Hwnd)
             window.Destroy()
             app.dryRun := true
+            Critical(previousCritical)
+        }
+    }
+
+    ; Tabs show once a second window joins and leave when it minimizes. A
+    ; member being dragged keeps its slot.
+    static LoneWindowTabs() {
+        InitializeCascadeState()
+        first := SuiteGui("+Resize", "Lone cascade first window")
+        second := SuiteGui("+Resize", "Lone cascade second window")
+        monitor := MonitorGetPrimary()
+        ; The front window of each slot whose tabs show, with focus elsewhere.
+        targets(windows) {
+            live := Map()
+            for window in windows
+                live[window.Hwnd] := monitor
+            scene := ReadFocusTabScene(live)
+            return ChooseFocusTabTargets(scene, GetCascadeWindowZRanks(), A_ScriptHwnd).selected
+        }
+        previousCritical := Critical("On")
+        try {
+            CascadeState.displays := ReadCascadeDisplays().displays
+            slots := GetCanonicalCascadeGeometry(monitor).slots
+            for index, window in [first, second] {
+                window.Show("NA w400 h300")
+                WinMovePixels(slots[index][1], slots[index][2], 400, 300, "ahk_id " window.Hwnd)
+            }
+            this.Assert(targets([first]).Count = 0, "a cascade of one window shows no focus tabs")
+            selected := targets([first, second])
+            this.Assert(selected.Count = 2 && selected.Has(first.Hwnd) && selected.Has(second.Hwnd),
+                "a second window brings back both windows' tabs")
+            CascadeState.windowDrag := {hwnd: second.Hwnd, source_monitor: monitor, minmax: 0}
+            this.Assert(targets([first]).Has(first.Hwnd), "dragging the second window keeps the first one's tabs")
+            CascadeState.windowDrag := 0
+            WinMinimize(second.Hwnd)
+            this.Assert(targets([first, second]).Count = 0,
+                "the tabs leave again when the second window gives up its slot")
+        }
+        finally {
+            InitializeCascadeState()
+            first.Destroy()
+            second.Destroy()
             Critical(previousCritical)
         }
     }

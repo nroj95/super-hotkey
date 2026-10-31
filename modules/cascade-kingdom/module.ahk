@@ -158,7 +158,8 @@ class CascadeKingdomModule extends SuiteModule {
             . "`r`nEach slot has a focus tab on both sides: at the lower left and the upper "
             . "right. Click either to select a slot. Click again to cycle windows sharing "
             . "that slot. Active tabs and drop guides use your Windows accent color; "
-            . "choose the inactive tab color in Settings."
+            . "choose the inactive tab color in Settings. A cascade of one window shows "
+            . "no tabs."
     }
 }
 

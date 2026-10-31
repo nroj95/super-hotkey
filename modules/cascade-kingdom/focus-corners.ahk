@@ -2,7 +2,8 @@
 ; Each exposed window has a tab outside its left edge at the bottom and one
 ; outside its right edge at the top, mirrored. The highest slot's left tab and
 ; the lowest slot's right tab run along the whole side. A mirrored cascade
-; swaps all of it left for right.
+; swaps all of it left for right. A cascade holding one window shows no tabs:
+; there is nothing to switch to.
 
 ; =============================================================================
 ; overlay updates
@@ -75,11 +76,12 @@ UpdateFocusCornerOverlays()
         QueueFocusCornerUpdate()
 }
 
-; Where each shown member is, grouped by slot, with each display's DPI and its
-; highest and lowest window; 0 while a display still needs a refresh.
+; Where each shown member is, grouped by slot, with each display's DPI, its
+; highest and lowest window and how many windows hold its slots; 0 while a
+; display still needs a refresh.
 ReadFocusTabScene(live_windows)
 {
-    scene := {bounds: Map(), stacks: [], dpi: Map(), highest: Map(), lowest: Map()}
+    scene := {bounds: Map(), stacks: [], dpi: Map(), highest: Map(), lowest: Map(), members: Map()}
     stacks_by_slot := Map()
     geometry_by_monitor := Map()
     highest_y_by_monitor := Map()
@@ -109,12 +111,13 @@ ReadFocusTabScene(live_windows)
         ; Use the same observed rectangle for membership, grouping and painting.
         stack_key := monitor_index ":" slot_index
         if !stacks_by_slot.Has(stack_key) {
-            stack_info := Map("slot_index", slot_index, "windows", [])
+            stack_info := Map("slot_index", slot_index, "monitor", monitor_index, "windows", [])
             stacks_by_slot[stack_key] := stack_info
             scene.stacks.Push(stack_info)
         }
         stacks_by_slot[stack_key]["windows"].Push(hwnd)
         scene.bounds[hwnd] := [window_x, window_y, window_width, window_height, monitor_index]
+        scene.members[monitor_index] := scene.members.Get(monitor_index, 0) + 1
 
         if !scene.highest.Has(monitor_index) || window_y < highest_y_by_monitor[monitor_index] {
             scene.highest[monitor_index] := hwnd
@@ -125,17 +128,25 @@ ReadFocusTabScene(live_windows)
             lowest_y_by_monitor[monitor_index] := window_y
         }
     }
+
+    ; A member dragged from its slot keeps it until the drop.
+    drag := CascadeState.windowDrag
+    if IsObject(drag) && drag.source_monitor && !drag.minmax && scene.members.Has(drag.source_monitor)
+        scene.members[drag.source_monitor] += 1
     return scene
 }
 
 ; The window each slot's tabs stand for, with the sides whose tab runs full
-; height, and every window in the active window's slot.
+; height, and every window in the active window's slot. Cascades of one window
+; have none.
 ChooseFocusTabTargets(scene, z_ranks, active_hwnd)
 {
     selected_targets := Map()
     active_slot_targets := Map()
 
     for stack_info in scene.stacks {
+        if scene.members[stack_info["monitor"]] < 2
+            continue
         ordered_windows := SortCascadeWindowsByZOrder(stack_info["windows"], z_ranks)
         selected_hwnd := SelectFocusCornerSlotTarget(ordered_windows, active_hwnd)
         contains_active := false

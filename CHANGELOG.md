@@ -6,6 +6,10 @@
 
 - **Power-Up Utilities:** `Pause + Shift + End` allows sleep again instead of cycling long durations. `Pause + End` steps through 30 min, 1 h, 2 h, 4 h, 8 h and no limit while its notice shows; once the notice has gone, the next press starts over at 30 min instead of carrying on from a press long ago. A hotkey you assigned to the long cycle is not carried over.
 
+### Changes
+
+- **Cascade Kingdom** shows no focus tabs on a cascade of one window, since there is nothing to switch to. They return as soon as a second window joins, and leave again when it is closed, minimized or maximized, hidden to the tray or moved to another virtual desktop. Each display's cascade decides for itself.
+
 ### Fixes
 
 - **Power-Up Utilities:** when stay awake runs out, its "Sleep allowed again" notice shows on every display for 3 seconds. If the computer sleeps or is locked, the notice shows a second after you unlock instead of behind the lock screen.
