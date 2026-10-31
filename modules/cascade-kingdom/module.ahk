@@ -170,11 +170,6 @@ class CascadeKingdomModule extends SuiteModule {
             . "right. Click either to select a slot. Click again to cycle windows sharing "
             . "that slot. Active tabs and drop guides use your Windows accent color; "
             . "choose the inactive tab color in Settings."
-            . "`r`n`r`nMIRROR"
-            . "`r`nTurn on Mirror in Settings to cascade toward the left instead. Everything "
-            . "swaps sides: the tabs sit at the upper left and the lower right, the guides "
-            . "mark top-right corners, and a window's top-right corner adds it. Open "
-            . "cascades rearrange when you click Apply."
     }
 }
 
