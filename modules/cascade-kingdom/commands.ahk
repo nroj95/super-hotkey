@@ -412,94 +412,9 @@ WatchCascadeWindowRestores()
 
     for monitor_index, batch in CascadeState.restoreBatches.Clone() {
         generation := batch.generation
-        geometry := 0
-        snapshot := ""
-        ready := true
-        stale_targets := []
-
-        for hwnd, pid in batch.targets.Clone() {
-            if !WinExist(hwnd) || GetManagedCascadeMonitor(hwnd) != monitor_index
-                || IsCascadeWindowBeingDragged(hwnd)
-            {
-                stale_targets.Push(hwnd)
-                continue
-            }
-            try {
-                if WinGetPID(hwnd) != pid {
-                    stale_targets.Push(hwnd)
-                    continue
-                }
-                state := WinGetMinMax(hwnd)
-                if state = 1 {
-                    ; Respect a maximized window instead of pulling it into slots.
-                    stale_targets.Push(hwnd)
-                    continue
-                }
-                if state != 0 || !DllCall("IsWindowVisible", "ptr", hwnd, "int")
-                    || IsWindowCloaked(hwnd)
-                    || !GetVisibleWindowBounds(hwnd, &x, &y, &width, &height)
-                {
-                    ready := false
-                    continue
-                }
-                ; Do not accept a stable but still off-screen/minimized DWM frame.
-                ; Use actual bounds, not an in-flight placement reservation.
-                if !IsObject(geometry)
-                    geometry := GetCanonicalCascadeGeometry(monitor_index)
-                if WindowMonitorIndex(hwnd) != monitor_index
-                    || !FindNearestCascadeSlot(x, y, geometry.slots, CascadeState.slotTolerance)
-                {
-                    ready := false
-                    continue
-                }
-                WinGetPosPixels(&raw_x, &raw_y, &raw_width, &raw_height, hwnd)
-                snapshot .= (hwnd ":" x "," y "," width "," height
-                    . ":" raw_x "," raw_y "," raw_width "," raw_height "|")
-            }
-            catch {
-                ready := false
-            }
-        }
-
+        observed := ReadCascadeRestoreSnapshot(monitor_index, batch)
         previous_critical := Critical("On")
-        try {
-            ; A native callback may have superseded this snapshot during a query.
-            if !CascadeState.restoreBatches.Has(monitor_index)
-                || CascadeState.restoreBatches[monitor_index] != batch
-                || batch.generation != generation
-                continue
-
-            for hwnd in stale_targets
-                batch.targets.Delete(hwnd)
-
-            now := A_TickCount
-            settled := batch.targets.Count = 0
-            if !ready {
-                batch.snapshot := ""
-            } else if snapshot != batch.snapshot {
-                batch.snapshot := snapshot
-                batch.stable_since := now
-            } else if ((now - batch.stable_since) & 0xFFFFFFFF) >= CascadeState.restoreSettleMs {
-                settled := true
-            }
-
-            timed_out := ((now - batch.started_tick) & 0xFFFFFFFF) >= CascadeState.restoreTimeoutMs
-            if !settled && !timed_out
-                continue
-
-            if settled && ready {
-                for hwnd in batch.targets
-                    ForgetCascadeMinimizedObservation(hwnd)
-            }
-            CascadeState.restoreBatches.Delete(monitor_index)
-            ; Rebuild from current history without adopting windows opened while paused.
-            ; The existing planner still preserves explicit drop-slot preferences.
-            QueueCascadeCompaction(monitor_index)
-            QueueFocusCornerUpdate()
-            DebugLog("Cascade restore reconciliation. | monitor=" monitor_index
-                " | reason=" (settled ? "settled" : "timeout")
-                " | targets=" batch.targets.Count)
-        }
+        try SettleCascadeRestore(monitor_index, batch, generation, observed)
         finally {
             Critical(previous_critical)
         }
@@ -507,6 +422,101 @@ WatchCascadeWindowRestores()
 
     if !CascadeState.restoreBatches.Count
         SetTimer(WatchCascadeWindowRestores, 0)
+}
+
+; Where a restore batch's windows are now: a signature of their rectangles,
+; whether every one is back and shown in a slot, and the targets that left.
+ReadCascadeRestoreSnapshot(monitor_index, batch)
+{
+    geometry := 0
+    observed := {snapshot: "", ready: true, stale: []}
+
+    for hwnd, pid in batch.targets.Clone() {
+        if !WinExist(hwnd) || GetManagedCascadeMonitor(hwnd) != monitor_index
+            || IsCascadeWindowBeingDragged(hwnd)
+        {
+            observed.stale.Push(hwnd)
+            continue
+        }
+        try {
+            if WinGetPID(hwnd) != pid {
+                observed.stale.Push(hwnd)
+                continue
+            }
+            state := WinGetMinMax(hwnd)
+            if state = 1 {
+                ; Respect a maximized window instead of pulling it into slots.
+                observed.stale.Push(hwnd)
+                continue
+            }
+            if state != 0 || !DllCall("IsWindowVisible", "ptr", hwnd, "int")
+                || IsWindowCloaked(hwnd)
+                || !GetVisibleWindowBounds(hwnd, &x, &y, &width, &height)
+            {
+                observed.ready := false
+                continue
+            }
+            ; Do not accept a stable but still off-screen/minimized DWM frame.
+            ; Use actual bounds, not an in-flight placement reservation.
+            if !IsObject(geometry)
+                geometry := GetCanonicalCascadeGeometry(monitor_index)
+            if WindowMonitorIndex(hwnd) != monitor_index
+                || !FindNearestCascadeSlot(x, y, geometry.slots, CascadeState.slotTolerance)
+            {
+                observed.ready := false
+                continue
+            }
+            WinGetPosPixels(&raw_x, &raw_y, &raw_width, &raw_height, hwnd)
+            observed.snapshot .= (hwnd ":" x "," y "," width "," height
+                . ":" raw_x "," raw_y "," raw_width "," raw_height "|")
+        }
+        catch {
+            observed.ready := false
+        }
+    }
+    return observed
+}
+
+; Ends a restore batch once its windows have held still long enough, or it
+; timed out, and lets the cascade close up. Runs inside a critical section.
+SettleCascadeRestore(monitor_index, batch, generation, observed)
+{
+    ; A native callback may have superseded this snapshot during a query.
+    if !CascadeState.restoreBatches.Has(monitor_index)
+        || CascadeState.restoreBatches[monitor_index] != batch
+        || batch.generation != generation
+        return
+
+    for hwnd in observed.stale
+        batch.targets.Delete(hwnd)
+
+    now := A_TickCount
+    settled := batch.targets.Count = 0
+    if !observed.ready {
+        batch.snapshot := ""
+    } else if observed.snapshot != batch.snapshot {
+        batch.snapshot := observed.snapshot
+        batch.stable_since := now
+    } else if ((now - batch.stable_since) & 0xFFFFFFFF) >= CascadeState.restoreSettleMs {
+        settled := true
+    }
+
+    timed_out := ((now - batch.started_tick) & 0xFFFFFFFF) >= CascadeState.restoreTimeoutMs
+    if !settled && !timed_out
+        return
+
+    if settled && observed.ready {
+        for hwnd in batch.targets
+            ForgetCascadeMinimizedObservation(hwnd)
+    }
+    CascadeState.restoreBatches.Delete(monitor_index)
+    ; Rebuild from current history without adopting windows opened while paused.
+    ; The existing planner still preserves explicit drop-slot preferences.
+    QueueCascadeCompaction(monitor_index)
+    QueueFocusCornerUpdate()
+    DebugLog("Cascade restore reconciliation. | monitor=" monitor_index
+        " | reason=" (settled ? "settled" : "timeout")
+        " | targets=" batch.targets.Count)
 }
 
 RemoveWindowFromCascadeRestore(hwnd)
