@@ -545,36 +545,10 @@ CompactCascadeLayout(monitor_index, preferred_hwnd := 0)
     windows := GetLiveCascadeHistory(monitor_index)
     managed_window_count := windows.Length
     membership_generation := CascadeState.membershipGeneration
-
-    ; Stack construction excludes members that are not shown, without touching them.
-    if windows.Length = 0
+    if !(order := ReadCascadeSlotOrder(monitor_index, windows))
         return
-
-    stacks := BuildCascadeSlotStacks(windows, CascadeState.slotTolerance)
-
-    if stacks.Length = 0
-        return
-
-    geometry := GetCanonicalCascadeGeometry(monitor_index)
-    slots := geometry.slots
-
-    if slots.Length = 0
-        return
-
-    z_ranks := GetCascadeWindowZRanks()
-    ordered_stacks := []
-
-    Loop slots.Length
-        ordered_stacks.Push([])
-
-    for stack_info in stacks {
-        ordered_stacks[stack_info["slot_index"]] := SortCascadeWindowsByZOrder(
-            stack_info["windows"],
-            z_ranks
-        )
-    }
-
-    target_stacks := BuildStableCascadeCompactionPlan(ordered_stacks, preferred_hwnd)
+    slots := order.slots
+    target_stacks := BuildStableCascadeCompactionPlan(order.stacks, preferred_hwnd)
 
     ; Never apply an old plan after a newer drag or membership change, or while
     ; layout is deferred: queue it again instead.
@@ -602,9 +576,51 @@ CompactCascadeLayout(monitor_index, preferred_hwnd := 0)
         }
     }
 
-    ; Keep each target stack in the same top-to-bottom order within each native
-    ; Z-order band. Never place a topmost window after a normal window: Windows
-    ; would remove its WS_EX_TOPMOST state as a side effect.
+    if !RestackCascadeSlots(target_stacks, Superseded)
+        return
+
+    QueueFocusCornerUpdate()
+    DebugLog("Cascade compaction pass. | monitor=" monitor_index
+        " | managed=" managed_window_count " | slots=" slots.Length
+        " | failed-moves=" failed_moves)
+}
+
+
+; A display's slots and, for each slot, its shown members front to back; 0
+; when there is nothing to compact.
+ReadCascadeSlotOrder(monitor_index, windows)
+{
+    ; Stack construction excludes members that are not shown, without touching them.
+    if windows.Length = 0
+        return 0
+
+    stacks := BuildCascadeSlotStacks(windows, CascadeState.slotTolerance)
+
+    if stacks.Length = 0
+        return 0
+
+    slots := GetCanonicalCascadeGeometry(monitor_index).slots
+
+    if slots.Length = 0
+        return 0
+
+    z_ranks := GetCascadeWindowZRanks()
+    ordered_stacks := []
+
+    Loop slots.Length
+        ordered_stacks.Push([])
+
+    for stack_info in stacks
+        ordered_stacks[stack_info["slot_index"]] := SortCascadeWindowsByZOrder(stack_info["windows"], z_ranks)
+    return {slots: slots, stacks: ordered_stacks}
+}
+
+; Keeps each target stack in the same top-to-bottom order within each native
+; Z-order band. Never place a topmost window after a normal window: Windows
+; would remove its WS_EX_TOPMOST state as a side effect. Returns false when
+; superseded() says a newer change took over midway.
+RestackCascadeSlots(target_stacks, superseded)
+{
     for stack_windows in target_stacks {
         topmost_windows := []
         normal_windows := []
@@ -633,8 +649,8 @@ CompactCascadeLayout(monitor_index, preferred_hwnd := 0)
                 continue
 
             Loop band_windows.Length - 1 {
-                if Superseded()
-                    return
+                if superseded()
+                    return false
                 upper_hwnd := band_windows[A_Index]
                 lower_hwnd := band_windows[A_Index + 1]
 
@@ -642,13 +658,8 @@ CompactCascadeLayout(monitor_index, preferred_hwnd := 0)
             }
         }
     }
-
-    QueueFocusCornerUpdate()
-    DebugLog("Cascade compaction pass. | monitor=" monitor_index
-        " | managed=" managed_window_count " | slots=" slots.Length
-        " | failed-moves=" failed_moves)
+    return true
 }
-
 
 ; Plan without moving windows: preserve existing slots, then fill only holes.
 ; Only shown windows count: a hidden member's hole is filled like any other,
