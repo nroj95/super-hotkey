@@ -35,6 +35,8 @@ class WonderWindowsChecks {
                 windows.Push(window)
             }
             front := [windows[2].Hwnd, windows[1].Hwnd]
+            ; Win + M usually minimizes the window the user is in.
+            ActivateWindow(windows[2].Hwnd)
             monitor := WindowMonitorIndex(windows[1].Hwnd)
             device := MonitorGetName(monitor)
             other := MonitorGetCount() > 1 ? Mod(monitor, MonitorGetCount()) + 1 : 0
@@ -50,6 +52,8 @@ class WonderWindowsChecks {
             this.Assert(Minimized(windows[1]) && Minimized(windows[2]) && remembered.Length = 2
                 && remembered[1].hwnd = windows[2].Hwnd,
                 "Win + M minimizes every window on its display and remembers them front to back")
+            this.Assert(DllCall("GetForegroundWindow", "ptr") = DllCall("GetShellWindow", "ptr"),
+                "after Win + M focus rests on the desktop, never another display's window")
             WW_MinimizeAllWindows(front, monitor)
             this.Assert(WW_minimized_all.Get(device, []).Length = 2,
                 "a Win + M with nothing left to minimize keeps what Win + Shift + M restores")

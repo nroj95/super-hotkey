@@ -119,17 +119,16 @@ WW_MinimizeAllWindows(windows?, monitor?)
             if !(WinGetStyle("ahk_id " hwnd) & 0x20000) ; WS_MINIMIZEBOX
                 continue
             pid := WinGetPID("ahk_id " hwnd)
-            WinMinimize("ahk_id " hwnd)
+            ; An ordinary minimize hands focus to the next window, which may be
+            ; on another display, and does so late. This one hands it nowhere.
+            DllCall("ShowWindowAsync", "ptr", hwnd, "int", 7) ; SW_SHOWMINNOACTIVE
             added.Push({hwnd: hwnd, pid: pid})
         }
         catch Error as err
             WW_DebugError("Minimize all windows", err)
     }
-    if added.Length {
-        ; Windows hands focus on asynchronously, maybe to another display.
-        Sleep 100
-        try WinActivate("ahk_class Progman")
-    }
+    if added.Length
+        WW_FocusDesktopAfter(added)
     ; Windows minimized now were in front of those minimized before.
     for entry in WW_minimized_all.Get(device, []) {
         listed := false
@@ -139,6 +138,30 @@ WW_MinimizeAllWindows(windows?, monitor?)
             added.Push(entry)
     }
     WW_minimized_all[device] := added
+}
+
+; Once every window in entries has minimized, hands focus to the desktop and
+; makes sure it stays there for a moment.
+WW_FocusDesktopAfter(entries)
+{
+    Loop 40 {
+        pending := false
+        for entry in entries
+            pending := pending || DllCall("IsWindow", "ptr", entry.hwnd, "int")
+                && !DllCall("IsIconic", "ptr", entry.hwnd, "int")
+        if !pending
+            break
+        Sleep 25
+    }
+    desktop := DllCall("GetShellWindow", "ptr")
+    Loop 8 {
+        if DllCall("GetForegroundWindow", "ptr") != desktop
+            ActivateWindow(desktop)
+        Sleep 25
+    }
+    if DllCall("GetForegroundWindow", "ptr") != desktop
+        WW_DebugLog("Win + M could not focus the desktop. | foreground="
+            . DescribeWindow(DllCall("GetForegroundWindow", "ptr")))
 }
 
 ; Restores the working display's windows back to front, so the frontmost ends
