@@ -572,7 +572,10 @@ class PaperPadController
         this.busy := true
         try {
             ; Reuse this watcher for Z-order without another permanent timer.
+            ; It runs every tick, so a failure is only worth a verbose line.
             try this.SyncZOrder()
+            catch Error as failure
+                SuiteState.Log.Debug("Paper Pad", "Z-order sync failed: " failure.Message)
 
             ; Reconcile native File > New and File > Save As without another timer.
             if !this.bridge || this.bridge.tainted
@@ -1371,6 +1374,8 @@ class PaperPadController
             WinShow "ahk_id " this.window_hwnd
             this.FocusEditor()
         }
+        catch Error as failure
+            SuiteState.Log.Error("Paper Pad / reveal after error", failure)
     }
 
     ReportError(failure, notification := false)
@@ -1404,8 +1409,12 @@ class PaperPadController
         SetTimer this.process_commands_callback, 0
         ; Leave the native editor to Windows during shutdown or logoff.
         if exit_reason != "Shutdown" && exit_reason != "Logoff" && this.HasWindow() {
+            ; A page that could not be saved stays open in the editor, which a
+            ; restart reattaches and any other exit reveals; the log says why.
             if !this.exit_prepared {
                 try this.SaveCurrentPage()
+                catch Error as failure
+                    SuiteState.Log.Error("Paper Pad / save on exit", failure)
             }
             ; Reload retains the real editor and its undo history. Unexpected
             ; ordinary exits reveal it rather than stranding a hidden document.
@@ -1418,6 +1427,8 @@ class PaperPadController
                     WinShow "ahk_id " this.window_hwnd
                 }
             }
+            catch Error as failure
+                SuiteState.Log.Error("Paper Pad / editor handoff on exit", failure)
         }
         this.bridge := 0
         return 0
