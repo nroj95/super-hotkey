@@ -96,24 +96,49 @@ WW_MinimizeActiveWindow()
     }
 }
 
-; Win + M minimizes every window on the working display, and Win + Shift + M
-; brings that display's back with the frontmost on top again. Unlike Windows'
-; own pair, which spans every display, a Win + M with nothing left to minimize
-; keeps what Win + Shift + M restores, and a later Win + M adds to it. Like
-; Windows, windows without a minimize button stay, and focus goes to the
-; desktop, so the emptied display stays the working one. windows is every
-; window front to back unless the checks pass their own.
+; Win + M minimizes every window on the working display, Win + Home every one
+; but the active window, and Win + Shift + M brings back what either minimized
+; there, with the frontmost on top again. Unlike Windows' own keys, which span
+; every display, each display remembers its own windows: a press with nothing
+; left to minimize keeps them, and a later one adds to them. Like Windows,
+; windows without a minimize button stay. windows is every window front to
+; back unless the checks pass their own.
 WW_MinimizeAllWindows(windows?, monitor?)
 {
     Critical "On"
 
+    monitor := IsSet(monitor) ? monitor : SuiteWorkingMonitor.Get()
+    ; Focus goes to the desktop, so the emptied display stays the working one.
+    added := WW_MinimizeDisplayWindows(IsSet(windows) ? windows : WinGetList(), monitor)
+    if added.Length
+        WW_FocusDesktopAfter(added)
+}
+
+; Win + Home minimizes the other windows on the active window's display and
+; keeps it in front. With none of them left showing, it brings them back
+; behind it, as Windows does, but going by what is on screen rather than by a
+; memory any other window change erases. From the desktop it only brings back.
+WW_MinimizeOtherWindows(windows?)
+{
+    Critical "On"
+
+    active := WinExist("A")
+    if !active || !IsSwitchableWindow(active)
+        return WW_RestoreAllWindows()
+    monitor := WindowMonitorIndex(active)
+    if !WW_MinimizeDisplayWindows(IsSet(windows) ? windows : WinGetList(), monitor, active).Length
+        WW_RestoreAllWindows(monitor, active)
+}
+
+; Minimizes the shown windows on monitor except keep, in front of what that
+; display already remembers. Returns the windows minimized now.
+WW_MinimizeDisplayWindows(windows, monitor, keep := 0)
+{
     global WW_minimized_all
 
-    monitor := IsSet(monitor) ? monitor : SuiteWorkingMonitor.Get()
-    device := MonitorGetName(monitor)
     added := []
-    for hwnd in IsSet(windows) ? windows : WinGetList() {
-        if !IsSwitchableWindow(hwnd) || WindowMonitorIndex(hwnd) != monitor
+    for hwnd in windows {
+        if hwnd = keep || !IsSwitchableWindow(hwnd) || WindowMonitorIndex(hwnd) != monitor
             continue
         try {
             if !(WinGetStyle("ahk_id " hwnd) & 0x20000) ; WS_MINIMIZEBOX
@@ -125,19 +150,20 @@ WW_MinimizeAllWindows(windows?, monitor?)
             added.Push({hwnd: hwnd, pid: pid})
         }
         catch Error as err
-            WW_DebugError("Minimize all windows", err)
+            WW_DebugError("Minimize display windows", err)
     }
-    if added.Length
-        WW_FocusDesktopAfter(added)
     ; Windows minimized now were in front of those minimized before.
+    device := MonitorGetName(monitor)
+    remembered := added.Clone()
     for entry in WW_minimized_all.Get(device, []) {
         listed := false
         for newer in added
             listed := listed || newer.hwnd = entry.hwnd
         if !listed
-            added.Push(entry)
+            remembered.Push(entry)
     }
-    WW_minimized_all[device] := added
+    WW_minimized_all[device] := remembered
+    return added
 }
 
 ; Once every window in entries has minimized, hands focus to the desktop and
@@ -165,8 +191,9 @@ WW_FocusDesktopAfter(entries)
 }
 
 ; Restores the working display's windows back to front, so the frontmost ends
-; on top, and focuses it. Windows restored or closed another way are skipped.
-WW_RestoreAllWindows(monitor?)
+; on top, and focuses it, or keeps keep in front and focused. Windows restored
+; or closed another way are skipped.
+WW_RestoreAllWindows(monitor?, keep := 0)
 {
     Critical "On"
 
@@ -189,8 +216,8 @@ WW_RestoreAllWindows(monitor?)
         catch Error as err
             WW_DebugError("Restore all windows", err)
     }
-    if front
-        ActivateWindow(front)
+    if keep || front
+        ActivateWindow(keep || front)
 }
 
 ; Windows restored or closed another way are skipped as they come up.

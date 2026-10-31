@@ -1,5 +1,5 @@
 ; Wonder Windows: geometry, ownership, tiles, stacking, stack and expanded-window
-; cycling, fullscreen detection, and Win + M with its restore.
+; cycling, fullscreen detection, and Win + M and Win + Home with their restore.
 ; Disposable preferences, dry-run inputs and test-owned windows only.
 class WonderWindowsChecks {
     static Run() {
@@ -66,6 +66,19 @@ class WonderWindowsChecks {
             WaitFor(() => !Minimized(windows[1]) && !Minimized(windows[2]))
             this.Assert(!Minimized(windows[1]) && !Minimized(windows[2]) && !WW_minimized_all.Has(device),
                 "Win + Shift + M brings every window on its display back")
+            ActivateWindow(windows[2].Hwnd)
+            WW_MinimizeOtherWindows(front)
+            WaitFor(() => Minimized(windows[1]))
+            remembered := WW_minimized_all.Get(device, [])
+            this.Assert(Minimized(windows[1]) && !Minimized(windows[2]) && remembered.Length = 1
+                && remembered[1].hwnd = windows[1].Hwnd
+                && DllCall("GetForegroundWindow", "ptr") = windows[2].Hwnd,
+                "Win + Home minimizes the other windows on its display and keeps the active one")
+            WW_MinimizeOtherWindows(front)
+            WaitFor(() => !Minimized(windows[1]))
+            this.Assert(!Minimized(windows[1]) && !WW_minimized_all.Has(device)
+                && DllCall("GetForegroundWindow", "ptr") = windows[2].Hwnd,
+                "Win + Home with nothing else showing brings them back behind the active window")
         }
         finally {
             WW_minimized_all := Map()
