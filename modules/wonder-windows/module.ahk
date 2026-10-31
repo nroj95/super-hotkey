@@ -55,15 +55,22 @@ class WonderWindowsModule extends SuiteModule {
         this.Add("minimize", "minimize active window", WW_MinimizeActiveWindow, ["Win + Backspace"])
         this.Add("restore-minimized", "restore last minimized window", WW_RestoreMinimizedWindow,
             ["Win + Shift + Backspace"])
+        ; Improved Windows keys that act on every window, so from any window.
+        this.Add("minimize-all", "minimize all windows", WW_MinimizeAllWindows, ["Win + M"],
+            , {hidden: true, anyWindow: true})
+        this.Add("restore-all", "restore windows minimized with Win + M", WW_RestoreAllWindows,
+            ["Win + Shift + M"], , {hidden: true, anyWindow: true})
     }
 
+    ; anyWindow drops the check that the active window is one Wonder Windows
+    ; may arrange.
     Add(id, label, command, bindings, arguments := unset, options := {}) {
         actionId := "wonder-windows." id
         arguments := IsSet(arguments) ? arguments : []
         this.catalog[actionId] := {command: command, arguments: arguments}
         this.manager.AddAction(actionId, label, ObjBindMethod(this, "Event"), bindings,
             {category: "Wonder Windows", available: ObjBindMethod(this, "Available"),
-                context: ObjBindMethod(this, "WindowContext"),
+                context: Keybindings.Option(options, "anyWindow", false) ? 0 : ObjBindMethod(this, "WindowContext"),
                 hidden: Keybindings.Option(options, "hidden", false)})
     }
 
@@ -241,7 +248,9 @@ class WonderWindowsModule extends SuiteModule {
             . "back in its cascade; pressed again it minimizes the window. "
             . "Win + Backspace minimizes the active window; focus stays on that display "
             . "while it has windows left, then moves to the next display. Win + Shift + "
-            . "Backspace brings back the windows it minimized, newest first."
+            . "Backspace brings back the windows it minimized, newest first. "
+            . "Win + M and Win + Shift + M minimize and restore every window, as in "
+            . "Windows, but an extra Win + M never forgets what Win + Shift + M restores."
             . "`r`n`r`nFOCUS, STACKS AND FULLSCREEN"
             . "`r`nWin + PgDn and PgUp step focus through every window on screen in reading "
             . "order: displays left to right, columns left to right, top before bottom, and "

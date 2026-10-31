@@ -96,6 +96,70 @@ WW_MinimizeActiveWindow()
     }
 }
 
+; Win + M minimizes every window, as Windows does, and Win + Shift + M brings
+; them back with the frontmost on top again. Unlike Windows' own pair, a
+; Win + M with nothing left to minimize keeps what Win + Shift + M restores,
+; and a later Win + M adds to it. Like Windows, windows without a minimize
+; button stay. windows is every window front to back unless the checks pass
+; their own.
+WW_MinimizeAllWindows(windows?)
+{
+    Critical "On"
+
+    global WW_minimized_all
+
+    added := []
+    for hwnd in IsSet(windows) ? windows : WinGetList() {
+        if !IsSwitchableWindow(hwnd)
+            continue
+        try {
+            if !(WinGetStyle("ahk_id " hwnd) & 0x20000) ; WS_MINIMIZEBOX
+                continue
+            pid := WinGetPID("ahk_id " hwnd)
+            WinMinimize("ahk_id " hwnd)
+            added.Push({hwnd: hwnd, pid: pid})
+        }
+        catch Error as err
+            WW_DebugError("Minimize all windows", err)
+    }
+    ; Windows minimized now were in front of those minimized before.
+    for entry in WW_minimized_all {
+        listed := false
+        for newer in added
+            listed := listed || newer.hwnd = entry.hwnd
+        if !listed
+            added.Push(entry)
+    }
+    WW_minimized_all := added
+}
+
+; Restores back to front, so the frontmost ends on top, and focuses it.
+; Windows restored or closed another way are skipped.
+WW_RestoreAllWindows()
+{
+    Critical "On"
+
+    global WW_minimized_all
+
+    entries := WW_minimized_all
+    WW_minimized_all := []
+    front := 0
+    Loop entries.Length {
+        entry := entries[entries.Length - A_Index + 1]
+        try {
+            if !WinExist("ahk_id " entry.hwnd) || WinGetPID("ahk_id " entry.hwnd) != entry.pid
+                || WinGetMinMax("ahk_id " entry.hwnd) != -1
+                continue
+            WinRestore("ahk_id " entry.hwnd)
+            front := entry.hwnd
+        }
+        catch Error as err
+            WW_DebugError("Restore all windows", err)
+    }
+    if front
+        ActivateWindow(front)
+}
+
 ; Windows restored or closed another way are skipped as they come up.
 WW_RestoreMinimizedWindow()
 {

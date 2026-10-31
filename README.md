@@ -30,6 +30,8 @@ Windows can also sit side by side with others stacked behind them: `Win + Enter`
 
 For big windows, `Win + Alt + Enter` shows the next maximized or fullscreen window on your display and minimizes the others, so one is out at a time. Add `Shift` to go back.
 
+`Win + M` and `Win + Shift + M` work as in Windows, except that an extra `Win + M` never makes `Win + Shift + M` forget what to bring back.
+
 ### Cascade Kingdom
 
 Keep windows in an overlapping cascade, which helps most when many apps are open. Every window keeps 80% of the display's width and height, however many you add. It steps down to the right, or to the left with Mirror in Settings.

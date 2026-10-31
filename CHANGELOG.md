@@ -8,6 +8,7 @@
 
 ### Changes
 
+- **Wonder Windows:** `Win + M` and `Win + Shift + M` minimize and restore every window, as in Windows, but a `Win + M` with nothing left to minimize no longer makes `Win + Shift + M` forget what to bring back, and a later `Win + M` adds to it. Restored windows keep their stacking order, with the frontmost focused.
 - **Cascade Kingdom:** `Caps + Tab` brings the next cascade forward and outlines its front window, from left to right across your displays and wrapping. From outside a cascade it starts with the one on your display. A notice says when there are no cascades, or no other one.
 - **Paper Pad:** `Caps + F12` shows or hides the drawer too, beside `Win + F12`.
 - **Suite windows** that resize, such as Help, Settings and Keybindings, show the Windows sizing grip in the lower-right corner again, on the window's own background. It hides while a window is maximized.

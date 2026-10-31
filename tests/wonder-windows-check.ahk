@@ -1,5 +1,5 @@
 ; Wonder Windows: geometry, ownership, tiles, stacking, stack and expanded-window
-; cycling, and fullscreen detection.
+; cycling, fullscreen detection, and Win + M with its restore.
 ; Disposable preferences, dry-run inputs and test-owned windows only.
 class WonderWindowsChecks {
     static Run() {
@@ -9,9 +9,51 @@ class WonderWindowsChecks {
         this.FullscreenDetection()
         this.ExpandedWindowCycle()
         this.MonitorWindowCycle()
+        this.MinimizeAll()
     }
 
     static Assert(condition, label) => SuiteChecks.Assert(condition, label)
+
+    ; Only two test windows are passed in, so no real window is minimized.
+    static MinimizeAll() {
+        global WW_minimized_all
+        WW_minimized_all := []
+        windows := []
+        Minimized(window) => WinGetMinMax("ahk_id " window.Hwnd) = -1
+        WaitFor(condition) {
+            Loop 40 {
+                if condition()
+                    return
+                Sleep 25
+            }
+        }
+        try {
+            Loop 2 {
+                window := SuiteGui("+Resize", "Minimize all check " A_Index)
+                SuiteWindowOwnership.AllowArranging(window)
+                window.Show("NA x" (120 + A_Index * 40) " y" (120 + A_Index * 40) " w320 h200")
+                windows.Push(window)
+            }
+            front := [windows[2].Hwnd, windows[1].Hwnd]
+            WW_MinimizeAllWindows(front)
+            WaitFor(() => Minimized(windows[1]) && Minimized(windows[2]))
+            this.Assert(Minimized(windows[1]) && Minimized(windows[2]) && WW_minimized_all.Length = 2
+                && WW_minimized_all[1].hwnd = windows[2].Hwnd,
+                "Win + M minimizes every window and remembers them front to back")
+            WW_MinimizeAllWindows(front)
+            this.Assert(WW_minimized_all.Length = 2,
+                "a Win + M with nothing left to minimize keeps what Win + Shift + M restores")
+            WW_RestoreAllWindows()
+            WaitFor(() => !Minimized(windows[1]) && !Minimized(windows[2]))
+            this.Assert(!Minimized(windows[1]) && !Minimized(windows[2]) && !WW_minimized_all.Length,
+                "Win + Shift + M brings every window back")
+        }
+        finally {
+            WW_minimized_all := []
+            for window in windows
+                window.Destroy()
+        }
+    }
 
     ; Apply a fixture's changed frame styles (SWP_FRAMECHANGED without moving).
     static RefreshFrame(hwnd) => DllCall("SetWindowPos", "ptr", hwnd, "ptr", 0,
