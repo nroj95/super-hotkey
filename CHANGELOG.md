@@ -6,6 +6,10 @@
 
 - **Power-Up Utilities:** `Pause + Shift + End` allows sleep again instead of cycling long durations. `Pause + End` steps through 30 min, 1 h, 2 h, 4 h, 8 h and no limit while its notice shows; once the notice has gone, the next press starts over at 30 min instead of carrying on from a press long ago. A hotkey you assigned to the long cycle is not carried over.
 
+### Fixes
+
+- **Power-Up Utilities:** when stay awake runs out while the computer sleeps or is locked, its "Sleep allowed again" notice waits until you unlock instead of showing behind the lock screen.
+
 ## v1.0.0-beta.3
 
 Windows' own keys, made predictable: `Win + M`, `Win + Home` and `Win + D` keep to your display, never forget, and take `Shift` to bring windows back. Cascades gain a mirrored direction, tabs on both sides and `Caps + Tab` between displays, and `Pause + End` keeps the computer awake.

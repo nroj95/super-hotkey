@@ -293,6 +293,7 @@ class PU_StayAwake {
         this.module := module
         this.index := 0
         this.stepped := 0  ; A_TickCount of the last step
+        this.missed := false  ; ended while asleep or locked, not yet shown
         this.timer := ObjBindMethod(this, "Expire")
     }
 
@@ -328,9 +329,26 @@ class PU_StayAwake {
             this.module.Report("stay awake ended")
     }
 
+    ; A timer that ran out during sleep fires on waking, behind the lock screen:
+    ; sleep is allowed at once, and the notice waits until the user is back.
     Expire(*) {
-        if this.index
+        if !this.index
+            return
+        app := this.module.app
+        if !(app.systemSuspended || app.sessionLocked) {
             this.AllowSleep()
+            return
+        }
+        this.End()
+        this.missed := true
+        this.module.Report("stay awake ended while asleep or locked")
+    }
+
+    ShowMissed() {
+        if !this.missed
+            return
+        this.missed := false
+        SuiteNotice.Show("status", "Sleep allowed again", PU_StayAwake.NoticeMs)
     }
 
     ; Withdraws the request; safe when none is active.
@@ -339,6 +357,7 @@ class PU_StayAwake {
         if this.index
             DllCall("SetThreadExecutionState", "uint", 0x80000000, "uint") ; ES_CONTINUOUS
         this.index := 0
+        this.missed := false
         this.module.SetTrayStatus("")
     }
 }

@@ -44,6 +44,19 @@ class PowerUpChecks {
         awake.End()
         this.Assert(awake.index = 0 && statuses.Length = 1 && statuses[1] = "",
             "ending without a request only clears the tray status")
+        reports := []
+        app := {systemSuspended: true, sessionLocked: true}
+        awake := PU_StayAwake({app: app, SetTrayStatus: (module, text) => 0,
+            Report: (module, text) => reports.Push(text)})
+        awake.index := 1
+        awake.Expire()
+        this.Assert(awake.index = 0 && awake.missed && reports.Length = 1,
+            "running out while asleep or locked allows sleep at once")
+        app.systemSuspended := app.sessionLocked := false
+        awake.ShowMissed()
+        this.Assert(!awake.missed && SuiteNotice.notices["status"].text = "Sleep allowed again",
+            "its notice shows once the user is back")
+        SuiteNotice.Hide("status")
     }
 
     static SleepPolicyRecovery() {
