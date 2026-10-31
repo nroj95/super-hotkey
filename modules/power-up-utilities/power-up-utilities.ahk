@@ -1,6 +1,7 @@
 ; Power-Up Utilities: extra keys, text and Terminal macros, and system actions.
-; Macros run after their trigger keys are released, outside input callbacks;
-; staying awake types nothing and answers each press at once.
+; Macros run once their trigger key and modifiers are released, outside input
+; callbacks, with Caps or Pause still allowed down; staying awake types nothing
+; and answers each press at once.
 
 class PowerUpUtilities extends SuiteModule {
     __New(app) {
@@ -260,15 +261,25 @@ class PowerUpUtilities extends SuiteModule {
         }
     }
 
+    ; Macros wait for their trigger key and every modifier, which would turn
+    ; typed characters into shortcuts. A held Caps or Pause never holds them
+    ; back, so a layer types like a real key. Sleep also waits for the layer
+    ; keys, so none can stay stuck down after waking.
     InputsReleased(event) {
         if !InStr(event.key, "Wheel") && GetKeyState(event.key, "P")
             return false
-        ; Include both layer keys even for ordinary bindings: they may have been
-        ; pressed after this command was queued. Never emit into a held layer.
-        for key in ["Ctrl", "Alt", "Shift", "LWin", "RWin", "CapsLock", "Pause", "CtrlBreak"]
+        kind := this.catalog.Has(event.actionId) ? this.catalog[event.actionId].kind : ""
+        for key in PowerUpUtilities.BlockingKeys(kind)
             if GetKeyState(key, "P")
                 return false
         return true
+    }
+
+    static BlockingKeys(kind) {
+        keys := ["Ctrl", "Alt", "Shift", "LWin", "RWin"]
+        if kind = "sleep"
+            keys.Push("CapsLock", "Pause", "CtrlBreak")
+        return keys
     }
 
     TargetActive(hwnd, pid) {
@@ -292,7 +303,8 @@ class PowerUpUtilities extends SuiteModule {
             . "`r`nInsert punctuation, special spaces or a yyyyMMdd-HHmmss timestamp. "
             . "Terminal copy and clear operate only in Windows Terminal and use its "
             . "default Ctrl + Shift + A, C and K shortcuts. "
-            . "Text commands wait for your triggering keys to be released before typing."
+            . "Text commands type as you release each key, so holding Pause and tapping "
+            . "- twice types two dashes; they wait while Shift, Ctrl, Alt or Win is held."
             . "`r`n`r`nSYSTEM UTILITIES"
             . "`r`nWake speakers that automatically enter standby, or put your computer "
             . "to sleep."

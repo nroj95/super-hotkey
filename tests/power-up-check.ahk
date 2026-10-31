@@ -1,13 +1,29 @@
-; Power-Up Utilities: sleep policy recovery and the stay-awake cycles.
+; Power-Up Utilities: sleep policy recovery, the stay-awake cycles and the keys
+; that hold macros back.
 ; Disposable preferences, dry-run inputs and test-owned windows only; staying
 ; awake is never requested from Windows here.
 class PowerUpChecks {
     static Run() {
         this.SleepPolicyRecovery()
         this.StayAwakeCycles()
+        this.BlockingKeys()
     }
 
     static Assert(condition, label) => SuiteChecks.Assert(condition, label)
+
+    static BlockingKeys() {
+        textKeys := ""
+        for key in PowerUpUtilities.BlockingKeys("text")
+            textKeys .= key " "
+        sleepKeys := ""
+        for key in PowerUpUtilities.BlockingKeys("sleep")
+            sleepKeys .= key " "
+        this.Assert(InStr(textKeys, "Shift") && InStr(textKeys, "Ctrl") && InStr(textKeys, "Alt")
+            && InStr(textKeys, "LWin") && !InStr(textKeys, "CapsLock") && !InStr(textKeys, "Pause"),
+            "text waits for modifiers, not for a held Caps or Pause")
+        this.Assert(InStr(sleepKeys, "CapsLock") && InStr(sleepKeys, "Pause") && InStr(sleepKeys, "Shift"),
+            "sleep still waits for every key, layer keys included")
+    }
 
     static StayAwakeCycles() {
         durations := PU_StayAwake.Durations
