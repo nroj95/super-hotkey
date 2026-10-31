@@ -13,7 +13,6 @@
 - **Cascade Kingdom:** focus tabs appear on the right side too, mirroring the left: one outside each window's upper-right corner, and a full-height one along the right side of the lowest window. Both tabs of a slot do the same thing.
 - **Cascade Kingdom:** Mirror in Settings makes cascades step down to the left instead of the right. Focus tabs, full-height tabs and drop guides swap sides with it, a drop is judged by the window's top-right corner, and open cascades rearrange when you click Apply.
 - **Power-Up Utilities:** `Pause + End` keeps the computer awake for 30 minutes, 1 h or 2 h, and `Pause + Shift + End` for 4 h, 8 h or until turned off. Each press steps to the next duration, counted from now, with a notice; after the last step sleep is allowed again. The tray icon's tooltip shows how long. Screens still turn off and lock, choosing Sleep or closing a laptop lid still sleeps, and suspending or exiting Super Hotkey ends it.
-
 - **Wonder Windows:** `Win + Alt + Enter` cycles maximized and fullscreen windows again, now only on your display, with `Win + Alt + Shift + Enter` going back; `Caps + Win + Enter` and `Caps + Win + Shift + Enter` work too. Each press shows the next one, minimized or not, and minimizes the others there. The loop no longer stops with all of them minimized: from any other window the first press brings back the one shown last, and `Win + Backspace` puts it away. Maximized cascade windows take part too, and a notice says when there is no other maximized or fullscreen window to show.
 - **Cascade Kingdom** closes the gap a window leaves when you minimize or maximize it, hide it to the tray or move it to another virtual desktop, as it does for a closed one. The window stays in its cascade: bring it back and it returns to its slot while the window that filled in moves back. Maximizing no longer takes a window out of its cascade.
 
@@ -25,6 +24,7 @@
 - **Cascade Kingdom:** when a display disconnects, its cascade joins the one on the primary display and spreads into free slots instead of landing on top of it, two windows to a slot. When the display reconnects, those windows return to its cascade.
 - **Cascade Kingdom:** dragging a window that Windows Snap arranged shows the drop guides on the first drag and can join the cascade. Windows giving it back its earlier size no longer counts as a resize.
 - **Secret Layers:** the "Caps held" and "Pause held" notices go away once a hotkey answers, so they no longer show next to that hotkey's own notice. Notices that show together always stack, whichever came first, and the rest move back to the center when one hides.
+- **Power-Up Utilities:** text hotkeys count every press while Pause is held, so `Pause` held with `- -` types two en dashes once you let go, in the order pressed. Before, repeated presses typed one.
 
 ## v1.0.0-beta.2
 

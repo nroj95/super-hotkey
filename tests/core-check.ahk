@@ -665,7 +665,29 @@ class CoreChecks {
             this.Assert(!power.pending.Count
                 && StrSplit(logText, "dry run: " awake.actionId).Length - 1 = 2,
                 "each stay-awake press answers at once while Pause is held")
+            ; Pause held: two dashes and an apostrophe are all kept, then typed in order.
+            power.DefineProp("TargetActive", {Call: (self, hwnd, pid) => true})
+            for actionId in ["text.en-dash", "text.en-dash", "text.apostrophe"] {
+                press := {actionId: "power-up-utilities." actionId, slot: 1, phase: "down",
+                    foregroundHwnd: A_ScriptHwnd, layer: "pause", key: "-", binding: "Pause + -",
+                    modifiers: 0, oneShot: false}
+                power.Dispatch(press)
+                press.phase := "up"
+                power.Dispatch(press)
+            }
+            this.Assert(power.pending.Count = 3, "every text press while Pause is held is kept")
             power.DefineProp("InputsReleased", {Call: (self, event) => true})
+            order := []
+            loop 3 {
+                power.CheckPending()
+                order.Push(IsObject(power.activeJob) ? power.activeJob.action.id : "")
+                if IsObject(power.activeJob)
+                    SetTimer(power.activeJob.worker, 0)
+                power.activeJob := 0
+            }
+            this.Assert(order[1] = "power-up-utilities.text.en-dash" && order[2] = order[1]
+                && order[3] = "power-up-utilities.text.apostrophe" && !power.pending.Count,
+                "after release they type in the order pressed")
 
             manager.gated := false
             event.phase := "down"

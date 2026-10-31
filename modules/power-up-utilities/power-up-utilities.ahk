@@ -8,6 +8,8 @@ class PowerUpUtilities extends SuiteModule {
         this.manager := 0
         this.stopping := false
         this.pending := Map()
+        this.pressTokens := Map()  ; action|slot -> its latest text press
+        this.sequence := 0
         this.generation := 0
         this.activeJob := 0
         this.catalog := Map()
@@ -123,6 +125,7 @@ class PowerUpUtilities extends SuiteModule {
     CancelWork() {
         this.generation += 1
         this.pending.Clear()
+        this.pressTokens.Clear()
         SetTimer(this.pollCallback, 0)
         this.keyboard.ReleaseAll()
         try this.utilities.RestoreSpeakerVolume()
@@ -138,7 +141,8 @@ class PowerUpUtilities extends SuiteModule {
             this.keyboard.Event(action.value, event)
             return
         }
-        token := event.actionId "|" event.slot
+        press := event.actionId "|" event.slot
+        token := this.pressTokens.Get(press, press)
         if event.phase = "cancel" {
             if this.pending.Has(token)
                 this.pending.Delete(token)
@@ -173,8 +177,17 @@ class PowerUpUtilities extends SuiteModule {
             if !targetPid || !this.TargetActive(event.foregroundHwnd, targetPid)
                 return
         }
+        ; Text waits for release, so every press while a layer is held is kept and
+        ; typed in order: Pause held with - - types two dashes. Other actions keep
+        ; one press, so a double sleep never sleeps twice.
+        this.sequence += 1
+        if action.kind = "text" || action.kind = "timestamp" {
+            token := press "|" this.sequence
+            this.pressTokens[press] := token
+        }
         this.pending[token] := {action: action, event: event.Clone(), pid: targetPid,
-            generation: this.generation, created: A_TickCount, completed: false, worker: 0}
+            generation: this.generation, created: A_TickCount, completed: false, worker: 0,
+            sequence: this.sequence}
         SetTimer(this.pollCallback, 15)
     }
 
@@ -183,6 +196,8 @@ class PowerUpUtilities extends SuiteModule {
             SetTimer(this.pollCallback, 0)
             return
         }
+        ; Run the earliest ready press, one at a time, in the order pressed.
+        next := ""
         for token, job in this.pending.Clone() {
             if !this.JobValid(job) || ((A_TickCount - job.created) & 0xFFFFFFFF) > 5000 {
                 this.pending.Delete(token)
@@ -190,12 +205,16 @@ class PowerUpUtilities extends SuiteModule {
             }
             if IsObject(this.activeJob) || !job.completed || !this.InputsReleased(job.event)
                 continue
-            this.pending.Delete(token)
+            if next = "" || job.sequence < this.pending[next].sequence
+                next := token
+        }
+        if next != "" {
+            job := this.pending[next]
+            this.pending.Delete(next)
             this.activeJob := job
             job.worker := ObjBindMethod(this, "RunJob", job)
             ; Slow macros do not run inside Keybindings' serialized event callback.
             SetTimer(job.worker, -1)
-            break
         }
         if !this.pending.Count
             SetTimer(this.pollCallback, 0)
