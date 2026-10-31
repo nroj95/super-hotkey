@@ -665,17 +665,23 @@ class CoreChecks {
             this.Assert(!power.pending.Count
                 && StrSplit(logText, "dry run: " awake.actionId).Length - 1 = 2,
                 "each stay-awake press answers at once while Pause is held")
-            ; Pause held: two dashes and an apostrophe are all kept, then typed in order.
+            ; Pause held: a dash, its key repeat and an apostrophe are all kept, each
+            ; ready on its press before any key comes up, then typed in order.
+            this.Assert(manager.actions["power-up-utilities.text.en-dash"].repeat
+                && !manager.actions["power-up-utilities.text.timestamp"].repeat,
+                "a held character repeats like a real key; a timestamp does not")
             power.DefineProp("TargetActive", {Call: (self, hwnd, pid) => true})
-            for actionId in ["text.en-dash", "text.en-dash", "text.apostrophe"] {
-                press := {actionId: "power-up-utilities." actionId, slot: 1, phase: "down",
+            for item in [["text.en-dash", "down"], ["text.en-dash", "repeat"], ["text.apostrophe", "down"]] {
+                press := {actionId: "power-up-utilities." item[1], slot: 1, phase: item[2],
                     foregroundHwnd: A_ScriptHwnd, layer: "pause", key: "-", binding: "Pause + -",
                     modifiers: 0, oneShot: false}
                 power.Dispatch(press)
-                press.phase := "up"
-                power.Dispatch(press)
             }
-            this.Assert(power.pending.Count = 3, "every text press while Pause is held is kept")
+            ready := 0
+            for token, job in power.pending
+                ready += job.completed
+            this.Assert(power.pending.Count = 3 && ready = 3,
+                "every text press and repeat is ready on the press, Pause held")
             power.DefineProp("InputsReleased", {Call: (self, event) => true})
             order := []
             loop 3 {
@@ -687,7 +693,7 @@ class CoreChecks {
             }
             this.Assert(order[1] = "power-up-utilities.text.en-dash" && order[2] = order[1]
                 && order[3] = "power-up-utilities.text.apostrophe" && !power.pending.Count,
-                "after release they type in the order pressed")
+                "they type in the order pressed")
 
             manager.gated := false
             event.phase := "down"

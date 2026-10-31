@@ -70,6 +70,8 @@ class PowerUpUtilities extends SuiteModule {
         this.manager.AddAction(actionId, label, ObjBindMethod(this, "Dispatch"),
             [defaultBinding], {category: category,
                 scope: group = "terminal" ? "windows-terminal" : "",
+                ; A held character repeats like a real key.
+                repeat: kind = "text",
                 available: (*) => this.app.ModuleActive(this.id)})
     }
 
@@ -156,7 +158,8 @@ class PowerUpUtilities extends SuiteModule {
                 this.pending[token].completed := true
             return
         }
-        if event.phase != "down" || !this.CanDispatch(event.actionId)
+        typing := action.kind = "text" || action.kind = "timestamp"
+        if !(event.phase = "down" || event.phase = "repeat" && typing) || !this.CanDispatch(event.actionId)
             return
         ; Staying awake types nothing, so each press answers at once, with Pause
         ; still held for the next step.
@@ -178,16 +181,17 @@ class PowerUpUtilities extends SuiteModule {
             if !targetPid || !this.TargetActive(event.foregroundHwnd, targetPid)
                 return
         }
-        ; Text waits for release, so every press while a layer is held is kept and
-        ; typed in order: Pause held with - - types two dashes. Other actions keep
-        ; one press, so a double sleep never sleeps twice.
+        ; Text types on the press, like a real key, and every press and repeat is
+        ; kept and typed in order: Pause held with - - types two dashes. Other
+        ; macros wait for their key to come up and keep one press, so a double
+        ; sleep never sleeps twice.
         this.sequence += 1
-        if action.kind = "text" || action.kind = "timestamp" {
+        if typing {
             token := press "|" this.sequence
             this.pressTokens[press] := token
         }
         this.pending[token] := {action: action, event: event.Clone(), pid: targetPid,
-            generation: this.generation, created: A_TickCount, completed: false, worker: 0,
+            generation: this.generation, created: A_TickCount, completed: typing, worker: 0,
             sequence: this.sequence}
         SetTimer(this.pollCallback, 15)
     }
@@ -261,14 +265,16 @@ class PowerUpUtilities extends SuiteModule {
         }
     }
 
-    ; Macros wait for their trigger key and every modifier, which would turn
-    ; typed characters into shortcuts. A held Caps or Pause never holds them
-    ; back, so a layer types like a real key. Sleep also waits for the layer
-    ; keys, so none can stay stuck down after waking.
+    ; Macros wait for every modifier, which would turn typed characters into
+    ; shortcuts. A held Caps or Pause never holds them back, so a layer types
+    ; like a real key. Text types while its own key is down, which the hotkey
+    ; keeps from the app; other macros wait for it to come up. Sleep also
+    ; waits for the layer keys, so none can stay stuck down after waking.
     InputsReleased(event) {
-        if !InStr(event.key, "Wheel") && GetKeyState(event.key, "P")
-            return false
         kind := this.catalog.Has(event.actionId) ? this.catalog[event.actionId].kind : ""
+        if kind != "text" && kind != "timestamp" && !InStr(event.key, "Wheel")
+            && GetKeyState(event.key, "P")
+            return false
         for key in PowerUpUtilities.BlockingKeys(kind)
             if GetKeyState(key, "P")
                 return false
@@ -303,8 +309,9 @@ class PowerUpUtilities extends SuiteModule {
             . "`r`nInsert punctuation, special spaces or a yyyyMMdd-HHmmss timestamp. "
             . "Terminal copy and clear operate only in Windows Terminal and use its "
             . "default Ctrl + Shift + A, C and K shortcuts. "
-            . "Text commands type as you release each key, so holding Pause and tapping "
-            . "- twice types two dashes; they wait while Shift, Ctrl, Alt or Win is held."
+            . "Characters type as you press them and repeat while held, like real keys, "
+            . "so holding Pause and tapping - twice types two dashes. Text waits while "
+            . "Shift, Ctrl, Alt or Win is held, and Terminal actions run once you let go."
             . "`r`n`r`nSYSTEM UTILITIES"
             . "`r`nWake speakers that automatically enter standby, or put your computer "
             . "to sleep."
