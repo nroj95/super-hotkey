@@ -90,8 +90,8 @@ class WonderWindowsChecks {
             WW_MinimizeEveryDisplay(front)
             WaitFor(() => Minimized(windows[1]) && Minimized(windows[2]))
             this.Assert(Minimized(windows[1]) && Minimized(windows[2])
-                && WW_minimized_all.Get(device, []).Length = 1
-                && WW_minimized_all.Get(MonitorGetName(other || monitor), []).Length = (other ? 1 : 2)
+                && WW_minimized_all.Get(device, []).Length = (other ? 1 : 2)
+                && (!other || WW_minimized_all.Get(MonitorGetName(other), []).Length = 1)
                 && DllCall("GetForegroundWindow", "ptr") = DllCall("GetShellWindow", "ptr"),
                 "Win + D minimizes every display's windows into that display's memory")
             WW_RestoreEveryDisplay()
