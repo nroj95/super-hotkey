@@ -1,7 +1,8 @@
 ; Cascade Kingdom focus tabs: updates, placement, lifetime and visibility.
 ; Each exposed window has a tab outside its left edge at the bottom and one
 ; outside its right edge at the top, mirrored. The highest slot's left tab and
-; the lowest slot's right tab run along the whole side.
+; the lowest slot's right tab run along the whole side. A mirrored cascade
+; swaps all of it left for right.
 
 ; =============================================================================
 ; overlay updates
@@ -37,7 +38,7 @@ UpdateFocusCornerOverlays()
         return
 
     global focus_corner_overlays, focus_tab_click_generation, cascade_slot_tolerance
-    global cascade_drag_generation, cascade_membership_generation
+    global cascade_drag_generation, cascade_membership_generation, cascade_mirrored
     static update_generation := 0
 
     generation := ++update_generation
@@ -140,9 +141,9 @@ UpdateFocusCornerOverlays()
 
                 monitor_index := visible_bounds[hwnd][5]
                 if highest_hwnd_by_monitor[monitor_index] = hwnd
-                    sides.left := true
+                    sides.%cascade_mirrored ? "right" : "left"% := true
                 if lowest_hwnd_by_monitor[monitor_index] = hwnd
-                    sides.right := true
+                    sides.%cascade_mirrored ? "left" : "right"% := true
             }
 
             if contains_active {
@@ -151,7 +152,8 @@ UpdateFocusCornerOverlays()
             }
 
             ; A full-height left tab belongs to the highest slot and a full-height
-            ; right tab to the lowest, not to one particular layer.
+            ; right tab to the lowest, mirrored when the cascade is, not to one
+            ; particular layer.
             if selected_hwnd
                 selected_targets[selected_hwnd] := sides
         }
@@ -243,7 +245,8 @@ SelectFocusCornerSlotTarget(ordered_windows, active_hwnd)
 ; =============================================================================
 
 ; A window's two edge tabs: one outside its left edge at the bottom, one outside
-; its right edge at the top. full_left and full_right run a tab along that side.
+; its right edge at the top, or the other way round in a mirrored cascade.
+; full_left and full_right run a tab along that side.
 ShowFocusCornerOverlay(hwnd, window_x, window_y, window_width, window_height, dpi,
     full_left := false, full_right := false, active_slot := false)
 {
@@ -253,7 +256,7 @@ ShowFocusCornerOverlay(hwnd, window_x, window_y, window_width, window_height, dp
     global focus_corner_overlays
     global focus_corner_inactive_slot_color
     global focus_corner_inactive_slot_alpha, focus_corner_active_slot_alpha
-    global focus_corner_visible
+    global focus_corner_visible, cascade_mirrored
 
     marker_color := active_slot ? SuiteAccentColor() : focus_corner_inactive_slot_color
     marker_alpha := (active_slot ? focus_corner_active_slot_alpha : focus_corner_inactive_slot_alpha
@@ -276,7 +279,8 @@ ShowFocusCornerOverlay(hwnd, window_x, window_y, window_width, window_height, dp
 
     if (overlay.shown && overlay.window_x = window_x && overlay.window_y = window_y
         && overlay.window_width = window_width && overlay.window_height = window_height
-        && overlay.full_left = full_left && overlay.full_right = full_right && overlay.dpi = dpi) {
+        && overlay.full_left = full_left && overlay.full_right = full_right && overlay.dpi = dpi
+        && overlay.mirrored = cascade_mirrored) {
         SetFocusCornerOpacity(overlay, focus_corner_visible ? marker_alpha : 1)
         if appearance_changed
             for marker_gui in overlay.guis
@@ -303,25 +307,28 @@ ShowFocusCornerOverlay(hwnd, window_x, window_y, window_width, window_height, dp
     overlay.window_height := window_height
     overlay.full_left := full_left
     overlay.full_right := full_right
+    overlay.mirrored := cascade_mirrored
     overlay.dpi := dpi
     overlay.shown := true
 }
 
 ; One edge tab, mirrored on the right: the left tab sits at the bottom, the
-; right one at the top, and a full tab runs along the whole side.
+; right one at the top, swapped in a mirrored cascade, and a full tab runs
+; along the whole side.
 ShowFocusCornerTab(marker_gui, right_side, full, window_x, window_y, window_width, window_height, dpi)
 {
     global focus_corner_size
     global focus_corner_thickness, focus_corner_full_height_thickness
-    global focus_corner_overlap
+    global focus_corner_overlap, cascade_mirrored
 
     ; Scale UI dimensions only. DWM positions and full-height bounds are pixels.
     tab_width := full ? focus_corner_full_height_thickness : focus_corner_thickness
     thickness := Max(1, ScaleForDpi(tab_width, dpi))
     overlap := Min(thickness - 1, Max(0, ScaleForDpi(focus_corner_overlap, dpi)))
     marker_height := full ? window_height : Max(1, ScaleForDpi(focus_corner_size, dpi))
+    at_top := right_side != cascade_mirrored
     marker_x := right_side ? window_x + window_width - overlap : window_x - thickness + overlap
-    marker_y := full || right_side ? window_y : window_y + window_height - marker_height
+    marker_y := full || at_top ? window_y : window_y + window_height - marker_height
 
     ShowPhysicalGui(marker_gui,
         "NA"
@@ -331,10 +338,12 @@ ShowFocusCornerTab(marker_gui, right_side, full, window_x, window_y, window_widt
         . " h" marker_height
     )
 
-    ; Trim the outer edge and the end away from the window's corner, plus
-    ; both ends on full-height tabs.
-    WinSetRegion((right_side ? 0 : 1) "-" (right_side || full ? 1 : 0) " W" (thickness - 1)
-        " H" (marker_height - 1 - (full ? 1 : 0)), marker_gui.Hwnd)
+    ; Trim the outer edge and the end at the window's corner, plus both ends
+    ; on full-height tabs.
+    trim_top := full || at_top
+    trim_bottom := full || !at_top
+    WinSetRegion((right_side ? 0 : 1) "-" (trim_top ? 1 : 0) " W" (thickness - 1)
+        " H" (marker_height - trim_top - trim_bottom), marker_gui.Hwnd)
 }
 
 PlaceFocusCornerAboveTarget(hwnd, overlay)
@@ -398,6 +407,7 @@ CreateFocusCornerOverlay(hwnd, marker_color, marker_alpha)
         window_height: 0,
         full_left: false,
         full_right: false,
+        mirrored: false,
         dpi: 0
     }
 }

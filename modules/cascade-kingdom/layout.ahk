@@ -295,10 +295,11 @@ CenterCoordinate(work_start, work_size, window_size)
 
 BuildCascadeSlots(work_left, work_top, work_right, work_bottom, window_width, window_height)
 {
-    global cascade_x, cascade_y
+    global cascade_x, cascade_y, cascade_mirrored
 
     work_width := work_right - work_left
     work_height := work_bottom - work_top
+    step_x := cascade_mirrored ? -cascade_x : cascade_x
 
     center_x := CenterCoordinate(work_left, work_width, window_width)
 
@@ -308,11 +309,12 @@ BuildCascadeSlots(work_left, work_top, work_right, work_bottom, window_width, wi
     ; from center before continuing downward from center.
     slots := [[center_x, center_y]]
 
-    ; Slots 2...N: left and upward from center until no more positions fit.
+    ; Slots 2...N: left (right when mirrored) and upward from center until no
+    ; more positions fit.
     step := 1
 
     Loop {
-        x := center_x - cascade_x * step
+        x := center_x - step_x * step
         y := center_y - cascade_y * step
 
         if !CascadePositionFits(x, y, window_width, window_height, work_left, work_top, work_right,
@@ -324,11 +326,12 @@ BuildCascadeSlots(work_left, work_top, work_right, work_bottom, window_width, wi
         step += 1
     }
 
-    ; Remaining slots: right and downward from center until the work area ends.
+    ; Remaining slots: right (left when mirrored) and downward from center until
+    ; the work area ends.
     step := 1
 
     Loop {
-        x := center_x + cascade_x * step
+        x := center_x + step_x * step
         y := center_y + cascade_y * step
 
         if !CascadePositionFits(x, y, window_width, window_height, work_left, work_top, work_right,

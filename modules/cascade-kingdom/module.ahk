@@ -88,42 +88,50 @@ class CascadeKingdomModule extends SuiteModule {
         if ui.Existing(key)
             return
         global cascade_target_display, focus_corner_visible, focus_tab_color_presets
-        global focus_corner_inactive_slot_color_name
+        global focus_corner_inactive_slot_color_name, cascade_mirrored
         window := ui.NewWindow(key, "Cascade Kingdom - Settings", true)
         window.AddText("x20 y18 w560", "Add windows with Caps + Insert or by dragging one onto a slot.")
         choices := ui.DisplayChoices(cascade_target_display, true)
         this.displayChoices := choices.values
         window.AddText("x20 y65 w200", "Cascade on")
         window.AddDropDownList("x240 y60 w300 vdisplay", choices.names).Choose(choices.selected)
-        window.AddCheckbox("x20 y103 w550 vtabs", "Show focus tabs").Value := focus_corner_visible
+        window.AddCheckbox("x20 y103 w550 vmirrored", "Mirror: cascade toward the left").Value := cascade_mirrored
+        window.AddCheckbox("x20 y143 w550 vtabs", "Show focus tabs").Value := focus_corner_visible
         colors := []
         for name in focus_tab_color_presets
             colors.Push(name)
-        window.AddText("x20 y148 w200", "Inactive-slot tab color")
-        window.AddDropDownList("x240 y143 w210 vinactiveColor", colors).Choose(focus_corner_inactive_slot_color_name)
-        window.AddText("x20 y188 w560", "Active tabs and drop guides use the Windows accent color."
+        window.AddText("x20 y188 w200", "Inactive-slot tab color")
+        window.AddDropDownList("x240 y183 w210 vinactiveColor", colors).Choose(focus_corner_inactive_slot_color_name)
+        window.AddText("x20 y228 w560", "Active tabs and drop guides use the Windows accent color."
             . "`nDisplay changes release other displays without moving windows."
             . "`nClick Apply to use these settings.")
         ui.Footer(window, [["Apply", ObjBindMethod(this, "SaveSettings", ui), 120],
-            ["Back", ObjBindMethod(ui, "BackToHelp", this.id), 100]], 293, 600)
-        ui.ShowPage(key, 600, 343, 560, 318)
+            ["Back", ObjBindMethod(ui, "BackToHelp", this.id), 100]], 333, 600)
+        ui.ShowPage(key, 600, 383, 560, 358)
     }
 
-    ; Applies without a restart; routing changes first release in-flight work.
+    ; Applies without a restart; routing changes first release in-flight work,
+    ; and mirroring re-lays out every cascade as a display change does.
     SaveSettings(ui, *) {
         global cascade_target_display, focus_corner_visible, focus_tab_color_presets
         global focus_corner_inactive_slot_color_name, focus_corner_inactive_slot_color
+        global cascade_mirrored
         key := "settings:cascade-kingdom"
         window := ui.windows[key]
         try {
             display := this.displayChoices[window["display"].Value]
+            mirrored := window["mirrored"].Value != 0
             visible := window["tabs"].Value != 0
             inactiveName := window["inactiveColor"].Text
             if !focus_tab_color_presets.Has(inactiveName)
                 throw ValueError("Select a valid inactive tab color.")
             this.app.Settings.WritePreferences(this.id, Map(
-                "Controls", Map("Display", display),
+                "Controls", Map("Display", display, "Mirrored", mirrored ? 1 : 0),
                 "FocusTabs", Map("Visible", visible ? 1 : 0, "InactiveSlotColor", inactiveName)))
+            if cascade_mirrored != mirrored {
+                cascade_mirrored := mirrored
+                QueueCascadeDisplayRefresh()
+            }
             routingChanged := cascade_target_display != display
             if routingChanged {
                 this.app.CancelInputs()
@@ -164,6 +172,11 @@ class CascadeKingdomModule extends SuiteModule {
             . "right. Click either to select a slot. Click again to cycle windows sharing "
             . "that slot. Active tabs and drop guides use your Windows accent color; "
             . "choose the inactive tab color in Settings."
+            . "`r`n`r`nMIRROR"
+            . "`r`nTurn on Mirror in Settings to cascade toward the left instead. Everything "
+            . "swaps sides: the tabs sit at the upper left and the lower right, the guides "
+            . "mark top-right corners, and a window's top-right corner adds it. Open "
+            . "cascades rearrange when you click Apply."
     }
 }
 

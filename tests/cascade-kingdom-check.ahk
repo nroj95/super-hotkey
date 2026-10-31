@@ -1,6 +1,6 @@
 ; Cascade Kingdom: destinations, settings, stabilization, drop guides, focus tabs, adoption,
-; compaction plans, home displays, the next-cascade order, snapped-window drags and
-; cascades kept across restarts.
+; compaction plans, home displays, the next-cascade order, snapped-window drags,
+; mirroring and cascades kept across restarts.
 ; Disposable preferences, dry-run inputs and test-owned windows only.
 class CascadeChecks {
     static Run() {
@@ -13,6 +13,7 @@ class CascadeChecks {
         this.HomeDisplays()
         this.NextCascade()
         this.DragResize()
+        this.Mirrored()
         this.ShownWindows()
         this.Policy()
         this.Settings()
@@ -20,6 +21,31 @@ class CascadeChecks {
     }
 
     static Assert(condition, label) => SuiteChecks.Assert(condition, label)
+
+    ; A mirrored cascade swaps left and right: slots and the corner a drop is judged by.
+    static Mirrored() {
+        global cascade_mirrored
+        normal := BuildCanonicalCascadeGeometry(0, 0, 1920, 1080).slots
+        MonitorGetWorkAreaPixels(MonitorGetPrimary(), &left, &top)
+        try {
+            cascade_mirrored := true
+            mirrored := BuildCanonicalCascadeGeometry(0, 0, 1920, 1080).slots
+            this.Assert(mirrored.Length = normal.Length && mirrored[1][1] = normal[1][1]
+                && mirrored[2][1] - mirrored[1][1] = 28 && mirrored[2][2] - mirrored[1][2] = -24,
+                "a mirrored cascade has as many slots and steps up to the right from the center")
+            this.Assert(mirrored[mirrored.Length][1] = 2 * normal[1][1] - normal[normal.Length][1]
+                && mirrored[mirrored.Length][2] = normal[normal.Length][2],
+                "and down to the left, mirroring every slot")
+            target := CascadeDropTarget(left + 100, top + 100, 800)
+            this.Assert(target && target.monitor = MonitorGetPrimary()
+                && target.x = left + 100 + 800 - target.geometry.width,
+                "a mirrored drop is judged by the window's top-right corner")
+            cascade_mirrored := false
+            target := CascadeDropTarget(left + 100, top + 100, 800)
+            this.Assert(target && target.x = left + 100, "a normal drop is judged by the top-left corner")
+        }
+        finally cascade_mirrored := false
+    }
 
     ; A window snapped to half a display, 1294 x 1395, was 2062 x 1117 before.
     static DragResize() {
@@ -148,7 +174,7 @@ class CascadeChecks {
     }
 
     static Settings() {
-        global cascade_target_display, focus_corner_inactive_slot_color_name
+        global cascade_target_display, focus_corner_inactive_slot_color_name, cascade_mirrored
         app := SuiteApplication(true, SuiteChecks.directory "\cascade-settings")
         cascade := CascadeKingdomModule(app)
         app.modules["cascade-kingdom"] := cascade
@@ -175,23 +201,31 @@ class CascadeChecks {
                 && focus_corner_active_slot_alpha = 255
                 && focus_corner_inactive_slot_alpha = 128,
                 "cascade settings default to White inactive tabs at 50% opacity")
+            this.Assert(!window["mirrored"].Value, "cascades step to the right by default")
             window["inactiveColor"].Choose("Cyan")
+            window["mirrored"].Value := true
             ; Use a real device, not the dropdown index, in the saved preference.
             window["display"].Choose(2)
             expectedDisplay := cascade.displayChoices[2]
             cascade.SaveSettings(app.ui)
+            ; Mirroring queues a re-layout; these checks own no cascade to move.
+            this.Assert(cascade_mirrored && IsCascadeDisplayTransition(),
+                "mirroring applies at once and re-lays out the cascades")
+            SetTimer(RefreshCascadeDisplays, 0)
             path := app.Settings.directory "\cascade-kingdom\settings.ini"
             this.Assert(!app.ui.windows.Has("settings:cascade-kingdom")
                 && IniRead(path, "Controls", "Display") = expectedDisplay
+                && IniRead(path, "Controls", "Mirrored") = "1"
                 && IniRead(path, "FocusTabs", "InactiveSlotColor") = "Cyan",
-                "Apply persists the destination device and inactive tab color")
+                "Apply persists the destination device, mirroring and inactive tab color")
             InitializeCascadeState()
-            this.Assert(cascade_target_display = expectedDisplay
+            this.Assert(cascade_target_display = expectedDisplay && cascade_mirrored
                 && focus_corner_inactive_slot_color_name = "Cyan",
                 "cascade choices survive state initialization")
             app.Settings.ResetModulePreferences(Map("cascade-kingdom", cascade.resetSections))
-            this.Assert(IniRead(path, "FocusTabs", "InactiveSlotColor", "missing") = "missing",
-                "factory reset includes the inactive tab color")
+            this.Assert(IniRead(path, "FocusTabs", "InactiveSlotColor", "missing") = "missing"
+                && IniRead(path, "Controls", "Mirrored", "missing") = "missing",
+                "factory reset includes mirroring and the inactive tab color")
             InitializeCascadeState()
             app.ui.ShowModuleSettings("paper-pad")
             window := app.ui.windows["settings:paper-pad"]
@@ -305,7 +339,7 @@ class CascadeChecks {
     }
 
     static FocusTabDpi() {
-        global focus_corner_overlays, focus_corner_targets
+        global focus_corner_overlays, focus_corner_targets, cascade_mirrored
         app := SuiteApplication(true, SuiteChecks.directory "\release-focus-tabs")
         InitializeCascadeState()
         window := SuiteGui("+Resize", "Release focus-tab target")
@@ -340,8 +374,15 @@ class CascadeChecks {
                 "both tabs sit directly below their window")
             this.Assert(focus_corner_targets.Get(overlay.guis[2].Hwnd, 0) = window.Hwnd,
                 "a click on the right tab finds its window")
+            cascade_mirrored := true
+            ShowFocusCornerOverlay(window.Hwnd, 100, 100, 300, 200, 96)
+            WinGetPosPixels(&lx, &ly, , , overlay.guis[1].Hwnd)
+            WinGetPosPixels(&rx, &ry, , , overlay.guis[2].Hwnd)
+            this.Assert(lx = 48 && ly = 100 && rx = 398 && ry = 276,
+                "a mirrored cascade's tabs sit at the upper left and the lower right")
         }
         finally {
+            cascade_mirrored := false
             DestroyFocusCornerOverlay(window.Hwnd)
             window.Destroy()
             app.dryRun := true
@@ -388,6 +429,22 @@ class CascadeChecks {
             CascadeDropGuides.Show(slots, 144, "00BCD4")
             this.Assert(CascadeDropGuides.windows[1].Hwnd = first,
                 "DPI and color changes reuse the guide windows")
+            ; Mirrored: a 20 px guide marks the top-right corner of a 300 px window.
+            CascadeDropGuides.Show(slots, 96, "808080", 300)
+            WinGetPosPixels(&guideX, &guideY, , , first)
+            region := DllCall("gdi32\CreateRectRgn", "int", 0, "int", 0, "int", 0, "int", 0, "ptr")
+            try {
+                this.Assert(guideX = left + 30 + 300 - 20 && guideY = top + 30
+                    && region && DllCall("GetWindowRgn", "ptr", first, "ptr", region, "int")
+                    && DllCall("gdi32\PtInRegion", "ptr", region, "int", 18, "int", 10, "int")
+                    && DllCall("gdi32\PtInRegion", "ptr", region, "int", 10, "int", 1, "int")
+                    && !DllCall("gdi32\PtInRegion", "ptr", region, "int", 1, "int", 10, "int"),
+                    "mirrored guides mark the top and right strokes of each slot's top-right corner")
+            }
+            finally {
+                if region
+                    DllCall("gdi32\DeleteObject", "ptr", region)
+            }
             cascade.Suspend()
             this.Assert(!DllCall("IsWindowVisible", "ptr", first, "int"),
                 "suspension hides all drag guides")

@@ -3,7 +3,8 @@
 ;
 ; Drop contract:
 ; - preserve the original membership/slot throughout a native mouse drag;
-; - resolve the visible top-left corner only after the move loop and mouse-up;
+; - resolve the visible top-left corner, top-right when mirrored, only after
+;   the move loop and mouse-up;
 ; - snap to the nearest eligible slot, or release an existing member;
 ; - a real drop can adopt an existing window; ordinary clicks/resizes cannot.
 
@@ -303,6 +304,20 @@ CascadeDragIsResize(drag, width, height)
         && (width != drag.normal_width || height != drag.normal_height))
 }
 
+; Where a dropped window's visible frame lands: the display under its top-left
+; corner, or its top-right in a mirrored cascade, and the left edge it takes
+; once resized to a cascade window with that corner in place. 0 off-screen.
+CascadeDropTarget(frame_x, frame_y, frame_width)
+{
+    global cascade_mirrored
+    corner_x := cascade_mirrored ? frame_x + frame_width - 1 : frame_x
+    if !(monitor := GetMonitorForPoint(corner_x, frame_y))
+        return 0
+    geometry := GetCanonicalCascadeGeometry(monitor)
+    return {monitor: monitor, geometry: geometry,
+        x: cascade_mirrored ? frame_x + frame_width - geometry.width : frame_x}
+}
+
 CompleteCascadeWindowDrop(drag)
 {
     if !IsCascadeEnabled()
@@ -329,12 +344,11 @@ CompleteCascadeWindowDrop(drag)
 
     if !GetVisibleWindowBounds(hwnd, &frame_x, &frame_y, &frame_width, &frame_height)
         return
-    monitor_index := GetMonitorForPoint(frame_x, frame_y)
-    if !monitor_index
+    if !(target := CascadeDropTarget(frame_x, frame_y, frame_width))
         return
-
-    geometry := GetCanonicalCascadeGeometry(monitor_index)
-    slot_index := FindNearestCascadeSlot(frame_x, frame_y, geometry.slots, cascade_slot_tolerance)
+    monitor_index := target.monitor
+    geometry := target.geometry
+    slot_index := FindNearestCascadeSlot(target.x, frame_y, geometry.slots, cascade_slot_tolerance)
 
     if slot_index && CascadeDisplayAllowed(monitor_index) {
         ; A drop on a guide adopts a window positioned by hand, as Caps + Insert

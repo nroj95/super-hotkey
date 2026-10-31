@@ -13,12 +13,14 @@ window_width_ratio := 0.80
 window_height_ratio := 0.80
 
 ; First branch moves left/up from center; second branch moves right/down.
+; A mirrored cascade swaps left and right.
 cascade_x := 28
 cascade_y := 24
 
 ; One tolerance for slot membership and mouse drops (screen-coordinate pixels).
 ; During a native drag, the original slot is retained. On release, the visible
-; top-left must be within this distance on both axes; the closest slot wins.
+; top-left, or top-right when mirrored, must be within this distance on both
+; axes; the closest slot wins.
 cascade_slot_tolerance := 56
 
 ; Restore requests can finish before their native/DWM rectangles settle.
@@ -123,6 +125,7 @@ cascade_restore_batches := Map()
 cascade_restore_request_depth := 0
 cascade_close_batches := Map()
 cascade_target_display := IniRead(settings_path, "Controls", "Display", "All")
+cascade_mirrored := IniRead(settings_path, "Controls", "Mirrored", "0") = "1"
 cascade_minimize_in_progress := false
 cascade_minimized_windows := []
 

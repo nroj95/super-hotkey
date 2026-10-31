@@ -5,7 +5,7 @@ class CascadeDropGuides {
     static alpha := 255 ; Fully opaque, matching active focus tabs.
 
     static Update(drag) {
-        global cascade_window_drag
+        global cascade_window_drag, cascade_mirrored
         if !IsCascadeEnabled() || IsCascadeDisplayTransition() || drag.cancelled
             || drag.native_ended || !GetKeyState("LButton", "P") {
             this.Hide()
@@ -19,13 +19,12 @@ class CascadeDropGuides {
                 this.Hide()
                 return
             }
-            monitor := GetMonitorForPoint(frame_x, frame_y)
             ; Canonical slots are valid before the first window joins the cascade.
-            if !CascadeDisplayAllowed(monitor) {
+            target := CascadeDropTarget(frame_x, frame_y, frame_width)
+            if !target || !CascadeDisplayAllowed(target.monitor) {
                 this.Hide()
                 return
             }
-            geometry := GetCanonicalCascadeGeometry(monitor)
             previous_critical := Critical("On")
             try {
                 ; Queries may yield to suspension, a new drag or display changes.
@@ -35,7 +34,8 @@ class CascadeDropGuides {
                     this.Hide()
                     return
                 }
-                this.Show(geometry.slots, GetCascadeMonitorDpi(monitor), SuiteAccentColor())
+                this.Show(target.geometry.slots, GetCascadeMonitorDpi(target.monitor), SuiteAccentColor(),
+                    cascade_mirrored ? target.geometry.width : 0)
             }
             finally Critical(previous_critical)
         }
@@ -45,10 +45,12 @@ class CascadeDropGuides {
         }
     }
 
-    static Show(slots, dpi, color) {
+    ; Each guide marks a slot's top-left corner, or with mirror_width the
+    ; top-right corner of a window that wide there.
+    static Show(slots, dpi, color, mirror_width := 0) {
         size := Max(12, ScaleForDpi(20, dpi))
         thickness := Max(2, ScaleForDpi(2, dpi))
-        signature := size ":" thickness ":" color
+        signature := size ":" thickness ":" color ":" mirror_width
         for position in slots
             signature .= "|" position[1] "," position[2]
         if signature = this.signature
@@ -66,9 +68,13 @@ class CascadeDropGuides {
                 window := this.windows[index]
                 window.BackColor := color
                 ; One L-shaped region avoids doubled opacity where two bars meet.
-                ShowPhysicalGui(window, "Hide x" position[1] " y" position[2] " w" size " h" size)
-                region := "0-0 " size "-0 " size "-" thickness " " thickness "-" thickness
-                    . " " thickness "-" size " 0-" size
+                x := mirror_width ? position[1] + mirror_width - size : position[1]
+                ShowPhysicalGui(window, "Hide x" x " y" position[2] " w" size " h" size)
+                inner := size - thickness
+                region := mirror_width
+                    ? "0-0 " size "-0 " size "-" size " " inner "-" size " " inner "-" thickness " 0-" thickness
+                    : "0-0 " size "-0 " size "-" thickness " " thickness "-" thickness
+                        . " " thickness "-" size " 0-" size
                 WinSetRegion(region, window.Hwnd)
                 ShowPhysicalGui(window, "NA")
             }
