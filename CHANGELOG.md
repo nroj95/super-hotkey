@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## v1.0.0-beta.3
+
+Windows' own keys, made predictable: `Win + M`, `Win + Home` and `Win + D` keep to your display, never forget, and take `Shift` to bring windows back. Cascades gain a mirrored direction, tabs on both sides and `Caps + Tab` between displays, and `Pause + End` keeps the computer awake.
 
 ### Breaking changes
 
@@ -11,14 +13,14 @@
 - **Wonder Windows:** `Win + M` minimizes the windows on your display only, and `Win + Shift + M` brings back that display's, keeping their stacking order with the frontmost focused. Unlike in Windows, a `Win + M` with nothing left to minimize no longer makes `Win + Shift + M` forget what to bring back, and a later `Win + M` adds to it.
 - **Wonder Windows:** `Win + Home` minimizes the other windows on your display only and keeps the active one in front, and `Win + Shift + Home` brings them back behind it. Unlike in Windows, `Win + Home` only minimizes, and moving or switching windows in between never makes it forget. It shares its memory with `Win + M`, so `Win + Shift + M` brings back what either minimized, frontmost on top.
 - **Wonder Windows:** `Win + D` minimizes the windows on every display and `Win + Shift + D` brings them all back, instead of one key that shows the desktop or restores and forgets at the next window change. Each display remembers its own, so `Win + Shift + M` can bring back just yours. Like `Win + M`, windows without a minimize button stay.
+- **Wonder Windows:** `Win + Alt + Enter` cycles maximized and fullscreen windows again, now only on your display, with `Win + Alt + Shift + Enter` going back; `Caps + Win + Enter` and `Caps + Win + Shift + Enter` work too. Each press shows the next one, minimized or not, and minimizes the others there. The loop no longer stops with all of them minimized: from any other window the first press brings back the one shown last, and `Win + Backspace` puts it away. Maximized cascade windows take part too, and a notice says when there is no other maximized or fullscreen window to show.
 - **Cascade Kingdom:** `Caps + Tab` brings the next cascade forward and outlines its front window, from left to right across your displays and wrapping. From outside a cascade it starts with the one on your display. A notice says when there are no cascades, or no other one.
-- **Paper Pad:** `Caps + F12` shows or hides the drawer too, beside `Win + F12`.
-- **Suite windows** that resize, such as Help, Settings and Keybindings, show the Windows sizing grip in the lower-right corner again, on the window's own background. It hides while a window is maximized.
 - **Cascade Kingdom:** focus tabs appear on the right side too, mirroring the left: one outside each window's upper-right corner, and a full-height one along the right side of the lowest window. Both tabs of a slot do the same thing.
 - **Cascade Kingdom:** Mirror in Settings makes cascades step down to the left instead of the right. Focus tabs, full-height tabs and drop guides swap sides with it, a drop is judged by the window's top-right corner, and open cascades rearrange when you click Apply.
-- **Power-Up Utilities:** `Pause + End` keeps the computer awake for 30 minutes, 1 h or 2 h, and `Pause + Shift + End` for 4 h, 8 h or until turned off. Each press steps to the next duration, counted from now, with a notice; after the last step sleep is allowed again. The tray icon's tooltip shows how long. Screens still turn off and lock, choosing Sleep or closing a laptop lid still sleeps, and suspending or exiting Super Hotkey ends it.
-- **Wonder Windows:** `Win + Alt + Enter` cycles maximized and fullscreen windows again, now only on your display, with `Win + Alt + Shift + Enter` going back; `Caps + Win + Enter` and `Caps + Win + Shift + Enter` work too. Each press shows the next one, minimized or not, and minimizes the others there. The loop no longer stops with all of them minimized: from any other window the first press brings back the one shown last, and `Win + Backspace` puts it away. Maximized cascade windows take part too, and a notice says when there is no other maximized or fullscreen window to show.
 - **Cascade Kingdom** closes the gap a window leaves when you minimize or maximize it, hide it to the tray or move it to another virtual desktop, as it does for a closed one. The window stays in its cascade: bring it back and it returns to its slot while the window that filled in moves back. Maximizing no longer takes a window out of its cascade.
+- **Paper Pad:** `Caps + F12` shows or hides the drawer too, beside `Win + F12`.
+- **Power-Up Utilities:** `Pause + End` keeps the computer awake for 30 minutes, 1 h or 2 h, and `Pause + Shift + End` for 4 h, 8 h or until turned off. Each press steps to the next duration, counted from now, with a notice; after the last step sleep is allowed again. The tray icon's tooltip shows how long. Screens still turn off and lock, choosing Sleep or closing a laptop lid still sleeps, and suspending or exiting Super Hotkey ends it.
+- **Suite windows** that resize, such as Help, Settings and Keybindings, show the Windows sizing grip in the lower-right corner again, on the window's own background. It hides while a window is maximized.
 
 ### Fixes
 
@@ -31,6 +33,15 @@
 - **Power-Up Utilities:** characters type as you press them, like real keys, and repeat while held; the timestamp types on the press too. `Pause` held with `- -` types each en dash as you tap, in order; before, repeated presses typed one dash after you let go. Text and Terminal hotkeys no longer wait for Caps or Pause, only for Shift, Ctrl, Alt or Win; Terminal actions still run once you release their key, and sleep still waits for every key.
 - **Wonder Windows** counts every tap made during a slow move, in the order pressed, so three quick `Win + Right` taps step three zones instead of two. A fast `Win + scroll` spin still steps once, so it cannot fling a window several zones on.
 - **Help pages** no longer flicker while you resize them.
+
+### Install
+
+Install [AutoHotkey v2](https://www.autohotkey.com/) **64-bit**, download and extract the source code below, and run `super-hotkey.ahk`. Settings and logs live in `%LOCALAPPDATA%\nroj\SuperHotkey`; this version keeps those from earlier betas.
+
+### Known limitations
+
+- PowerToys FancyZones isn't supported; disable it in PowerToys while using Super Hotkey.
+- Paper Pad needs Notepad3 and asks you to install it or locate it when it can't find it.
 
 ## v1.0.0-beta.2
 
