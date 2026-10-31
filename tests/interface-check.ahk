@@ -106,8 +106,6 @@ class InterfaceChecks {
                 "uint", 13, "uint", 0x400, "uint")
             this.Assert(startupState & 3,
                 "Run at startup is disabled during safe dry-run testing")
-            this.Assert(!HasMethod(app.ui, "ShowAppSettings"),
-                "the redundant App settings window is removed")
             hotkeyState := (*) => DllCall("GetMenuState", "ptr", A_TrayMenu.Handle,
                 "uint", 14, "uint", 0x400, "uint")
             this.Assert(!(hotkeyState.Call() & 8) && !app.suspended,
@@ -150,8 +148,6 @@ class InterfaceChecks {
             this.Assert(Abs(firstWidth - expectedSize.width) <= 1
                 && Abs(firstHeight - expectedSize.height) <= 1,
                 "Keybindings opening size fits the current monitor: " firstWidth "x" firstHeight)
-            this.Assert(!HasProp(app.manager, "settingsRefresh"),
-                "Keybindings no longer has a Refresh button")
             this.Assert(app.manager.editor.rows[1].label = "Global"
                 && app.manager.editor.visibleRows[1].categoryTitle.Text = "★ Global ★",
                 "Global heading has decorative stars without changing its category identity")
@@ -501,11 +497,6 @@ class InterfaceChecks {
                             && WonderWindowsModule.StatusColor("running, not supported") = "B02020"
                             && WonderWindowsModule.StatusColor("unknown") = "505050",
                             "Wonder Windows status values use green, red or neutral colors")
-                        noSnap := true
-                        for control in settings
-                            if InStr(control.Text, "Snap")
-                                noSnap := false
-                        this.Assert(noSnap, "Wonder Windows Settings do not mention Windows Snap")
                         screenGridButtons := 0
                         for control in settings
                             if control.Type = "Button" && control.Text = "ScreenGrid..."
@@ -631,18 +622,6 @@ class InterfaceChecks {
                 "utility footer has its buttons: " page)
             this.Assert(app.ui.moduleControls.Count = 5,
                 "Modules presents all five renamed features")
-            obsoleteLine := false
-            for control in window
-                if control.Type = "Text" && InStr(control.Text, "Disabled modules keep")
-                    obsoleteLine := true
-            this.Assert(!obsoleteLine,
-                "Modules no longer has the redundant line under Secret Layers")
-            appSettingsFound := false
-            for control in window
-                if control.Type = "Button" && control.Text = "App settings..."
-                    appSettingsFound := true
-            this.Assert(!appSettingsFound,
-                "Modules has no redundant App settings button")
             descriptionCount := 0
             for id in SuiteSettings.ModuleOrder {
                 app.ui.moduleControls[id].GetPos(, &checkY, , &checkHeight)

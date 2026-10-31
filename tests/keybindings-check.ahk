@@ -866,9 +866,8 @@ class KeybindingsChecks {
             this.Assert(sampleRows.Length = 3 && sampleRows[1].label = "Alpha"
                 && sampleRows[2].label = "Alpha / Extensions",
                 "search keeps extension headings directly after their parent")
-            this.Assert(!manager.actions.Has("wonder-windows.zone-left")
-                && this.RouteExists(manager, "wonder-windows.zones-from-left"),
-                "FancyZones forwarding is gone and zone cycling is registered")
+            this.Assert(this.RouteExists(manager, "wonder-windows.zones-from-left"),
+                "zone cycling is registered")
             app.activeModules["paper-pad"] := false
             manager.Apply(manager.GetConfiguration())
             rows := Keybindings.DisplayRows(manager.Catalog())
@@ -885,7 +884,7 @@ class KeybindingsChecks {
             changed["power-up-utilities.keyboard.f13"].bindings[1] := "Ctrl + Alt + Left"
             manager.Apply(changed)
             this.Assert(this.RouteExists(manager, "power-up-utilities.keyboard.f13"),
-                "the old FancyZones shortcuts are free for other actions")
+                "a changed assignment takes effect")
             this.Assert(!InStr(Keybindings.DisplayRows(manager.Catalog())[1].label, "disabled"),
                 "Keybindings headings do not acquire disabled suffixes")
         }

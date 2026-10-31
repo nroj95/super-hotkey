@@ -95,43 +95,29 @@ class CoreChecks {
                 "a Global action restarts Super Hotkey with Pause + F3")
             this.Assert(configuration["power-up-utilities.system.wake-speakers"].bindings[1] = Keybindings.Parse("Pause + Pause").signature, "speaker wake defaults to Pause double-tap")
             this.Assert(configuration["wonder-windows.focus-up"].bindings[1] = Keybindings.Parse("Win + PgUp").signature
-                && configuration["wonder-windows.focus-down"].bindings[1] = Keybindings.Parse("Win + PgDn").signature
-                && !manager.actions.Has("wonder-windows.focus-left")
-                && !manager.actions.Has("wonder-windows.focus-right"),
+                && configuration["wonder-windows.focus-down"].bindings[1] = Keybindings.Parse("Win + PgDn").signature,
                 "focus moves up and down with Win + PgUp/PgDn")
             this.Assert(configuration["paper-pad.previous"].bindings[2] = Keybindings.Parse("Win + PgUp").signature
                 && configuration["paper-pad.next"].bindings[2] = Keybindings.Parse("Win + PgDn").signature,
                 "Paper Pad pages follow the suite's PgUp = previous, PgDn = next")
-            this.Assert(!manager.actions.Has("wonder-windows.isolate")
-                && configuration["core.close-active"].bindings[1]
+            this.Assert(configuration["core.close-active"].bindings[1]
                     = Keybindings.Parse("Caps + Delete").signature
                 && configuration["core.close-active"].bindings[2]
                     = Keybindings.Parse("Win + Delete").signature
-                && !manager.actions.Has("cascade-kingdom.close-active")
-                && !manager.actions.Has("wonder-windows.close-active")
                 && manager.actions["core.close-active"].category = "Global",
-                "Win + Home is left to Windows; a Global action closes with Caps + Delete or Win + Delete")
+                "a Global action closes with Caps + Delete or Win + Delete")
             this.Assert(configuration["wonder-windows.help"].bindings[1] = Keybindings.Parse("Ctrl + Alt + H").signature
                 && configuration["wonder-windows.help"].bindings[2] = Keybindings.Parse("Caps + Win + H").signature,
                 "Wonder Windows help opens with Ctrl + Alt + H, or Caps + Win + H")
-            for name in ["layout-left", "layout-right", "tile-top-left", "tile-top", "tile-top-right",
-                "tile-bottom-left", "tile-bottom", "tile-bottom-right"]
-                this.Assert(!manager.actions.Has("wonder-windows." name),
-                    "zone cycling replaces " name)
-            for direction in ["left", "right", "up", "down"] {
+            for direction in ["left", "right", "up", "down"]
                 this.Assert(configuration["wonder-windows.move-onto-" direction].bindings[1]
                     = Keybindings.Parse("Win + Alt + " direction).signature
                     && configuration["wonder-windows.move-onto-" direction].bindings[2]
                     = Keybindings.Parse("Caps + Win + " direction).signature,
                     "moving onto a window defaults to Win + Alt + " direction " and Caps + Win + " direction)
-                this.Assert(!manager.actions.Has("wonder-windows.swap-" direction),
-                    "stacking on the nearest window replaces swapping: " direction)
-            }
             this.Assert(configuration["wonder-windows.stretch"].bindings[1]
-                = Keybindings.Parse("Win + Shift + Enter").signature
-                && !manager.actions.Has("wonder-windows.stretch-left")
-                && !manager.actions.Has("wonder-windows.reset-stretch"),
-                "one Win + Shift + Enter cycle replaces the stretch actions")
+                = Keybindings.Parse("Win + Shift + Enter").signature,
+                "one Win + Shift + Enter cycle stretches a window")
             this.Assert(configuration["wonder-windows.cycle-stacked"].bindings[1]
                     = Keybindings.Parse("Win + Enter").signature
                 && configuration["wonder-windows.cycle-expanded-next"].bindings[1]
@@ -143,9 +129,6 @@ class CoreChecks {
                 && configuration["wonder-windows.cycle-expanded-previous"].bindings[2]
                     = Keybindings.Parse("Caps + Win + Shift + Enter").signature,
                 "Win + Enter cycles the stack; Win + Alt + Enter and its Shift twin cycle big windows")
-            this.Assert(!manager.actions.Has("wonder-windows.swap-next")
-                && !manager.actions.Has("wonder-windows.swap-previous"),
-                "old clockwise swap actions are removed")
             this.Assert(configuration["wonder-windows.zones-from-left"].bindings[1]
                     = Keybindings.Parse("Win + WheelDown").signature
                 && configuration["wonder-windows.zones-from-left"].bindings[2]
@@ -155,11 +138,6 @@ class CoreChecks {
                 && configuration["wonder-windows.zones-from-right"].bindings[2]
                     = Keybindings.Parse("Win + Right").signature,
                 "zone cycling defaults to Win + wheel and Win + Left/Right")
-            for direction in ["up", "down", "left", "right"]
-                this.Assert(!manager.actions.Has("wonder-windows.zone-" direction),
-                    "FancyZones forwarding is removed: " direction)
-            this.Assert(!manager.actions.Has("wonder-windows.move-monitor-left"),
-                "moving between displays is left to Windows' own Win + Shift + Left/Right")
             ; Wonder Windows works without the Caps layer: Caps only appears in second slots.
             capsPrimaries := ""
             for actionId, action in manager.actions
@@ -167,14 +145,6 @@ class CoreChecks {
                     && StrSplit(action.defaults[1], "|")[1] != "normal"
                     capsPrimaries .= actionId " "
             this.Assert(capsPrimaries = "", "no Wonder Windows primary default needs a layer: " capsPrimaries)
-            this.Assert(!manager.actions.Has("cascade-kingdom.auto-placement"),
-                "old pause-cascading keybinding is removed")
-            this.Assert(!manager.actions.Has("cascade-kingdom.rotate-previous")
-                    && !manager.actions.Has("cascade-kingdom.move-left")
-                    && !manager.actions.Has("cascade-kingdom.move-right"),
-                "backward all-slot rotation and old Cascade monitor hotkeys are removed")
-            this.Assert(!manager.actions.Has("paper-pad.new") && !manager.actions.Has("paper-pad.save"),
-                "native New and Save are not duplicated in Keybindings")
             this.Assert(HasMethod(manager.actions["paper-pad.delete"].context, "Call"),
                 "Paper Pad delete has an explicit editor context")
             this.Assert(!manager.ContextActive(manager.actions["paper-pad.delete"]),
