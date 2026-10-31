@@ -42,66 +42,11 @@ UpdateFocusCornerOverlays()
 
     ; Geometry reads stay interruptible. Never mutate membership while rendering.
     live_windows := GetCascadeWindowsForOverlay()
-    live_targets := live_windows
-    visible_bounds := Map()
-    slot_stacks := []
-    stacks_by_slot := Map()
-    geometry_by_monitor := Map()
-    dpi_by_monitor := Map()
-    highest_hwnd_by_monitor := Map()
-    highest_y_by_monitor := Map()
-    lowest_hwnd_by_monitor := Map()
-    lowest_y_by_monitor := Map()
-
-    for hwnd, managed_monitor in live_windows {
-
-        if !IsCascadeWindowShown(hwnd)
-            continue
-
-        if !GetVisibleWindowBounds(hwnd, &window_x, &window_y, &window_width, &window_height) {
-            continue
-        }
-
-        monitor_index := WindowMonitorIndex(hwnd)
-        if !monitor_index || monitor_index != managed_monitor
-            continue
-        if !geometry_by_monitor.Has(monitor_index) {
-            if CascadeMonitorNeedsRefresh(monitor_index)
-                return
-            geometry_by_monitor[monitor_index] := GetCanonicalCascadeGeometry(monitor_index)
-            dpi_by_monitor[monitor_index] := GetCascadeMonitorDpi(monitor_index)
-        }
-        slot_index := FindNearestCascadeSlot(window_x, window_y,
-            geometry_by_monitor[monitor_index].slots, CascadeState.slotTolerance)
-        if !slot_index
-            continue
-
-        ; Use the same observed rectangle for membership, grouping and painting.
-        stack_key := monitor_index ":" slot_index
-        if !stacks_by_slot.Has(stack_key) {
-            stack_info := Map("slot_index", slot_index, "windows", [])
-            stacks_by_slot[stack_key] := stack_info
-            slot_stacks.Push(stack_info)
-        }
-        stacks_by_slot[stack_key]["windows"].Push(hwnd)
-        visible_bounds[hwnd] := [window_x, window_y, window_width, window_height, monitor_index]
-
-        if !highest_hwnd_by_monitor.Has(monitor_index)
-            || window_y < highest_y_by_monitor[monitor_index]
-        {
-            highest_hwnd_by_monitor[monitor_index] := hwnd
-            highest_y_by_monitor[monitor_index] := window_y
-        }
-        if !lowest_hwnd_by_monitor.Has(monitor_index)
-            || window_y > lowest_y_by_monitor[monitor_index]
-        {
-            lowest_hwnd_by_monitor[monitor_index] := hwnd
-            lowest_y_by_monitor[monitor_index] := window_y
-        }
-    }
+    if !(scene := ReadFocusTabScene(live_windows))
+        return
 
     ; No visible slot means no need to enumerate every desktop window for Z-order.
-    z_ranks := slot_stacks.Length ? GetCascadeWindowZRanks() : Map()
+    z_ranks := scene.stacks.Length ? GetCascadeWindowZRanks() : Map()
 
     ; Keep the hide/show handoff together, but do not lock the geometry queries.
     previous_critical := A_IsCritical
@@ -118,67 +63,8 @@ UpdateFocusCornerOverlays()
             QueueFocusCornerUpdate()
             return
         }
-
-        selected_targets := Map()
-        active_slot_targets := Map()
-
-        for stack_info in slot_stacks {
-            ordered_windows := SortCascadeWindowsByZOrder(stack_info["windows"], z_ranks)
-            selected_hwnd := SelectFocusCornerSlotTarget(ordered_windows, active_hwnd)
-            contains_active := false
-            sides := {left: false, right: false}
-
-            for hwnd in ordered_windows {
-                if hwnd = active_hwnd
-                    contains_active := true
-
-                monitor_index := visible_bounds[hwnd][5]
-                if highest_hwnd_by_monitor[monitor_index] = hwnd
-                    sides.%CascadeState.mirrored ? "right" : "left"% := true
-                if lowest_hwnd_by_monitor[monitor_index] = hwnd
-                    sides.%CascadeState.mirrored ? "left" : "right"% := true
-            }
-
-            if contains_active {
-                for hwnd in ordered_windows
-                    active_slot_targets[hwnd] := true
-            }
-
-            ; A full-height left tab belongs to the highest slot and a full-height
-            ; right tab to the lowest, mirrored when the cascade is, not to one
-            ; particular layer.
-            if selected_hwnd
-                selected_targets[selected_hwnd] := sides
-        }
-
-        stale_targets := []
-
-        ; Hide every old representative before showing any replacement.
-        ; Cached per-window GUIs stay reusable without stacking visible pixels.
-        for hwnd, overlay in CascadeState.focusCornerOverlays {
-            if !live_targets.Has(hwnd)
-                stale_targets.Push(hwnd)
-            else if !selected_targets.Has(hwnd)
-                HideFocusCornerOverlay(hwnd)
-        }
-
-        for hwnd in stale_targets
-            DestroyFocusCornerOverlay(hwnd)
-
-        for hwnd, sides in selected_targets {
-            if hwnd = active_hwnd || !WinExist("ahk_id " hwnd)
-                continue
-
-            bounds := visible_bounds[hwnd]
-            try {
-                ShowFocusCornerOverlay(hwnd, bounds[1], bounds[2], bounds[3], bounds[4],
-                    dpi_by_monitor[bounds[5]], sides.left, sides.right, active_slot_targets.Has(hwnd))
-            }
-            catch Error as err {
-                ; Closing targets must not interrupt updates for the other slots.
-                DebugError("ShowFocusCornerOverlay", err)
-            }
-        }
+        ShowFocusTabTargets(scene, ChooseFocusTabTargets(scene, z_ranks, active_hwnd),
+            live_windows, active_hwnd)
     }
     finally {
         Critical(previous_critical)
@@ -187,6 +73,131 @@ UpdateFocusCornerOverlays()
     ; External applications can still change foreground focus during rendering.
     if active_hwnd != DllCall("GetForegroundWindow", "ptr")
         QueueFocusCornerUpdate()
+}
+
+; Where each shown member is, grouped by slot, with each display's DPI and its
+; highest and lowest window; 0 while a display still needs a refresh.
+ReadFocusTabScene(live_windows)
+{
+    scene := {bounds: Map(), stacks: [], dpi: Map(), highest: Map(), lowest: Map()}
+    stacks_by_slot := Map()
+    geometry_by_monitor := Map()
+    highest_y_by_monitor := Map()
+    lowest_y_by_monitor := Map()
+
+    for hwnd, managed_monitor in live_windows {
+        if !IsCascadeWindowShown(hwnd)
+            continue
+
+        if !GetVisibleWindowBounds(hwnd, &window_x, &window_y, &window_width, &window_height)
+            continue
+
+        monitor_index := WindowMonitorIndex(hwnd)
+        if !monitor_index || monitor_index != managed_monitor
+            continue
+        if !geometry_by_monitor.Has(monitor_index) {
+            if CascadeMonitorNeedsRefresh(monitor_index)
+                return 0
+            geometry_by_monitor[monitor_index] := GetCanonicalCascadeGeometry(monitor_index)
+            scene.dpi[monitor_index] := GetCascadeMonitorDpi(monitor_index)
+        }
+        slot_index := FindNearestCascadeSlot(window_x, window_y,
+            geometry_by_monitor[monitor_index].slots, CascadeState.slotTolerance)
+        if !slot_index
+            continue
+
+        ; Use the same observed rectangle for membership, grouping and painting.
+        stack_key := monitor_index ":" slot_index
+        if !stacks_by_slot.Has(stack_key) {
+            stack_info := Map("slot_index", slot_index, "windows", [])
+            stacks_by_slot[stack_key] := stack_info
+            scene.stacks.Push(stack_info)
+        }
+        stacks_by_slot[stack_key]["windows"].Push(hwnd)
+        scene.bounds[hwnd] := [window_x, window_y, window_width, window_height, monitor_index]
+
+        if !scene.highest.Has(monitor_index) || window_y < highest_y_by_monitor[monitor_index] {
+            scene.highest[monitor_index] := hwnd
+            highest_y_by_monitor[monitor_index] := window_y
+        }
+        if !scene.lowest.Has(monitor_index) || window_y > lowest_y_by_monitor[monitor_index] {
+            scene.lowest[monitor_index] := hwnd
+            lowest_y_by_monitor[monitor_index] := window_y
+        }
+    }
+    return scene
+}
+
+; The window each slot's tabs stand for, with the sides whose tab runs full
+; height, and every window in the active window's slot.
+ChooseFocusTabTargets(scene, z_ranks, active_hwnd)
+{
+    selected_targets := Map()
+    active_slot_targets := Map()
+
+    for stack_info in scene.stacks {
+        ordered_windows := SortCascadeWindowsByZOrder(stack_info["windows"], z_ranks)
+        selected_hwnd := SelectFocusCornerSlotTarget(ordered_windows, active_hwnd)
+        contains_active := false
+        sides := {left: false, right: false}
+
+        for hwnd in ordered_windows {
+            if hwnd = active_hwnd
+                contains_active := true
+
+            monitor_index := scene.bounds[hwnd][5]
+            if scene.highest[monitor_index] = hwnd
+                sides.%CascadeState.mirrored ? "right" : "left"% := true
+            if scene.lowest[monitor_index] = hwnd
+                sides.%CascadeState.mirrored ? "left" : "right"% := true
+        }
+
+        if contains_active {
+            for hwnd in ordered_windows
+                active_slot_targets[hwnd] := true
+        }
+
+        ; A full-height left tab belongs to the highest slot and a full-height
+        ; right tab to the lowest, mirrored when the cascade is, not to one
+        ; particular layer.
+        if selected_hwnd
+            selected_targets[selected_hwnd] := sides
+    }
+    return {selected: selected_targets, activeSlot: active_slot_targets}
+}
+
+; Hides every tab no slot needs now, drops those of departed windows, then
+; shows the chosen ones.
+ShowFocusTabTargets(scene, targets, live_windows, active_hwnd)
+{
+    stale_targets := []
+
+    ; Hide every old representative before showing any replacement.
+    ; Cached per-window GUIs stay reusable without stacking visible pixels.
+    for hwnd, overlay in CascadeState.focusCornerOverlays {
+        if !live_windows.Has(hwnd)
+            stale_targets.Push(hwnd)
+        else if !targets.selected.Has(hwnd)
+            HideFocusCornerOverlay(hwnd)
+    }
+
+    for hwnd in stale_targets
+        DestroyFocusCornerOverlay(hwnd)
+
+    for hwnd, sides in targets.selected {
+        if hwnd = active_hwnd || !WinExist("ahk_id " hwnd)
+            continue
+
+        bounds := scene.bounds[hwnd]
+        try {
+            ShowFocusCornerOverlay(hwnd, bounds[1], bounds[2], bounds[3], bounds[4],
+                scene.dpi[bounds[5]], sides.left, sides.right, targets.activeSlot.Has(hwnd))
+        }
+        catch Error as err {
+            ; Closing targets must not interrupt updates for the other slots.
+            DebugError("ShowFocusCornerOverlay", err)
+        }
+    }
 }
 
 GetCascadeWindowsForOverlay()
