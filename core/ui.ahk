@@ -238,7 +238,8 @@ SuiteMoveControls(window, positions) {
 }
 
 ; Large, click-through notices centered on the working display, so keyboard
-; users see them wherever the pointer rests, even over fullscreen windows.
+; users see them wherever the pointer rests, even over fullscreen windows;
+; news they did not just ask for shows on every display.
 ; Each slot shows one message; a newer message replaces it. Shown notices
 ; stack in order, laid out again whenever one shows or hides.
 class SuiteNotice {
@@ -264,6 +265,13 @@ class SuiteNotice {
         this._Arrange()
         if durationMs
             SetTimer(notice.timer, -durationMs)
+    }
+
+    ; Shows text on every display, in slot-1, slot-2 and so on, for news the
+    ; user did not just ask for, when the working display is only a guess.
+    static ShowEverywhere(slot, text, durationMs := 0) {
+        loop MonitorGetCount()
+            this.Show(slot "-" A_Index, text, durationMs, A_Index)
     }
 
     static Hide(slot, *) {

@@ -40,8 +40,7 @@ class SuiteChecks {
         Loop seconds {
             text := "Super Hotkey checks start in " (seconds - A_Index + 1)
                 . " s`nHands off the keyboard and mouse until they finish"
-            Loop MonitorGetCount()
-                SuiteNotice.Show("checks-" A_Index, text, , A_Index)
+            SuiteNotice.ShowEverywhere("checks", text)
             Sleep 1000
         }
         SuiteNotice.Destroy()

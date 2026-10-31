@@ -105,7 +105,7 @@ class PowerUpUtilities extends SuiteModule {
     }
 
     ; Back at the desktop: show a stay awake that ran out while away.
-    Resume() => this.stayAwake.ShowMissed()
+    Resume() => this.stayAwake.Returned()
 
     SetTrayStatus(text) {
         if IsObject(this.app.ui)

@@ -8,7 +8,7 @@
 
 ### Fixes
 
-- **Power-Up Utilities:** when stay awake runs out while the computer sleeps or is locked, its "Sleep allowed again" notice waits until you unlock instead of showing behind the lock screen.
+- **Power-Up Utilities:** when stay awake runs out, its "Sleep allowed again" notice shows on every display. If the computer sleeps or is locked, the notice shows a second after you unlock instead of behind the lock screen.
 
 ## v1.0.0-beta.3
 

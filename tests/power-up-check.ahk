@@ -52,11 +52,31 @@ class PowerUpChecks {
         awake.Expire()
         this.Assert(awake.index = 0 && awake.missed && reports.Length = 1,
             "running out while asleep or locked allows sleep at once")
-        app.systemSuspended := app.sessionLocked := false
         awake.ShowMissed()
-        this.Assert(!awake.missed && SuiteNotice.notices["status"].text = "Sleep allowed again",
-            "its notice shows once the user is back")
-        SuiteNotice.Hide("status")
+        this.Assert(awake.missed, "the notice still waits while the session is locked")
+        app.systemSuspended := app.sessionLocked := false
+        awake.Returned()
+        this.Assert(awake.missed, "the notice waits a second after the unlock")
+        ; Checks run uninterruptible, so the second's timer is called by hand.
+        SetTimer(awake.missedTimer, 0)
+        awake.missedTimer.Call()
+        this.Assert(!awake.missed && this.ShownEverywhere("Sleep allowed again"),
+            "then it shows on every display")
+        awake.index := 1
+        awake.Expire()
+        this.Assert(!awake.missed && this.ShownEverywhere("Sleep allowed again"),
+            "running out while the user is there shows on every display at once")
+    }
+
+    ; Whether text shows on each display, hiding it afterwards.
+    static ShownEverywhere(text) {
+        everywhere := true
+        loop MonitorGetCount() {
+            notice := SuiteNotice.notices["status-" A_Index]
+            everywhere := everywhere && notice.shown && notice.monitor = A_Index && notice.text = text
+            SuiteNotice.Hide("status-" A_Index)
+        }
+        return everywhere
     }
 
     static SleepPolicyRecovery() {
