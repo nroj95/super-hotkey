@@ -1,5 +1,6 @@
 ; Power-Up Utilities: extra keys, text and Terminal macros, and system actions.
-; Macros run after their trigger keys are released, outside input callbacks.
+; Macros run after their trigger keys are released, outside input callbacks;
+; staying awake types nothing and answers each press at once.
 
 class PowerUpUtilities extends SuiteModule {
     __New(app) {
@@ -152,6 +153,18 @@ class PowerUpUtilities extends SuiteModule {
         }
         if event.phase != "down" || !this.CanDispatch(event.actionId)
             return
+        ; Staying awake types nothing, so each press answers at once, with Pause
+        ; still held for the next step.
+        if InStr(action.kind, "awake-") = 1 {
+            if this.dryRun {
+                this.Report("dry run: " event.actionId " via " event.binding)
+                return
+            }
+            try this.stayAwake.Step(action.kind = "awake-long" ? "long" : "short")
+            catch Error as failure
+                SuiteState.Log.Error("Power-Up Utilities / stay awake", failure)
+            return
+        }
         if this.pending.Count >= 16
             return
         targetPid := 0
@@ -213,8 +226,6 @@ class PowerUpUtilities extends SuiteModule {
                 case "terminal-clear": this.terminal.Clear(job)
                 case "speaker-wake": this.utilities.WakeSpeakers(job)
                 case "sleep": this.utilities.SleepComputer(job)
-                case "awake-short": this.stayAwake.Step("short")
-                case "awake-long": this.stayAwake.Step("long")
                 default: throw Error("Unknown action kind: " job.action.kind)
             }
         }

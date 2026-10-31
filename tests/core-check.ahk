@@ -654,6 +654,19 @@ class CoreChecks {
                 && !InStr(SuiteState.Log.Read(), "dry run: " event.actionId),
                 "cancellation also expires a worker already scheduled for execution")
 
+            ; Stay awake answers on the press itself, so Pause can stay held.
+            power.DefineProp("InputsReleased", {Call: (self, event) => false})
+            awake := {actionId: "power-up-utilities.system.stay-awake", slot: 1,
+                phase: "down", foregroundHwnd: 0, layer: "pause",
+                key: "End", binding: "Pause + End", modifiers: 0, oneShot: false}
+            power.Dispatch(awake)
+            power.Dispatch(awake)
+            logText := SuiteState.Log.Read()
+            this.Assert(!power.pending.Count
+                && StrSplit(logText, "dry run: " awake.actionId).Length - 1 = 2,
+                "each stay-awake press answers at once while Pause is held")
+            power.DefineProp("InputsReleased", {Call: (self, event) => true})
+
             manager.gated := false
             event.phase := "down"
             power.Dispatch(event)
