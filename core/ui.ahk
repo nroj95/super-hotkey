@@ -245,6 +245,7 @@ SuiteMoveControls(window, positions) {
 class SuiteNotice {
     static order := ["layer", "status"] ; top to bottom when both show
     static notices := Map()
+    static NewsMs := 3000
 
     ; Shows text in slot until Hide, or for durationMs when given. A monitor
     ; index centers it there instead of on the working display.
@@ -269,9 +270,11 @@ class SuiteNotice {
 
     ; Shows text on every display, in slot-1, slot-2 and so on, for news the
     ; user did not just ask for, when the working display is only a guess.
-    static ShowEverywhere(slot, text, durationMs := 0) {
+    ; News lasts longer than the 1.4 s answer to a press, since nobody was
+    ; looking for it.
+    static ShowEverywhere(slot, text) {
         loop MonitorGetCount()
-            this.Show(slot "-" A_Index, text, durationMs, A_Index)
+            this.Show(slot "-" A_Index, text, this.NewsMs, A_Index)
     }
 
     static Hide(slot, *) {

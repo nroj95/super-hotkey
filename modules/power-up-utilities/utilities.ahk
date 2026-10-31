@@ -359,7 +359,7 @@ class PU_StayAwake {
         if !this.missed || app.systemSuspended || app.sessionLocked
             return
         this.missed := false
-        SuiteNotice.ShowEverywhere("status", "Sleep allowed again", PU_StayAwake.NoticeMs)
+        SuiteNotice.ShowEverywhere("status", "Sleep allowed again")
     }
 
     ; Withdraws the request; safe when none is active.
