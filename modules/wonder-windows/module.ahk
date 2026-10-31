@@ -55,15 +55,19 @@ class WonderWindowsModule extends SuiteModule {
         this.Add("minimize", "minimize active window", WW_MinimizeActiveWindow, ["Win + Backspace"])
         this.Add("restore-minimized", "restore last minimized window", WW_RestoreMinimizedWindow,
             ["Win + Shift + Backspace"])
-        ; Improved Windows keys that act on a whole display, so from any window.
+        ; Improved Windows keys that act on whole displays, so from any window.
         this.Add("minimize-all", "minimize all windows on this display", WW_MinimizeAllWindows, ["Win + M"],
             , {hidden: true, anyWindow: true})
         this.Add("minimize-others", "minimize other windows on this display", WW_MinimizeOtherWindows,
             ["Win + Home"], , {hidden: true, anyWindow: true})
         this.Add("restore-others", "restore windows behind the active window", WW_RestoreOtherWindows,
             ["Win + Shift + Home"], , {hidden: true, anyWindow: true})
-        this.Add("restore-all", "restore windows minimized with Win + M or Win + Home", WW_RestoreAllWindows,
+        this.Add("restore-all", "restore windows minimized on this display", WW_RestoreAllWindows,
             ["Win + Shift + M"], , {hidden: true, anyWindow: true})
+        this.Add("minimize-everywhere", "minimize all windows on every display", WW_MinimizeEveryDisplay,
+            ["Win + D"], , {hidden: true, anyWindow: true})
+        this.Add("restore-everywhere", "restore windows minimized on every display", WW_RestoreEveryDisplay,
+            ["Win + Shift + D"], , {hidden: true, anyWindow: true})
     }
 
     ; anyWindow drops the check that the active window is one Wonder Windows
@@ -256,7 +260,8 @@ class WonderWindowsModule extends SuiteModule {
             . "Win + M minimizes the windows on your display and Win + Shift + M brings "
             . "them back; unlike in Windows, an extra Win + M never forgets what to restore. "
             . "Win + Home minimizes the others there and keeps the active window, and "
-            . "Win + Shift + Home brings them back behind it."
+            . "Win + Shift + Home brings them back behind it. Win + D minimizes the "
+            . "windows on every display and Win + Shift + D brings them all back."
             . "`r`n`r`nFOCUS, STACKS AND FULLSCREEN"
             . "`r`nWin + PgDn and PgUp step focus through every window on screen in reading "
             . "order: displays left to right, columns left to right, top before bottom, and "

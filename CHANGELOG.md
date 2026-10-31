@@ -8,8 +8,9 @@
 
 ### Changes
 
-- **Wonder Windows:** `Win + M` minimizes the windows on your display only, and `Win + Shift + M` brings back that display's, keeping their stacking order with the frontmost focused. Unlike in Windows, a `Win + M` with nothing left to minimize no longer makes `Win + Shift + M` forget what to bring back, and a later `Win + M` adds to it. `Win + D` still clears every display.
+- **Wonder Windows:** `Win + M` minimizes the windows on your display only, and `Win + Shift + M` brings back that display's, keeping their stacking order with the frontmost focused. Unlike in Windows, a `Win + M` with nothing left to minimize no longer makes `Win + Shift + M` forget what to bring back, and a later `Win + M` adds to it.
 - **Wonder Windows:** `Win + Home` minimizes the other windows on your display only and keeps the active one in front, and `Win + Shift + Home` brings them back behind it. Unlike in Windows, `Win + Home` only minimizes, and moving or switching windows in between never makes it forget. It shares its memory with `Win + M`, so `Win + Shift + M` brings back what either minimized, frontmost on top.
+- **Wonder Windows:** `Win + D` minimizes the windows on every display and `Win + Shift + D` brings them all back, instead of one key that shows the desktop or restores and forgets at the next window change. Each display remembers its own, so `Win + Shift + M` can bring back just yours. Like `Win + M`, windows without a minimize button stay.
 - **Cascade Kingdom:** `Caps + Tab` brings the next cascade forward and outlines its front window, from left to right across your displays and wrapping. From outside a cascade it starts with the one on your display. A notice says when there are no cascades, or no other one.
 - **Paper Pad:** `Caps + F12` shows or hides the drawer too, beside `Win + F12`.
 - **Suite windows** that resize, such as Help, Settings and Keybindings, show the Windows sizing grip in the lower-right corner again, on the window's own background. It hides while a window is maximized.

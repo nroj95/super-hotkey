@@ -30,7 +30,7 @@ Windows can also sit side by side with others stacked behind them: `Win + Enter`
 
 For big windows, `Win + Alt + Enter` shows the next maximized or fullscreen window on your display and minimizes the others, so one is out at a time. Add `Shift` to go back.
 
-`Win + M` minimizes the windows on your display, and `Win + Shift + M` brings them back. Unlike in Windows, the other display keeps its windows, and an extra `Win + M` never makes `Win + Shift + M` forget what to bring back. `Win + Home` minimizes the others on your display and keeps the window you're in, and `Win + Shift + Home` brings them back behind it.
+`Win + M` minimizes the windows on your display, and `Win + Shift + M` brings them back. Unlike in Windows, the other display keeps its windows, and an extra `Win + M` never makes `Win + Shift + M` forget what to bring back. `Win + Home` minimizes the others on your display and keeps the window you're in, and `Win + Shift + Home` brings them back behind it. `Win + D` minimizes the windows on every display, and `Win + Shift + D` brings them all back.
 
 ### Cascade Kingdom
 

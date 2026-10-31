@@ -96,10 +96,11 @@ WW_MinimizeActiveWindow()
     }
 }
 
-; Win + M minimizes every window on the working display, and Win + Home every
-; one but the active window. Win + Shift + M brings back what either minimized
-; there with the frontmost on top again, and Win + Shift + Home brings it back
-; behind the active window. Unlike Windows' own keys, which span every display
+; Win + M minimizes every window on the working display, Win + Home every one
+; but the active window, and Win + D every window on every display. Win + Shift
+; + M brings back what they minimized there with the frontmost on top again,
+; Win + Shift + Home brings it back behind the active window, and Win + Shift
+; + D brings back every display's. Unlike Windows' own keys, which span every display
 ; and forget at the next window change, each display remembers its own
 ; windows: a press with nothing left to minimize keeps them, and a later one
 ; adds to them. Like Windows, windows without a minimize button stay. windows
@@ -113,6 +114,32 @@ WW_MinimizeAllWindows(windows?, monitor?)
     added := WW_MinimizeDisplayWindows(IsSet(windows) ? windows : WinGetList(), monitor)
     if added.Length
         WW_FocusDesktopAfter(added)
+}
+
+; Each display still remembers its own windows, so Win + Shift + M can bring
+; back one display's.
+WW_MinimizeEveryDisplay(windows?)
+{
+    Critical "On"
+
+    windows := IsSet(windows) ? windows : WinGetList()
+    added := []
+    Loop MonitorGetCount()
+        added.Push(WW_MinimizeDisplayWindows(windows, A_Index)*)
+    if added.Length
+        WW_FocusDesktopAfter(added)
+}
+
+; The working display comes back last, so its frontmost window gets focus.
+WW_RestoreEveryDisplay()
+{
+    Critical "On"
+
+    working := SuiteWorkingMonitor.Get()
+    Loop MonitorGetCount()
+        if A_Index != working
+            WW_RestoreAllWindows(A_Index)
+    WW_RestoreAllWindows(working)
 }
 
 WW_MinimizeOtherWindows(windows?)
@@ -190,7 +217,7 @@ WW_FocusDesktopAfter(entries)
         Sleep 25
     }
     if DllCall("GetForegroundWindow", "ptr") != desktop
-        WW_DebugLog("Win + M could not focus the desktop. | foreground="
+        WW_DebugLog("Minimizing could not focus the desktop. | foreground="
             . DescribeWindow(DllCall("GetForegroundWindow", "ptr")))
 }
 

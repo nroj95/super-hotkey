@@ -1,5 +1,5 @@
 ; Wonder Windows: geometry, ownership, tiles, stacking, stack and expanded-window
-; cycling, fullscreen detection, and Win + M and Win + Home with their restore.
+; cycling, fullscreen detection, and Win + M, Win + Home and Win + D with their restore.
 ; Disposable preferences, dry-run inputs and test-owned windows only.
 class WonderWindowsChecks {
     static Run() {
@@ -82,6 +82,22 @@ class WonderWindowsChecks {
             this.Assert(!Minimized(windows[1]) && !WW_minimized_all.Has(device)
                 && DllCall("GetForegroundWindow", "ptr") = windows[2].Hwnd,
                 "Win + Shift + Home brings them back behind the active window")
+            ; Win + D also reaches a window on the other display, remembered there.
+            if other {
+                MonitorGetWorkArea(other, &left, &top)
+                WinMove(left + 100, top + 100, , , windows[1].Hwnd)
+            }
+            WW_MinimizeEveryDisplay(front)
+            WaitFor(() => Minimized(windows[1]) && Minimized(windows[2]))
+            this.Assert(Minimized(windows[1]) && Minimized(windows[2])
+                && WW_minimized_all.Get(device, []).Length = 1
+                && WW_minimized_all.Get(MonitorGetName(other || monitor), []).Length = (other ? 1 : 2)
+                && DllCall("GetForegroundWindow", "ptr") = DllCall("GetShellWindow", "ptr"),
+                "Win + D minimizes every display's windows into that display's memory")
+            WW_RestoreEveryDisplay()
+            WaitFor(() => !Minimized(windows[1]) && !Minimized(windows[2]))
+            this.Assert(!Minimized(windows[1]) && !Minimized(windows[2]) && !WW_minimized_all.Has(device),
+                "Win + Shift + D brings every display's windows back")
         }
         finally {
             WW_minimized_all := Map()
