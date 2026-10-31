@@ -25,6 +25,7 @@
 - **Cascade Kingdom:** dragging a window that Windows Snap arranged shows the drop guides on the first drag and can join the cascade. Windows giving it back its earlier size no longer counts as a resize.
 - **Secret Layers:** the "Caps held" and "Pause held" notices go away once a hotkey answers, so they no longer show next to that hotkey's own notice. Notices that show together always stack, whichever came first, and the rest move back to the center when one hides.
 - **Power-Up Utilities:** text hotkeys count every press while Pause is held, so `Pause` held with `- -` types two en dashes once you let go, in the order pressed. Before, repeated presses typed one.
+- **Wonder Windows** counts every tap made during a slow move, in the order pressed, so three quick `Win + Right` taps step three zones instead of two. A fast `Win + scroll` spin still steps once, so it cannot fling a window several zones on.
 
 ## v1.0.0-beta.2
 

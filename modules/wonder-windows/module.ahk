@@ -16,6 +16,8 @@ class WonderWindowsModule extends SuiteModule {
         this.stopping := false
         this.generation := 0
         this.pending := Map()
+        this.pressTokens := Map()  ; action|slot -> its latest key tap
+        this.sequence := 0
         this.catalog := Map()
         this.drainCallback := ObjBindMethod(this, "Drain")
         this.pollCallback := ObjBindMethod(this, "PollCompatibility")
@@ -90,7 +92,8 @@ class WonderWindowsModule extends SuiteModule {
     }
 
     Event(event) {
-        token := event.actionId "|" event.slot
+        press := event.actionId "|" event.slot
+        token := this.pressTokens.Get(press, press)
         if event.phase = "cancel" {
             if this.pending.Has(token)
                 this.pending.Delete(token)
@@ -104,6 +107,14 @@ class WonderWindowsModule extends SuiteModule {
         }
         if !this.CanRun() || this.pending.Count >= 16
             return
+        ; Taps held back by a slow move arrive together; each counts, and the
+        ; numbered tokens drain in the order pressed. Wheel notches share one,
+        ; so a fast spin cannot fling a window several zones on.
+        if !InStr(event.key, "Wheel") {
+            this.sequence += 1
+            token := Format("{:010}", this.sequence) "|" press
+            this.pressTokens[press] := token
+        }
         this.pending[token] := {action: this.catalog[event.actionId], event: event.Clone(),
             pid: WindowProcessId(event.foregroundHwnd), generation: this.generation,
             created: A_TickCount}
@@ -140,6 +151,7 @@ class WonderWindowsModule extends SuiteModule {
     CancelWork() {
         this.generation += 1
         this.pending.Clear()
+        this.pressTokens.Clear()
         SetTimer(this.drainCallback, 0)
         WW_EndZoneCycle()
     }

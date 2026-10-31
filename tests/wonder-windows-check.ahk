@@ -267,6 +267,36 @@ class WonderWindowsChecks {
             app.modules["wonder-windows"].Event(event)
             this.Assert(InStr(SuiteState.Log.Read(), "dry run: wonder-windows.maximize"),
                 "Wonder Windows dry-run callbacks do not move real windows")
+            ; Two taps that arrive together, as after a slow move, both count.
+            wonder := app.modules["wonder-windows"]
+            wonder.DefineProp("CanRun", {Call: (self) => true})
+            app.dryRun := false
+            try {
+                tap := {phase: "down", actionId: "wonder-windows.zones-from-left", slot: 2,
+                    foregroundHwnd: 0, key: "sc14D", layer: "normal", modifiers: 8, oneShot: false}
+                wonder.Event(tap)
+                right := tap.Clone()
+                right.actionId := "wonder-windows.zones-from-right"
+                wonder.Event(right)
+                wonder.Event(tap.Clone())
+                SetTimer(wonder.drainCallback, 0)
+                order := []
+                for token, job in wonder.pending
+                    order.Push(job.event.actionId)
+                this.Assert(order.Length = 3 && order[1] = tap.actionId && order[2] = right.actionId
+                    && order[3] = tap.actionId, "quick taps all count and drain in the order pressed")
+                wonder.CancelWork()
+                notch := tap.Clone()
+                notch.key := "WheelDown"
+                wonder.Event(notch)
+                wonder.Event(notch.Clone())
+                SetTimer(wonder.drainCallback, 0)
+                this.Assert(wonder.pending.Count = 1, "a fast wheel spin keeps one step")
+            }
+            finally {
+                app.dryRun := true
+                wonder.CancelWork()
+            }
         }
         finally app.manager.Stop()
     }
