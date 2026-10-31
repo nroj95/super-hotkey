@@ -11,6 +11,7 @@ class CascadeChecks {
         this.SavedCascades()
         this.CompactionPlan()
         this.HomeDisplays()
+        this.DisplayRefresh()
         this.NextCascade()
         this.DragResize()
         this.Mirrored()
@@ -118,6 +119,43 @@ class CascadeChecks {
             "a dropped window keeps its slot")
         this.Assert(this.Plan([[1], [2], [], [], [3]], 3) = "|1|2|3|||",
             "a drop past the end of the cascade lands at its end")
+    }
+
+    ; A refresh moves the members of a display that disappeared to the primary
+    ; one, keeping their slot and remembering the old display as home. In a dry
+    ; run nothing then moves the real window.
+    static DisplayRefresh() {
+        InitializeCascadeState()
+        window := SuiteGui("+Resize", "Display refresh check")
+        try {
+            window.Show("NA w320 h240")
+            snapshot := ReadCascadeDisplays()
+            primary := MonitorGetPrimary()
+            gone := MonitorGetCount() + 1
+            CascadeState.targetDisplay := "All"
+            CascadeState.displays := snapshot.displays.Clone()
+            CascadeState.displays[gone] := {device: "\\.\DISPLAY-GONE", signature: "gone",
+                geometry: snapshot.displays[primary].geometry}
+            CascadeState.displaySignature := "stale"
+            CascadeState.history := Map(gone, [window.Hwnd])
+            CascadeState.windowSlots[window.Hwnd] := {pid: WinGetPID(window.Hwnd), monitor: gone,
+                device: "\\.\DISPLAY-GONE", slot: 2}
+            RefreshCascadeDisplays()
+            slot := CascadeState.windowSlots.Get(window.Hwnd, 0)
+            this.Assert(CascadeState.displaySignature = snapshot.signature
+                && CascadeState.history.Has(primary) && CascadeState.history[primary][1] = window.Hwnd
+                && !CascadeState.history.Has(gone)
+                && CascadeState.homeDevices.Get(window.Hwnd, "") = "\\.\DISPLAY-GONE"
+                && IsObject(slot) && slot.monitor = primary && slot.slot = 2
+                && CascadeState.displayReflow.Has(window.Hwnd),
+                "a refresh moves a vanished display's members to the primary and remembers their home")
+        }
+        finally {
+            SetTimer(ApplyPendingCascadeDisplayLayout, 0)
+            SetTimer(RefreshCascadeDisplays, 0)
+            InitializeCascadeState()
+            window.Destroy()
+        }
     }
 
     static ShownWindows() {

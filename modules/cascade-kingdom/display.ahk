@@ -98,98 +98,7 @@ RefreshCascadeDisplays()
         ; Geometry queries above stay interruptible. Publish slots, membership and
         ; cancellation together so a hotkey cannot observe a half-remapped monitor.
         previous_critical := Critical("On")
-        try {
-            old_displays := CascadeState.displays
-            new_displays := snapshot.displays
-            remapped_history := Map()
-            remapped_compactions := Map()
-            topology_changed := old_displays.Count != new_displays.Count
-
-            ; Preserve each known member's last intended slot before Windows' own DPI
-            ; resize makes its current top-left look like an intentional drag away.
-            fallback := MonitorGetPrimary()
-            if !new_displays.Has(fallback)
-                fallback := 1
-            for old_monitor, history in CascadeState.history.Clone() {
-                device := old_displays.Has(old_monitor) ? old_displays[old_monitor].device : ""
-                for hwnd in history.Clone() {
-                    if !DllCall("IsWindow", "ptr", hwnd, "int")
-                        continue
-                    destination := CascadeMemberDestination(device, CascadeState.homeDevices.Get(hwnd, ""),
-                        new_displays, fallback, &home)
-                    if home != ""
-                        CascadeState.homeDevices[hwnd] := home
-                    else if CascadeState.homeDevices.Has(hwnd)
-                        CascadeState.homeDevices.Delete(hwnd)
-                    if !CascadeDisplayAllowed(destination, new_displays) {
-                        ReleaseCascadeWindow(hwnd)
-                        topology_changed := true
-                        continue
-                    }
-                    if destination != old_monitor || !old_displays.Has(old_monitor)
-                        topology_changed := true
-                    if !remapped_history.Has(destination)
-                        remapped_history[destination] := []
-                    remapped_history[destination].Push(hwnd)
-                    changed := !old_displays.Has(old_monitor)
-                        || old_displays[old_monitor].signature != new_displays[destination].signature
-                    if !changed && destination = old_monitor
-                        continue
-                    if !CascadeState.windowSlots.Has(hwnd)
-                        RememberCascadeSlot(hwnd, old_monitor)
-                    if !CascadeState.windowSlots.Has(hwnd)
-                        continue
-                    slot := CascadeState.windowSlots[hwnd]
-                    try {
-                        if WinGetPID(hwnd) != slot.pid
-                            continue
-                    }
-                    catch {
-                        continue
-                    }
-                    slot := slot.Clone()
-                    slot.monitor := destination
-                    slot.device := new_displays[destination].device
-                    slot.slot := Min(slot.slot, new_displays[destination].geometry.slots.Length)
-                    CascadeState.windowSlots[hwnd] := slot
-                    ; An active native drag owns its final destination, even during scaling.
-                    if !IsCascadeWindowBeingDragged(hwnd)
-                        CascadeState.displayReflow[hwnd] := slot
-                }
-                if CascadeState.compactionPending.Has(old_monitor) {
-                    destination := FindCascadeMonitorDevice(device, new_displays) || fallback
-                    remapped_compactions[destination] := CascadeState.compactionPending[old_monitor]
-                }
-            }
-
-            CascadeState.displays := new_displays
-            CascadeState.displaySignature := snapshot.signature
-            CascadeState.displayGeneration += 1
-            CascadeState.membershipGeneration += 1
-            ; A DPI-only change leaves the original history map/arrays in place.
-            if topology_changed {
-                CascadeState.history := remapped_history
-                CascadeState.compactionPending := remapped_compactions
-                ; Old monitor-index gates are no longer meaningful. Their delayed
-                ; callbacks already check identity; saved minimized windows are retained.
-                CascadeState.restoreBatches.Clear()
-                CascadeState.closeBatches.Clear()
-            }
-            for hwnd in CascadeState.displayReflow {
-                CancelPlacementStabilization(hwnd)
-            }
-            for target in CascadeState.minimizedWindows {
-                if CascadeState.windowSlots.Has(target.hwnd)
-                    target.monitor := CascadeState.windowSlots[target.hwnd].monitor
-            }
-            ; Merged, returned or rescaled cascades close up once their windows
-            ; have moved, so windows share a slot only when every slot is taken.
-            for monitor in CascadeState.history
-                QueueCascadeCompaction(monitor)
-            CascadeState.displayChangePending := false
-            DebugLog("Display geometry refreshed without reload. | displays=" new_displays.Count
-                " | pending-members=" CascadeState.displayReflow.Count " | signature=" snapshot.signature)
-        }
+        try PublishCascadeDisplays(snapshot, RemapCascadeMembers(CascadeState.displays, snapshot.displays))
         finally {
             Critical(previous_critical)
         }
@@ -205,6 +114,108 @@ RefreshCascadeDisplays()
         QueueFocusCornerUpdate()
         SetTimer(ApplyPendingCascadeDisplayLayout, -50)
     }
+}
+
+; Where every member goes after a display change: the history and pending
+; compactions per new display, and whether the displays' layout changed.
+RemapCascadeMembers(old_displays, new_displays)
+{
+    remap := {history: Map(), compactions: Map(), topologyChanged: old_displays.Count != new_displays.Count}
+
+    ; Preserve each known member's last intended slot before Windows' own DPI
+    ; resize makes its current top-left look like an intentional drag away.
+    fallback := MonitorGetPrimary()
+    if !new_displays.Has(fallback)
+        fallback := 1
+    for old_monitor, history in CascadeState.history.Clone() {
+        device := old_displays.Has(old_monitor) ? old_displays[old_monitor].device : ""
+        for hwnd in history.Clone()
+            RemapCascadeMember(hwnd, old_monitor, device, old_displays, new_displays, fallback, remap)
+        if CascadeState.compactionPending.Has(old_monitor) {
+            destination := FindCascadeMonitorDevice(device, new_displays) || fallback
+            remap.compactions[destination] := CascadeState.compactionPending[old_monitor]
+        }
+    }
+    return remap
+}
+
+; One member's new display and slot, recorded in remap and its slot memory.
+RemapCascadeMember(hwnd, old_monitor, device, old_displays, new_displays, fallback, remap)
+{
+    if !DllCall("IsWindow", "ptr", hwnd, "int")
+        return
+    destination := CascadeMemberDestination(device, CascadeState.homeDevices.Get(hwnd, ""),
+        new_displays, fallback, &home)
+    if home != ""
+        CascadeState.homeDevices[hwnd] := home
+    else if CascadeState.homeDevices.Has(hwnd)
+        CascadeState.homeDevices.Delete(hwnd)
+    if !CascadeDisplayAllowed(destination, new_displays) {
+        ReleaseCascadeWindow(hwnd)
+        remap.topologyChanged := true
+        return
+    }
+    if destination != old_monitor || !old_displays.Has(old_monitor)
+        remap.topologyChanged := true
+    if !remap.history.Has(destination)
+        remap.history[destination] := []
+    remap.history[destination].Push(hwnd)
+    changed := !old_displays.Has(old_monitor)
+        || old_displays[old_monitor].signature != new_displays[destination].signature
+    if !changed && destination = old_monitor
+        return
+    if !CascadeState.windowSlots.Has(hwnd)
+        RememberCascadeSlot(hwnd, old_monitor)
+    if !CascadeState.windowSlots.Has(hwnd)
+        return
+    slot := CascadeState.windowSlots[hwnd]
+    try {
+        if WinGetPID(hwnd) != slot.pid
+            return
+    }
+    catch {
+        return
+    }
+    slot := slot.Clone()
+    slot.monitor := destination
+    slot.device := new_displays[destination].device
+    slot.slot := Min(slot.slot, new_displays[destination].geometry.slots.Length)
+    CascadeState.windowSlots[hwnd] := slot
+    ; An active native drag owns its final destination, even during scaling.
+    if !IsCascadeWindowBeingDragged(hwnd)
+        CascadeState.displayReflow[hwnd] := slot
+}
+
+; Publishes the new displays, membership and cancellations together, so a
+; hotkey cannot observe a half-remapped display.
+PublishCascadeDisplays(snapshot, remap)
+{
+    CascadeState.displays := snapshot.displays
+    CascadeState.displaySignature := snapshot.signature
+    CascadeState.displayGeneration += 1
+    CascadeState.membershipGeneration += 1
+    ; A DPI-only change leaves the original history map/arrays in place.
+    if remap.topologyChanged {
+        CascadeState.history := remap.history
+        CascadeState.compactionPending := remap.compactions
+        ; Old monitor-index gates are no longer meaningful. Their delayed
+        ; callbacks already check identity; saved minimized windows are retained.
+        CascadeState.restoreBatches.Clear()
+        CascadeState.closeBatches.Clear()
+    }
+    for hwnd in CascadeState.displayReflow
+        CancelPlacementStabilization(hwnd)
+    for target in CascadeState.minimizedWindows {
+        if CascadeState.windowSlots.Has(target.hwnd)
+            target.monitor := CascadeState.windowSlots[target.hwnd].monitor
+    }
+    ; Merged, returned or rescaled cascades close up once their windows
+    ; have moved, so windows share a slot only when every slot is taken.
+    for monitor in CascadeState.history
+        QueueCascadeCompaction(monitor)
+    CascadeState.displayChangePending := false
+    DebugLog("Display geometry refreshed without reload. | displays=" snapshot.displays.Count
+        " | pending-members=" CascadeState.displayReflow.Count " | signature=" snapshot.signature)
 }
 
 ; Where a cascade member on device goes after a display change. A window
