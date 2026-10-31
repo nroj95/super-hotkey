@@ -75,10 +75,13 @@ class WonderWindowsChecks {
                 && DllCall("GetForegroundWindow", "ptr") = windows[2].Hwnd,
                 "Win + Home minimizes the other windows on its display and keeps the active one")
             WW_MinimizeOtherWindows(front)
+            this.Assert(Minimized(windows[1]) && WW_minimized_all.Get(device, []).Length = 1,
+                "a Win + Home with nothing left to minimize keeps what it minimized")
+            WW_RestoreOtherWindows()
             WaitFor(() => !Minimized(windows[1]))
             this.Assert(!Minimized(windows[1]) && !WW_minimized_all.Has(device)
                 && DllCall("GetForegroundWindow", "ptr") = windows[2].Hwnd,
-                "Win + Home with nothing else showing brings them back behind the active window")
+                "Win + Shift + Home brings them back behind the active window")
         }
         finally {
             WW_minimized_all := Map()

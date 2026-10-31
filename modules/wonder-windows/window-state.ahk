@@ -96,13 +96,14 @@ WW_MinimizeActiveWindow()
     }
 }
 
-; Win + M minimizes every window on the working display, Win + Home every one
-; but the active window, and Win + Shift + M brings back what either minimized
-; there, with the frontmost on top again. Unlike Windows' own keys, which span
-; every display, each display remembers its own windows: a press with nothing
-; left to minimize keeps them, and a later one adds to them. Like Windows,
-; windows without a minimize button stay. windows is every window front to
-; back unless the checks pass their own.
+; Win + M minimizes every window on the working display, and Win + Home every
+; one but the active window. Win + Shift + M brings back what either minimized
+; there with the frontmost on top again, and Win + Shift + Home brings it back
+; behind the active window. Unlike Windows' own keys, which span every display
+; and forget at the next window change, each display remembers its own
+; windows: a press with nothing left to minimize keeps them, and a later one
+; adds to them. Like Windows, windows without a minimize button stay. windows
+; is every window front to back unless the checks pass their own.
 WW_MinimizeAllWindows(windows?, monitor?)
 {
     Critical "On"
@@ -114,20 +115,23 @@ WW_MinimizeAllWindows(windows?, monitor?)
         WW_FocusDesktopAfter(added)
 }
 
-; Win + Home minimizes the other windows on the active window's display and
-; keeps it in front. With none of them left showing, it brings them back
-; behind it, as Windows does, but going by what is on screen rather than by a
-; memory any other window change erases. From the desktop it only brings back.
 WW_MinimizeOtherWindows(windows?)
 {
     Critical "On"
 
     active := WinExist("A")
-    if !active || !IsSwitchableWindow(active)
-        return WW_RestoreAllWindows()
-    monitor := WindowMonitorIndex(active)
-    if !WW_MinimizeDisplayWindows(IsSet(windows) ? windows : WinGetList(), monitor, active).Length
-        WW_RestoreAllWindows(monitor, active)
+    if active && IsSwitchableWindow(active)
+        WW_MinimizeDisplayWindows(IsSet(windows) ? windows : WinGetList(), WindowMonitorIndex(active), active)
+}
+
+; From the desktop, the working display's windows come back as with Win + Shift + M.
+WW_RestoreOtherWindows()
+{
+    active := WinExist("A")
+    if active && IsSwitchableWindow(active)
+        WW_RestoreAllWindows(WindowMonitorIndex(active), active)
+    else
+        WW_RestoreAllWindows()
 }
 
 ; Minimizes the shown windows on monitor except keep, in front of what that
