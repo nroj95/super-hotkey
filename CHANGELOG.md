@@ -27,6 +27,7 @@
 - **Secret Layers:** the "Caps held" and "Pause held" notices go away once a hotkey answers, so they no longer show next to that hotkey's own notice. Notices that show together always stack, whichever came first, and the rest move back to the center when one hides.
 - **Power-Up Utilities:** characters type as you press them, like real keys, and repeat while held; the timestamp types on the press too. `Pause` held with `- -` types each en dash as you tap, in order; before, repeated presses typed one dash after you let go. Text and Terminal hotkeys no longer wait for Caps or Pause, only for Shift, Ctrl, Alt or Win; Terminal actions still run once you release their key, and sleep still waits for every key.
 - **Wonder Windows** counts every tap made during a slow move, in the order pressed, so three quick `Win + Right` taps step three zones instead of two. A fast `Win + scroll` spin still steps once, so it cannot fling a window several zones on.
+- **Help pages** no longer flicker while you resize them.
 
 ## v1.0.0-beta.2
 

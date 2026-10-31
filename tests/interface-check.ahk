@@ -360,6 +360,10 @@ class InterfaceChecks {
                     "Help opens tall enough for its introduction: " id)
                 this.AssertCentered(window, SuiteSettings.ModuleNames[id] " Help")
                 this.AssertSizeGrip(window, SuiteSettings.ModuleNames[id] " Help")
+                subclassData := 0
+                this.Assert(DllCall("comctl32\GetWindowSubclass", "ptr", window["helpText"].Hwnd,
+                    "ptr", SuiteBufferedPaint.callback, "uptr", 1, "uptr*", &subclassData, "int"),
+                    "the guide paints off-screen, so resizing never shows it half-drawn: " id)
                 titlePart := app.ui.helpLayouts[id].header
                 statusPart := app.ui.helpLayouts[id].status
                 titlePart.GetPos(&headingX, , &headingW)

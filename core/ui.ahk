@@ -1,5 +1,5 @@
-; Shared GUI building blocks: one icon, the corner sizing grip, centered
-; opening, batched layouts and on-screen notices.
+; Shared GUI building blocks: one icon, the corner sizing grip, buffered
+; painting, centered opening, batched layouts and on-screen notices.
 SuiteGui(options := "", title := "") {
     window := Gui(options, title)
     SuiteIcons.Apply(window)
@@ -41,15 +41,20 @@ class SuiteSizeGrip {
     }
 
     static Move(window, minMax := 0) {
-        if !this.grips.Has(window.Hwnd)
+        ; A minimized window has no client area to lay out.
+        if !this.grips.Has(window.Hwnd) || minMax = -1
             return
         window.GetClientPos(, , &width, &height)
         shown := minMax != 1
+        positions := []
         for index, dot in this.grips[window.Hwnd] {
             if dot.Visible != shown
                 dot.Visible := shown
-            dot.Move(width - this.Corner + this.Dots[index][1], height - this.Corner + this.Dots[index][2], 2, 2)
+            positions.Push({control: dot, x: width - this.Corner + this.Dots[index][1],
+                y: height - this.Corner + this.Dots[index][2], w: 2, h: 2})
         }
+        ; One batch, like every layout, so a live resize does not flicker.
+        SuiteMoveControls(window, positions)
     }
 
     ; The corner under the dots resizes the window, as Windows' grip does.
@@ -66,6 +71,42 @@ class SuiteSizeGrip {
         if NumGet(point, 0, "int") >= NumGet(rect, 8, "int") - corner
             && NumGet(point, 4, "int") >= NumGet(rect, 12, "int") - corner
             return 17 ; HTBOTTOMRIGHT
+    }
+}
+
+; Paints a control off-screen and shows the finished picture in one step, so
+; long text that rewraps on every resize step is never seen half-drawn.
+class SuiteBufferedPaint {
+    static callback := 0
+
+    static Attach(control) {
+        if !this.callback {
+            DllCall("uxtheme\BufferedPaintInit")
+            this.callback := CallbackCreate(ObjBindMethod(this, "Paint"), "F", 6)
+        }
+        DllCall("comctl32\SetWindowSubclass", "ptr", control.Hwnd, "ptr", this.callback, "uptr", 1, "uptr", 0)
+    }
+
+    static Paint(hwnd, message, wParam, lParam, id, data) {
+        if message = 0x0014 ; WM_ERASEBKGND: the buffered paint fills the background
+            return 1
+        if message = 0x0082 ; WM_NCDESTROY
+            DllCall("comctl32\RemoveWindowSubclass", "ptr", hwnd, "ptr", this.callback, "uptr", 1)
+        if message != 0x000F ; WM_PAINT
+            return DllCall("comctl32\DefSubclassProc", "ptr", hwnd, "uint", message, "ptr", wParam, "ptr", lParam, "ptr")
+        paintStruct := Buffer(A_PtrSize = 8 ? 72 : 64, 0)
+        hdc := DllCall("BeginPaint", "ptr", hwnd, "ptr", paintStruct, "ptr")
+        rect := Buffer(16, 0)
+        DllCall("GetClientRect", "ptr", hwnd, "ptr", rect)
+        buffered := 0
+        paint := DllCall("uxtheme\BeginBufferedPaint", "ptr", hdc, "ptr", rect, "int", 0, "ptr", 0, "ptr*", &buffered, "ptr")
+        ; The control draws itself, background included, into the buffer.
+        DllCall("comctl32\DefSubclassProc", "ptr", hwnd, "uint", 0x0318, ; WM_PRINTCLIENT
+            "ptr", paint ? buffered : hdc, "ptr", 0x0C, "ptr") ; PRF_CLIENT | PRF_ERASEBKGND
+        if paint
+            DllCall("uxtheme\EndBufferedPaint", "ptr", paint, "int", 1)
+        DllCall("EndPaint", "ptr", hwnd, "ptr", paintStruct)
+        return 0
     }
 }
 

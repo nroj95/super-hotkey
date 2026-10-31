@@ -228,6 +228,7 @@ class SuiteInterface {
         status := window.AddText("x420 y18 w250 h25", state)
         window.SetFont("s10 cDefault", "Cascadia Mono")
         content := window.AddText("x20 y55 w860 h455 vhelpText", module.HelpText())
+        SuiteBufferedPaint.Attach(content)
         buttons := module.HelpButtons()
         if module.hasSettings
             buttons.Push(["Settings...", ObjBindMethod(this, "OpenSettingsFromHelp", id), 120])
