@@ -17,18 +17,16 @@ CaptureCascadeMousePress(*)
     if !IsCascadeEnabled()
         return
 
-    global cascade_mouse_press
-
     ; Finish the previous released drag before snapshotting a rapid new press.
     if HasCascadeWindowDrag()
         WatchCascadeWindowDrag()
-    cascade_mouse_press := 0
+    CascadeState.mousePress := 0
     if HasFocusTabClick()
         return
 
     MouseGetPosPixels(, , &hover_hwnd)
     hwnd := DllCall("GetAncestor", "ptr", hover_hwnd, "uint", 2, "ptr") ; GA_ROOT
-    cascade_mouse_press := GetCascadeMousePressSnapshot(hwnd)
+    CascadeState.mousePress := GetCascadeMousePressSnapshot(hwnd)
 }
 
 GetCascadeMousePressSnapshot(hwnd)
@@ -79,13 +77,11 @@ CaptureCascadeMouseRelease(*)
     if !IsCascadeEnabled()
         return
 
-    global cascade_mouse_press, cascade_window_drag
-
     CascadeDropGuides.Hide()
-    if IsObject(cascade_mouse_press)
-        cascade_mouse_press.up_tick := A_TickCount
-    if IsObject(cascade_window_drag)
-        cascade_window_drag.up_tick := A_TickCount
+    if IsObject(CascadeState.mousePress)
+        CascadeState.mousePress.up_tick := A_TickCount
+    if IsObject(CascadeState.windowDrag)
+        CascadeState.windowDrag.up_tick := A_TickCount
 
     ; Let the native move loop commit its final rectangle before examining it.
     if HasCascadeWindowDrag()
@@ -95,14 +91,12 @@ CaptureCascadeMouseRelease(*)
 
 HasCascadeWindowDrag()
 {
-    global cascade_window_drag
-    return IsObject(cascade_window_drag)
+    return IsObject(CascadeState.windowDrag)
 }
 
 IsCascadeWindowBeingDragged(hwnd)
 {
-    global cascade_window_drag
-    return IsObject(cascade_window_drag) && cascade_window_drag.hwnd = hwnd
+    return IsObject(CascadeState.windowDrag) && CascadeState.windowDrag.hwnd = hwnd
 }
 
 BeginCascadeWindowDrag(hwnd, event_time)
@@ -110,21 +104,19 @@ BeginCascadeWindowDrag(hwnd, event_time)
     if !IsCascadeEnabled()
         return
 
-    global cascade_mouse_press, cascade_window_drag, cascade_drag_generation
-
     if HasCascadeWindowDrag() || HasFocusTabClick()
         return
-    if !IsObject(cascade_mouse_press) || cascade_mouse_press.hwnd != hwnd {
+    if !IsObject(CascadeState.mousePress) || CascadeState.mousePress.hwnd != hwnd {
         ; Recover a move-start notification that beat the ordinary down handler.
         ; The native event confirms a move loop; a held button confirms mouse input.
         if !GetKeyState("LButton", "P")
             return
-        cascade_mouse_press := GetCascadeMousePressSnapshot(hwnd)
-        if !IsObject(cascade_mouse_press)
+        CascadeState.mousePress := GetCascadeMousePressSnapshot(hwnd)
+        if !IsObject(CascadeState.mousePress)
             return
     }
 
-    press := cascade_mouse_press
+    press := CascadeState.mousePress
     ; Ignore keyboard move loops or a late event belonging to another click.
     if !GetKeyState("LButton", "P") {
         if !press.up_tick
@@ -140,8 +132,8 @@ BeginCascadeWindowDrag(hwnd, event_time)
     drag.native_ended := false
     drag.native_state_unknown_since := 0
     drag.completing := false
-    cascade_window_drag := drag
-    cascade_drag_generation += 1
+    CascadeState.windowDrag := drag
+    CascadeState.dragGeneration += 1
 
     ; Manual interaction takes priority over old corrections.
     CancelCascadeDisplayPlacement(hwnd)
@@ -156,23 +148,21 @@ BeginCascadeWindowDrag(hwnd, event_time)
 
 EndCascadeWindowDrag(hwnd)
 {
-    global cascade_window_drag
     if !IsCascadeWindowBeingDragged(hwnd)
         return
 
     CascadeDropGuides.Hide()
-    cascade_window_drag.native_ended := true
+    CascadeState.windowDrag.native_ended := true
     SetTimer(WatchCascadeWindowDrag, -1)
 }
 
 CancelCascadeWindowDrop(*)
 {
     CascadeDropGuides.Hide()
-    global cascade_window_drag, cascade_mouse_press
-    if IsObject(cascade_mouse_press)
-        cascade_mouse_press.cancelled := true
-    if IsObject(cascade_window_drag)
-        cascade_window_drag.cancelled := true
+    if IsObject(CascadeState.mousePress)
+        CascadeState.mousePress.cancelled := true
+    if IsObject(CascadeState.windowDrag)
+        CascadeState.windowDrag.cancelled := true
 }
 
 IsNativeWindowMoveSizeActive(hwnd)
@@ -188,13 +178,11 @@ IsNativeWindowMoveSizeActive(hwnd)
 
 WatchCascadeWindowDrag()
 {
-    global cascade_window_drag, cascade_drag_unknown_release_timeout_ms
-
-    if !IsObject(cascade_window_drag) {
+    if !IsObject(CascadeState.windowDrag) {
         SetTimer(WatchCascadeWindowDrag, 0)
         return
     }
-    drag := cascade_window_drag
+    drag := CascadeState.windowDrag
     if drag.completing
         return
 
@@ -241,7 +229,7 @@ WatchCascadeWindowDrag()
 
                 unknown_elapsed_ms :=
                     (A_TickCount - drag.native_state_unknown_since) & 0xFFFFFFFF
-                if unknown_elapsed_ms < cascade_drag_unknown_release_timeout_ms {
+                if unknown_elapsed_ms < CascadeState.dragUnknownReleaseTimeoutMs {
                     SetTimer(WatchCascadeWindowDrag, 50)
                     return
                 }
@@ -261,7 +249,7 @@ WatchCascadeWindowDrag()
             return
         }
 
-        if cascade_window_drag != drag
+        if CascadeState.windowDrag != drag
             return
         drag.completing := true
         CompleteCascadeWindowDrop(drag)
@@ -278,17 +266,15 @@ WatchCascadeWindowDrag()
 
 StopCascadeWindowDrag(expected_drag := 0)
 {
-    global cascade_window_drag, cascade_drag_generation, cascade_compaction_pending
-
-    if IsObject(expected_drag) && cascade_window_drag != expected_drag
+    if IsObject(expected_drag) && CascadeState.windowDrag != expected_drag
         return
     CascadeDropGuides.Hide()
-    cascade_window_drag := 0
-    cascade_drag_generation += 1
+    CascadeState.windowDrag := 0
+    CascadeState.dragGeneration += 1
     SetTimer(WatchCascadeWindowDrag, 0)
     SetTimer(ApplyPendingCascadeDisplayLayout, -50)
     QueueFocusCornerUpdate()
-    if cascade_compaction_pending.Count
+    if CascadeState.compactionPending.Count
         ScheduleCascadeCompactionFlush()
 }
 
@@ -309,21 +295,18 @@ CascadeDragIsResize(drag, width, height)
 ; once resized to a cascade window with that corner in place. 0 off-screen.
 CascadeDropTarget(frame_x, frame_y, frame_width)
 {
-    global cascade_mirrored
-    corner_x := cascade_mirrored ? frame_x + frame_width - 1 : frame_x
+    corner_x := CascadeState.mirrored ? frame_x + frame_width - 1 : frame_x
     if !(monitor := GetMonitorForPoint(corner_x, frame_y))
         return 0
     geometry := GetCanonicalCascadeGeometry(monitor)
     return {monitor: monitor, geometry: geometry,
-        x: cascade_mirrored ? frame_x + frame_width - geometry.width : frame_x}
+        x: CascadeState.mirrored ? frame_x + frame_width - geometry.width : frame_x}
 }
 
 CompleteCascadeWindowDrop(drag)
 {
     if !IsCascadeEnabled()
         return
-
-    global cascade_slot_tolerance
 
     hwnd := drag.hwnd
     if drag.cancelled
@@ -348,7 +331,7 @@ CompleteCascadeWindowDrop(drag)
         return
     monitor_index := target.monitor
     geometry := target.geometry
-    slot_index := FindNearestCascadeSlot(target.x, frame_y, geometry.slots, cascade_slot_tolerance)
+    slot_index := FindNearestCascadeSlot(target.x, frame_y, geometry.slots, CascadeState.slotTolerance)
 
     if slot_index && CascadeDisplayAllowed(monitor_index) {
         ; A drop on a guide adopts a window positioned by hand, as Caps + Insert

@@ -2,11 +2,10 @@
 
 ResolveCascadeDestination(preferred_monitor, displays := 0)
 {
-    global cascade_target_display
-    if cascade_target_display = "All"
+    if CascadeState.targetDisplay = "All"
         return preferred_monitor
     ; A missing selected display is not permission to move to another screen.
-    return FindCascadeMonitorDevice(cascade_target_display, displays)
+    return FindCascadeMonitorDevice(CascadeState.targetDisplay, displays)
 }
 
 CascadeDisplayAllowed(monitor, displays := 0)
@@ -16,8 +15,7 @@ CascadeDisplayAllowed(monitor, displays := 0)
 
 CascadeReleaseExcludedDisplays()
 {
-    global cascade_history
-    for monitor, history in cascade_history.Clone() {
+    for monitor, history in CascadeState.history.Clone() {
         if !CascadeDisplayAllowed(monitor)
             for hwnd in history.Clone()
                 ReleaseCascadeWindow(hwnd)

@@ -1,5 +1,5 @@
 ; Cascade Kingdom: lifecycle, settings page and guide. Window state lives in
-; the module's globals, initialized by InitializeCascadeState().
+; CascadeState, initialized by InitializeCascadeState().
 class CascadeKingdomModule extends SuiteModule {
     hasSettings := true
     resetSections := ["Controls", "FocusTabs"]
@@ -34,32 +34,27 @@ class CascadeKingdomModule extends SuiteModule {
     }
 
     Suspend() {
-        global cascade_compaction_pending, cascade_compaction_timer_pending
-        global placement_stabilization_generations, cascade_mouse_press
-        global focus_corner_overlays, focus_corner_update_pending
-
         ; Invalidate queued work so it cannot replay when the app resumes.
-        cascade_compaction_pending.Clear()
-        cascade_compaction_timer_pending := false
+        CascadeState.compactionPending.Clear()
+        CascadeState.compactionTimerPending := false
         SetTimer(FlushCascadeCompactions, 0)
         SetTimer(RunQueuedFocusCornerUpdate, 0)
-        focus_corner_update_pending := false
+        CascadeState.focusCornerUpdatePending := false
         CancelCascadeWindowDrop()
         if HasCascadeWindowDrag()
             StopCascadeWindowDrag()
-        cascade_mouse_press := 0
-        for hwnd in placement_stabilization_generations.Clone()
+        CascadeState.mousePress := 0
+        for hwnd in CascadeState.placementStabilizationGenerations.Clone()
             CancelPlacementStabilization(hwnd)
-        for hwnd in focus_corner_overlays
+        for hwnd in CascadeState.focusCornerOverlays
             HideFocusCornerOverlay(hwnd)
     }
 
     Resume() => SetTimer(QueueFocusCornerUpdate, -1)
 
     CancelWork() {
-        global cascade_command_queue
         CancelCascadeWindowDrop()
-        cascade_command_queue := []
+        CascadeState.commandQueue := []
         StopFocusTabClick()
     }
 
@@ -67,7 +62,6 @@ class CascadeKingdomModule extends SuiteModule {
     ManagedMonitor(hwnd) => GetManagedCascadeMonitor(hwnd)
 
     Stop(*) {
-        global cascade_command_queue
         ; A restart keeps the cascades; a dry run or a module that never
         ; started leaves the saved ones alone.
         if this.started && !this.app.dryRun
@@ -75,7 +69,7 @@ class CascadeKingdomModule extends SuiteModule {
         SuiteWindowOwnership.OffClaim(CascadeForgetManualWindow)
         SuiteWindowOwnership.OffReturn(CascadeTakeBackWindow)
         CascadeDropGuides.Destroy()
-        cascade_command_queue := []
+        CascadeState.commandQueue := []
         SetTimer(DrainCascadeCommandQueue, 0)
         StopFocusTabClick()
         StopWindowHooks()
@@ -87,20 +81,18 @@ class CascadeKingdomModule extends SuiteModule {
         key := "settings:cascade-kingdom"
         if ui.Existing(key)
             return
-        global cascade_target_display, focus_corner_visible, focus_tab_color_presets
-        global focus_corner_inactive_slot_color_name, cascade_mirrored
         rows := SuitePageRows(ui.NewWindow(key, "Cascade Kingdom - Settings", true), 600)
         rows.Text("Add windows with Caps + Insert or by dragging one onto a slot.")
-        choices := ui.DisplayChoices(cascade_target_display, true)
+        choices := ui.DisplayChoices(CascadeState.targetDisplay, true)
         this.displayChoices := choices.values
         rows.Field("Cascade on", "DropDownList", "w300 vdisplay", choices.names).Choose(choices.selected)
-        rows.Checkbox("Mirror: cascade toward the left", "vmirrored").Value := cascade_mirrored
-        rows.Checkbox("Show focus tabs", "vtabs").Value := focus_corner_visible
+        rows.Checkbox("Mirror: cascade toward the left", "vmirrored").Value := CascadeState.mirrored
+        rows.Checkbox("Show focus tabs", "vtabs").Value := CascadeState.focusCornerVisible
         colors := []
-        for name in focus_tab_color_presets
+        for name in CascadeState.focusTabColorPresets
             colors.Push(name)
         rows.Field("Inactive-slot tab color", "DropDownList", "w210 vinactiveColor", colors)
-            .Choose(focus_corner_inactive_slot_color_name)
+            .Choose(CascadeState.focusCornerInactiveSlotColorName)
         rows.Text("Active tabs and drop guides use the Windows accent color."
             . "`nDisplay changes release other displays without moving windows."
             . "`nClick Apply to use these settings.")
@@ -111,9 +103,6 @@ class CascadeKingdomModule extends SuiteModule {
     ; Applies without a restart; routing changes first release in-flight work,
     ; and mirroring re-lays out every cascade as a display change does.
     SaveSettings(ui, *) {
-        global cascade_target_display, focus_corner_visible, focus_tab_color_presets
-        global focus_corner_inactive_slot_color_name, focus_corner_inactive_slot_color
-        global cascade_mirrored
         key := "settings:cascade-kingdom"
         window := ui.windows[key]
         try {
@@ -121,27 +110,27 @@ class CascadeKingdomModule extends SuiteModule {
             mirrored := window["mirrored"].Value != 0
             visible := window["tabs"].Value != 0
             inactiveName := window["inactiveColor"].Text
-            if !focus_tab_color_presets.Has(inactiveName)
+            if !CascadeState.focusTabColorPresets.Has(inactiveName)
                 throw ValueError("Select a valid inactive tab color.")
             this.app.Settings.WritePreferences(this.id, Map(
                 "Controls", Map("Display", display, "Mirrored", mirrored ? 1 : 0),
                 "FocusTabs", Map("Visible", visible ? 1 : 0, "InactiveSlotColor", inactiveName)))
-            if cascade_mirrored != mirrored {
-                cascade_mirrored := mirrored
+            if CascadeState.mirrored != mirrored {
+                CascadeState.mirrored := mirrored
                 QueueCascadeDisplayRefresh()
             }
-            routingChanged := cascade_target_display != display
+            routingChanged := CascadeState.targetDisplay != display
             if routingChanged {
                 this.app.CancelInputs()
                 this.Suspend()
             }
-            cascade_target_display := display
+            CascadeState.targetDisplay := display
             if routingChanged
                 CascadeReleaseExcludedDisplays()
-            if focus_corner_visible != visible
+            if CascadeState.focusCornerVisible != visible
                 ToggleFocusCornerVisibility()
-            focus_corner_inactive_slot_color_name := inactiveName
-            focus_corner_inactive_slot_color := focus_tab_color_presets[inactiveName]
+            CascadeState.focusCornerInactiveSlotColorName := inactiveName
+            CascadeState.focusCornerInactiveSlotColor := CascadeState.focusTabColorPresets[inactiveName]
             if routingChanged && this.started && IsCascadeEnabled()
                 this.Resume()
             QueueFocusCornerUpdate()
@@ -177,12 +166,11 @@ class CascadeKingdomModule extends SuiteModule {
 ; lent rather than lost: its slot is kept until it returns, closes or joins anew.
 CascadeForgetManualWindow(hwnd)
 {
-    global cascade_window_slots, cascade_lent_windows
     monitor := GetManagedCascadeMonitor(hwnd)
-    if monitor && !cascade_window_slots.Has(hwnd)
+    if monitor && !CascadeState.windowSlots.Has(hwnd)
         RememberCascadeSlot(hwnd, monitor)
-    if monitor && cascade_window_slots.Has(hwnd)
-        cascade_lent_windows[hwnd] := cascade_window_slots[hwnd].Clone()
+    if monitor && CascadeState.windowSlots.Has(hwnd)
+        CascadeState.lentWindows[hwnd] := CascadeState.windowSlots[hwnd].Clone()
     CancelPlacementStabilization(hwnd)
     RemoveCascadeWindowFromHistory(hwnd)
     RemoveWindowFromMinimizeState(hwnd)
@@ -196,10 +184,9 @@ CascadeForgetManualWindow(hwnd)
 ; had given it, the last one the user saw outside the cascade.
 CascadeTakeBackWindow(hwnd, shape)
 {
-    global cascade_lent_windows, cascade_displays
-    if !cascade_lent_windows.Has(hwnd)
+    if !CascadeState.lentWindows.Has(hwnd)
         return
-    lent := cascade_lent_windows.Delete(hwnd)
+    lent := CascadeState.lentWindows.Delete(hwnd)
     try {
         if WinGetPID(hwnd) != lent.pid
             return
@@ -209,7 +196,7 @@ CascadeTakeBackWindow(hwnd, shape)
     monitor := FindCascadeMonitorDevice(lent.device)
     if !CascadeDisplayAllowed(monitor)
         return
-    slots := cascade_displays[monitor].geometry.slots
+    slots := CascadeState.displays[monitor].geometry.slots
     if !PlaceCascadeWindowOnMonitor(hwnd, monitor, slots[Min(lent.slot, slots.Length)])
         return
     RememberCascadeJoinPosition(hwnd, shape, true)

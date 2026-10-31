@@ -126,8 +126,7 @@ MoveCascadeWindowToSlot(hwnd, target_x, target_y, post_asynchronously := false)
     if !IsCascadeEnabled() || IsCascadeDisplayTransition()
         return false
 
-    global placement_reservations, cascade_display_generation
-    display_generation := cascade_display_generation
+    display_generation := CascadeState.displayGeneration
 
     ; A minimize can complete after planning but before this individual move.
     if IsCascadeWindowBeingDragged(hwnd) || !WinExist(hwnd)
@@ -142,7 +141,7 @@ MoveCascadeWindowToSlot(hwnd, target_x, target_y, post_asynchronously := false)
     if !(frame := GetWindowFrame(hwnd))
         return false
 
-    if IsCascadeDisplayTransition() || display_generation != cascade_display_generation
+    if IsCascadeDisplayTransition() || display_generation != CascadeState.displayGeneration
         return false
     if frame.x = target_x && frame.y = target_y {
         RememberCascadeSlot(hwnd, GetManagedCascadeMonitor(hwnd), target_x, target_y)
@@ -156,11 +155,11 @@ MoveCascadeWindowToSlot(hwnd, target_x, target_y, post_asynchronously := false)
     raw_target := [target_x - frame.left, target_y - frame.top, frame.rawWidth, frame.rawHeight]
 
     if !IsCascadeEnabled() || IsCascadeWindowBeingDragged(hwnd)
-        || IsCascadeDisplayTransition() || display_generation != cascade_display_generation
+        || IsCascadeDisplayTransition() || display_generation != CascadeState.displayGeneration
         return false
 
     owned_reservation := Map("monitor", WindowMonitorIndex(hwnd), "x", target_x, "y", target_y)
-    placement_reservations[hwnd] := owned_reservation
+    CascadeState.placementReservations[hwnd] := owned_reservation
     stabilization_scheduled := false
 
     try {
@@ -191,9 +190,9 @@ MoveCascadeWindowToSlot(hwnd, target_x, target_y, post_asynchronously := false)
             return false
 
         if !IsCascadeEnabled() || IsCascadeDisplayTransition()
-            || display_generation != cascade_display_generation
-            || !placement_reservations.Has(hwnd)
-            || placement_reservations[hwnd] != owned_reservation
+            || display_generation != CascadeState.displayGeneration
+            || !CascadeState.placementReservations.Has(hwnd)
+            || CascadeState.placementReservations[hwnd] != owned_reservation
             return false
 
         if !IsCascadeWindowBeingDragged(hwnd) {
@@ -209,10 +208,10 @@ MoveCascadeWindowToSlot(hwnd, target_x, target_y, post_asynchronously := false)
         ; A cancelled/failed move must not leave compaction occupancy behind.
         ; Do not remove a newer request's reservation for a recycled HWND.
         if !stabilization_scheduled
-            && placement_reservations.Has(hwnd)
-            && placement_reservations[hwnd] = owned_reservation
+            && CascadeState.placementReservations.Has(hwnd)
+            && CascadeState.placementReservations[hwnd] = owned_reservation
         {
-            placement_reservations.Delete(hwnd)
+            CascadeState.placementReservations.Delete(hwnd)
         }
     }
 }
@@ -497,13 +496,11 @@ BringCascadeForward(monitor_index)
 ; first from the working display on. Hidden cascades do not count.
 FocusNextCascade()
 {
-    global cascade_history
-
     if !IsCascadeEnabled()
         return
 
     entries := []
-    for monitor_index in cascade_history {
+    for monitor_index in CascadeState.history {
         shown := false
         for hwnd in GetLiveCascadeHistory(monitor_index)
             if shown := IsCascadeWindowShown(hwnd)

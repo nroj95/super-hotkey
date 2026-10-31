@@ -5,7 +5,6 @@ class CascadeDropGuides {
     static alpha := 255 ; Fully opaque, matching active focus tabs.
 
     static Update(drag) {
-        global cascade_window_drag, cascade_mirrored
         if !IsCascadeEnabled() || IsCascadeDisplayTransition() || drag.cancelled
             || drag.native_ended || !GetKeyState("LButton", "P") {
             this.Hide()
@@ -28,14 +27,14 @@ class CascadeDropGuides {
             previous_critical := Critical("On")
             try {
                 ; Queries may yield to suspension, a new drag or display changes.
-                if cascade_window_drag != drag || drag.cancelled || drag.native_ended
+                if CascadeState.windowDrag != drag || drag.cancelled || drag.native_ended
                     || !IsCascadeEnabled() || IsCascadeDisplayTransition()
                     || !GetKeyState("LButton", "P") {
                     this.Hide()
                     return
                 }
                 this.Show(target.geometry.slots, GetCascadeMonitorDpi(target.monitor), SuiteAccentColor(),
-                    cascade_mirrored ? target.geometry.width : 0)
+                    CascadeState.mirrored ? target.geometry.width : 0)
             }
             finally Critical(previous_critical)
         }

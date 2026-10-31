@@ -53,17 +53,15 @@ GetLiveCascadeMonitor(hwnd)
 ; A fresh join also ends a loan.
 RememberCascadeJoinPosition(hwnd, position, was_manual)
 {
-    global cascade_join_positions, cascade_lent_windows
-
-    if cascade_lent_windows.Has(hwnd)
-        cascade_lent_windows.Delete(hwnd)
+    if CascadeState.lentWindows.Has(hwnd)
+        CascadeState.lentWindows.Delete(hwnd)
 
     if IsObject(position) {
         position.was_manual := was_manual
-        cascade_join_positions[hwnd] := position
+        CascadeState.joinPositions[hwnd] := position
     }
-    else if cascade_join_positions.Has(hwnd)
-        cascade_join_positions.Delete(hwnd)
+    else if CascadeState.joinPositions.Has(hwnd)
+        CascadeState.joinPositions.Delete(hwnd)
 }
 
 ; Caps + Shift + Insert: the active window leaves its cascade and returns to
@@ -73,15 +71,13 @@ ReleaseActiveCascadeWindow()
     if !IsCascadeEnabled()
         return
 
-    global cascade_join_positions
-
     hwnd := WinExist("A")
     if !hwnd || !GetLiveCascadeMonitor(hwnd) {
         SuiteNotice.Show("status", "Not in a cascade", 1400)
         return
     }
 
-    position := cascade_join_positions.Has(hwnd) ? cascade_join_positions.Delete(hwnd) : 0
+    position := CascadeState.joinPositions.Has(hwnd) ? CascadeState.joinPositions.Delete(hwnd) : 0
     ReleaseCascadeWindow(hwnd)
     ReturnToCascadeJoinPosition(hwnd, position)
 }
@@ -114,8 +110,6 @@ GatherCascadesToCommandMonitor()
     if !IsCascadeEnabled()
         return
 
-    global cascade_history
-
     target_monitor := ResolveCascadeDestination(SuiteWorkingMonitor.Get())
     if !target_monitor
         return
@@ -124,7 +118,7 @@ GatherCascadesToCommandMonitor()
     seen := Map()
 
     ; Snapshot first: successful placement moves entries into the target history.
-    for monitor_index, history in cascade_history {
+    for monitor_index, history in CascadeState.history {
         if monitor_index = target_monitor
             continue
         for hwnd in history {
@@ -163,8 +157,6 @@ CloseCommandMonitorCascade()
 
 GetCascadeWindowsForMonitorClose(monitor_index)
 {
-    global placement_reservations
-
     windows := []
     seen := Map()
 
@@ -178,7 +170,7 @@ GetCascadeWindowsForMonitorClose(monitor_index)
 
     ; Include shown windows already reserved for this monitor even if
     ; asynchronous placement has not reached cascade history yet.
-    for hwnd, reservation in placement_reservations {
+    for hwnd, reservation in CascadeState.placementReservations {
         if reservation["monitor"] != monitor_index
             continue
         if seen.Has(hwnd) || !IsCascadeCloseEligible(hwnd)
@@ -195,8 +187,6 @@ IsCascadeCloseEligible(hwnd) => hwnd && WinExist("ahk_id " hwnd) && IsCascadeWin
 
 CloseCascadeWindowList(windows, monitor_index)
 {
-    global cascade_close_batches, cascade_close_timeout_ms
-
     if !IsCascadeEnabled() || windows.Length = 0 || !monitor_index
         return
 
@@ -209,8 +199,8 @@ CloseCascadeWindowList(windows, monitor_index)
     try {
         for hwnd in ordered_windows {
             ; A pause or newer batch can take ownership while WinClose yields.
-            if !IsCascadeEnabled() || !cascade_close_batches.Has(monitor_index)
-                || cascade_close_batches[monitor_index] != batch
+            if !IsCascadeEnabled() || !CascadeState.closeBatches.Has(monitor_index)
+                || CascadeState.closeBatches[monitor_index] != batch
                 break
             if !batch.targets.Has(hwnd)
                 continue
@@ -232,35 +222,31 @@ CloseCascadeWindowList(windows, monitor_index)
     finally {
         ; Give the whole batch its grace period after issuing the requests.
         ; An old bound callback cannot expire a newer close command's batch.
-        if cascade_close_batches.Has(monitor_index)
-            && cascade_close_batches[monitor_index] = batch
-            SetTimer(ExpireCascadeCloseBatch.Bind(monitor_index, batch), -cascade_close_timeout_ms)
+        if CascadeState.closeBatches.Has(monitor_index)
+            && CascadeState.closeBatches[monitor_index] = batch
+            SetTimer(ExpireCascadeCloseBatch.Bind(monitor_index, batch), -CascadeState.closeTimeoutMs)
     }
 }
 
 
 BeginCascadeCloseBatch(monitor_index, windows)
 {
-    global cascade_close_batches
-
     batch := {targets: Map()}
     for hwnd in windows {
         try batch.targets[hwnd] := WinGetPID(hwnd)
     }
     if !batch.targets.Count
         return 0
-    cascade_close_batches[monitor_index] := batch
+    CascadeState.closeBatches[monitor_index] := batch
     return batch
 }
 
 
 RemoveWindowFromCascadeCloseBatch(hwnd, expected_batch := 0)
 {
-    global cascade_close_batches
-
     previous_critical := Critical("On")
     try {
-        for monitor_index, batch in cascade_close_batches.Clone() {
+        for monitor_index, batch in CascadeState.closeBatches.Clone() {
             if IsObject(expected_batch) && batch != expected_batch
                 continue
             if !batch.targets.Has(hwnd)
@@ -268,7 +254,7 @@ RemoveWindowFromCascadeCloseBatch(hwnd, expected_batch := 0)
             batch.targets.Delete(hwnd)
             if batch.targets.Count
                 continue
-            cascade_close_batches.Delete(monitor_index)
+            CascadeState.closeBatches.Delete(monitor_index)
             QueueCascadeCompaction(monitor_index)
         }
     }
@@ -279,14 +265,12 @@ RemoveWindowFromCascadeCloseBatch(hwnd, expected_batch := 0)
 
 ExpireCascadeCloseBatch(monitor_index, expected_batch)
 {
-    global cascade_close_batches
-
     previous_critical := Critical("On")
     try {
-        if !cascade_close_batches.Has(monitor_index)
-            || cascade_close_batches[monitor_index] != expected_batch
+        if !CascadeState.closeBatches.Has(monitor_index)
+            || CascadeState.closeBatches[monitor_index] != expected_batch
             return
-        cascade_close_batches.Delete(monitor_index)
+        CascadeState.closeBatches.Delete(monitor_index)
         ; A save prompt may still be open. Only release the layout gate.
         QueueCascadeCompaction(monitor_index)
     }
@@ -300,9 +284,7 @@ ExpireCascadeCloseBatch(monitor_index, expected_batch)
 
 IsCascadeCloseBatchActive(monitor_index)
 {
-    global cascade_close_batches
-
-    return (monitor_index && cascade_close_batches.Has(monitor_index))
+    return (monitor_index && CascadeState.closeBatches.Has(monitor_index))
 }
 
 
@@ -312,15 +294,13 @@ IsCascadeCloseBatchActive(monitor_index)
 
 RestoreCascadeWindows(windows)
 {
-    global cascade_restore_batches, cascade_restore_request_depth
-
     if windows.Length = 0
         return
 
     ; Register the whole saved set before the first WinRestore can yield.
     ; Caps + M restores the complete saved set across monitors in one batch.
     batches := Map()
-    cascade_restore_request_depth += 1
+    CascadeState.restoreRequestDepth += 1
     try {
         batches := TrackCascadeWindowRestores(windows)
         RestoreCascadeWindowList(windows)
@@ -329,14 +309,14 @@ RestoreCascadeWindows(windows)
         ; Start the bounded settling period after all requests/Z-order work,
         ; not before a large saved set has even finished receiving WinRestore.
         for monitor_index, batch in batches {
-            if cascade_restore_batches.Has(monitor_index)
-                && cascade_restore_batches[monitor_index] = batch
+            if CascadeState.restoreBatches.Has(monitor_index)
+                && CascadeState.restoreBatches[monitor_index] = batch
             {
                 batch.started_tick := A_TickCount
                 batch.snapshot := ""
             }
         }
-        cascade_restore_request_depth -= 1
+        CascadeState.restoreRequestDepth -= 1
         for monitor_index in batches
             QueueCascadeCompaction(monitor_index)
     }
@@ -384,8 +364,6 @@ RestoreCascadeWindowList(windows)
 TrackCascadeWindowRestores(windows)
 {
 
-    global cascade_restore_batches, cascade_restore_poll_ms, cascade_membership_generation
-
     tracked_batches := Map()
     for hwnd in windows {
         monitor_index := GetManagedCascadeMonitor(hwnd)
@@ -395,33 +373,31 @@ TrackCascadeWindowRestores(windows)
         catch
             continue
 
-        if !cascade_restore_batches.Has(monitor_index) {
-            cascade_restore_batches[monitor_index] := {
+        if !CascadeState.restoreBatches.Has(monitor_index) {
+            CascadeState.restoreBatches[monitor_index] := {
                 targets: Map(), started_tick: A_TickCount,
                 snapshot: "", stable_since: 0, generation: 0
             }
         }
-        batch := cascade_restore_batches[monitor_index]
+        batch := CascadeState.restoreBatches[monitor_index]
         tracked_batches[monitor_index] := batch
         if batch.targets.Has(hwnd) && batch.targets[hwnd] = pid
             continue
         batch.targets[hwnd] := pid
         batch.generation += 1
-        cascade_membership_generation += 1
+        CascadeState.membershipGeneration += 1
         batch.snapshot := ""
     }
 
     if tracked_batches.Count
-        SetTimer(WatchCascadeWindowRestores, cascade_restore_poll_ms)
+        SetTimer(WatchCascadeWindowRestores, CascadeState.restorePollMs)
     return tracked_batches
 }
 
 IsCascadeRestoreInProgress(monitor_index)
 {
-    global cascade_restore_batches, cascade_restore_request_depth
-
-    return cascade_restore_request_depth > 0
-        || cascade_restore_batches.Has(monitor_index)
+    return CascadeState.restoreRequestDepth > 0
+        || CascadeState.restoreBatches.Has(monitor_index)
 }
 
 WatchCascadeWindowRestores()
@@ -429,16 +405,12 @@ WatchCascadeWindowRestores()
     if !IsCascadeEnabled()
         return
 
-    global cascade_restore_batches, cascade_restore_request_depth
-    global cascade_restore_settle_ms, cascade_restore_timeout_ms
-    global cascade_slot_tolerance
-
     ; Read-only queries stay interruptible. The generation check below discards
     ; a snapshot if a native callback or another restore changed its batch.
-    if cascade_restore_request_depth
+    if CascadeState.restoreRequestDepth
         return
 
-    for monitor_index, batch in cascade_restore_batches.Clone() {
+    for monitor_index, batch in CascadeState.restoreBatches.Clone() {
         generation := batch.generation
         geometry := 0
         snapshot := ""
@@ -475,7 +447,7 @@ WatchCascadeWindowRestores()
                 if !IsObject(geometry)
                     geometry := GetCanonicalCascadeGeometry(monitor_index)
                 if WindowMonitorIndex(hwnd) != monitor_index
-                    || !FindNearestCascadeSlot(x, y, geometry.slots, cascade_slot_tolerance)
+                    || !FindNearestCascadeSlot(x, y, geometry.slots, CascadeState.slotTolerance)
                 {
                     ready := false
                     continue
@@ -492,8 +464,8 @@ WatchCascadeWindowRestores()
         previous_critical := Critical("On")
         try {
             ; A native callback may have superseded this snapshot during a query.
-            if !cascade_restore_batches.Has(monitor_index)
-                || cascade_restore_batches[monitor_index] != batch
+            if !CascadeState.restoreBatches.Has(monitor_index)
+                || CascadeState.restoreBatches[monitor_index] != batch
                 || batch.generation != generation
                 continue
 
@@ -507,11 +479,11 @@ WatchCascadeWindowRestores()
             } else if snapshot != batch.snapshot {
                 batch.snapshot := snapshot
                 batch.stable_since := now
-            } else if ((now - batch.stable_since) & 0xFFFFFFFF) >= cascade_restore_settle_ms {
+            } else if ((now - batch.stable_since) & 0xFFFFFFFF) >= CascadeState.restoreSettleMs {
                 settled := true
             }
 
-            timed_out := ((now - batch.started_tick) & 0xFFFFFFFF) >= cascade_restore_timeout_ms
+            timed_out := ((now - batch.started_tick) & 0xFFFFFFFF) >= CascadeState.restoreTimeoutMs
             if !settled && !timed_out
                 continue
 
@@ -519,7 +491,7 @@ WatchCascadeWindowRestores()
                 for hwnd in batch.targets
                     ForgetCascadeMinimizedObservation(hwnd)
             }
-            cascade_restore_batches.Delete(monitor_index)
+            CascadeState.restoreBatches.Delete(monitor_index)
             ; Rebuild from current history without adopting windows opened while paused.
             ; The existing planner still preserves explicit drop-slot preferences.
             QueueCascadeCompaction(monitor_index)
@@ -533,15 +505,13 @@ WatchCascadeWindowRestores()
         }
     }
 
-    if !cascade_restore_batches.Count
+    if !CascadeState.restoreBatches.Count
         SetTimer(WatchCascadeWindowRestores, 0)
 }
 
 RemoveWindowFromCascadeRestore(hwnd)
 {
-    global cascade_restore_batches
-
-    for monitor_index, batch in cascade_restore_batches.Clone() {
+    for monitor_index, batch in CascadeState.restoreBatches.Clone() {
         if !batch.targets.Has(hwnd)
             continue
         batch.targets.Delete(hwnd)
@@ -550,10 +520,10 @@ RemoveWindowFromCascadeRestore(hwnd)
         if batch.targets.Count
             continue
 
-        cascade_restore_batches.Delete(monitor_index)
+        CascadeState.restoreBatches.Delete(monitor_index)
         QueueCascadeCompaction(monitor_index)
     }
-    if !cascade_restore_batches.Count
+    if !CascadeState.restoreBatches.Count
         SetTimer(WatchCascadeWindowRestores, 0)
 }
 
@@ -574,31 +544,28 @@ RemoveWindowFromMinimizeState(hwnd)
 
 ObserveCascadeMinimizedWindow(hwnd)
 {
-    global cascade_minimized_observed, cascade_membership_generation
     try {
         pid := WinGetPID(hwnd)
-        if !cascade_minimized_observed.Has(hwnd) || cascade_minimized_observed[hwnd] != pid {
-            cascade_minimized_observed[hwnd] := pid
-            cascade_membership_generation += 1
+        if !CascadeState.minimizedObserved.Has(hwnd) || CascadeState.minimizedObserved[hwnd] != pid {
+            CascadeState.minimizedObserved[hwnd] := pid
+            CascadeState.membershipGeneration += 1
         }
     }
 }
 
 ForgetCascadeMinimizedObservation(hwnd)
 {
-    global cascade_minimized_observed
-    if cascade_minimized_observed.Has(hwnd)
-        cascade_minimized_observed.Delete(hwnd)
+    if CascadeState.minimizedObserved.Has(hwnd)
+        CascadeState.minimizedObserved.Delete(hwnd)
 }
 
 ; The display a member now sits on when something other than Cascade Kingdom
 ; moved it there, such as Win + Shift + Left/Right or the app itself; else 0.
 GetMovedCascadeMemberMonitor(hwnd, monitor_index)
 {
-    global placement_reservations, placement_stabilization_generations
     if IsCascadeDisplayTransition() || HasPendingCascadeDisplayLayout(monitor_index)
         || IsCascadeRestoreInProgress(monitor_index) || IsCascadeWindowBeingDragged(hwnd)
-        || placement_reservations.Has(hwnd) || placement_stabilization_generations.Has(hwnd)
+        || CascadeState.placementReservations.Has(hwnd) || CascadeState.placementStabilizationGenerations.Has(hwnd)
         || WinGetMinMax(hwnd) != 0
         return 0
     current := WindowMonitorIndex(hwnd)
@@ -622,13 +589,12 @@ ReconcileCascadeRuntimeState()
     if !IsCascadeEnabled()
         return
 
-    global cascade_history, cascade_minimized_observed, cascade_compaction_pending
     static shown_members := Map()
 
     ; A missed MINIMIZEEND must not require another user toggle, and a queued
     ; compaction must not depend on one timer delivery.
     shown_now := Map()
-    for monitor_index, history in cascade_history.Clone() {
+    for monitor_index, history in CascadeState.history.Clone() {
         for hwnd in history.Clone() {
             if !DllCall("IsWindow", "ptr", hwnd, "int") {
                 ForgetWindow(hwnd)
@@ -641,10 +607,10 @@ ReconcileCascadeRuntimeState()
                 QueueCascadeCompaction(monitor_index)
             try {
                 if WinGetMinMax(hwnd) = -1 {
-                    if !cascade_minimized_observed.Has(hwnd)
+                    if !CascadeState.minimizedObserved.Has(hwnd)
                         ObserveCascadeMinimizedWindow(hwnd)
-                } else if cascade_minimized_observed.Has(hwnd) {
-                    pid := cascade_minimized_observed[hwnd]
+                } else if CascadeState.minimizedObserved.Has(hwnd) {
+                    pid := CascadeState.minimizedObserved[hwnd]
                     ForgetCascadeMinimizedObservation(hwnd)
                     if WinGetPID(hwnd) = pid
                         TrackCascadeWindowRestores([hwnd])
@@ -657,11 +623,11 @@ ReconcileCascadeRuntimeState()
         }
     }
     shown_members := shown_now
-    for hwnd in cascade_minimized_observed.Clone() {
+    for hwnd in CascadeState.minimizedObserved.Clone() {
         if !GetManagedCascadeMonitor(hwnd) || !DllCall("IsWindow", "ptr", hwnd, "int")
             ForgetCascadeMinimizedObservation(hwnd)
     }
-    for monitor_index in cascade_compaction_pending {
+    for monitor_index in CascadeState.compactionPending {
         if !IsCascadeCompactionDeferred(monitor_index) {
             ScheduleCascadeCompactionFlush(true)
             break

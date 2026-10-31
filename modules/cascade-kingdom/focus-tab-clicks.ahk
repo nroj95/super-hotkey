@@ -12,18 +12,13 @@
 
 HasFocusTabClick()
 {
-    global focus_tab_pending_press, focus_tab_click
-
-    return IsObject(focus_tab_pending_press) || IsObject(focus_tab_click)
+    return IsObject(CascadeState.focusTabPendingPress) || IsObject(CascadeState.focusTabClick)
 }
 
 CanStartFocusTabClick()
 {
     if !IsCascadeEnabled()
         return false
-
-    global focus_tab_pending_press
-    global focus_corner_targets, focus_corner_overlays
 
     if HasFocusTabClick()
         return true
@@ -36,17 +31,17 @@ CanStartFocusTabClick()
         return false
 
     MouseGetPosPixels(, , &overlay_hwnd)
-    if !focus_corner_targets.Has(overlay_hwnd)
+    if !CascadeState.focusCornerTargets.Has(overlay_hwnd)
         return false
 
-    target_hwnd := focus_corner_targets[overlay_hwnd]
-    if !focus_corner_overlays.Has(target_hwnd)
-        || !focus_corner_overlays[target_hwnd].shown
+    target_hwnd := CascadeState.focusCornerTargets[overlay_hwnd]
+    if !CascadeState.focusCornerOverlays.Has(target_hwnd)
+        || !CascadeState.focusCornerOverlays[target_hwnd].shown
         return false
 
     ; Snapshot before the hotkey thread starts or the pointer leaves the tab.
     ; Keep hit-testing cheap: resolve live slot membership in the press handler.
-    focus_tab_pending_press := {
+    CascadeState.focusTabPendingPress := {
         target_hwnd: target_hwnd,
         overlay_hwnd: overlay_hwnd,
         active_hwnd: DllCall("GetForegroundWindow", "ptr"),
@@ -60,19 +55,16 @@ BeginFocusTabClick(*)
     if !IsCascadeEnabled()
         return
 
-    global focus_tab_pending_press, focus_tab_click, focus_tab_click_generation
-    global focus_tab_release_poll_ms
-
-    if IsObject(focus_tab_click) || !IsObject(focus_tab_pending_press)
+    if IsObject(CascadeState.focusTabClick) || !IsObject(CascadeState.focusTabPendingPress)
         return
 
     ; A quick mouse-up must not see a half-initialized press or run it twice.
     previous_critical := A_IsCritical
     Critical "On"
-    press := focus_tab_pending_press
-    focus_tab_pending_press := 0
-    focus_tab_click := press
-    focus_tab_click_generation += 1
+    press := CascadeState.focusTabPendingPress
+    CascadeState.focusTabPendingPress := 0
+    CascadeState.focusTabClick := press
+    CascadeState.focusTabClickGeneration += 1
 
     try ActivateFocusTabClick(press)
     catch Error as err {
@@ -80,7 +72,7 @@ BeginFocusTabClick(*)
     }
     finally {
         ; This only recovers a missed release; it never tracks movement or rotates.
-        SetTimer(WatchFocusTabRelease, focus_tab_release_poll_ms)
+        SetTimer(WatchFocusTabRelease, CascadeState.focusTabReleasePollMs)
         QueueFocusCornerUpdate()
         Critical(previous_critical)
     }
@@ -91,13 +83,11 @@ ActivateFocusTabClick(press)
     if !IsCascadeEnabled() || IsCascadeDisplayTransition()
         return
 
-    global focus_corner_overlays, focus_corner_targets
-
     target_hwnd := press.target_hwnd
     ; A destroyed tab no longer maps to its target, even if its handle is reused.
-    if !focus_corner_overlays.Has(target_hwnd)
-        || focus_corner_targets.Get(press.overlay_hwnd, 0) != target_hwnd
-        || !focus_corner_overlays[target_hwnd].shown
+    if !CascadeState.focusCornerOverlays.Has(target_hwnd)
+        || CascadeState.focusCornerTargets.Get(press.overlay_hwnd, 0) != target_hwnd
+        || !CascadeState.focusCornerOverlays[target_hwnd].shown
         || !IsCascadeWindowShown(target_hwnd)
         return
 
@@ -147,14 +137,12 @@ ActivateFocusTabClick(press)
 
 FinishFocusTabClick(*)
 {
-    global focus_tab_click
-
     previous_critical := A_IsCritical
     Critical "On"
     try {
         ; A very quick release can be dispatched before the queued press handler.
         ; Complete that original press once, then only clear button ownership.
-        if !IsObject(focus_tab_click)
+        if !IsObject(CascadeState.focusTabClick)
             BeginFocusTabClick()
     }
     finally {
@@ -165,32 +153,28 @@ FinishFocusTabClick(*)
 
 WatchFocusTabRelease()
 {
-    global focus_tab_click
-
     Critical "On"
-    if !IsObject(focus_tab_click) {
+    if !IsObject(CascadeState.focusTabClick) {
         SetTimer(WatchFocusTabRelease, 0)
         return
     }
 
     if GetKeyState("LButton", "P") {
-        focus_tab_click.release_missing_since := 0
+        CascadeState.focusTabClick.release_missing_since := 0
         return
     }
 
     ; Allow a queued mouse-up handler to finish before recovering a missed one.
     ; Releasing never triggers an additional activation or layer rotation.
-    if !focus_tab_click.release_missing_since
-        focus_tab_click.release_missing_since := A_TickCount
-    else if ((A_TickCount - focus_tab_click.release_missing_since) & 0xFFFFFFFF) >= 100
+    if !CascadeState.focusTabClick.release_missing_since
+        CascadeState.focusTabClick.release_missing_since := A_TickCount
+    else if ((A_TickCount - CascadeState.focusTabClick.release_missing_since) & 0xFFFFFFFF) >= 100
         StopFocusTabClick()
 }
 
 StopFocusTabClick()
 {
-    global focus_tab_pending_press, focus_tab_click
-
-    focus_tab_pending_press := 0
-    focus_tab_click := 0
+    CascadeState.focusTabPendingPress := 0
+    CascadeState.focusTabClick := 0
     SetTimer(WatchFocusTabRelease, 0)
 }

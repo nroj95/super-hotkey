@@ -7,9 +7,7 @@
 
 GetManagedCascadeMonitor(hwnd)
 {
-    global cascade_history
-
-    for monitor_index, history in cascade_history {
+    for monitor_index, history in CascadeState.history {
         for managed_hwnd in history {
             if managed_hwnd = hwnd
                 return monitor_index
@@ -21,38 +19,34 @@ GetManagedCascadeMonitor(hwnd)
 
 RecordCascadeWindow(monitor_index, hwnd)
 {
-    global cascade_history, cascade_membership_generation, cascade_home_devices
-
     RememberCascadeSlot(hwnd, monitor_index)
-    if !cascade_history.Has(monitor_index)
-        cascade_history[monitor_index] := []
+    if !CascadeState.history.Has(monitor_index)
+        CascadeState.history[monitor_index] := []
 
-    for existing_hwnd in cascade_history[monitor_index] {
+    for existing_hwnd in CascadeState.history[monitor_index] {
         if existing_hwnd = hwnd
             return
     }
-    cascade_history[monitor_index].Push(hwnd)
-    cascade_membership_generation += 1
+    CascadeState.history[monitor_index].Push(hwnd)
+    CascadeState.membershipGeneration += 1
     ; Joining or moving to a display by choice makes it the window's home.
-    if cascade_home_devices.Has(hwnd)
-        cascade_home_devices.Delete(hwnd)
+    if CascadeState.homeDevices.Has(hwnd)
+        CascadeState.homeDevices.Delete(hwnd)
 
     QueueFocusCornerUpdate()
 }
 
 RemoveCascadeWindowFromHistory(hwnd)
 {
-    global cascade_history, cascade_membership_generation
-
     ForgetCascadeSlot(hwnd)
 
-    for monitor_index, history in cascade_history {
+    for monitor_index, history in CascadeState.history {
         index := history.Length
 
         while index >= 1 {
             if history[index] = hwnd {
                 history.RemoveAt(index)
-                cascade_membership_generation += 1
+                CascadeState.membershipGeneration += 1
             }
 
             index -= 1
@@ -62,26 +56,23 @@ RemoveCascadeWindowFromHistory(hwnd)
 
 GetLiveCascadeHistory(monitor_index)
 {
-    global cascade_history, cascade_restore_batches, cascade_slot_tolerance
-    global cascade_membership_generation, cascade_drag_generation, cascade_display_reflow
-
-    if !cascade_history.Has(monitor_index)
+    if !CascadeState.history.Has(monitor_index)
         return []
     ; OS resizing/repositioning during a display change is not manual detachment.
     if CascadeMonitorNeedsRefresh(monitor_index)
-        return cascade_history[monitor_index].Clone()
+        return CascadeState.history[monitor_index].Clone()
 
-    generation := cascade_membership_generation
-    drag_generation := cascade_drag_generation
-    history := cascade_history[monitor_index].Clone()
+    generation := CascadeState.membershipGeneration
+    drag_generation := CascadeState.dragGeneration
+    history := CascadeState.history[monitor_index].Clone()
     live_history := []
     geometry := GetCanonicalCascadeGeometry(monitor_index)
     for hwnd in history {
         if !DllCall("IsWindow", "ptr", hwnd, "int")
             continue
-        if IsCascadeWindowBeingDragged(hwnd) || cascade_display_reflow.Has(hwnd)
-            || (cascade_restore_batches.Has(monitor_index)
-                && cascade_restore_batches[monitor_index].targets.Has(hwnd))
+        if IsCascadeWindowBeingDragged(hwnd) || CascadeState.displayReflow.Has(hwnd)
+            || (CascadeState.restoreBatches.Has(monitor_index)
+                && CascadeState.restoreBatches[monitor_index].targets.Has(hwnd))
         {
             live_history.Push(hwnd)
             continue
@@ -91,7 +82,7 @@ GetLiveCascadeHistory(monitor_index)
         try moved_off := IsCascadeWindowShown(hwnd)
             && TryGetCascadeLayoutOrigin(hwnd, &layout_monitor, &x, &y)
             && (layout_monitor != monitor_index
-                || !FindNearestCascadeSlot(x, y, geometry.slots, cascade_slot_tolerance))
+                || !FindNearestCascadeSlot(x, y, geometry.slots, CascadeState.slotTolerance))
         catch
             moved_off := false
         if !moved_off
@@ -101,10 +92,10 @@ GetLiveCascadeHistory(monitor_index)
     previous_critical := Critical("On")
     try {
         ; Do not erase newly placed/dropped members with an older snapshot.
-        if generation != cascade_membership_generation
-            || drag_generation != cascade_drag_generation
+        if generation != CascadeState.membershipGeneration
+            || drag_generation != CascadeState.dragGeneration
             || IsCascadeRestoreInProgress(monitor_index)
-            return cascade_history.Has(monitor_index) ? cascade_history[monitor_index].Clone() : []
+            return CascadeState.history.Has(monitor_index) ? CascadeState.history[monitor_index].Clone() : []
         if live_history.Length != history.Length {
             retained_windows := Map()
             for live_hwnd in live_history
@@ -113,8 +104,8 @@ GetLiveCascadeHistory(monitor_index)
                 if !retained_windows.Has(old_hwnd)
                     ForgetCascadeSlot(old_hwnd)
             }
-            cascade_history[monitor_index] := live_history
-            cascade_membership_generation += 1
+            CascadeState.history[monitor_index] := live_history
+            CascadeState.membershipGeneration += 1
             QueueCascadeCompaction(monitor_index)
         }
     }
@@ -126,12 +117,10 @@ GetLiveCascadeHistory(monitor_index)
 
 IsWindowInCascadeLayout(hwnd)
 {
-    global cascade_slot_tolerance
-
     if !hwnd || !WinExist("ahk_id " hwnd)
         return false
 
-    stacks := BuildCascadeSlotStacks([hwnd], cascade_slot_tolerance)
+    stacks := BuildCascadeSlotStacks([hwnd], CascadeState.slotTolerance)
 
     return stacks.Length > 0
 }
@@ -139,28 +128,26 @@ IsWindowInCascadeLayout(hwnd)
 
 TryGetCascadeLayoutOrigin(hwnd, &monitor_index, &x, &y)
 {
-    global cascade_window_drag, placement_reservations, cascade_display_reflow, cascade_displays
-
-    if IsCascadeWindowBeingDragged(hwnd) && !cascade_window_drag.completing {
-        monitor_index := cascade_window_drag.source_monitor
-            ? cascade_window_drag.source_monitor : cascade_window_drag.monitor
-        x := cascade_window_drag.frame_x
-        y := cascade_window_drag.frame_y
+    if IsCascadeWindowBeingDragged(hwnd) && !CascadeState.windowDrag.completing {
+        monitor_index := CascadeState.windowDrag.source_monitor
+            ? CascadeState.windowDrag.source_monitor : CascadeState.windowDrag.monitor
+        x := CascadeState.windowDrag.frame_x
+        y := CascadeState.windowDrag.frame_y
         return true
     }
-    if placement_reservations.Has(hwnd) {
-        reservation := placement_reservations[hwnd]
+    if CascadeState.placementReservations.Has(hwnd) {
+        reservation := CascadeState.placementReservations[hwnd]
         monitor_index := reservation["monitor"]
         x := reservation["x"]
         y := reservation["y"]
         return true
     }
 
-    if cascade_display_reflow.Has(hwnd) {
-        saved := cascade_display_reflow[hwnd]
-        if cascade_displays.Has(saved.monitor) {
+    if CascadeState.displayReflow.Has(hwnd) {
+        saved := CascadeState.displayReflow[hwnd]
+        if CascadeState.displays.Has(saved.monitor) {
             monitor_index := saved.monitor
-            slot := cascade_displays[monitor_index].geometry.slots[saved.slot]
+            slot := CascadeState.displays[monitor_index].geometry.slots[saved.slot]
             x := slot[1]
             y := slot[2]
             return true
@@ -173,9 +160,8 @@ TryGetCascadeLayoutOrigin(hwnd, &monitor_index, &x, &y)
 
 GetCanonicalCascadeGeometry(monitor_index)
 {
-    global cascade_displays
-    if cascade_displays.Has(monitor_index)
-        return cascade_displays[monitor_index].geometry
+    if CascadeState.displays.Has(monitor_index)
+        return CascadeState.displays[monitor_index].geometry
     MonitorGetWorkAreaPixels(monitor_index, &left, &top, &right, &bottom)
     return BuildCanonicalCascadeGeometry(left, top, right, bottom)
 }
@@ -193,11 +179,9 @@ BuildCanonicalCascadeGeometry(left, top, right, bottom)
 ; the minimum size and never closer to its edges than the margin.
 GetCascadeWindowSize(work_width, work_height)
 {
-    global window_width_ratio, window_height_ratio
-    global edge_margin, minimum_width, minimum_height
     return [
-        Min(Max(minimum_width, Floor(work_width * window_width_ratio)), work_width - edge_margin * 2),
-        Min(Max(minimum_height, Floor(work_height * window_height_ratio)), work_height - edge_margin * 2)
+        Min(Max(CascadeState.minimumWidth, Floor(work_width * CascadeState.windowWidthRatio)), work_width - CascadeState.edgeMargin * 2),
+        Min(Max(CascadeState.minimumHeight, Floor(work_height * CascadeState.windowHeightRatio)), work_height - CascadeState.edgeMargin * 2)
     ]
 }
 
@@ -207,14 +191,12 @@ GetCascadeWindowSize(work_width, work_height)
 
 GetCascadeSlotStacksForMonitor(monitor_index)
 {
-    global cascade_slot_tolerance
-
     windows := GetLiveCascadeHistory(monitor_index)
 
     if windows.Length = 0
         return []
 
-    return BuildCascadeSlotStacks(windows, cascade_slot_tolerance)
+    return BuildCascadeSlotStacks(windows, CascadeState.slotTolerance)
 }
 
 GetCurrentCascadeLayerWindows(monitor_index)
@@ -295,11 +277,9 @@ CenterCoordinate(work_start, work_size, window_size)
 
 BuildCascadeSlots(work_left, work_top, work_right, work_bottom, window_width, window_height)
 {
-    global cascade_x, cascade_y, cascade_mirrored
-
     work_width := work_right - work_left
     work_height := work_bottom - work_top
-    step_x := cascade_mirrored ? -cascade_x : cascade_x
+    step_x := CascadeState.mirrored ? -CascadeState.stepX : CascadeState.stepX
 
     center_x := CenterCoordinate(work_left, work_width, window_width)
 
@@ -315,7 +295,7 @@ BuildCascadeSlots(work_left, work_top, work_right, work_bottom, window_width, wi
 
     Loop {
         x := center_x - step_x * step
-        y := center_y - cascade_y * step
+        y := center_y - CascadeState.stepY * step
 
         if !CascadePositionFits(x, y, window_width, window_height, work_left, work_top, work_right,
             work_bottom) {
@@ -332,7 +312,7 @@ BuildCascadeSlots(work_left, work_top, work_right, work_bottom, window_width, wi
 
     Loop {
         x := center_x + step_x * step
-        y := center_y + cascade_y * step
+        y := center_y + CascadeState.stepY * step
 
         if !CascadePositionFits(x, y, window_width, window_height, work_left, work_top, work_right,
             work_bottom) {
@@ -348,11 +328,9 @@ BuildCascadeSlots(work_left, work_top, work_right, work_bottom, window_width, wi
 
 CascadePositionFits(x, y, window_width, window_height, work_left, work_top, work_right, work_bottom)
 {
-    global edge_margin
-
-    return (x >= work_left + edge_margin && y >= work_top + edge_margin
-        && x + window_width <= work_right - edge_margin
-        && y + window_height <= work_bottom - edge_margin)
+    return (x >= work_left + CascadeState.edgeMargin && y >= work_top + CascadeState.edgeMargin
+        && x + window_width <= work_right - CascadeState.edgeMargin
+        && y + window_height <= work_bottom - CascadeState.edgeMargin)
 }
 
 FindNearestCascadeSlot(window_x, window_y, slots, tolerance)
@@ -385,21 +363,19 @@ FindNearestCascadeSlot(window_x, window_y, slots, tolerance)
 
 GetCascadeSlotCounts(monitor_index, slots, tolerance, excluded_hwnd := 0)
 {
-    global cascade_history, placement_reservations
-
     counts := []
 
     Loop slots.Length
         counts.Push(0)
 
-    if cascade_history.Has(monitor_index) {
-        for hwnd in cascade_history[monitor_index] {
+    if CascadeState.history.Has(monitor_index) {
+        for hwnd in CascadeState.history[monitor_index] {
             if hwnd = excluded_hwnd || !WinExist("ahk_id " hwnd)
                 continue
 
             ; A reserved window is counted at its intended slot below instead
             ; of at stale geometry from before its asynchronous move completes.
-            if placement_reservations.Has(hwnd)
+            if CascadeState.placementReservations.Has(hwnd)
                 continue
 
             if !TryGetCascadeLayoutOrigin(hwnd, &layout_monitor, &window_x, &window_y)
@@ -415,7 +391,7 @@ GetCascadeSlotCounts(monitor_index, slots, tolerance, excluded_hwnd := 0)
 
     ; Reservations also include windows that have selected a slot but have not
     ; yet been recorded in cascade history.
-    for reserved_hwnd, reservation in placement_reservations {
+    for reserved_hwnd, reservation in CascadeState.placementReservations {
         if reserved_hwnd = excluded_hwnd || reservation["monitor"] != monitor_index
             continue
 
@@ -435,12 +411,10 @@ GetCascadeSlotCounts(monitor_index, slots, tolerance, excluded_hwnd := 0)
 GetNextCascadePosition(monitor_index, work_left, work_top, work_right, work_bottom, window_width,
     window_height, excluded_hwnd := 0)
 {
-    global cascade_slot_tolerance
-
     slots := BuildCascadeSlots(work_left, work_top, work_right, work_bottom, window_width,
         window_height)
 
-    slot_counts := GetCascadeSlotCounts(monitor_index, slots, cascade_slot_tolerance, excluded_hwnd)
+    slot_counts := GetCascadeSlotCounts(monitor_index, slots, CascadeState.slotTolerance, excluded_hwnd)
 
     selected_slot_index := 1
     selected_count := slot_counts[1]
@@ -475,29 +449,25 @@ IsCascadeCompactionDeferred(monitor_index)
 
 QueueCascadeCompaction(monitor_index, preferred_hwnd := 0)
 {
-    global cascade_compaction_pending
-
     ; A global pause must not leave deferred layout work to replay on resume.
     if SuiteState.App.suspended
         return
     if !monitor_index
         return
-    if preferred_hwnd || !cascade_compaction_pending.Has(monitor_index)
-        cascade_compaction_pending[monitor_index] := preferred_hwnd
+    if preferred_hwnd || !CascadeState.compactionPending.Has(monitor_index)
+        CascadeState.compactionPending[monitor_index] := preferred_hwnd
     if !IsCascadeCompactionDeferred(monitor_index)
         ScheduleCascadeCompactionFlush()
 }
 
 RequeueCascadeCompaction(monitor_index, preferred_hwnd)
 {
-    global cascade_compaction_pending
-
     previous_critical := Critical("On")
     try {
         ; A retry belongs to an older plan. A newer drop already queued wins.
-        if cascade_compaction_pending.Has(monitor_index)
-            && cascade_compaction_pending[monitor_index]
-            preferred_hwnd := cascade_compaction_pending[monitor_index]
+        if CascadeState.compactionPending.Has(monitor_index)
+            && CascadeState.compactionPending[monitor_index]
+            preferred_hwnd := CascadeState.compactionPending[monitor_index]
         QueueCascadeCompaction(monitor_index, preferred_hwnd)
     }
     finally {
@@ -510,28 +480,25 @@ ScheduleCascadeCompactionFlush(recover := false)
     if !IsCascadeEnabled()
         return
 
-    global cascade_compaction_timer_pending
-
     ; Further events must not keep postponing an already scheduled flush.
-    if cascade_compaction_timer_pending && !recover
+    if CascadeState.compactionTimerPending && !recover
         return
-    cascade_compaction_timer_pending := true
+    CascadeState.compactionTimerPending := true
     SetTimer(FlushCascadeCompactions, -120)
 }
 
 FlushCascadeCompactions()
 {
-    global cascade_compaction_pending, cascade_compaction_timer_pending
     static running := false
 
     previous_critical := Critical("On")
     try {
-        cascade_compaction_timer_pending := false
+        CascadeState.compactionTimerPending := false
         if running
             return
         running := true
-        monitors := cascade_compaction_pending
-        cascade_compaction_pending := Map()
+        monitors := CascadeState.compactionPending
+        CascadeState.compactionPending := Map()
     }
     finally {
         Critical(previous_critical)
@@ -547,8 +514,8 @@ FlushCascadeCompactions()
             }
             catch Error as err {
                 ; Retain this request for the slow recovery poll; finish the rest.
-                if !cascade_compaction_pending.Has(monitor_index)
-                    cascade_compaction_pending[monitor_index] := preferred_hwnd
+                if !CascadeState.compactionPending.Has(monitor_index)
+                    CascadeState.compactionPending[monitor_index] := preferred_hwnd
                 DebugError("CompactCascadeLayout", err)
             }
         }
@@ -561,16 +528,13 @@ FlushCascadeCompactions()
 
 CompactCascadeLayout(monitor_index, preferred_hwnd := 0)
 {
-    global cascade_slot_tolerance
-    global cascade_drag_generation, cascade_compaction_pending, cascade_membership_generation
-
-    drag_generation := cascade_drag_generation
+    drag_generation := CascadeState.dragGeneration
     ; Another monitor's compaction may have yielded to a newer drop. Prefer its
     ; queued target over the older request captured by this flush.
-    if cascade_compaction_pending.Has(monitor_index)
-        && cascade_compaction_pending[monitor_index]
+    if CascadeState.compactionPending.Has(monitor_index)
+        && CascadeState.compactionPending[monitor_index]
     {
-        preferred_hwnd := cascade_compaction_pending[monitor_index]
+        preferred_hwnd := CascadeState.compactionPending[monitor_index]
     }
     if IsCascadeCompactionDeferred(monitor_index) {
         RequeueCascadeCompaction(monitor_index, preferred_hwnd)
@@ -580,13 +544,13 @@ CompactCascadeLayout(monitor_index, preferred_hwnd := 0)
     ; Compaction operates on existing membership only; auto-paused windows stay unmanaged.
     windows := GetLiveCascadeHistory(monitor_index)
     managed_window_count := windows.Length
-    membership_generation := cascade_membership_generation
+    membership_generation := CascadeState.membershipGeneration
 
     ; Stack construction excludes members that are not shown, without touching them.
     if windows.Length = 0
         return
 
-    stacks := BuildCascadeSlotStacks(windows, cascade_slot_tolerance)
+    stacks := BuildCascadeSlotStacks(windows, CascadeState.slotTolerance)
 
     if stacks.Length = 0
         return
@@ -615,9 +579,8 @@ CompactCascadeLayout(monitor_index, preferred_hwnd := 0)
     ; Never apply an old plan after a newer drag or membership change, or while
     ; layout is deferred: queue it again instead.
     Superseded() {
-        global cascade_drag_generation, cascade_membership_generation
-        if drag_generation = cascade_drag_generation
-            && membership_generation = cascade_membership_generation
+        if drag_generation = CascadeState.dragGeneration
+            && membership_generation = CascadeState.membershipGeneration
             && !IsCascadeCompactionDeferred(monitor_index)
             return false
         RequeueCascadeCompaction(monitor_index, preferred_hwnd)

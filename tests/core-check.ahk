@@ -445,7 +445,6 @@ class CoreChecks {
     }
 
     static ApplicationSuspension() {
-        global cascade_compaction_pending
         app := SuiteApplication(true, SuiteChecks.directory "\hotkey-suspension")
         app.InitializeCatalog()
         manager := app.manager
@@ -461,12 +460,12 @@ class CoreChecks {
                 "suspending the input manager does not require stopping the application")
             this.Assert(!IsCascadeEnabled(),
                 "application suspension disables automatic Cascade Kingdom work")
-            cascade_compaction_pending[1] := 0
+            CascadeState.compactionPending[1] := 0
             app.modules["cascade-kingdom"].Suspend()
-            this.Assert(!cascade_compaction_pending.Count,
+            this.Assert(!CascadeState.compactionPending.Count,
                 "suspension clears queued compactions")
             QueueCascadeCompaction(1)
-            this.Assert(!cascade_compaction_pending.Count,
+            this.Assert(!CascadeState.compactionPending.Count,
                 "suspended Cascade Kingdom discards new compaction requests")
             if IsObject(manager.client)
                 this.Assert(manager.client.running = manager.client.LayerEnabled("pause"),

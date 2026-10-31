@@ -10,14 +10,11 @@ PlaceCascadeWindowOnMonitor(hwnd, target_monitor, requested_position := 0,
     if !IsCascadeEnabled() || IsCascadeDisplayTransition()
         return false
 
-    global cascade_display_generation
-    global placement_reservations
-
     if !hwnd || !CascadeDisplayAllowed(target_monitor) || !WinExist("ahk_id " hwnd)
         return false
 
     window := "ahk_id " hwnd
-    display_generation := cascade_display_generation
+    display_generation := CascadeState.displayGeneration
     CancelCascadeDisplayPlacement(hwnd)
     CancelPlacementStabilization(hwnd)
     previous_monitor := GetManagedCascadeMonitor(hwnd)
@@ -60,10 +57,10 @@ PlaceCascadeWindowOnMonitor(hwnd, target_monitor, requested_position := 0,
         raw_target := VisibleToRawRect(hwnd, target_x, target_y, window_width, window_height)
 
         if !IsCascadeEnabled() || IsCascadeDisplayTransition()
-            || display_generation != cascade_display_generation
+            || display_generation != CascadeState.displayGeneration
             return false
         owned_reservation := Map("monitor", target_monitor, "x", target_x, "y", target_y)
-        placement_reservations[hwnd] := owned_reservation
+        CascadeState.placementReservations[hwnd] := owned_reservation
 
         ; Explicit adoption/gather/drop placement does not need to block on the
         ; target application's UI thread. The reservation represents the intended
@@ -87,9 +84,9 @@ PlaceCascadeWindowOnMonitor(hwnd, target_monitor, requested_position := 0,
             return false
         }
 
-        if !IsCascadeEnabled() || display_generation != cascade_display_generation
+        if !IsCascadeEnabled() || display_generation != CascadeState.displayGeneration
             || IsCascadeDisplayTransition()
-            || !placement_reservations.Has(hwnd) || placement_reservations[hwnd] != owned_reservation
+            || !CascadeState.placementReservations.Has(hwnd) || CascadeState.placementReservations[hwnd] != owned_reservation
             return false
         ; Same-monitor reconciliation may need to repair geometry without turning
         ; the re-shown window into the newest history member. Cross-monitor moves,
@@ -124,8 +121,8 @@ PlaceCascadeWindowOnMonitor(hwnd, target_monitor, requested_position := 0,
     finally {
         ; An interrupted adoption may not have entered history yet. Never leave
         ; its unowned slot reserved forever, or delete a newer request's reservation.
-        if !placed && placement_reservations.Has(hwnd) && placement_reservations[hwnd] = owned_reservation
-            placement_reservations.Delete(hwnd)
+        if !placed && CascadeState.placementReservations.Has(hwnd) && CascadeState.placementReservations[hwnd] = owned_reservation
+            CascadeState.placementReservations.Delete(hwnd)
     }
 }
 
@@ -140,12 +137,10 @@ PlaceCascadeWindowOnMonitor(hwnd, target_monitor, requested_position := 0,
 
 CancelPlacementStabilization(hwnd)
 {
-    global placement_stabilization_generations, placement_reservations
-
-    if hwnd && placement_stabilization_generations.Has(hwnd)
-        placement_stabilization_generations.Delete(hwnd)
-    if hwnd && placement_reservations.Has(hwnd)
-        placement_reservations.Delete(hwnd)
+    if hwnd && CascadeState.placementStabilizationGenerations.Has(hwnd)
+        CascadeState.placementStabilizationGenerations.Delete(hwnd)
+    if hwnd && CascadeState.placementReservations.Has(hwnd)
+        CascadeState.placementReservations.Delete(hwnd)
 }
 
 FinishPlacementStabilization(hwnd, generation)
@@ -161,30 +156,23 @@ SchedulePlacementStabilization(hwnd, target_x, target_y, target_width, target_he
     if !IsCascadeEnabled()
         return
 
-    global placement_stabilize_delay_ms
-    global placement_stabilization_generations, placement_stabilization_generation_counter
-
-    placement_stabilization_generation_counter += 1
-    generation := placement_stabilization_generation_counter
-    placement_stabilization_generations[hwnd] := generation
+    CascadeState.placementStabilizationGenerationCounter += 1
+    generation := CascadeState.placementStabilizationGenerationCounter
+    CascadeState.placementStabilizationGenerations[hwnd] := generation
     RememberCascadeSlot(hwnd, GetManagedCascadeMonitor(hwnd), target_x, target_y)
     SetTimer(StabilizePlacedWindow.Bind(hwnd, target_x, target_y, target_width, target_height,
-        generation), -placement_stabilize_delay_ms)
+        generation), -CascadeState.placementStabilizeDelayMs)
 }
 
 IsCurrentPlacementStabilization(hwnd, generation)
 {
-    global placement_stabilization_generations
-
-    return IsCascadeEnabled() && placement_stabilization_generations.Has(hwnd)
-        && placement_stabilization_generations[hwnd] = generation
+    return IsCascadeEnabled() && CascadeState.placementStabilizationGenerations.Has(hwnd)
+        && CascadeState.placementStabilizationGenerations[hwnd] = generation
 }
 
 StabilizePlacedWindow(hwnd, target_x, target_y, target_width, target_height, generation,
     corrected := false)
 {
-    global placement_stabilize_tolerance, placement_stabilize_verify_ms
-
     if !IsCurrentPlacementStabilization(hwnd, generation)
         return
     if IsCascadeDisplayTransition() {
@@ -202,10 +190,10 @@ StabilizePlacedWindow(hwnd, target_x, target_y, target_width, target_height, gen
             FinishPlacementStabilization(hwnd, generation)
             return
         }
-        matched := Abs(frame.x - target_x) <= placement_stabilize_tolerance
-            && Abs(frame.y - target_y) <= placement_stabilize_tolerance
-            && Abs(frame.width - target_width) <= placement_stabilize_tolerance
-            && Abs(frame.height - target_height) <= placement_stabilize_tolerance
+        matched := Abs(frame.x - target_x) <= CascadeState.placementStabilizeTolerance
+            && Abs(frame.y - target_y) <= CascadeState.placementStabilizeTolerance
+            && Abs(frame.width - target_width) <= CascadeState.placementStabilizeTolerance
+            && Abs(frame.height - target_height) <= CascadeState.placementStabilizeTolerance
         DebugLog("Placement check. | matched=" matched " | corrected=" (corrected ? 1 : 0)
             . " | actual=(" frame.x "," frame.y " " frame.width "x" frame.height ")"
             . " | requested=(" target_x "," target_y " " target_width "x" target_height ")"
@@ -223,7 +211,7 @@ StabilizePlacedWindow(hwnd, target_x, target_y, target_width, target_height, gen
             return
         }
         SetTimer(StabilizePlacedWindow.Bind(hwnd, target_x, target_y, target_width, target_height,
-            generation, true), -placement_stabilize_verify_ms)
+            generation, true), -CascadeState.placementStabilizeVerifyMs)
     }
     catch Error as err {
         FinishPlacementStabilization(hwnd, generation)

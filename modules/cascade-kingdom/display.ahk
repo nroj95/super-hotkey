@@ -10,16 +10,15 @@
 
 InitializeCascadeDisplays()
 {
-    global cascade_displays, cascade_display_signature, cascade_display_refreshing
-    cascade_display_refreshing := true
+    CascadeState.displayRefreshing := true
     try {
         snapshot := ReadCascadeDisplays()
-        cascade_displays := snapshot.displays
-        cascade_display_signature := snapshot.signature
+        CascadeState.displays := snapshot.displays
+        CascadeState.displaySignature := snapshot.signature
         DebugLog("Display geometry initialized. | signature=" snapshot.signature)
     }
     finally {
-        cascade_display_refreshing := false
+        CascadeState.displayRefreshing := false
     }
     OnMessage(0x007E, HandleCascadeDisplayMessage) ; WM_DISPLAYCHANGE
     OnMessage(0x001A, HandleCascadeDisplayMessage) ; WM_SETTINGCHANGE / work area
@@ -29,23 +28,20 @@ InitializeCascadeDisplays()
 
 HandleCascadeDisplayMessage(wparam, lparam, message, hwnd)
 {
-    global cascade_display_refreshing
-    global focus_corner_targets, focus_corner_overlays
-
     ; A scale change reaches the script window as WM_DISPLAYCHANGE and
     ; WM_SETTINGCHANGE; WM_DPICHANGED only re-anchors a tab that moved.
     if message = 0x02E0 {
-        if !focus_corner_targets.Has(hwnd)
+        if !CascadeState.focusCornerTargets.Has(hwnd)
             return
-        target := focus_corner_targets[hwnd]
-        if focus_corner_overlays.Has(target)
-            focus_corner_overlays[target].dpi := 0
+        target := CascadeState.focusCornerTargets[hwnd]
+        if CascadeState.focusCornerOverlays.Has(target)
+            CascadeState.focusCornerOverlays[target].dpi := 0
         ; A tab moving between monitors is not a display-topology change.
         ; Re-anchor to its target instead of using the suggested free-floating RECT.
         QueueFocusCornerUpdate()
         return 0
     }
-    if hwnd != A_ScriptHwnd || cascade_display_refreshing
+    if hwnd != A_ScriptHwnd || CascadeState.displayRefreshing
         return
     if message = 0x0218 && wparam != 7 && wparam != 18
         return
@@ -55,31 +51,27 @@ HandleCascadeDisplayMessage(wparam, lparam, message, hwnd)
 QueueCascadeDisplayRefresh()
 {
     CascadeDropGuides.Hide()
-    global cascade_display_change_pending, cascade_display_generation
-    global cascade_display_refresh_delay_ms, cascade_membership_generation
-    if !cascade_display_change_pending {
-        cascade_display_change_pending := true
-        cascade_display_generation += 1
-        cascade_membership_generation += 1
+    if !CascadeState.displayChangePending {
+        CascadeState.displayChangePending := true
+        CascadeState.displayGeneration += 1
+        CascadeState.membershipGeneration += 1
     }
-    SetTimer(RefreshCascadeDisplays, -cascade_display_refresh_delay_ms)
+    SetTimer(RefreshCascadeDisplays, -CascadeState.displayRefreshDelayMs)
 }
 
 IsCascadeDisplayTransition()
 {
-    global cascade_display_change_pending, cascade_display_refreshing
-    return cascade_display_change_pending || cascade_display_refreshing
+    return CascadeState.displayChangePending || CascadeState.displayRefreshing
 }
 
 PollCascadeDisplayEnvironment()
 {
-    global cascade_display_signature, cascade_display_refreshing
     if IsCascadeDisplayTransition()
         return
-    cascade_display_refreshing := true
+    CascadeState.displayRefreshing := true
     try {
         snapshot := ReadCascadeDisplays()
-        if snapshot.signature != cascade_display_signature
+        if snapshot.signature != CascadeState.displaySignature
             QueueCascadeDisplayRefresh()
     }
     catch Error as err {
@@ -87,33 +79,27 @@ PollCascadeDisplayEnvironment()
         QueueCascadeDisplayRefresh()
     }
     finally {
-        cascade_display_refreshing := false
+        CascadeState.displayRefreshing := false
     }
     ApplyPendingCascadeDisplayLayout()
 }
 
 RefreshCascadeDisplays()
 {
-    global cascade_displays, cascade_display_signature, cascade_display_change_pending
-    global cascade_display_refreshing, cascade_display_generation, cascade_membership_generation
-    global cascade_history, cascade_window_slots, cascade_display_reflow, cascade_home_devices
-    global cascade_minimized_windows, cascade_restore_batches, cascade_close_batches
-    global cascade_compaction_pending
-
-    if cascade_display_refreshing
+    if CascadeState.displayRefreshing
         return
-    cascade_display_refreshing := true
+    CascadeState.displayRefreshing := true
     try {
         snapshot := ReadCascadeDisplays()
-        if snapshot.signature = cascade_display_signature {
-            cascade_display_change_pending := false
+        if snapshot.signature = CascadeState.displaySignature {
+            CascadeState.displayChangePending := false
             return
         }
         ; Geometry queries above stay interruptible. Publish slots, membership and
         ; cancellation together so a hotkey cannot observe a half-remapped monitor.
         previous_critical := Critical("On")
         try {
-            old_displays := cascade_displays
+            old_displays := CascadeState.displays
             new_displays := snapshot.displays
             remapped_history := Map()
             remapped_compactions := Map()
@@ -124,17 +110,17 @@ RefreshCascadeDisplays()
             fallback := MonitorGetPrimary()
             if !new_displays.Has(fallback)
                 fallback := 1
-            for old_monitor, history in cascade_history.Clone() {
+            for old_monitor, history in CascadeState.history.Clone() {
                 device := old_displays.Has(old_monitor) ? old_displays[old_monitor].device : ""
                 for hwnd in history.Clone() {
                     if !DllCall("IsWindow", "ptr", hwnd, "int")
                         continue
-                    destination := CascadeMemberDestination(device, cascade_home_devices.Get(hwnd, ""),
+                    destination := CascadeMemberDestination(device, CascadeState.homeDevices.Get(hwnd, ""),
                         new_displays, fallback, &home)
                     if home != ""
-                        cascade_home_devices[hwnd] := home
-                    else if cascade_home_devices.Has(hwnd)
-                        cascade_home_devices.Delete(hwnd)
+                        CascadeState.homeDevices[hwnd] := home
+                    else if CascadeState.homeDevices.Has(hwnd)
+                        CascadeState.homeDevices.Delete(hwnd)
                     if !CascadeDisplayAllowed(destination, new_displays) {
                         ReleaseCascadeWindow(hwnd)
                         topology_changed := true
@@ -149,11 +135,11 @@ RefreshCascadeDisplays()
                         || old_displays[old_monitor].signature != new_displays[destination].signature
                     if !changed && destination = old_monitor
                         continue
-                    if !cascade_window_slots.Has(hwnd)
+                    if !CascadeState.windowSlots.Has(hwnd)
                         RememberCascadeSlot(hwnd, old_monitor)
-                    if !cascade_window_slots.Has(hwnd)
+                    if !CascadeState.windowSlots.Has(hwnd)
                         continue
-                    slot := cascade_window_slots[hwnd]
+                    slot := CascadeState.windowSlots[hwnd]
                     try {
                         if WinGetPID(hwnd) != slot.pid
                             continue
@@ -165,44 +151,44 @@ RefreshCascadeDisplays()
                     slot.monitor := destination
                     slot.device := new_displays[destination].device
                     slot.slot := Min(slot.slot, new_displays[destination].geometry.slots.Length)
-                    cascade_window_slots[hwnd] := slot
+                    CascadeState.windowSlots[hwnd] := slot
                     ; An active native drag owns its final destination, even during scaling.
                     if !IsCascadeWindowBeingDragged(hwnd)
-                        cascade_display_reflow[hwnd] := slot
+                        CascadeState.displayReflow[hwnd] := slot
                 }
-                if cascade_compaction_pending.Has(old_monitor) {
+                if CascadeState.compactionPending.Has(old_monitor) {
                     destination := FindCascadeMonitorDevice(device, new_displays) || fallback
-                    remapped_compactions[destination] := cascade_compaction_pending[old_monitor]
+                    remapped_compactions[destination] := CascadeState.compactionPending[old_monitor]
                 }
             }
 
-            cascade_displays := new_displays
-            cascade_display_signature := snapshot.signature
-            cascade_display_generation += 1
-            cascade_membership_generation += 1
+            CascadeState.displays := new_displays
+            CascadeState.displaySignature := snapshot.signature
+            CascadeState.displayGeneration += 1
+            CascadeState.membershipGeneration += 1
             ; A DPI-only change leaves the original history map/arrays in place.
             if topology_changed {
-                cascade_history := remapped_history
-                cascade_compaction_pending := remapped_compactions
+                CascadeState.history := remapped_history
+                CascadeState.compactionPending := remapped_compactions
                 ; Old monitor-index gates are no longer meaningful. Their delayed
                 ; callbacks already check identity; saved minimized windows are retained.
-                cascade_restore_batches.Clear()
-                cascade_close_batches.Clear()
+                CascadeState.restoreBatches.Clear()
+                CascadeState.closeBatches.Clear()
             }
-            for hwnd in cascade_display_reflow {
+            for hwnd in CascadeState.displayReflow {
                 CancelPlacementStabilization(hwnd)
             }
-            for target in cascade_minimized_windows {
-                if cascade_window_slots.Has(target.hwnd)
-                    target.monitor := cascade_window_slots[target.hwnd].monitor
+            for target in CascadeState.minimizedWindows {
+                if CascadeState.windowSlots.Has(target.hwnd)
+                    target.monitor := CascadeState.windowSlots[target.hwnd].monitor
             }
             ; Merged, returned or rescaled cascades close up once their windows
             ; have moved, so windows share a slot only when every slot is taken.
-            for monitor in cascade_history
+            for monitor in CascadeState.history
                 QueueCascadeCompaction(monitor)
-            cascade_display_change_pending := false
+            CascadeState.displayChangePending := false
             DebugLog("Display geometry refreshed without reload. | displays=" new_displays.Count
-                " | pending-members=" cascade_display_reflow.Count " | signature=" snapshot.signature)
+                " | pending-members=" CascadeState.displayReflow.Count " | signature=" snapshot.signature)
         }
         finally {
             Critical(previous_critical)
@@ -211,11 +197,11 @@ RefreshCascadeDisplays()
     catch Error as err {
         DebugError("Refresh display geometry", err)
         ; Keep membership protected while Windows is between valid configurations.
-        cascade_display_change_pending := true
+        CascadeState.displayChangePending := true
         SetTimer(RefreshCascadeDisplays, -1000)
     }
     finally {
-        cascade_display_refreshing := false
+        CascadeState.displayRefreshing := false
         QueueFocusCornerUpdate()
         SetTimer(ApplyPendingCascadeDisplayLayout, -50)
     }
@@ -244,18 +230,17 @@ CascadeMemberDestination(device, home, displays, fallback, &new_home)
 
 RememberCascadeSlot(hwnd, monitor_index, x?, y?)
 {
-    global cascade_window_slots, cascade_displays
     try {
-        if !cascade_displays.Has(monitor_index)
+        if !CascadeState.displays.Has(monitor_index)
             return
         if !IsSet(x) || !IsSet(y) {
             if !TryGetCascadeLayoutOrigin(hwnd, &observed_monitor, &x, &y)
                 return
         }
-        display := cascade_displays[monitor_index]
+        display := CascadeState.displays[monitor_index]
         slot_index := FindNearestCascadeSlot(x, y, display.geometry.slots, 0x7FFFFFFF)
         if slot_index
-            cascade_window_slots[hwnd] := {
+            CascadeState.windowSlots[hwnd] := {
                 pid: WinGetPID(hwnd), monitor: monitor_index,
                 device: display.device, slot: slot_index
             }
@@ -264,29 +249,26 @@ RememberCascadeSlot(hwnd, monitor_index, x?, y?)
 
 ForgetCascadeSlot(hwnd)
 {
-    global cascade_window_slots, cascade_display_reflow, cascade_home_devices
-    if cascade_window_slots.Has(hwnd)
-        cascade_window_slots.Delete(hwnd)
-    if cascade_home_devices.Has(hwnd)
-        cascade_home_devices.Delete(hwnd)
-    if cascade_display_reflow.Has(hwnd)
-        cascade_display_reflow.Delete(hwnd)
+    if CascadeState.windowSlots.Has(hwnd)
+        CascadeState.windowSlots.Delete(hwnd)
+    if CascadeState.homeDevices.Has(hwnd)
+        CascadeState.homeDevices.Delete(hwnd)
+    if CascadeState.displayReflow.Has(hwnd)
+        CascadeState.displayReflow.Delete(hwnd)
 }
 
 CancelCascadeDisplayPlacement(hwnd, expected_slot := 0)
 {
-    global cascade_display_reflow
-    if !cascade_display_reflow.Has(hwnd)
+    if !CascadeState.displayReflow.Has(hwnd)
         return
-    if IsObject(expected_slot) && cascade_display_reflow[hwnd] != expected_slot
+    if IsObject(expected_slot) && CascadeState.displayReflow[hwnd] != expected_slot
         return
-    cascade_display_reflow.Delete(hwnd)
+    CascadeState.displayReflow.Delete(hwnd)
 }
 
 HasPendingCascadeDisplayLayout(monitor_index)
 {
-    global cascade_display_reflow
-    for hwnd, slot in cascade_display_reflow {
+    for hwnd, slot in CascadeState.displayReflow {
         if slot.monitor = monitor_index && DllCall("IsWindow", "ptr", hwnd, "int")
             && !DllCall("IsIconic", "ptr", hwnd, "int")
             && DllCall("IsWindowVisible", "ptr", hwnd, "int") && !IsWindowCloaked(hwnd)
@@ -297,19 +279,17 @@ HasPendingCascadeDisplayLayout(monitor_index)
 
 ApplyPendingCascadeDisplayLayout()
 {
-    global cascade_display_reflow, cascade_displays, placement_reservations
-    global cascade_display_generation
     static running := false
 
     if running || !IsCascadeEnabled() || IsCascadeDisplayTransition()
         || HasCascadeWindowDrag() || HasFocusTabClick() || GetKeyState("LButton", "P")
         return
     running := true
-    generation := cascade_display_generation
+    generation := CascadeState.displayGeneration
     try {
-        for hwnd, slot in cascade_display_reflow.Clone() {
+        for hwnd, slot in CascadeState.displayReflow.Clone() {
             if !IsCascadeEnabled() || IsCascadeDisplayTransition()
-                || generation != cascade_display_generation
+                || generation != CascadeState.displayGeneration
                 || HasCascadeWindowDrag() || HasFocusTabClick()
                 break
             try {
@@ -329,20 +309,20 @@ ApplyPendingCascadeDisplayLayout()
                 }
                 if IsCascadeCloseBatchActive(slot.monitor)
                     continue
-                geometry := cascade_displays[slot.monitor].geometry
+                geometry := CascadeState.displays[slot.monitor].geometry
                 position := geometry.slots[slot.slot]
                 raw := VisibleToRawRect(hwnd, position[1], position[2], geometry.width, geometry.height)
-                if !cascade_display_reflow.Has(hwnd) || cascade_display_reflow[hwnd] != slot
-                    || generation != cascade_display_generation || IsCascadeDisplayTransition()
+                if !CascadeState.displayReflow.Has(hwnd) || CascadeState.displayReflow[hwnd] != slot
+                    || generation != CascadeState.displayGeneration || IsCascadeDisplayTransition()
                     continue
                 previous_critical := Critical("On")
                 try {
                     if !IsCascadeEnabled() || IsCascadeDisplayTransition()
-                        || generation != cascade_display_generation
-                        || !cascade_display_reflow.Has(hwnd) || cascade_display_reflow[hwnd] != slot
+                        || generation != CascadeState.displayGeneration
+                        || !CascadeState.displayReflow.Has(hwnd) || CascadeState.displayReflow[hwnd] != slot
                         || IsCascadeWindowBeingDragged(hwnd) || WinGetPID(hwnd) != slot.pid
                         continue
-                    placement_reservations[hwnd] := Map("monitor", slot.monitor, "x", position[1], "y", position[2])
+                    CascadeState.placementReservations[hwnd] := Map("monitor", slot.monitor, "x", position[1], "y", position[2])
                     ; No activation, Z-order rebuild, restore, close, or membership adoption.
                     moved := PhysicalDllCall("SetWindowPos", "ptr", hwnd, "ptr", 0,
                         "int", raw[1], "int", raw[2], "int", raw[3], "int", raw[4],

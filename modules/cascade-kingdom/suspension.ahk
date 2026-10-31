@@ -18,16 +18,14 @@ IsCascadeEnabled() {
 ; leaves the list; a window minimized by hand never joins it.
 RunCascadeMinimizeCommand(command)
 {
-    global cascade_minimize_in_progress
-
-    if cascade_minimize_in_progress
+    if CascadeState.minimizeInProgress
         return
     ; Do not hide a target in the middle of a native drag or paired tab click.
     if HasCascadeWindowDrag() || HasFocusTabClick() || GetKeyState("LButton", "P")
         return
 
     previous_critical := Critical("On")
-    cascade_minimize_in_progress := true
+    CascadeState.minimizeInProgress := true
     try {
         PruneMinimizedCascadeWindows()
         command()
@@ -36,7 +34,7 @@ RunCascadeMinimizeCommand(command)
         DebugError("Hide or restore cascade windows", err)
     }
     finally {
-        cascade_minimize_in_progress := false
+        CascadeState.minimizeInProgress := false
         QueueFocusCornerUpdate()
         Critical(previous_critical)
     }
@@ -44,8 +42,6 @@ RunCascadeMinimizeCommand(command)
 
 MinimizeCascadeWindows(monitor)
 {
-    global cascade_minimized_windows
-
     ; The newest batch goes first, so it comes back on top.
     targets := CaptureCascadeMinimizeTargets(monitor)
     added := 0
@@ -60,7 +56,7 @@ MinimizeCascadeWindows(monitor)
                 continue
 
             ; Publish ownership before WinMinimize can yield to a lifetime callback.
-            cascade_minimized_windows.InsertAt(++added, target)
+            CascadeState.minimizedWindows.InsertAt(++added, target)
             listed := true
             CancelPlacementStabilization(target.hwnd)
             RemoveWindowFromCascadeRestore(target.hwnd)
@@ -84,9 +80,9 @@ MinimizeCascadeWindows(monitor)
     }
 
     if added
-        FocusAfterCascadeHide(monitor, cascade_minimized_windows[1].hwnd)
+        FocusAfterCascadeHide(monitor, CascadeState.minimizedWindows[1].hwnd)
     DebugLog("Cascade windows minimized. | monitor=" monitor " | added=" added
-        . " | saved-windows=" cascade_minimized_windows.Length)
+        . " | saved-windows=" CascadeState.minimizedWindows.Length)
 }
 
 ; Focus stays on the display the cascade left: Windows would hand it to the
@@ -122,11 +118,9 @@ FocusAfterCascadeHide(monitor, hidden_hwnd)
 
 RestoreMinimizedCascadeWindows(monitor)
 {
-    global cascade_minimized_windows
-
     windows_to_restore := []
     kept := []
-    for target in cascade_minimized_windows {
+    for target in CascadeState.minimizedWindows {
         if target.monitor != monitor {
             kept.Push(target)
             continue
@@ -144,7 +138,7 @@ RestoreMinimizedCascadeWindows(monitor)
         }
     }
 
-    cascade_minimized_windows := kept
+    CascadeState.minimizedWindows := kept
     RestoreCascadeWindows(windows_to_restore)
     DebugLog("Cascade windows restored. | monitor=" monitor " | restored-windows=" windows_to_restore.Length)
 }
@@ -200,23 +194,19 @@ IsSameMinimizedCascadeWindow(target)
 
 ForgetMinimizedCascadeWindow(hwnd)
 {
-    global cascade_minimized_windows
-
-    index := cascade_minimized_windows.Length
+    index := CascadeState.minimizedWindows.Length
     while index >= 1 {
-        if cascade_minimized_windows[index].hwnd = hwnd
-            cascade_minimized_windows.RemoveAt(index)
+        if CascadeState.minimizedWindows[index].hwnd = hwnd
+            CascadeState.minimizedWindows.RemoveAt(index)
         index -= 1
     }
 }
 
 PruneMinimizedCascadeWindows()
 {
-    global cascade_minimized_windows
-
-    index := cascade_minimized_windows.Length
+    index := CascadeState.minimizedWindows.Length
     while index >= 1 {
-        target := cascade_minimized_windows[index]
+        target := CascadeState.minimizedWindows[index]
         keep := IsSameMinimizedCascadeWindow(target)
 
         if keep {
@@ -226,7 +216,7 @@ PruneMinimizedCascadeWindows()
         }
 
         if !keep
-            cascade_minimized_windows.RemoveAt(index)
+            CascadeState.minimizedWindows.RemoveAt(index)
         index -= 1
     }
 }
@@ -241,27 +231,22 @@ StartCascadeActivity()
     if !IsCascadeEnabled()
         return
 
-    global cascade_poll_ms, focus_corner_fallback_ms, cascade_history
-    global cascade_restore_batches, cascade_restore_poll_ms
-
     SetTimer(ApplyPendingCascadeDisplayLayout, -50)
-    SetTimer(PollCascadeState, cascade_poll_ms)
-    SetTimer(UpdateFocusCornerOverlays, focus_corner_fallback_ms)
-    if cascade_restore_batches.Count
-        SetTimer(WatchCascadeWindowRestores, cascade_restore_poll_ms)
-    for monitor_index in cascade_history
+    SetTimer(PollCascadeState, CascadeState.pollMs)
+    SetTimer(UpdateFocusCornerOverlays, CascadeState.focusCornerFallbackMs)
+    if CascadeState.restoreBatches.Count
+        SetTimer(WatchCascadeWindowRestores, CascadeState.restorePollMs)
+    for monitor_index in CascadeState.history
         QueueCascadeCompaction(monitor_index)
     QueueFocusCornerUpdate()
 }
 
 RestoreMinimizedCascadeWindowsOnExit()
 {
-    global cascade_minimized_windows
-
     ; Native hooks are already stopped. Do not run layout, Z-order, or focus work
     ; during exit/reload, and never restore independently minimized applications.
-    Loop cascade_minimized_windows.Length {
-        target := cascade_minimized_windows[cascade_minimized_windows.Length - A_Index + 1]
+    Loop CascadeState.minimizedWindows.Length {
+        target := CascadeState.minimizedWindows[CascadeState.minimizedWindows.Length - A_Index + 1]
         if !IsSameMinimizedCascadeWindow(target)
             continue
 
@@ -270,7 +255,7 @@ RestoreMinimizedCascadeWindowsOnExit()
                 WinRestore(target.hwnd)
         }
     }
-    cascade_minimized_windows := []
+    CascadeState.minimizedWindows := []
 }
 
 
@@ -282,31 +267,28 @@ RestoreMinimizedCascadeWindowsOnExit()
 ; one per window lent to Wonder Windows: hwnd=pid|device|slot.
 SaveCascades()
 {
-    global cascade_history, cascade_displays, cascade_join_positions, cascade_state_path
-    global cascade_lent_windows
-
     lent := ""
-    for hwnd, slot in cascade_lent_windows
+    for hwnd, slot in CascadeState.lentWindows
         lent .= hwnd "=" slot.pid "|" slot.device "|" slot.slot "`n"
     lines := ""
-    for monitor_index, history in cascade_history {
-        if !cascade_displays.Has(monitor_index)
+    for monitor_index, history in CascadeState.history {
+        if !CascadeState.displays.Has(monitor_index)
             continue
-        device := cascade_displays[monitor_index].device
+        device := CascadeState.displays[monitor_index].device
         for hwnd in history {
             try pid := WinGetPID(hwnd)
             catch
                 continue
-            join := cascade_join_positions.Has(hwnd)
-                ? FormatCascadeJoinPosition(cascade_join_positions[hwnd]) : ""
+            join := CascadeState.joinPositions.Has(hwnd)
+                ? FormatCascadeJoinPosition(CascadeState.joinPositions[hwnd]) : ""
             lines .= hwnd "=" pid "|" device "|" join "`n"
         }
     }
     try {
-        SplitPath(cascade_state_path, , &directory)
+        SplitPath(CascadeState.statePath, , &directory)
         DirCreate(directory)
-        IniWrite(lines, cascade_state_path, "Cascades")
-        IniWrite(lent, cascade_state_path, "Lent")
+        IniWrite(lines, CascadeState.statePath, "Cascades")
+        IniWrite(lent, CascadeState.statePath, "Lent")
     }
     catch Error as err
         DebugError("Save cascades", err)
@@ -317,9 +299,7 @@ SaveCascades()
 ; was moved off its slot while Super Hotkey was not running.
 RestoreSavedCascades()
 {
-    global cascade_history, cascade_state_path
-
-    try saved := IniRead(cascade_state_path, "Cascades")
+    try saved := IniRead(CascadeState.statePath, "Cascades")
     catch
         return
     restored := 0
@@ -340,7 +320,7 @@ RestoreSavedCascades()
             restored += 1
         }
     }
-    for monitor_index in cascade_history.Clone()
+    for monitor_index in CascadeState.history.Clone()
         GetLiveCascadeHistory(monitor_index)
     DebugLog("Saved cascades restored. | windows=" restored " | lent=" RestoreLentCascadeWindows())
 }
@@ -350,9 +330,7 @@ RestoreSavedCascades()
 ; in a slot rejoins instead.
 RestoreLentCascadeWindows()
 {
-    global cascade_lent_windows, cascade_state_path, cascade_slot_tolerance
-
-    try saved := IniRead(cascade_state_path, "Lent")
+    try saved := IniRead(CascadeState.statePath, "Lent")
     catch
         return 0
     restored := 0
@@ -371,13 +349,13 @@ RestoreLentCascadeWindows()
             if IsCascadeWindowShown(hwnd)
                 && TryGetCascadeLayoutOrigin(hwnd, &layout_monitor, &x, &y) && layout_monitor = monitor
                 && FindNearestCascadeSlot(x, y, GetCanonicalCascadeGeometry(monitor).slots,
-                    cascade_slot_tolerance)
+                    CascadeState.slotTolerance)
             {
                 RecordCascadeWindow(monitor, hwnd)
                 continue
             }
             SuiteWindowOwnership.Claim(hwnd)
-            cascade_lent_windows[hwnd] := {pid: pid, monitor: monitor, device: fields[2],
+            CascadeState.lentWindows[hwnd] := {pid: pid, monitor: monitor, device: fields[2],
                 slot: Integer(fields[3])}
             restored += 1
         }

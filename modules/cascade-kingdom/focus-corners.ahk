@@ -13,22 +13,17 @@ QueueFocusCornerUpdate()
     if !IsCascadeEnabled()
         return
 
-    global focus_corner_update_pending
-    global focus_corner_update_ms
-
-    if focus_corner_update_pending
+    if CascadeState.focusCornerUpdatePending
         return
 
-    focus_corner_update_pending := true
+    CascadeState.focusCornerUpdatePending := true
 
-    SetTimer(RunQueuedFocusCornerUpdate, -focus_corner_update_ms)
+    SetTimer(RunQueuedFocusCornerUpdate, -CascadeState.focusCornerUpdateMs)
 }
 
 RunQueuedFocusCornerUpdate()
 {
-    global focus_corner_update_pending
-
-    focus_corner_update_pending := false
+    CascadeState.focusCornerUpdatePending := false
     UpdateFocusCornerOverlays()
 }
 
@@ -37,14 +32,12 @@ UpdateFocusCornerOverlays()
     if !IsCascadeEnabled() || IsCascadeDisplayTransition()
         return
 
-    global focus_corner_overlays, focus_tab_click_generation, cascade_slot_tolerance
-    global cascade_drag_generation, cascade_membership_generation, cascade_mirrored
     static update_generation := 0
 
     generation := ++update_generation
-    click_generation := focus_tab_click_generation
-    drag_generation := cascade_drag_generation
-    membership_generation := cascade_membership_generation
+    click_generation := CascadeState.focusTabClickGeneration
+    drag_generation := CascadeState.dragGeneration
+    membership_generation := CascadeState.membershipGeneration
     active_hwnd := DllCall("GetForegroundWindow", "ptr")
 
     ; Geometry reads stay interruptible. Never mutate membership while rendering.
@@ -79,7 +72,7 @@ UpdateFocusCornerOverlays()
             dpi_by_monitor[monitor_index] := GetCascadeMonitorDpi(monitor_index)
         }
         slot_index := FindNearestCascadeSlot(window_x, window_y,
-            geometry_by_monitor[monitor_index].slots, cascade_slot_tolerance)
+            geometry_by_monitor[monitor_index].slots, CascadeState.slotTolerance)
         if !slot_index
             continue
 
@@ -118,9 +111,9 @@ UpdateFocusCornerOverlays()
         if !IsCascadeEnabled() || IsCascadeDisplayTransition() || generation != update_generation
             return
         if active_hwnd != DllCall("GetForegroundWindow", "ptr")
-            || click_generation != focus_tab_click_generation
-            || drag_generation != cascade_drag_generation
-            || membership_generation != cascade_membership_generation
+            || click_generation != CascadeState.focusTabClickGeneration
+            || drag_generation != CascadeState.dragGeneration
+            || membership_generation != CascadeState.membershipGeneration
         {
             QueueFocusCornerUpdate()
             return
@@ -141,9 +134,9 @@ UpdateFocusCornerOverlays()
 
                 monitor_index := visible_bounds[hwnd][5]
                 if highest_hwnd_by_monitor[monitor_index] = hwnd
-                    sides.%cascade_mirrored ? "right" : "left"% := true
+                    sides.%CascadeState.mirrored ? "right" : "left"% := true
                 if lowest_hwnd_by_monitor[monitor_index] = hwnd
-                    sides.%cascade_mirrored ? "left" : "right"% := true
+                    sides.%CascadeState.mirrored ? "left" : "right"% := true
             }
 
             if contains_active {
@@ -162,7 +155,7 @@ UpdateFocusCornerOverlays()
 
         ; Hide every old representative before showing any replacement.
         ; Cached per-window GUIs stay reusable without stacking visible pixels.
-        for hwnd, overlay in focus_corner_overlays {
+        for hwnd, overlay in CascadeState.focusCornerOverlays {
             if !live_targets.Has(hwnd)
                 stale_targets.Push(hwnd)
             else if !selected_targets.Has(hwnd)
@@ -198,12 +191,10 @@ UpdateFocusCornerOverlays()
 
 GetCascadeWindowsForOverlay()
 {
-    global cascade_history
-
     windows := Map()
     ; Keep minimized members' GUIs cached; the rendering pass hides them.
     ; Geometry is read once there, not again in this membership-only snapshot.
-    for monitor_index, history in cascade_history.Clone() {
+    for monitor_index, history in CascadeState.history.Clone() {
         for hwnd in history.Clone() {
             if DllCall("IsWindow", "ptr", hwnd, "int") && !IsCascadeWindowBeingDragged(hwnd)
                 windows[hwnd] := monitor_index
@@ -253,19 +244,14 @@ ShowFocusCornerOverlay(hwnd, window_x, window_y, window_width, window_height, dp
     if !IsCascadeEnabled()
         return
 
-    global focus_corner_overlays
-    global focus_corner_inactive_slot_color
-    global focus_corner_inactive_slot_alpha, focus_corner_active_slot_alpha
-    global focus_corner_visible, cascade_mirrored
-
-    marker_color := active_slot ? SuiteAccentColor() : focus_corner_inactive_slot_color
-    marker_alpha := (active_slot ? focus_corner_active_slot_alpha : focus_corner_inactive_slot_alpha
+    marker_color := active_slot ? SuiteAccentColor() : CascadeState.focusCornerInactiveSlotColor
+    marker_alpha := (active_slot ? CascadeState.focusCornerActiveSlotAlpha : CascadeState.focusCornerInactiveSlotAlpha
     )
 
-    if !focus_corner_overlays.Has(hwnd)
+    if !CascadeState.focusCornerOverlays.Has(hwnd)
         CreateFocusCornerOverlay(hwnd, marker_color, marker_alpha)
 
-    overlay := focus_corner_overlays[hwnd]
+    overlay := CascadeState.focusCornerOverlays[hwnd]
     appearance_changed := (overlay.color != marker_color || overlay.alpha != marker_alpha)
 
     if overlay.color != marker_color {
@@ -280,8 +266,8 @@ ShowFocusCornerOverlay(hwnd, window_x, window_y, window_width, window_height, dp
     if (overlay.shown && overlay.window_x = window_x && overlay.window_y = window_y
         && overlay.window_width = window_width && overlay.window_height = window_height
         && overlay.full_left = full_left && overlay.full_right = full_right && overlay.dpi = dpi
-        && overlay.mirrored = cascade_mirrored) {
-        SetFocusCornerOpacity(overlay, focus_corner_visible ? marker_alpha : 1)
+        && overlay.mirrored = CascadeState.mirrored) {
+        SetFocusCornerOpacity(overlay, CascadeState.focusCornerVisible ? marker_alpha : 1)
         if appearance_changed
             for marker_gui in overlay.guis
                 WinRedraw(marker_gui.Hwnd)
@@ -293,7 +279,7 @@ ShowFocusCornerOverlay(hwnd, window_x, window_y, window_width, window_height, dp
     ShowFocusCornerTab(overlay.guis[1], false, full_left, window_x, window_y, window_width, window_height, dpi)
     ShowFocusCornerTab(overlay.guis[2], true, full_right, window_x, window_y, window_width, window_height, dpi)
 
-    SetFocusCornerOpacity(overlay, focus_corner_visible ? marker_alpha : 1)
+    SetFocusCornerOpacity(overlay, CascadeState.focusCornerVisible ? marker_alpha : 1)
 
     ; A reused hidden GUI can have a new BackColor but an old painted surface.
     ; Repaint after showing it; changing alpha alone does not repaint its pixels.
@@ -307,7 +293,7 @@ ShowFocusCornerOverlay(hwnd, window_x, window_y, window_width, window_height, dp
     overlay.window_height := window_height
     overlay.full_left := full_left
     overlay.full_right := full_right
-    overlay.mirrored := cascade_mirrored
+    overlay.mirrored := CascadeState.mirrored
     overlay.dpi := dpi
     overlay.shown := true
 }
@@ -317,16 +303,12 @@ ShowFocusCornerOverlay(hwnd, window_x, window_y, window_width, window_height, dp
 ; along the whole side.
 ShowFocusCornerTab(marker_gui, right_side, full, window_x, window_y, window_width, window_height, dpi)
 {
-    global focus_corner_size
-    global focus_corner_thickness, focus_corner_full_height_thickness
-    global focus_corner_overlap, cascade_mirrored
-
     ; Scale UI dimensions only. DWM positions and full-height bounds are pixels.
-    tab_width := full ? focus_corner_full_height_thickness : focus_corner_thickness
+    tab_width := full ? CascadeState.focusCornerFullHeightThickness : CascadeState.focusCornerThickness
     thickness := Max(1, ScaleForDpi(tab_width, dpi))
-    overlap := Min(thickness - 1, Max(0, ScaleForDpi(focus_corner_overlap, dpi)))
-    marker_height := full ? window_height : Max(1, ScaleForDpi(focus_corner_size, dpi))
-    at_top := right_side != cascade_mirrored
+    overlap := Min(thickness - 1, Max(0, ScaleForDpi(CascadeState.focusCornerOverlap, dpi)))
+    marker_height := full ? window_height : Max(1, ScaleForDpi(CascadeState.focusCornerSize, dpi))
+    at_top := right_side != CascadeState.mirrored
     marker_x := right_side ? window_x + window_width - overlap : window_x - thickness + overlap
     marker_y := full || at_top ? window_y : window_y + window_height - marker_height
 
@@ -362,12 +344,10 @@ PlaceFocusCornerAboveTarget(hwnd, overlay)
 
 HideFocusCornerOverlay(hwnd)
 {
-    global focus_corner_overlays
-
-    if !focus_corner_overlays.Has(hwnd)
+    if !CascadeState.focusCornerOverlays.Has(hwnd)
         return
 
-    overlay := focus_corner_overlays[hwnd]
+    overlay := CascadeState.focusCornerOverlays[hwnd]
 
     if !overlay.shown
         return
@@ -380,9 +360,6 @@ HideFocusCornerOverlay(hwnd)
 
 CreateFocusCornerOverlay(hwnd, marker_color, marker_alpha)
 {
-    global focus_corner_overlays
-    global focus_corner_targets
-
     ; Only these borderless, control-free GUIs are per-monitor aware. The help
     ; window retains normal AHK scaling. Both creation and movement need PM context.
     guis := []
@@ -390,12 +367,12 @@ CreateFocusCornerOverlay(hwnd, marker_color, marker_alpha)
         marker_gui := CreatePhysicalGui("-Caption -DPIScale" . " +ToolWindow" . " +E0x08000000",
             "Cascade Kingdom Focus Marker")
         marker_gui.BackColor := marker_color
-        focus_corner_targets[marker_gui.Hwnd] := hwnd
+        CascadeState.focusCornerTargets[marker_gui.Hwnd] := hwnd
         guis.Push(marker_gui)
     }
 
     ; guis holds the left tab, then the right one.
-    focus_corner_overlays[hwnd] := {
+    CascadeState.focusCornerOverlays[hwnd] := {
         guis: guis,
         color: marker_color,
         alpha: marker_alpha,
@@ -414,20 +391,17 @@ CreateFocusCornerOverlay(hwnd, marker_color, marker_alpha)
 
 DestroyFocusCornerOverlay(hwnd)
 {
-    global focus_corner_overlays
-    global focus_corner_targets
-
-    if !focus_corner_overlays.Has(hwnd)
+    if !CascadeState.focusCornerOverlays.Has(hwnd)
         return
 
-    overlay := focus_corner_overlays[hwnd]
-    focus_corner_overlays.Delete(hwnd)
+    overlay := CascadeState.focusCornerOverlays[hwnd]
+    CascadeState.focusCornerOverlays.Delete(hwnd)
 
     for marker_gui in overlay.guis {
         overlay_hwnd := marker_gui.Hwnd
         try marker_gui.Destroy()
-        if focus_corner_targets.Has(overlay_hwnd)
-            focus_corner_targets.Delete(overlay_hwnd)
+        if CascadeState.focusCornerTargets.Has(overlay_hwnd)
+            CascadeState.focusCornerTargets.Delete(overlay_hwnd)
     }
 }
 
@@ -438,13 +412,10 @@ DestroyFocusCornerOverlay(hwnd)
 
 ToggleFocusCornerVisibility(*)
 {
-    global focus_corner_visible
-    global focus_corner_overlays
+    CascadeState.focusCornerVisible := !CascadeState.focusCornerVisible
 
-    focus_corner_visible := !focus_corner_visible
-
-    for hwnd, overlay in focus_corner_overlays {
-        transparency := focus_corner_visible ? overlay.alpha : 1
+    for hwnd, overlay in CascadeState.focusCornerOverlays {
+        transparency := CascadeState.focusCornerVisible ? overlay.alpha : 1
 
         try SetFocusCornerOpacity(overlay, transparency)
     }

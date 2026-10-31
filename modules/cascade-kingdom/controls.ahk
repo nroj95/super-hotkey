@@ -46,8 +46,6 @@ ActiveWindowBlocksCascadeCommands(allow_maximized := false)
 
 QueueCascadeCommand(command, foregroundHwnd := 0)
 {
-    global cascade_command_queue, cascade_command_draining
-
     if !IsCascadeEnabled()
         return
 
@@ -59,12 +57,12 @@ QueueCascadeCommand(command, foregroundHwnd := 0)
     previousCritical := Critical("On")
     try {
         ; Revalidate the originating window's HWND/PID before moving or closing.
-        cascade_command_queue.Push({
+        CascadeState.commandQueue.Push({
             name: command,
             foreground_hwnd: foregroundHwnd,
             foreground_pid: foregroundPid
         })
-        if !cascade_command_draining
+        if !CascadeState.commandDraining
             SetTimer(DrainCascadeCommandQueue, -1)
     }
     finally Critical(previousCritical)
@@ -72,24 +70,22 @@ QueueCascadeCommand(command, foregroundHwnd := 0)
 
 DrainCascadeCommandQueue(*)
 {
-    global cascade_command_queue, cascade_command_draining
-
     previousCritical := Critical("On")
-    if cascade_command_draining {
+    if CascadeState.commandDraining {
         Critical(previousCritical)
         return
     }
-    cascade_command_draining := true
+    CascadeState.commandDraining := true
     Critical(previousCritical)
 
     Loop {
         previousCritical := Critical("On")
-        if !cascade_command_queue.Length {
-            cascade_command_draining := false
+        if !CascadeState.commandQueue.Length {
+            CascadeState.commandDraining := false
             Critical(previousCritical)
             return
         }
-        command := cascade_command_queue.RemoveAt(1)
+        command := CascadeState.commandQueue.RemoveAt(1)
         Critical(previousCritical)
 
         try DispatchCascadeCommand(command)
@@ -100,10 +96,8 @@ DrainCascadeCommandQueue(*)
 
 DispatchCascadeCommand(command)
 {
-    global cascade_minimize_in_progress
-
     name := command.name
-    if cascade_minimize_in_progress
+    if CascadeState.minimizeInProgress
         return
 
     if name = "minimize" || name = "restore" {

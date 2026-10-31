@@ -24,11 +24,10 @@ class CascadeChecks {
 
     ; A mirrored cascade swaps left and right: slots and the corner a drop is judged by.
     static Mirrored() {
-        global cascade_mirrored
         normal := BuildCanonicalCascadeGeometry(0, 0, 1920, 1080).slots
         MonitorGetWorkAreaPixels(MonitorGetPrimary(), &left, &top)
         try {
-            cascade_mirrored := true
+            CascadeState.mirrored := true
             mirrored := BuildCanonicalCascadeGeometry(0, 0, 1920, 1080).slots
             this.Assert(mirrored.Length = normal.Length && mirrored[1][1] = normal[1][1]
                 && mirrored[2][1] - mirrored[1][1] = 28 && mirrored[2][2] - mirrored[1][2] = -24,
@@ -40,11 +39,11 @@ class CascadeChecks {
             this.Assert(target && target.monitor = MonitorGetPrimary()
                 && target.x = left + 100 + 800 - target.geometry.width,
                 "a mirrored drop is judged by the window's top-right corner")
-            cascade_mirrored := false
+            CascadeState.mirrored := false
             target := CascadeDropTarget(left + 100, top + 100, 800)
             this.Assert(target && target.x = left + 100, "a normal drop is judged by the top-left corner")
         }
-        finally cascade_mirrored := false
+        finally CascadeState.mirrored := false
     }
 
     ; A window snapped to half a display, 1294 x 1395, was 2062 x 1117 before.
@@ -143,27 +142,26 @@ class CascadeChecks {
     }
 
     static Policy() {
-        global cascade_target_display, cascade_displays, cascade_history
         app := SuiteApplication(true, SuiteChecks.directory "\cascade-policy")
         app.modules["cascade-kingdom"] := CascadeKingdomModule(app)
         previousCritical := Critical("On")
         try {
-            cascade_displays := Map(1, {device: "left"}, 2, {device: "right"})
+            CascadeState.displays := Map(1, {device: "left"}, 2, {device: "right"})
             this.Assert(ResolveCascadeDestination(2) = 2,
                 "All displays retains the requested destination")
-            this.Assert(!cascade_history.Count && CascadeDisplayAllowed(1)
+            this.Assert(!CascadeState.history.Count && CascadeDisplayAllowed(1)
                 && CascadeDisplayAllowed(2),
                 "empty cascades allow dropping onto either display")
-            cascade_target_display := "right"
+            CascadeState.targetDisplay := "right"
             this.Assert(ResolveCascadeDestination(1) = 2 && CascadeDisplayAllowed(2)
                 && !CascadeDisplayAllowed(1),
                 "a single display redirects adoption and excludes other drop zones")
             this.Assert(!CascadeDisplayAllowed(1) && CascadeDisplayAllowed(2),
                 "an excluded display cannot remain a drag destination")
-            cascade_displays := Map(1, {device: "right"}, 2, {device: "left"})
+            CascadeState.displays := Map(1, {device: "right"}, 2, {device: "left"})
             this.Assert(ResolveCascadeDestination(2) = 1,
                 "the selected destination follows device name through index changes")
-            cascade_target_display := "disconnected"
+            CascadeState.targetDisplay := "disconnected"
             this.Assert(!ResolveCascadeDestination(1),
                 "a disconnected selected display never redirects onto another screen")
         }
@@ -174,7 +172,6 @@ class CascadeChecks {
     }
 
     static Settings() {
-        global cascade_target_display, focus_corner_inactive_slot_color_name, cascade_mirrored
         app := SuiteApplication(true, SuiteChecks.directory "\cascade-settings")
         cascade := CascadeKingdomModule(app)
         app.modules["cascade-kingdom"] := cascade
@@ -198,8 +195,8 @@ class CascadeChecks {
             app.ui.ShowModuleSettings("cascade-kingdom")
             window := app.ui.windows["settings:cascade-kingdom"]
             this.Assert(window["inactiveColor"].Text = "White"
-                && focus_corner_active_slot_alpha = 255
-                && focus_corner_inactive_slot_alpha = 128,
+                && CascadeState.focusCornerActiveSlotAlpha = 255
+                && CascadeState.focusCornerInactiveSlotAlpha = 128,
                 "cascade settings default to White inactive tabs at 50% opacity")
             this.Assert(!window["mirrored"].Value, "cascades step to the right by default")
             window["inactiveColor"].Choose("Cyan")
@@ -209,7 +206,7 @@ class CascadeChecks {
             expectedDisplay := cascade.displayChoices[2]
             cascade.SaveSettings(app.ui)
             ; Mirroring queues a re-layout; these checks own no cascade to move.
-            this.Assert(cascade_mirrored && IsCascadeDisplayTransition(),
+            this.Assert(CascadeState.mirrored && IsCascadeDisplayTransition(),
                 "mirroring applies at once and re-lays out the cascades")
             SetTimer(RefreshCascadeDisplays, 0)
             path := app.Settings.directory "\cascade-kingdom\settings.ini"
@@ -219,8 +216,8 @@ class CascadeChecks {
                 && IniRead(path, "FocusTabs", "InactiveSlotColor") = "Cyan",
                 "Apply persists the destination device, mirroring and inactive tab color")
             InitializeCascadeState()
-            this.Assert(cascade_target_display = expectedDisplay && cascade_mirrored
-                && focus_corner_inactive_slot_color_name = "Cyan",
+            this.Assert(CascadeState.targetDisplay = expectedDisplay && CascadeState.mirrored
+                && CascadeState.focusCornerInactiveSlotColorName = "Cyan",
                 "cascade choices survive state initialization")
             app.Settings.ResetModulePreferences(Map("cascade-kingdom", cascade.resetSections))
             this.Assert(IniRead(path, "FocusTabs", "InactiveSlotColor", "missing") = "missing"
@@ -238,15 +235,12 @@ class CascadeChecks {
     }
 
     static LiveCascadeSettings() {
-        global focus_corner_visible, focus_tab_color_presets
-        global focus_corner_inactive_slot_color_name, focus_corner_inactive_slot_color
-        global cascade_history
         app := SuiteApplication(true, SuiteChecks.directory "\live-cascade-settings")
         app.InitializeCatalog()
         manager := app.manager
-        previous := {visible: focus_corner_visible,
-            inactiveName: focus_corner_inactive_slot_color_name,
-            inactiveColor: focus_corner_inactive_slot_color}
+        previous := {visible: CascadeState.focusCornerVisible,
+            inactiveName: CascadeState.focusCornerInactiveSlotColorName,
+            inactiveColor: CascadeState.focusCornerInactiveSlotColor}
         try {
             manager.SetPaused(true)
             manager.Start()
@@ -257,26 +251,26 @@ class CascadeChecks {
             inactiveName := previous.inactiveName = "Blue" ? "Grey" : "Blue"
             settings["tabs"].Value := expectedVisible
             settings["inactiveColor"].Choose(inactiveName)
-            existingHistorySize := cascade_history.Count
+            existingHistorySize := CascadeState.history.Count
             this.Assert(app.ui.pageFooters[settings.Hwnd].buttons[1].button.Text = "Apply",
                 "Cascade Kingdom Settings use Apply without restart")
             app.modules["cascade-kingdom"].SaveSettings(app.ui)
             path := app.Settings.directory "\cascade-kingdom\settings.ini"
             this.Assert(!app.ui.windows.Has("settings:cascade-kingdom")
-                && focus_corner_visible = expectedVisible
-                && focus_corner_inactive_slot_color_name = inactiveName
-                && focus_corner_inactive_slot_color = focus_tab_color_presets[inactiveName],
+                && CascadeState.focusCornerVisible = expectedVisible
+                && CascadeState.focusCornerInactiveSlotColorName = inactiveName
+                && CascadeState.focusCornerInactiveSlotColor = CascadeState.focusTabColorPresets[inactiveName],
                 "Cascade Kingdom applies focus-tab preferences without reload")
             this.Assert(IniRead(path, "FocusTabs", "Visible") = (expectedVisible ? "1" : "0")
                 && IniRead(path, "FocusTabs", "InactiveSlotColor") = inactiveName,
                 "Cascade Kingdom persists its focus-tab preferences")
-            this.Assert(cascade_history.Count = existingHistorySize,
+            this.Assert(CascadeState.history.Count = existingHistorySize,
                 "applying Cascade Kingdom preferences preserves in-memory cascade history")
         }
         finally {
-            focus_corner_visible := previous.visible
-            focus_corner_inactive_slot_color_name := previous.inactiveName
-            focus_corner_inactive_slot_color := previous.inactiveColor
+            CascadeState.focusCornerVisible := previous.visible
+            CascadeState.focusCornerInactiveSlotColorName := previous.inactiveName
+            CascadeState.focusCornerInactiveSlotColor := previous.inactiveColor
             if IsObject(app.ui)
                 app.ui.CloseAll()
             manager.Stop()
@@ -284,7 +278,6 @@ class CascadeChecks {
     }
 
     static PlacementStabilization() {
-        global cascade_history, placement_reservations, placement_stabilization_generations
         app := SuiteApplication(true, SuiteChecks.directory "\placement-stabilization")
         InitializeCascadeState()
         source := SuiteGui("+Resize", "Stabilization source")
@@ -304,27 +297,27 @@ class CascadeChecks {
             app.dryRun := false
             DllCall("RemovePropW", "ptr", target.Hwnd, "str", "nroj.SuperHotkey.CascadeIgnore", "ptr")
             GetVisibleWindowBounds(target.Hwnd, &x, &y, &width, &height)
-            cascade_history[sourceMonitor] := [target.Hwnd]
-            placement_stabilization_generations[target.Hwnd] := 101
-            placement_reservations[target.Hwnd] := Map("monitor", sourceMonitor, "x", x, "y", y)
+            CascadeState.history[sourceMonitor] := [target.Hwnd]
+            CascadeState.placementStabilizationGenerations[target.Hwnd] := 101
+            CascadeState.placementReservations[target.Hwnd] := Map("monitor", sourceMonitor, "x", x, "y", y)
             StabilizePlacedWindow(target.Hwnd, x, y, width, height, 101)
-            this.Assert(!placement_stabilization_generations.Has(target.Hwnd)
-                && !placement_reservations.Has(target.Hwnd),
+            this.Assert(!CascadeState.placementStabilizationGenerations.Has(target.Hwnd)
+                && !CascadeState.placementReservations.Has(target.Hwnd),
                 "a matching stabilization check releases its reservation")
-            placement_stabilization_generations[target.Hwnd] := 103
+            CascadeState.placementStabilizationGenerations[target.Hwnd] := 103
             StabilizePlacedWindow(target.Hwnd, x + 100, y + 100, width, height, 103, true)
             GetVisibleWindowBounds(target.Hwnd, &afterX, &afterY, &afterWidth, &afterHeight)
-            this.Assert(afterX = x && afterY = y && !placement_stabilization_generations.Has(target.Hwnd),
+            this.Assert(afterX = x && afterY = y && !CascadeState.placementStabilizationGenerations.Has(target.Hwnd),
                 "after its one correction, a window that is still off is left to its application")
             StabilizePlacedWindow(target.Hwnd, x + 100, y + 100, width, height, 101)
             GetVisibleWindowBounds(target.Hwnd, &afterX, &afterY, &afterWidth, &afterHeight)
             this.Assert(afterX = x && afterY = y && afterWidth = width && afterHeight = height,
                 "an expired stabilization callback cannot move a window")
-            cascade_history.Clear()
-            placement_stabilization_generations[target.Hwnd] := 102
+            CascadeState.history.Clear()
+            CascadeState.placementStabilizationGenerations[target.Hwnd] := 102
             StabilizePlacedWindow(target.Hwnd, x + 100, y + 100, width, height, 102)
             GetVisibleWindowBounds(target.Hwnd, &afterX, &afterY, &afterWidth, &afterHeight)
-            this.Assert(afterX = x && afterY = y && !placement_stabilization_generations.Has(target.Hwnd),
+            this.Assert(afterX = x && afterY = y && !CascadeState.placementStabilizationGenerations.Has(target.Hwnd),
                 "stabilization never moves a window that left the cascade")
         }
         finally {
@@ -339,7 +332,6 @@ class CascadeChecks {
     }
 
     static FocusTabDpi() {
-        global focus_corner_overlays, focus_corner_targets, cascade_mirrored
         app := SuiteApplication(true, SuiteChecks.directory "\release-focus-tabs")
         InitializeCascadeState()
         window := SuiteGui("+Resize", "Release focus-tab target")
@@ -348,12 +340,12 @@ class CascadeChecks {
             window.Show("NA w300 h200")
             app.dryRun := false
             ShowFocusCornerOverlay(window.Hwnd, 100, 100, 300, 200, 144)
-            this.Assert(focus_corner_overlays.Has(window.Hwnd)
-                && focus_corner_overlays[window.Hwnd].dpi = 144,
+            this.Assert(CascadeState.focusCornerOverlays.Has(window.Hwnd)
+                && CascadeState.focusCornerOverlays[window.Hwnd].dpi = 144,
                 "focus tabs use the DPI supplied by the validated rendering snapshot")
-            overlay := focus_corner_overlays[window.Hwnd]
+            overlay := CascadeState.focusCornerOverlays[window.Hwnd]
             ShowFocusCornerOverlay(window.Hwnd, 100, 100, 300, 200, 144)
-            this.Assert(focus_corner_overlays[window.Hwnd] = overlay,
+            this.Assert(CascadeState.focusCornerOverlays[window.Hwnd] = overlay,
                 "unchanged focus-tab rendering reuses its GUI")
             ShowFocusCornerOverlay(window.Hwnd, 100, 100, 300, 200, 96)
             this.Assert(overlay.dpi = 96, "a changed DPI snapshot updates the existing focus tab")
@@ -372,9 +364,9 @@ class CascadeChecks {
             this.Assert(DllCall("GetWindow", "ptr", overlay.guis[1].Hwnd, "uint", 3, "ptr") = window.Hwnd
                 && DllCall("GetWindow", "ptr", overlay.guis[2].Hwnd, "uint", 3, "ptr") = overlay.guis[1].Hwnd,
                 "both tabs sit directly below their window")
-            this.Assert(focus_corner_targets.Get(overlay.guis[2].Hwnd, 0) = window.Hwnd,
+            this.Assert(CascadeState.focusCornerTargets.Get(overlay.guis[2].Hwnd, 0) = window.Hwnd,
                 "a click on the right tab finds its window")
-            cascade_mirrored := true
+            CascadeState.mirrored := true
             ShowFocusCornerOverlay(window.Hwnd, 100, 100, 300, 200, 96)
             WinGetPosPixels(&lx, &ly, , , overlay.guis[1].Hwnd)
             WinGetPosPixels(&rx, &ry, , , overlay.guis[2].Hwnd)
@@ -382,7 +374,7 @@ class CascadeChecks {
                 "a mirrored cascade's tabs sit at the upper left and the lower right")
         }
         finally {
-            cascade_mirrored := false
+            CascadeState.mirrored := false
             DestroyFocusCornerOverlay(window.Hwnd)
             window.Destroy()
             app.dryRun := true
@@ -456,8 +448,6 @@ class CascadeChecks {
     }
 
     static MaximizedAdoption() {
-        global cascade_window_drag
-        global cascade_displays
         app := SuiteApplication(true, SuiteChecks.directory "\maximized-adoption")
         InitializeCascadeState()
         window := SuiteGui("+Resize -DPIScale", "Maximized adoption fixture")
@@ -466,7 +456,7 @@ class CascadeChecks {
             ; Stay in dry run: no hooks, desktop discovery or real adoption.
             ; Only the test-owned window is restored/moved by the join-position check.
             ; Populate display geometry without starting hooks or discovery.
-            cascade_displays := ReadCascadeDisplays().displays
+            CascadeState.displays := ReadCascadeDisplays().displays
             window.Show("x60 y60 w320 h220")
             hwnd := window.Hwnd
             original := CaptureWindowPlacement(hwnd)
@@ -477,10 +467,10 @@ class CascadeChecks {
             this.Assert(ActiveWindowBlocksCascadeCommands()
                 && !ActiveWindowBlocksCascadeCommands(true),
                 "only commands allowed over a maximized window bypass its guard")
-            cascade_window_drag := {}
+            CascadeState.windowDrag := {}
             this.Assert(ActiveWindowBlocksCascadeCommands(true),
                 "maximized adoption still respects an active native drag")
-            cascade_window_drag := 0
+            CascadeState.windowDrag := 0
 
             position := CaptureWindowShape(hwnd)
             this.Assert(IsObject(position) && IsObject(position.placement),
@@ -524,8 +514,6 @@ class CascadeChecks {
     }
 
     static SavedCascades() {
-        global cascade_displays, cascade_history, cascade_join_positions, cascade_state_path
-        global cascade_lent_windows
         app := SuiteApplication(true, SuiteChecks.directory "\saved-cascades")
         InitializeCascadeState()
         member := SuiteGui("+Resize", "Saved cascade member")
@@ -534,7 +522,7 @@ class CascadeChecks {
         returned := SuiteGui("+Resize", "Saved cascade returned window")
         previousCritical := Critical("On")
         try {
-            cascade_displays := ReadCascadeDisplays().displays
+            CascadeState.displays := ReadCascadeDisplays().displays
             member.Show("NA x60 y60 w320 h220")
             closed.Show("NA x80 y80 w320 h220")
             lent.Show("NA x100 y100 w320 h220")
@@ -546,30 +534,30 @@ class CascadeChecks {
             monitor := WindowMonitorIndex(member.Hwnd)
             slot := GetCanonicalCascadeGeometry(monitor).slots[1]
             WinMovePixels(slot[1], slot[2], 400, 300, "ahk_id " member.Hwnd)
-            cascade_history[monitor] := [member.Hwnd, closed.Hwnd]
-            cascade_join_positions[member.Hwnd] := position
+            CascadeState.history[monitor] := [member.Hwnd, closed.Hwnd]
+            CascadeState.joinPositions[member.Hwnd] := position
             ; One loan is still maximized by Wonder Windows; the other is back in slot 2.
             WinMaximize(lent.Hwnd)
             slot2 := GetCanonicalCascadeGeometry(monitor).slots[2]
             WinMovePixels(slot2[1], slot2[2], 400, 300, "ahk_id " returned.Hwnd)
-            device := cascade_displays[monitor].device
+            device := CascadeState.displays[monitor].device
             for window in [lent, returned]
-                cascade_lent_windows[window.Hwnd] := {pid: WinGetPID(window.Hwnd), monitor: monitor,
+                CascadeState.lentWindows[window.Hwnd] := {pid: WinGetPID(window.Hwnd), monitor: monitor,
                     device: device, slot: 2}
             SaveCascades()
 
             ; A closed window and a handle now owned by another process stay out.
             closedHwnd := closed.Hwnd
             closed.Destroy()
-            IniWrite(IniRead(cascade_state_path, "Cascades") "`n" A_ScriptHwnd "=1|"
-                . cascade_displays[monitor].device "|", cascade_state_path, "Cascades")
+            IniWrite(IniRead(CascadeState.statePath, "Cascades") "`n" A_ScriptHwnd "=1|"
+                . CascadeState.displays[monitor].device "|", CascadeState.statePath, "Cascades")
             InitializeCascadeState()
-            cascade_displays := ReadCascadeDisplays().displays
+            CascadeState.displays := ReadCascadeDisplays().displays
             RestoreSavedCascades()
             this.Assert(GetManagedCascadeMonitor(member.Hwnd) = monitor
                 && !GetManagedCascadeMonitor(closedHwnd) && !GetManagedCascadeMonitor(A_ScriptHwnd),
                 "a restart keeps live cascade members and skips closed or reused windows")
-            restored := cascade_join_positions.Has(member.Hwnd) ? cascade_join_positions[member.Hwnd] : 0
+            restored := CascadeState.joinPositions.Has(member.Hwnd) ? CascadeState.joinPositions[member.Hwnd] : 0
             samePlacement := IsObject(restored) && IsObject(restored.placement)
                 && restored.placement.Size = position.placement.Size
             if samePlacement
@@ -579,11 +567,11 @@ class CascadeChecks {
             this.Assert(samePlacement && restored.x = position.x && restored.width = position.width
                 && restored.was_manual,
                 "a restored member keeps its join position, maximized placement included")
-            this.Assert(cascade_lent_windows.Has(lent.Hwnd) && cascade_lent_windows[lent.Hwnd].slot = 2
+            this.Assert(CascadeState.lentWindows.Has(lent.Hwnd) && CascadeState.lentWindows[lent.Hwnd].slot = 2
                 && SuiteWindowOwnership.IsManual(lent.Hwnd) && !GetManagedCascadeMonitor(lent.Hwnd),
                 "a restart keeps a window lent to Wonder Windows, claimed so Win + Down can return it")
             this.Assert(GetManagedCascadeMonitor(returned.Hwnd) = monitor
-                && !cascade_lent_windows.Has(returned.Hwnd),
+                && !CascadeState.lentWindows.Has(returned.Hwnd),
                 "a lent window already back in a slot rejoins on restart")
         }
         finally {

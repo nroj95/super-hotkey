@@ -1,141 +1,144 @@
-; Cascade Kingdom tuning constants, saved preferences and runtime state.
-; Every name assigned here is a global shared by the Cascade Kingdom files.
+; Cascade Kingdom's tuning constants, saved preferences and runtime state, in
+; one object that every Cascade Kingdom file reads and changes as
+; CascadeState.name. InitializeCascadeState sets them all, when the module is
+; created and in the checks.
+class CascadeState {
+}
+
 InitializeCascadeState()
 {
-    global
-
 ; =============================================================================
 ; settings
 ; =============================================================================
 
 ; Cascade windows use a predictable generic size instead of an app's remembered size.
-window_width_ratio := 0.80
-window_height_ratio := 0.80
+CascadeState.windowWidthRatio := 0.80
+CascadeState.windowHeightRatio := 0.80
 
 ; First branch moves left/up from center; second branch moves right/down.
 ; A mirrored cascade swaps left and right.
-cascade_x := 28
-cascade_y := 24
+CascadeState.stepX := 28
+CascadeState.stepY := 24
 
 ; One tolerance for slot membership and mouse drops (screen-coordinate pixels).
 ; During a native drag, the original slot is retained. On release, the visible
 ; top-left, or top-right when mirrored, must be within this distance on both
 ; axes; the closest slot wins.
-cascade_slot_tolerance := 56
+CascadeState.slotTolerance := 56
 
 ; Restore requests can finish before their native/DWM rectangles settle.
 ; Poll only during restores; a failed restore must not lock compaction forever.
-cascade_restore_poll_ms := 50
-cascade_restore_settle_ms := 200
-cascade_restore_timeout_ms := 5000
+CascadeState.restorePollMs := 50
+CascadeState.restoreSettleMs := 200
+CascadeState.restoreTimeoutMs := 5000
 
 ; A cancelled/ignored close must not defer this monitor's compaction forever.
 ; This only expires bookkeeping; it never forces a window to close.
-cascade_close_timeout_ms := 5000
+CascadeState.closeTimeoutMs := 5000
 
 ; A placed window is checked once; if it is off by more than the tolerance, it
 ; is moved back once and checked again, then left to its application.
-placement_stabilize_delay_ms := 500
-placement_stabilize_verify_ms := 1000
-placement_stabilize_tolerance := 6
+CascadeState.placementStabilizeDelayMs := 500
+CascadeState.placementStabilizeVerifyMs := 1000
+CascadeState.placementStabilizeTolerance := 6
 
 ; If Windows stops reporting native move-loop state after mouse release, abandon
 ; the snap decision instead of leaving the cascade permanently locked in a drag.
-cascade_drag_unknown_release_timeout_ms := 500
+CascadeState.dragUnknownReleaseTimeoutMs := 500
 
-edge_margin := 12
-minimum_width := 320
-minimum_height := 220
+CascadeState.edgeMargin := 12
+CascadeState.minimumWidth := 320
+CascadeState.minimumHeight := 220
 
 ; Focus-tab dimensions are 96-DPI UI units; only these are scaled per monitor.
 ; Slot spacing, drop tolerance, and cascade rectangles remain physical pixels.
-focus_corner_size := 24
-focus_corner_thickness := 54
-focus_corner_full_height_thickness := 36
-focus_corner_overlap := 2
+CascadeState.focusCornerSize := 24
+CascadeState.focusCornerThickness := 54
+CascadeState.focusCornerFullHeightThickness := 36
+CascadeState.focusCornerOverlap := 2
 ; Coalesce event-driven focus-tab updates. The slow timer below is only a
 ; fallback for Windows events that may occasionally be missed.
-focus_corner_update_ms := 50
-focus_corner_fallback_ms := 1000
+CascadeState.focusCornerUpdateMs := 50
+CascadeState.focusCornerFallbackMs := 1000
 
 ; The active slot, which represents the next layer, uses the Windows accent
 ; color; inactive tabs, which represent their exposed windows, use a color
 ; chosen from a small fixed palette.
 ; Deeper tabs stay hidden, so opacity no longer accumulates with stack depth.
-focus_tab_color_presets := Map("White", "FFFFFF", "Grey", "808080", "Red", "F44336",
+CascadeState.focusTabColorPresets := Map("White", "FFFFFF", "Grey", "808080", "Red", "F44336",
     "Orange", "FF9800", "Yellow", "FBC02D", "Green", "4CAF50", "Cyan", "00BCD4", "Blue", "2196F3",
     "Purple", "9C27B0", "Pink", "E91E63")
 
 ; Inactive-slot tabs stay faint while active-slot tabs use stronger opacity.
 ; Alpha 1 is reserved for the hidden state so overlays remain hit-testable.
-focus_corner_inactive_slot_alpha := 128
-focus_corner_active_slot_alpha := 255
+CascadeState.focusCornerInactiveSlotAlpha := 128
+CascadeState.focusCornerActiveSlotAlpha := 255
 
 ; Only watch for a missed mouse-up while a focus-tab click owns the button.
-focus_tab_release_poll_ms := 50
+CascadeState.focusTabReleasePollMs := 50
 
-settings_path := SuiteState.App.Settings.directory "\cascade-kingdom\settings.ini"
+CascadeState.settingsPath := SuiteState.App.Settings.directory "\cascade-kingdom\settings.ini"
 ; Cascade members, saved on exit and restored on start; see SaveCascades().
-cascade_state_path := SuiteState.App.Settings.directory "\cascade-kingdom\state.ini"
-focus_corner_visible := IniRead(settings_path, "FocusTabs", "Visible", "1") = "1"
+CascadeState.statePath := SuiteState.App.Settings.directory "\cascade-kingdom\state.ini"
+CascadeState.focusCornerVisible := IniRead(CascadeState.settingsPath, "FocusTabs", "Visible", "1") = "1"
 
-focus_corner_inactive_slot_color_name := IniRead(settings_path, "FocusTabs", "InactiveSlotColor",
+CascadeState.focusCornerInactiveSlotColorName := IniRead(CascadeState.settingsPath, "FocusTabs", "InactiveSlotColor",
     "White")
 
-if !focus_tab_color_presets.Has(focus_corner_inactive_slot_color_name)
-    focus_corner_inactive_slot_color_name := "White"
+if !CascadeState.focusTabColorPresets.Has(CascadeState.focusCornerInactiveSlotColorName)
+    CascadeState.focusCornerInactiveSlotColorName := "White"
 
-focus_corner_inactive_slot_color :=
-    focus_tab_color_presets[focus_corner_inactive_slot_color_name]
+CascadeState.focusCornerInactiveSlotColor :=
+    CascadeState.focusTabColorPresets[CascadeState.focusCornerInactiveSlotColorName]
 
 ; =============================================================================
 ; runtime state
 ; =============================================================================
 
-cascade_command_queue := []
-cascade_command_draining := false
+CascadeState.commandQueue := []
+CascadeState.commandDraining := false
 
-placement_reservations := Map()
-placement_stabilization_generations := Map()
-placement_stabilization_generation_counter := 0
-cascade_join_positions := Map()
-cascade_lent_windows := Map()  ; members Wonder Windows placed: their slot until they return
-cascade_poll_ms := 1000
-cascade_history := Map()
+CascadeState.placementReservations := Map()
+CascadeState.placementStabilizationGenerations := Map()
+CascadeState.placementStabilizationGenerationCounter := 0
+CascadeState.joinPositions := Map()
+CascadeState.lentWindows := Map()  ; members Wonder Windows placed: their slot until they return
+CascadeState.pollMs := 1000
+CascadeState.history := Map()
 ; A display snapshot is refreshed by notifications and the slow polling fallback.
 ; Logical slots survive transient geometry/display changes; restarts keep
 ; membership only, through SaveCascades().
-cascade_displays := Map()
-cascade_display_signature := ""
-cascade_display_change_pending := false
-cascade_display_refreshing := false
-cascade_display_generation := 0
-cascade_display_refresh_delay_ms := 250
-cascade_window_slots := Map()
-cascade_home_devices := Map()  ; members moved off a missing display -> that display's device
-cascade_display_reflow := Map()
-cascade_membership_generation := 0
-cascade_minimized_observed := Map()
-cascade_mouse_press := 0
-cascade_window_drag := 0
-cascade_drag_generation := 0
-cascade_compaction_pending := Map()
-cascade_compaction_timer_pending := false
-cascade_restore_batches := Map()
-cascade_restore_request_depth := 0
-cascade_close_batches := Map()
-cascade_target_display := IniRead(settings_path, "Controls", "Display", "All")
-cascade_mirrored := IniRead(settings_path, "Controls", "Mirrored", "0") = "1"
-cascade_minimize_in_progress := false
-cascade_minimized_windows := []
+CascadeState.displays := Map()
+CascadeState.displaySignature := ""
+CascadeState.displayChangePending := false
+CascadeState.displayRefreshing := false
+CascadeState.displayGeneration := 0
+CascadeState.displayRefreshDelayMs := 250
+CascadeState.windowSlots := Map()
+CascadeState.homeDevices := Map()  ; members moved off a missing display -> that display's device
+CascadeState.displayReflow := Map()
+CascadeState.membershipGeneration := 0
+CascadeState.minimizedObserved := Map()
+CascadeState.mousePress := 0
+CascadeState.windowDrag := 0
+CascadeState.dragGeneration := 0
+CascadeState.compactionPending := Map()
+CascadeState.compactionTimerPending := false
+CascadeState.restoreBatches := Map()
+CascadeState.restoreRequestDepth := 0
+CascadeState.closeBatches := Map()
+CascadeState.targetDisplay := IniRead(CascadeState.settingsPath, "Controls", "Display", "All")
+CascadeState.mirrored := IniRead(CascadeState.settingsPath, "Controls", "Mirrored", "0") = "1"
+CascadeState.minimizeInProgress := false
+CascadeState.minimizedWindows := []
 
-focus_corner_overlays := Map()
-focus_corner_targets := Map()
-focus_corner_update_pending := false
-focus_tab_pending_press := 0
-focus_tab_click := 0
-focus_tab_click_generation := 0
+CascadeState.focusCornerOverlays := Map()
+CascadeState.focusCornerTargets := Map()
+CascadeState.focusCornerUpdatePending := false
+CascadeState.focusTabPendingPress := 0
+CascadeState.focusTabClick := 0
+CascadeState.focusTabClickGeneration := 0
 
-win_event_callback := 0
-win_event_hooks := []
+CascadeState.winEventCallback := 0
+CascadeState.winEventHooks := []
 }

@@ -23,28 +23,24 @@ PollCascadeState()
 
 StartWindowHooks()
 {
-    global win_event_callback, win_event_hooks
-
-    win_event_callback := CallbackCreate(HandleWinEvent)
+    CascadeState.winEventCallback := CallbackCreate(HandleWinEvent)
     ; Foreground, move/size start and end, minimize start and end, and window
     ; destroy, show and hide, out of context and skipping our own process.
     ; MINIMIZEEND announces a restore, not settled geometry. The shared
     ; completion watcher confirms readiness before requesting compaction.
     for range in [[0x0003, 0x0003], [0x000A, 0x000B], [0x0016, 0x0017], [0x8001, 0x8003]] {
         hook := DllCall("SetWinEventHook", "uint", range[1], "uint", range[2], "ptr", 0,
-            "ptr", win_event_callback, "uint", 0, "uint", 0, "uint", 0x0002, "ptr")
+            "ptr", CascadeState.winEventCallback, "uint", 0, "uint", 0, "uint", 0x0002, "ptr")
         if !hook {
             SuiteState.Log.Write("Cascade Kingdom", "could not install all Windows event hooks", "ERROR")
             continue
         }
-        win_event_hooks.Push(hook)
+        CascadeState.winEventHooks.Push(hook)
     }
 }
 
 StopWindowHooks()
 {
-    global win_event_callback, win_event_hooks
-
     SetTimer(PollCascadeState, 0)
     SetTimer(UpdateFocusCornerOverlays, 0)
     SetTimer(RunQueuedFocusCornerUpdate, 0)
@@ -52,12 +48,12 @@ StopWindowHooks()
     SetTimer(WatchCascadeWindowRestores, 0)
     SetTimer(FlushCascadeCompactions, 0)
 
-    for hook in win_event_hooks
+    for hook in CascadeState.winEventHooks
         DllCall("UnhookWinEvent", "ptr", hook)
-    win_event_hooks := []
-    if win_event_callback {
-        CallbackFree(win_event_callback)
-        win_event_callback := 0
+    CascadeState.winEventHooks := []
+    if CascadeState.winEventCallback {
+        CallbackFree(CascadeState.winEventCallback)
+        CascadeState.winEventCallback := 0
     }
 }
 
@@ -144,8 +140,6 @@ HandleWinEvent(hook_handle, event, hwnd, object_id, child_id, event_thread, even
 
 ForgetWindow(hwnd)
 {
-    global cascade_join_positions, cascade_lent_windows
-
     ; Do not wait for the next visual sweep: a destroyed target must never leave
     ; its script-owned focus GUI behind.
     DestroyFocusCornerOverlay(hwnd)
@@ -155,10 +149,10 @@ ForgetWindow(hwnd)
     if IsCascadeWindowBeingDragged(hwnd)
         StopCascadeWindowDrag()
 
-    if cascade_join_positions.Has(hwnd)
-        cascade_join_positions.Delete(hwnd)
-    if cascade_lent_windows.Has(hwnd)
-        cascade_lent_windows.Delete(hwnd)
+    if CascadeState.joinPositions.Has(hwnd)
+        CascadeState.joinPositions.Delete(hwnd)
+    if CascadeState.lentWindows.Has(hwnd)
+        CascadeState.lentWindows.Delete(hwnd)
 
     CancelPlacementStabilization(hwnd)
 

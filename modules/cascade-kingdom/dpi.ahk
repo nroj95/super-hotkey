@@ -28,7 +28,6 @@ GetCascadePointDpi(x, y)
 
 ReadCascadeDisplays()
 {
-    global cascade_mirrored
     displays := Map()
     live_devices := Map()
     signature := ""
@@ -49,7 +48,7 @@ ReadCascadeDisplays()
         ; Mirroring changes every slot, so toggling it re-lays out like a display change.
         display_signature := device ":" left "," top "," right "," bottom
             . ":" work_left "," work_top "," work_right "," work_bottom ":" dpi
-            . (cascade_mirrored ? ":mirrored" : "")
+            . (CascadeState.mirrored ? ":mirrored" : "")
         displays[monitor_index] := {
             device: device, dpi: dpi, signature: display_signature,
             left: left, top: top, right: right, bottom: bottom,
@@ -66,10 +65,9 @@ ReadCascadeDisplays()
 
 GetCascadeMonitorDpi(monitor_index)
 {
-    global cascade_displays
-    if !cascade_displays.Has(monitor_index)
+    if !CascadeState.displays.Has(monitor_index)
         return 96
-    display := cascade_displays[monitor_index]
+    display := CascadeState.displays[monitor_index]
     dpi := GetCascadePointDpi(display.left + (display.right - display.left) // 2,
         display.top + (display.bottom - display.top) // 2)
     return dpi ? dpi : display.dpi
@@ -82,9 +80,8 @@ GetCascadeWindowMonitorDpi(hwnd)
 
 FindCascadeMonitorDevice(device, displays := 0)
 {
-    global cascade_displays
     if !IsObject(displays)
-        displays := cascade_displays
+        displays := CascadeState.displays
     for monitor_index, display in displays {
         if display.device = device
             return monitor_index
@@ -94,12 +91,11 @@ FindCascadeMonitorDevice(device, displays := 0)
 
 CascadeMonitorNeedsRefresh(monitor_index)
 {
-    global cascade_displays
     if IsCascadeDisplayTransition()
         return true
     try {
-        if cascade_displays.Has(monitor_index) {
-            display := cascade_displays[monitor_index]
+        if CascadeState.displays.Has(monitor_index) {
+            display := CascadeState.displays[monitor_index]
             MonitorGetWorkAreaPixels(monitor_index, &left, &top, &right, &bottom)
             if display.device = MonitorGetName(monitor_index)
                 && display.dpi = GetCascadeMonitorDpi(monitor_index)
