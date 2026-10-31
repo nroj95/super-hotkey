@@ -14,11 +14,27 @@ class SuiteInterface {
         this.pageLayouts := Map()
         this.pageFooters := Map()
         this.startupPath := A_Startup "\Super Hotkey.lnk"
+        this.trayStatus := Map()
+    }
+
+    ; A module's line in the tray icon's tooltip, or "" to remove it.
+    SetTrayStatus(id, text) {
+        if text != ""
+            this.trayStatus[id] := text
+        else if this.trayStatus.Has(id)
+            this.trayStatus.Delete(id)
+        this.UpdateTrayTip()
+    }
+
+    UpdateTrayTip() {
+        tip := SuiteApplication.Name " v" SuiteApplication.Version (this.app.dryRun ? " - dry run" : "")
+        for id, text in this.trayStatus
+            tip .= "`n" text
+        A_IconTip := tip
     }
 
     BuildTray() {
-        A_IconTip := SuiteApplication.Name " v" SuiteApplication.Version
-            . (this.app.dryRun ? " - dry run" : "")
+        this.UpdateTrayTip()
         try TraySetIcon(SuiteIcons.path, , true)
         A_TrayMenu.Delete()
         A_TrayMenu.Add("Modules...", ObjBindMethod(this, "ShowModules"))

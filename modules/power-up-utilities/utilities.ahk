@@ -1,9 +1,11 @@
 ; =============================================================================
-; utilities.ahk - speaker wake and sleep; simple text actions live in dispatch
+; utilities.ahk - speaker wake, sleep and stay awake; simple text actions live
+; in dispatch
 ; =============================================================================
 ; Preserve the original sound and 16% temporary volume floor. Retain the exact
 ; endpoint object and restore only a level that still matches our own change.
 ; Sleep keeps wake events enabled and does not attempt automatic elevation.
+; Stay awake only asks Windows not to idle-sleep; it changes no power setting.
 ; =============================================================================
 
 class PU_Utilities {
@@ -273,5 +275,68 @@ class PU_SleepPolicy {
             this.Apply(scheme)
         FileDelete(this.path)
         this.pending := false
+    }
+}
+
+; Keeps the computer from idle sleep with the request a backup or a video call
+; makes. Screens still turn off and lock, and Sleep chosen by hand, the lid and
+; the battery stay Windows' to decide. Pause + End cycles short durations and
+; Pause + Shift + End long ones; each press counts from now.
+class PU_StayAwake {
+    ; Minutes; 0 stays awake until turned off.
+    static Durations := Map("short", [30, 60, 120], "long", [240, 480, 0])
+
+    __New(module) {
+        this.module := module
+        this.cycle := ""
+        this.index := 0
+        this.timer := ObjBindMethod(this, "Expire")
+    }
+
+    ; The step of cycle after the current one: an index into its durations, or
+    ; 0 once the cycle runs out and sleep is allowed again. Another cycle
+    ; starts from its first step.
+    static NextIndex(cycle, currentCycle, currentIndex) {
+        index := (cycle = currentCycle ? currentIndex : 0) + 1
+        return index <= PU_StayAwake.Durations[cycle].Length ? index : 0
+    }
+
+    static Describe(minutes) => minutes < 60 ? minutes " min" : (minutes // 60) " h"
+
+    Step(cycle) {
+        index := PU_StayAwake.NextIndex(cycle, this.cycle, this.index)
+        if !index {
+            this.End()
+            SuiteNotice.Show("status", "Sleep allowed again", 1400)
+            return
+        }
+        minutes := PU_StayAwake.Durations[cycle][index]
+        DllCall("SetThreadExecutionState", "uint", 0x80000001, "uint") ; ES_CONTINUOUS | ES_SYSTEM_REQUIRED
+        this.cycle := cycle
+        this.index := index
+        SetTimer(this.timer, minutes ? -minutes * 60000 : 0)
+        this.module.SetTrayStatus(minutes
+            ? "Awake until " FormatTime(DateAdd(A_Now, minutes, "Minutes"), "HH:mm") : "Awake until turned off")
+        text := minutes ? "Awake for " PU_StayAwake.Describe(minutes) : "Awake until turned off"
+        SuiteNotice.Show("status", text, 1400)
+        this.module.Report(text)
+    }
+
+    Expire(*) {
+        if this.cycle = ""
+            return
+        this.End()
+        SuiteNotice.Show("status", "Sleep allowed again", 1400)
+        this.module.Report("stay awake ended")
+    }
+
+    ; Withdraws the request; safe when none is active.
+    End() {
+        SetTimer(this.timer, 0)
+        if this.cycle != ""
+            DllCall("SetThreadExecutionState", "uint", 0x80000000, "uint") ; ES_CONTINUOUS
+        this.cycle := ""
+        this.index := 0
+        this.module.SetTrayStatus("")
     }
 }

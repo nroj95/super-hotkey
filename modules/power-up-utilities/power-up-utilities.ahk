@@ -15,6 +15,7 @@ class PowerUpUtilities extends SuiteModule {
         this.keyboard := PU_Keyboard(this)
         this.terminal := PU_Terminal(this)
         this.utilities := PU_Utilities(this)
+        this.stayAwake := PU_StayAwake(this)
     }
 
     dryRun => this.app.dryRun
@@ -28,6 +29,10 @@ class PowerUpUtilities extends SuiteModule {
         this.AddAction("speaker-wake", "system.wake-speakers", "wake speakers",
             "speaker-wake", "", "Pause + Pause")
         this.AddAction("sleep", "system.sleep", "put computer to sleep", "sleep", "", "Pause + Escape")
+        this.AddAction("awake", "system.stay-awake", "stay awake: 30 min, 1 h, 2 h, off",
+            "awake-short", "", "Pause + End")
+        this.AddAction("awake", "system.stay-awake-long", "stay awake: 4 h, 8 h, until off, off",
+            "awake-long", "", "Pause + Shift + End")
         ; Terminal copy shares Caps + C with F23: the Terminal scope wins there.
         this.AddAction("terminal", "terminal.copy", "copy terminal buffer as Markdown",
             "terminal-copy", "", "Caps + C", true)
@@ -81,8 +86,21 @@ class PowerUpUtilities extends SuiteModule {
         this.stopping := true
         OnMessage(0x0218, this.powerCallback, 0)
         this.CancelWork()
+        this.stayAwake.End()
         if !this.dryRun
             this.utilities.sleepPolicy.Restore()
+    }
+
+    ; Suspending Super Hotkey hands everything back to Windows, staying awake
+    ; included; a locked session or system sleep keeps it.
+    Suspend() {
+        if this.app.suspended
+            this.stayAwake.End()
+    }
+
+    SetTrayStatus(text) {
+        if IsObject(this.app.ui)
+            this.app.ui.SetTrayStatus(this.id, text)
     }
 
     PowerEvent(event, *) {
@@ -195,6 +213,8 @@ class PowerUpUtilities extends SuiteModule {
                 case "terminal-clear": this.terminal.Clear(job)
                 case "speaker-wake": this.utilities.WakeSpeakers(job)
                 case "sleep": this.utilities.SleepComputer(job)
+                case "awake-short": this.stayAwake.Step("short")
+                case "awake-long": this.stayAwake.Step("long")
                 default: throw Error("Unknown action kind: " job.action.kind)
             }
         }
@@ -246,5 +266,12 @@ class PowerUpUtilities extends SuiteModule {
             . "`r`n`r`nSYSTEM UTILITIES"
             . "`r`nWake speakers that automatically enter standby, or put your computer "
             . "to sleep."
+            . "`r`n`r`nSTAY AWAKE"
+            . "`r`nPause + End keeps the computer from sleeping for 30 minutes, 1 or 2 hours; "
+            . "Pause + Shift + End for 4 or 8 hours or until you turn it off. Each press "
+            . "steps to the next duration, counted from now, and after the last one sleep "
+            . "is allowed again. The tray icon's tooltip shows how long. The screen still "
+            . "turns off and locks as usual, and choosing Sleep or closing a laptop lid "
+            . "still sleeps. Suspending or exiting Super Hotkey ends it."
     }
 }

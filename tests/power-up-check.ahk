@@ -1,11 +1,36 @@
-; Power-Up Utilities: sleep policy recovery.
-; Disposable preferences, dry-run inputs and test-owned windows only.
+; Power-Up Utilities: sleep policy recovery and the stay-awake cycles.
+; Disposable preferences, dry-run inputs and test-owned windows only; staying
+; awake is never requested from Windows here.
 class PowerUpChecks {
     static Run() {
         this.SleepPolicyRecovery()
+        this.StayAwakeCycles()
     }
 
     static Assert(condition, label) => SuiteChecks.Assert(condition, label)
+
+    static StayAwakeCycles() {
+        durations := PU_StayAwake.Durations
+        this.Assert(durations["short"][1] = 30 && durations["short"][3] = 120
+            && durations["long"][1] = 240 && durations["long"][3] = 0,
+            "stay awake cycles 30 min to 2 h, and 4 h to until turned off")
+        this.Assert(PU_StayAwake.NextIndex("short", "", 0) = 1
+            && PU_StayAwake.NextIndex("short", "short", 2) = 3,
+            "each press steps to the next duration")
+        this.Assert(PU_StayAwake.NextIndex("short", "short", 3) = 0
+            && PU_StayAwake.NextIndex("long", "long", 3) = 0,
+            "after the last duration, sleep is allowed again")
+        this.Assert(PU_StayAwake.NextIndex("long", "short", 2) = 1
+            && PU_StayAwake.NextIndex("short", "long", 3) = 1,
+            "switching cycles starts the other one from its first duration")
+        this.Assert(PU_StayAwake.Describe(30) = "30 min" && PU_StayAwake.Describe(480) = "8 h",
+            "notices name minutes and hours")
+        statuses := []
+        awake := PU_StayAwake({SetTrayStatus: (module, text) => statuses.Push(text)})
+        awake.End()
+        this.Assert(awake.cycle = "" && statuses.Length = 1 && statuses[1] = "",
+            "ending without a request only clears the tray status")
+    }
 
     static SleepPolicyRecovery() {
         folder := SuiteChecks.directory "\sleep-policy"
