@@ -55,8 +55,8 @@ class WonderWindowsModule extends SuiteModule {
         this.Add("minimize", "minimize active window", WW_MinimizeActiveWindow, ["Win + Backspace"])
         this.Add("restore-minimized", "restore last minimized window", WW_RestoreMinimizedWindow,
             ["Win + Shift + Backspace"])
-        ; Improved Windows keys that act on every window, so from any window.
-        this.Add("minimize-all", "minimize all windows", WW_MinimizeAllWindows, ["Win + M"],
+        ; Improved Windows keys that act on a whole display, so from any window.
+        this.Add("minimize-all", "minimize all windows on this display", WW_MinimizeAllWindows, ["Win + M"],
             , {hidden: true, anyWindow: true})
         this.Add("restore-all", "restore windows minimized with Win + M", WW_RestoreAllWindows,
             ["Win + Shift + M"], , {hidden: true, anyWindow: true})
@@ -249,8 +249,8 @@ class WonderWindowsModule extends SuiteModule {
             . "Win + Backspace minimizes the active window; focus stays on that display "
             . "while it has windows left, then moves to the next display. Win + Shift + "
             . "Backspace brings back the windows it minimized, newest first. "
-            . "Win + M and Win + Shift + M minimize and restore every window, as in "
-            . "Windows, but an extra Win + M never forgets what Win + Shift + M restores."
+            . "Win + M minimizes the windows on your display and Win + Shift + M brings "
+            . "them back; unlike in Windows, an extra Win + M never forgets what to restore."
             . "`r`n`r`nFOCUS, STACKS AND FULLSCREEN"
             . "`r`nWin + PgDn and PgUp step focus through every window on screen in reading "
             . "order: displays left to right, columns left to right, top before bottom, and "

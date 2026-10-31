@@ -96,21 +96,24 @@ WW_MinimizeActiveWindow()
     }
 }
 
-; Win + M minimizes every window, as Windows does, and Win + Shift + M brings
-; them back with the frontmost on top again. Unlike Windows' own pair, a
-; Win + M with nothing left to minimize keeps what Win + Shift + M restores,
-; and a later Win + M adds to it. Like Windows, windows without a minimize
-; button stay. windows is every window front to back unless the checks pass
-; their own.
-WW_MinimizeAllWindows(windows?)
+; Win + M minimizes every window on the working display, and Win + Shift + M
+; brings that display's back with the frontmost on top again. Unlike Windows'
+; own pair, which spans every display, a Win + M with nothing left to minimize
+; keeps what Win + Shift + M restores, and a later Win + M adds to it. Like
+; Windows, windows without a minimize button stay, and focus goes to the
+; desktop, so the emptied display stays the working one. windows is every
+; window front to back unless the checks pass their own.
+WW_MinimizeAllWindows(windows?, monitor?)
 {
     Critical "On"
 
     global WW_minimized_all
 
+    monitor := IsSet(monitor) ? monitor : SuiteWorkingMonitor.Get()
+    device := MonitorGetName(monitor)
     added := []
     for hwnd in IsSet(windows) ? windows : WinGetList() {
-        if !IsSwitchableWindow(hwnd)
+        if !IsSwitchableWindow(hwnd) || WindowMonitorIndex(hwnd) != monitor
             continue
         try {
             if !(WinGetStyle("ahk_id " hwnd) & 0x20000) ; WS_MINIMIZEBOX
@@ -122,27 +125,34 @@ WW_MinimizeAllWindows(windows?)
         catch Error as err
             WW_DebugError("Minimize all windows", err)
     }
+    if added.Length {
+        ; Windows hands focus on asynchronously, maybe to another display.
+        Sleep 100
+        try WinActivate("ahk_class Progman")
+    }
     ; Windows minimized now were in front of those minimized before.
-    for entry in WW_minimized_all {
+    for entry in WW_minimized_all.Get(device, []) {
         listed := false
         for newer in added
             listed := listed || newer.hwnd = entry.hwnd
         if !listed
             added.Push(entry)
     }
-    WW_minimized_all := added
+    WW_minimized_all[device] := added
 }
 
-; Restores back to front, so the frontmost ends on top, and focuses it.
-; Windows restored or closed another way are skipped.
-WW_RestoreAllWindows()
+; Restores the working display's windows back to front, so the frontmost ends
+; on top, and focuses it. Windows restored or closed another way are skipped.
+WW_RestoreAllWindows(monitor?)
 {
     Critical "On"
 
     global WW_minimized_all
 
-    entries := WW_minimized_all
-    WW_minimized_all := []
+    device := MonitorGetName(IsSet(monitor) ? monitor : SuiteWorkingMonitor.Get())
+    entries := WW_minimized_all.Get(device, [])
+    if WW_minimized_all.Has(device)
+        WW_minimized_all.Delete(device)
     front := 0
     Loop entries.Length {
         entry := entries[entries.Length - A_Index + 1]

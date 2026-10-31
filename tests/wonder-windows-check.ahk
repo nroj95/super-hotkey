@@ -17,7 +17,7 @@ class WonderWindowsChecks {
     ; Only two test windows are passed in, so no real window is minimized.
     static MinimizeAll() {
         global WW_minimized_all
-        WW_minimized_all := []
+        WW_minimized_all := Map()
         windows := []
         Minimized(window) => WinGetMinMax("ahk_id " window.Hwnd) = -1
         WaitFor(condition) {
@@ -35,21 +35,36 @@ class WonderWindowsChecks {
                 windows.Push(window)
             }
             front := [windows[2].Hwnd, windows[1].Hwnd]
-            WW_MinimizeAllWindows(front)
+            monitor := WindowMonitorIndex(windows[1].Hwnd)
+            device := MonitorGetName(monitor)
+            other := MonitorGetCount() > 1 ? Mod(monitor, MonitorGetCount()) + 1 : 0
+            if other {
+                WW_MinimizeAllWindows(front, other)
+                this.Assert(!Minimized(windows[1]) && !Minimized(windows[2])
+                    && !WW_minimized_all.Get(MonitorGetName(other), []).Length,
+                    "Win + M leaves windows on other displays alone")
+            }
+            WW_MinimizeAllWindows(front, monitor)
             WaitFor(() => Minimized(windows[1]) && Minimized(windows[2]))
-            this.Assert(Minimized(windows[1]) && Minimized(windows[2]) && WW_minimized_all.Length = 2
-                && WW_minimized_all[1].hwnd = windows[2].Hwnd,
-                "Win + M minimizes every window and remembers them front to back")
-            WW_MinimizeAllWindows(front)
-            this.Assert(WW_minimized_all.Length = 2,
+            remembered := WW_minimized_all.Get(device, [])
+            this.Assert(Minimized(windows[1]) && Minimized(windows[2]) && remembered.Length = 2
+                && remembered[1].hwnd = windows[2].Hwnd,
+                "Win + M minimizes every window on its display and remembers them front to back")
+            WW_MinimizeAllWindows(front, monitor)
+            this.Assert(WW_minimized_all.Get(device, []).Length = 2,
                 "a Win + M with nothing left to minimize keeps what Win + Shift + M restores")
-            WW_RestoreAllWindows()
+            if other {
+                WW_RestoreAllWindows(other)
+                this.Assert(Minimized(windows[1]) && WW_minimized_all.Get(device, []).Length = 2,
+                    "Win + Shift + M on another display leaves this display's windows minimized")
+            }
+            WW_RestoreAllWindows(monitor)
             WaitFor(() => !Minimized(windows[1]) && !Minimized(windows[2]))
-            this.Assert(!Minimized(windows[1]) && !Minimized(windows[2]) && !WW_minimized_all.Length,
-                "Win + Shift + M brings every window back")
+            this.Assert(!Minimized(windows[1]) && !Minimized(windows[2]) && !WW_minimized_all.Has(device),
+                "Win + Shift + M brings every window on its display back")
         }
         finally {
-            WW_minimized_all := []
+            WW_minimized_all := Map()
             for window in windows
                 window.Destroy()
         }

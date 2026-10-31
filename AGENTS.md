@@ -23,6 +23,7 @@ Super Hotkey is one AutoHotkey v2 64-bit process: a launcher, a small core and f
 - native input callbacks only queue work. cancel queued work on reconfiguration, suspension and exit, and always release held output.
 - disabled modules and layers release their inputs and keep their assignments editable. CapsLock and Pause behave normally unless reassigned.
 - every feature must make sense to a keyboard-only user whose pointer is parked on another display. the pointer chooses a display only through a click; otherwise the active app window decides. choose displays with `SuiteWorkingMonitor` in `core/windows.ahk`, never the raw pointer position. show messages with `SuiteNotice` in `core/ui.ahk`, centered on the working display, not as tooltips beside the pointer.
+- commands that hide, show or rearrange many windows act on the working display only, even where the Windows key they improve spans every display (Win + M); each display keeps its own memory of what to bring back. commands that move focus may cross displays (Caps + Tab, Win + PgUp/PgDn). gathering every cascade onto one display (Caps + Home) is the deliberate exception.
 - AutoHotkey threads share one OS thread. scope DPI awareness to single native calls with the `*Pixels` helpers, never across `Sleep` or dialogs in a thread that is not `Critical`.
 - errors and lifecycle events are always logged; verbose logging is the only debug switch.
 
