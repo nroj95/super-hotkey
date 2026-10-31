@@ -168,7 +168,7 @@ class WonderWindowsModule extends SuiteModule {
         key := "settings:wonder-windows"
         if ui.Existing(key)
             return
-        window := ui.NewWindow(key, "Wonder Windows - Settings", true)
+        rows := SuitePageRows(ui.NewWindow(key, "Wonder Windows - Settings", true), 800)
         names := []
         selected := 1
         for index, unit in WonderWindowsModule.ZoneUnits {
@@ -176,18 +176,15 @@ class WonderWindowsModule extends SuiteModule {
             if unit[1] = WW_zone_cycle_unit
                 selected := index
         }
-        window.AddText("x20 y25 w150", "Zone cycle")
-        window.AddDropDownList("x175 y20 w260 vzoneUnit", names).Choose(selected)
-        window.AddText("x175 y55 w600", "Full height first, then the upper and lower halves of the display."
-            . " Thirds skips the halves.")
-        WonderWindowsModule.AddStatus(window, "FancyZones",
-            WW_IsFancyZonesRunning() ? "running, not supported" : "not running, you're all set!", 110, "fancyZonesStatus")
-        window.AddText("x20 y150 w760", "FancyZones also moves windows and takes hotkeys, so it isn't supported;"
+        rows.Field("Zone cycle", "DropDownList", "w260 vzoneUnit", names).Choose(selected)
+        rows.Caption("Full height first, then the upper and lower halves of the display. Thirds skips the halves.")
+        status := WW_IsFancyZonesRunning() ? "running, not supported" : "not running, you're all set!"
+        rows.Field("FancyZones:", "Text", "w540 vfancyZonesStatus c" WonderWindowsModule.StatusColor(status), status)
+        rows.Text("FancyZones also moves windows and takes hotkeys, so it isn't supported;"
             . " disable it in PowerToys. For drag-and-drop zones that work alongside Super Hotkey, try ScreenGrid.")
-        ui.Footer(window, [["Apply", ObjBindMethod(this, "SaveSettings", ui), 100],
+        rows.Show(ui, key, [["Apply", ObjBindMethod(this, "SaveSettings", ui), 100],
             ["ScreenGrid...", ObjBindMethod(this, "OpenScreenGrid", ui), 130],
-            ["Back", ObjBindMethod(ui, "BackToHelp", this.id), 90]], 230)
-        ui.ShowPage(key, 800, 280, 740, 260)
+            ["Back", ObjBindMethod(ui, "BackToHelp", this.id), 90]])
     }
 
     static ScreenGridUrl := "https://github.com/TtesseractT/ScreenGrid"
@@ -222,13 +219,6 @@ class WonderWindowsModule extends SuiteModule {
             case "running, not supported": return "B02020"
             default: return "505050"
         }
-    }
-
-    static AddStatus(window, label, value, y, controlName) {
-        window.AddText("x20 y" y " w150 h23", label ":")
-        window.SetFont("s10 c" WonderWindowsModule.StatusColor(value), "Cascadia Mono")
-        window.AddText("x175 y" y " w600 h23 v" controlName, value)
-        window.SetFont("s10 cDefault", "Cascadia Mono")
     }
 
     HelpText() {

@@ -397,20 +397,17 @@ class SuiteInterface {
     ShowModules(*) {
         if this.Existing("modules")
             return
-        window := this.NewWindow("modules", SuiteApplication.Name " - Modules", true)
-        window.AddText("x20 y18 w560", "Module changes take effect after restarting.")
+        rows := SuitePageRows(this.NewWindow("modules", SuiteApplication.Name " - Modules", true), 600)
+        rows.Text("Module changes take effect after restarting.")
         this.moduleControls := Map()
-        y := 60
         for id in SuiteSettings.ModuleOrder {
-            control := window.AddCheckbox("x20 y" y " w540", SuiteSettings.ModuleNames[id])
+            control := rows.Checkbox(SuiteSettings.ModuleNames[id])
             control.Value := this.app.Settings.modules[id]
             this.moduleControls[id] := control
-            window.AddText("x42 y" (y + 25) " w518", SuiteSettings.ModuleDescriptions[id])
-            y += 58
+            rows.Caption(SuiteSettings.ModuleDescriptions[id], true)
         }
-        this.Footer(window, [["Apply and restart", ObjBindMethod(this, "SaveModules"), 160],
-            ["Cancel", ObjBindMethod(this, "CloseModules"), 100]], 410, 600)
-        this.ShowPage("modules", 600, 460, 580, 440)
+        rows.Show(this, "modules", [["Apply and restart", ObjBindMethod(this, "SaveModules"), 160],
+            ["Cancel", ObjBindMethod(this, "CloseModules"), 100]])
     }
 
     SaveModules(*) {
@@ -635,5 +632,62 @@ class SuiteInterface {
             MsgBox("The reset stopped. Some preferences may have changed; notes were not deleted."
                 . "`n`n" failure.Message "`n`nBackup: " backup, SuiteApplication.Name, "Icon!")
         }
+    }
+}
+
+; Stacks a page's rows from the top, so a page lists rows, never positions:
+; each row starts one gap below the previous one, fields line up in one
+; column, and Show places the footer below the last row and sizes the page.
+class SuitePageRows {
+    static Top := 18
+    static Gap := 20
+    static CaptionGap := 6
+    static FieldX := 240
+    static CheckboxTextX := 38 ; where a checkbox's label starts
+
+    __New(window, width) {
+        this.window := window
+        this.width := width
+        this.y := SuitePageRows.Top
+    }
+
+    ; A paragraph across the page.
+    Text(text, options := "") => this.Advance(
+        this.window.AddText("x20 y" this.y " w" (this.width - 40) " " options, text))
+
+    Checkbox(label, options := "") => this.Advance(
+        this.window.AddCheckbox("x20 y" this.y " w" (this.width - 40) " " options, label))
+
+    ; A label with a field of type beside it, in the page's field column.
+    Field(label, type, options, value?) {
+        x := SuitePageRows.FieldX
+        labelControl := this.window.AddText("x20 y" (this.y + (type = "Text" ? 0 : 4))
+            " w" (x - 30), label)
+        options := "x" x " y" this.y " " options
+        control := IsSet(value) ? this.window.Add(type, options, value) : this.window.Add(type, options)
+        labelControl.GetPos(, , , &labelHeight)
+        return this.Advance(control, labelHeight + (type = "Text" ? 0 : 4))
+    }
+
+    ; A short note just below the row above it: under a field's column, or
+    ; with checkbox true under a checkbox's label.
+    Caption(text, checkbox := false) {
+        x := checkbox ? SuitePageRows.CheckboxTextX : SuitePageRows.FieldX
+        this.y -= SuitePageRows.Gap - SuitePageRows.CaptionGap
+        return this.Advance(this.window.AddText("x" x " y" this.y " w" (this.width - 20 - x), text))
+    }
+
+    Advance(control, minimumHeight := 0) {
+        control.GetPos(, , , &height)
+        this.y += Max(height, minimumHeight) + SuitePageRows.Gap
+        return control
+    }
+
+    ; Adds the footer below the last row and shows the page, which may shrink
+    ; a little below its opening size.
+    Show(ui, key, buttons) {
+        y := this.y + 35
+        ui.Footer(this.window, buttons, y, this.width)
+        ui.ShowPage(key, this.width, y + 50, this.width - 40, y + 25)
     }
 }

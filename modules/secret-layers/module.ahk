@@ -46,15 +46,13 @@ class SecretLayersModule extends SuiteModule {
         if ui.Existing(key)
             return
         settings := this.app.Settings
-        window := ui.NewWindow(key, "Secret Layers - Settings", true)
-        window.AddText("x20 y20 w560", "Modules is the master switch. These choices control each layer independently.")
-        window.AddCheckbox("x20 y70 w540 vpause", "Enable Pause layer").Value := settings.layers["pause"]
-        window.AddCheckbox("x20 y115 w540 vcaps", "Enable CapsLock layer").Value := settings.layers["caps"]
-        ; A caption for the checkbox above, aligned with its text.
-        window.AddText("x38 y147 w542", "Double-tap Shift to toggle Caps Lock while this layer is enabled.")
-        ui.Footer(window, [["Apply and restart", ObjBindMethod(this, "SaveSettings", ui), 160],
-            ["Back", ObjBindMethod(ui, "BackToHelp", this.id), 100]], 195, 600)
-        ui.ShowPage(key, 600, 245, 560, 220)
+        rows := SuitePageRows(ui.NewWindow(key, "Secret Layers - Settings", true), 600)
+        rows.Text("Modules is the master switch. These choices control each layer independently.")
+        rows.Checkbox("Enable Pause layer", "vpause").Value := settings.layers["pause"]
+        rows.Checkbox("Enable CapsLock layer", "vcaps").Value := settings.layers["caps"]
+        rows.Caption("Double-tap Shift to toggle Caps Lock while this layer is enabled.", true)
+        rows.Show(ui, key, [["Apply and restart", ObjBindMethod(this, "SaveSettings", ui), 160],
+            ["Back", ObjBindMethod(ui, "BackToHelp", this.id), 100]])
     }
 
     SaveSettings(ui, *) {

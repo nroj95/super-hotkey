@@ -517,8 +517,8 @@ class InterfaceChecks {
                         for name in ["zoneUnit", "fancyZonesStatus"] {
                             settings[name].GetPos(&statusX, &statusY)
                             statusCoords.Push(statusY)
-                            this.Assert(statusX = 175,
-                                "Wonder Windows " name " value is aligned separately from its label")
+                            this.Assert(statusX = SuitePageRows.FieldX,
+                                "Wonder Windows " name " value sits in the page's field column")
                         }
                         this.Assert(statusCoords[1] < statusCoords[2],
                             "Wonder Windows settings rows are spaced in reading order")

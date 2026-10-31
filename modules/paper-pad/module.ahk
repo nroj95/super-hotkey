@@ -100,29 +100,21 @@ class PaperPadModule extends SuiteModule {
         if ui.Existing(key)
             return
         path := this.settingsPath
-        window := ui.NewWindow(key, "Paper Pad - Settings", true)
-        window.AddText("x20 y18 w740", "Changing the notes folder does not move or delete existing notes.")
-        window.AddText("x20 y60 w150", "Notes folder")
-        window.AddEdit("x180 y55 w590 vfolder", IniRead(path, "Paths", "NotesDirectory",
-            PaperPadController.DefaultNotesDirectory))
-        window.AddText("x20 y105 w150", "Notepad3 executable")
-        window.AddEdit("x180 y100 w590 veditor", IniRead(path, "Paths", "Notepad3Executable", ""))
-        window.AddText("x180 y132 w590", "Leave the executable blank for automatic detection.")
+        rows := SuitePageRows(ui.NewWindow(key, "Paper Pad - Settings", true), 800)
+        rows.Text("Changing the notes folder does not move or delete existing notes.")
+        rows.Field("Notes folder", "Edit", "w530 vfolder",
+            IniRead(path, "Paths", "NotesDirectory", PaperPadController.DefaultNotesDirectory))
+        rows.Field("Notepad3 executable", "Edit", "w530 veditor", IniRead(path, "Paths", "Notepad3Executable", ""))
+        rows.Caption("Leave the executable blank for automatic detection.")
         choices := ui.DisplayChoices(IniRead(path, "Window", "Monitor", "Primary"))
         this.displayChoices := choices.values
-        window.AddText("x20 y180 w150", "Display")
-        window.AddDropDownList("x180 y175 w380 vdisplay", choices.names).Choose(choices.selected)
-        y := 225
-        for item in [["width", "Width (%)", "WidthPercent"], ["height", "Height (%)", "HeightPercent"]] {
-            window.AddText("x20 y" (y + 5) " w150", item[2])
-            window.AddEdit("x180 y" y " w140 v" item[1],
+        rows.Field("Display", "DropDownList", "w380 vdisplay", choices.names).Choose(choices.selected)
+        for item in [["width", "Width (%)", "WidthPercent"], ["height", "Height (%)", "HeightPercent"]]
+            rows.Field(item[2], "Edit", "w140 v" item[1],
                 IniRead(path, "Window", item[3], PaperPadController.WindowDefaults[item[3]][1]))
-            y += 43
-        }
-        ui.Footer(window, [["Open notes folder", ObjBindMethod(this, "OpenNotesFolder"), 165],
+        rows.Show(ui, key, [["Open notes folder", ObjBindMethod(this, "OpenNotesFolder"), 165],
             ["Apply and restart", ObjBindMethod(this, "SaveSettings", ui), 160],
-            ["Back", ObjBindMethod(ui, "BackToHelp", this.id), 100]], 349)
-        ui.ShowPage(key, 800, 399, 760, 374)
+            ["Back", ObjBindMethod(ui, "BackToHelp", this.id), 100]])
     }
 
     SaveSettings(ui, *) {

@@ -89,25 +89,23 @@ class CascadeKingdomModule extends SuiteModule {
             return
         global cascade_target_display, focus_corner_visible, focus_tab_color_presets
         global focus_corner_inactive_slot_color_name, cascade_mirrored
-        window := ui.NewWindow(key, "Cascade Kingdom - Settings", true)
-        window.AddText("x20 y18 w560", "Add windows with Caps + Insert or by dragging one onto a slot.")
+        rows := SuitePageRows(ui.NewWindow(key, "Cascade Kingdom - Settings", true), 600)
+        rows.Text("Add windows with Caps + Insert or by dragging one onto a slot.")
         choices := ui.DisplayChoices(cascade_target_display, true)
         this.displayChoices := choices.values
-        window.AddText("x20 y65 w200", "Cascade on")
-        window.AddDropDownList("x240 y60 w300 vdisplay", choices.names).Choose(choices.selected)
-        window.AddCheckbox("x20 y103 w550 vmirrored", "Mirror: cascade toward the left").Value := cascade_mirrored
-        window.AddCheckbox("x20 y143 w550 vtabs", "Show focus tabs").Value := focus_corner_visible
+        rows.Field("Cascade on", "DropDownList", "w300 vdisplay", choices.names).Choose(choices.selected)
+        rows.Checkbox("Mirror: cascade toward the left", "vmirrored").Value := cascade_mirrored
+        rows.Checkbox("Show focus tabs", "vtabs").Value := focus_corner_visible
         colors := []
         for name in focus_tab_color_presets
             colors.Push(name)
-        window.AddText("x20 y188 w200", "Inactive-slot tab color")
-        window.AddDropDownList("x240 y183 w210 vinactiveColor", colors).Choose(focus_corner_inactive_slot_color_name)
-        window.AddText("x20 y228 w560", "Active tabs and drop guides use the Windows accent color."
+        rows.Field("Inactive-slot tab color", "DropDownList", "w210 vinactiveColor", colors)
+            .Choose(focus_corner_inactive_slot_color_name)
+        rows.Text("Active tabs and drop guides use the Windows accent color."
             . "`nDisplay changes release other displays without moving windows."
             . "`nClick Apply to use these settings.")
-        ui.Footer(window, [["Apply", ObjBindMethod(this, "SaveSettings", ui), 120],
-            ["Back", ObjBindMethod(ui, "BackToHelp", this.id), 100]], 333, 600)
-        ui.ShowPage(key, 600, 383, 560, 358)
+        rows.Show(ui, key, [["Apply", ObjBindMethod(this, "SaveSettings", ui), 120],
+            ["Back", ObjBindMethod(ui, "BackToHelp", this.id), 100]])
     }
 
     ; Applies without a restart; routing changes first release in-flight work,
