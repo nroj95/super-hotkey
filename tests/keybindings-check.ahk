@@ -655,7 +655,7 @@ class KeybindingsChecks {
         this.AssertDisplaySequence(rows, [
             "power-up-utilities.help", "power-up-utilities.system.wake-speakers",
             "power-up-utilities.system.sleep", "power-up-utilities.system.stay-awake",
-            "power-up-utilities.system.stay-awake-long",
+            "power-up-utilities.system.allow-sleep",
             "power-up-utilities.terminal.copy", "power-up-utilities.terminal.clear"],
             "Power-Up Utilities groups system and Terminal controls")
         this.AssertDisplaySequence(rows, [

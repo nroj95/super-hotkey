@@ -33,10 +33,10 @@ class PowerUpUtilities extends SuiteModule {
         this.AddAction("speaker-wake", "system.wake-speakers", "wake speakers",
             "speaker-wake", "", "Pause + Pause")
         this.AddAction("sleep", "system.sleep", "put computer to sleep", "sleep", "", "Pause + Escape")
-        this.AddAction("awake", "system.stay-awake", "stay awake: 30 min, 1 h, 2 h, off",
-            "awake-short", "", "Pause + End")
-        this.AddAction("awake", "system.stay-awake-long", "stay awake: 4 h, 8 h, no limit, off",
-            "awake-long", "", "Pause + Shift + End")
+        this.AddAction("awake", "system.stay-awake", "stay awake: 30 min, 1, 2, 4, 8 h, no limit",
+            "awake-step", "", "Pause + End")
+        this.AddAction("awake", "system.allow-sleep", "allow sleep again",
+            "awake-end", "", "Pause + Shift + End")
         ; Terminal copy shares Caps + C with F23: the Terminal scope wins there.
         this.AddAction("terminal", "terminal.copy", "copy terminal buffer as Markdown",
             "terminal-copy", "", "Caps + C", true)
@@ -168,7 +168,12 @@ class PowerUpUtilities extends SuiteModule {
                 this.Report("dry run: " event.actionId " via " event.binding)
                 return
             }
-            try this.stayAwake.Step(action.kind = "awake-long" ? "long" : "short")
+            try {
+                if action.kind = "awake-end"
+                    this.stayAwake.AllowSleep()
+                else
+                    this.stayAwake.Step()
+            }
             catch Error as failure
                 SuiteState.Log.Error("Power-Up Utilities / stay awake", failure)
             return
@@ -316,10 +321,11 @@ class PowerUpUtilities extends SuiteModule {
             . "`r`nWake speakers that automatically enter standby, or put your computer "
             . "to sleep."
             . "`r`n`r`nSTAY AWAKE"
-            . "`r`nPause + End keeps the computer from sleeping for 30 minutes, 1 or 2 hours; "
-            . "Pause + Shift + End for 4 or 8 hours or with no limit. Each press "
-            . "steps to the next duration, counted from now, and after the last one sleep "
-            . "is allowed again. The tray icon's tooltip shows how long. The screen still "
+            . "`r`nPause + End keeps the computer from sleeping for 30 minutes. Press again "
+            . "while its notice shows for 1, 2, 4 or 8 hours or no limit, counted from now; "
+            . "once the notice has gone, the next press starts over at 30 minutes. "
+            . "Pause + Shift + End allows sleep again. The tray icon's tooltip shows how "
+            . "long. The screen still "
             . "turns off and locks as usual, and choosing Sleep or closing a laptop lid "
             . "still sleeps. Suspending or exiting Super Hotkey ends it."
     }

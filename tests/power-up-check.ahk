@@ -1,4 +1,4 @@
-; Power-Up Utilities: sleep policy recovery, the stay-awake cycles and the keys
+; Power-Up Utilities: sleep policy recovery, the stay-awake steps and the keys
 ; that hold macros back.
 ; Disposable preferences, dry-run inputs and test-owned windows only; staying
 ; awake is never requested from Windows here.
@@ -27,24 +27,22 @@ class PowerUpChecks {
 
     static StayAwakeCycles() {
         durations := PU_StayAwake.Durations
-        this.Assert(durations["short"][1] = 30 && durations["short"][3] = 120
-            && durations["long"][1] = 240 && durations["long"][3] = 0,
-            "stay awake cycles 30 min to 2 h, and 4 h to no limit")
-        this.Assert(PU_StayAwake.NextIndex("short", "", 0) = 1
-            && PU_StayAwake.NextIndex("short", "short", 2) = 3,
-            "each press steps to the next duration")
-        this.Assert(PU_StayAwake.NextIndex("short", "short", 3) = 0
-            && PU_StayAwake.NextIndex("long", "long", 3) = 0,
-            "after the last duration, sleep is allowed again")
-        this.Assert(PU_StayAwake.NextIndex("long", "short", 2) = 1
-            && PU_StayAwake.NextIndex("short", "long", 3) = 1,
-            "switching cycles starts the other one from its first duration")
+        last := durations.Length
+        this.Assert(durations[1] = 30 && durations[5] = 480 && durations[last] = 0,
+            "stay awake steps from 30 min to no limit")
+        this.Assert(PU_StayAwake.NextIndex(0, 0) = 1 && PU_StayAwake.NextIndex(2, 300) = 3,
+            "a press while the notice shows steps to the next duration")
+        this.Assert(PU_StayAwake.NextIndex(last, 300) = last,
+            "stepping stays on no limit instead of turning off")
+        this.Assert(PU_StayAwake.NextIndex(3, PU_StayAwake.NoticeMs) = 1
+            && PU_StayAwake.NextIndex(last, 3600000) = 1,
+            "once the notice has gone, a press starts over")
         this.Assert(PU_StayAwake.Describe(30) = "30 min" && PU_StayAwake.Describe(480) = "8 h",
             "notices name minutes and hours")
         statuses := []
         awake := PU_StayAwake({SetTrayStatus: (module, text) => statuses.Push(text)})
         awake.End()
-        this.Assert(awake.cycle = "" && statuses.Length = 1 && statuses[1] = "",
+        this.Assert(awake.index = 0 && statuses.Length = 1 && statuses[1] = "",
             "ending without a request only clears the tray status")
     }
 

@@ -280,62 +280,64 @@ class PU_SleepPolicy {
 
 ; Keeps the computer from idle sleep with the request a backup or a video call
 ; makes. Screens still turn off and lock, and Sleep chosen by hand, the lid and
-; the battery stay Windows' to decide. Pause + End cycles short durations and
-; Pause + Shift + End long ones; each press counts from now.
+; the battery stay Windows' to decide. Pause + End steps through the durations
+; while its notice shows and starts over once it has gone; each step counts
+; from now. Pause + Shift + End allows sleep again.
 class PU_StayAwake {
     ; Minutes; 0 means no limit.
-    static Durations := Map("short", [30, 60, 120], "long", [240, 480, 0])
+    static Durations := [30, 60, 120, 240, 480, 0]
+    ; A press steps further only while the last step's notice shows.
+    static NoticeMs := 1400
 
     __New(module) {
         this.module := module
-        this.cycle := ""
         this.index := 0
+        this.stepped := 0  ; A_TickCount of the last step
         this.timer := ObjBindMethod(this, "Expire")
     }
 
-    ; The step of cycle after the current one: an index into its durations, or
-    ; 0 once the cycle runs out and sleep is allowed again. Another cycle
-    ; starts from its first step.
-    static NextIndex(cycle, currentCycle, currentIndex) {
-        index := (cycle = currentCycle ? currentIndex : 0) + 1
-        return index <= PU_StayAwake.Durations[cycle].Length ? index : 0
+    ; The step after currentIndex when pressed elapsedMs after it: the next
+    ; duration while its notice shows, staying on the last, otherwise the first.
+    static NextIndex(currentIndex, elapsedMs) {
+        if !currentIndex || elapsedMs >= PU_StayAwake.NoticeMs
+            return 1
+        return Min(currentIndex + 1, PU_StayAwake.Durations.Length)
     }
 
     static Describe(minutes) => minutes < 60 ? minutes " min" : (minutes // 60) " h"
 
-    Step(cycle) {
-        index := PU_StayAwake.NextIndex(cycle, this.cycle, this.index)
-        if !index {
-            this.End()
-            SuiteNotice.Show("status", "Sleep allowed again", 1400)
-            return
-        }
-        minutes := PU_StayAwake.Durations[cycle][index]
+    Step() {
+        index := PU_StayAwake.NextIndex(this.index, (A_TickCount - this.stepped) & 0xFFFFFFFF)
+        minutes := PU_StayAwake.Durations[index]
         DllCall("SetThreadExecutionState", "uint", 0x80000001, "uint") ; ES_CONTINUOUS | ES_SYSTEM_REQUIRED
-        this.cycle := cycle
         this.index := index
+        this.stepped := A_TickCount
         SetTimer(this.timer, minutes ? -minutes * 60000 : 0)
         this.module.SetTrayStatus(minutes
             ? "Awake until " FormatTime(DateAdd(A_Now, minutes, "Minutes"), "HH:mm") : "Awake until turned off")
         text := minutes ? "Awake for " PU_StayAwake.Describe(minutes) : "Awake until turned off"
-        SuiteNotice.Show("status", text, 1400)
+        SuiteNotice.Show("status", text, PU_StayAwake.NoticeMs)
         this.module.Report(text)
     }
 
-    Expire(*) {
-        if this.cycle = ""
-            return
+    AllowSleep() {
+        active := this.index
         this.End()
-        SuiteNotice.Show("status", "Sleep allowed again", 1400)
-        this.module.Report("stay awake ended")
+        SuiteNotice.Show("status", active ? "Sleep allowed again" : "Sleep already allowed", PU_StayAwake.NoticeMs)
+        if active
+            this.module.Report("stay awake ended")
+    }
+
+    Expire(*) {
+        if this.index
+            this.AllowSleep()
     }
 
     ; Withdraws the request; safe when none is active.
     End() {
         SetTimer(this.timer, 0)
-        if this.cycle != ""
+        if this.index
             DllCall("SetThreadExecutionState", "uint", 0x80000000, "uint") ; ES_CONTINUOUS
-        this.cycle := ""
         this.index := 0
         this.module.SetTrayStatus("")
     }
