@@ -1,11 +1,72 @@
-; Shared GUI building blocks: one icon, centered opening, batched layouts and
-; on-screen notices.
+; Shared GUI building blocks: one icon, the corner sizing grip, centered
+; opening, batched layouts and on-screen notices.
 SuiteGui(options := "", title := "") {
     window := Gui(options, title)
     SuiteIcons.Apply(window)
     ; Mark before showing: the window-show hook must never adopt our own dialogs.
     DllCall("SetPropW", "ptr", window.Hwnd, "str", "nroj.SuperHotkey.CascadeIgnore", "ptr", 1, "int")
+    ; Resizable windows get the corner grip most apps have; overlays do not.
+    if DllCall("GetWindowLongPtrW", "ptr", window.Hwnd, "int", -16, "ptr") & 0x00040000 ; WS_THICKFRAME
+        SuiteSizeGrip.Attach(window)
     return window
+}
+
+; A bottom-right sizing grip drawn like Windows' own: six dots on the window's
+; background in a 17-unit corner that resizes the window. Windows' grip control
+; paints its own gray square, so plain controls draw the dots instead. They
+; are disabled, which leaves the mouse to the window, and hide while maximized.
+class SuiteSizeGrip {
+    static Corner := 17
+    static Dots := [[12, 7], [9, 10], [12, 10], [6, 13], [9, 13], [12, 13]] ; 2 x 2 each
+    static grips := Map() ; window -> its dots; the window destroys them with itself
+    static cornerHook := OnMessage(0x0084, ObjBindMethod(SuiteSizeGrip, "HitTest")) ; WM_NCHITTEST
+
+    static Attach(window) {
+        dots := []
+        for dot in this.Dots
+            dots.Push(window.AddText("x0 y0 w2 h2 Disabled BackgroundBFBFBF"))
+        this.grips[window.Hwnd] := dots
+        ; First of the window's Size callbacks, so a later one cannot skip it.
+        window.OnEvent("Size", (window, minMax, *) => SuiteSizeGrip.Move(window, minMax))
+    }
+
+    ; The dots are real controls, so they paint on the window's background; code
+    ; that lays out every control of a window leaves them to Move.
+    static Owns(window, control) {
+        if this.grips.Has(window.Hwnd)
+            for dot in this.grips[window.Hwnd]
+                if dot = control
+                    return true
+        return false
+    }
+
+    static Move(window, minMax := 0) {
+        if !this.grips.Has(window.Hwnd)
+            return
+        window.GetClientPos(, , &width, &height)
+        shown := minMax != 1
+        for index, dot in this.grips[window.Hwnd] {
+            if dot.Visible != shown
+                dot.Visible := shown
+            dot.Move(width - this.Corner + this.Dots[index][1], height - this.Corner + this.Dots[index][2], 2, 2)
+        }
+    }
+
+    ; The corner under the dots resizes the window, as Windows' grip does.
+    static HitTest(wParam, lParam, message, hwnd) {
+        if !this.grips.Has(hwnd) || DllCall("IsZoomed", "ptr", hwnd, "int")
+            return
+        point := Buffer(8, 0)
+        NumPut("int", lParam << 48 >> 48, "int", lParam << 32 >> 48, point) ; signed x, y
+        rect := Buffer(16, 0)
+        if !DllCall("ScreenToClient", "ptr", hwnd, "ptr", point, "int")
+            || !DllCall("GetClientRect", "ptr", hwnd, "ptr", rect, "int")
+            return
+        corner := Round(this.Corner * A_ScreenDPI / 96)
+        if NumGet(point, 0, "int") >= NumGet(rect, 8, "int") - corner
+            && NumGet(point, 4, "int") >= NumGet(rect, 12, "int") - corner
+            return 17 ; HTBOTTOMRIGHT
+    }
 }
 
 SuiteShowCentered(window, width, height, layoutCallback := 0, fitWorkArea := false) {
@@ -28,8 +89,10 @@ SuiteShowCentered(window, width, height, layoutCallback := 0, fitWorkArea := fal
         outerHeight := NumGet(rect, 12, "int") - NumGet(rect, 4, "int")
     }
     window.GetClientPos(, , &clientWidth, &clientHeight)
+    ; A window sized while hidden gets no Size event, so lay it out here.
     if HasMethod(layoutCallback, "Call")
         layoutCallback.Call(window, 0, clientWidth, clientHeight)
+    SuiteSizeGrip.Move(window)
     x := left + Floor((right - left - outerWidth) / 2)
     y := top + Floor((bottom - top - outerHeight) / 2)
     if !DllCall("SetWindowPos", "ptr", window.Hwnd, "ptr", 0,

@@ -10,6 +10,7 @@
 
 - **Cascade Kingdom:** `Caps + Tab` brings the next cascade forward and outlines its front window, from left to right across your displays and wrapping. From outside a cascade it starts with the one on your display. A notice says when there are no cascades, or no other one.
 - **Paper Pad:** `Caps + F12` shows or hides the drawer too, beside `Win + F12`.
+- **Suite windows** that resize, such as Help, Settings and Keybindings, show the Windows sizing grip in the lower-right corner again, on the window's own background. It hides while a window is maximized.
 - **Cascade Kingdom:** focus tabs appear on the right side too, mirroring the left: one outside each window's upper-right corner, and a full-height one along the right side of the lowest window. Both tabs of a slot do the same thing.
 - **Cascade Kingdom:** Mirror in Settings makes cascades step down to the left instead of the right. Focus tabs, full-height tabs and drop guides swap sides with it, a drop is judged by the window's top-right corner, and open cascades rearrange when you click Apply.
 - **Power-Up Utilities:** `Pause + End` keeps the computer awake for 30 minutes, 1 h or 2 h, and `Pause + Shift + End` for 4 h, 8 h or until turned off. Each press steps to the next duration, counted from now, with a notice; after the last step sleep is allowed again. The tray icon's tooltip shows how long. Screens still turn off and lock, choosing Sleep or closing a laptop lid still sleeps, and suspending or exiting Super Hotkey ends it.

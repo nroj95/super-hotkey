@@ -121,7 +121,7 @@ class SuiteInterface {
         for item in footer.buttons
             footerHandles[item.button.Hwnd] := true
         for control in window {
-            if footerHandles.Has(control.Hwnd)
+            if footerHandles.Has(control.Hwnd) || SuiteSizeGrip.Owns(window, control)
                 continue
             control.GetPos(&x, &y, &w, &h)
             controls.Push({control: control, x: x, y: y, w: w, h: h,

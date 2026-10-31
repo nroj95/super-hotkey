@@ -10,6 +10,29 @@ class InterfaceChecks {
 
     static Assert(condition, label) => SuiteChecks.Assert(condition, label)
 
+    ; Six dots in the lower-right corner, disabled so the mouse reaches the
+    ; window, which answers the corner as its bottom-right sizing border.
+    static AssertSizeGrip(window, label) {
+        window.GetClientPos(, , &width, &height)
+        placed := SuiteSizeGrip.grips.Has(window.Hwnd) && SuiteSizeGrip.grips[window.Hwnd].Length = 6
+        if placed
+            for index, dot in SuiteSizeGrip.grips[window.Hwnd] {
+                dot.GetPos(&x, &y, &w, &h)
+                placed := placed && dot.Visible && !dot.Enabled && w = 2 && h = 2
+                    && x = width - 17 + SuiteSizeGrip.Dots[index][1]
+                    && y = height - 17 + SuiteSizeGrip.Dots[index][2]
+            }
+        this.Assert(placed, "a sizing grip's dots sit in the lower-right corner: " label)
+        rect := Buffer(16, 0)
+        corner := Buffer(8, 0)
+        DllCall("GetClientRect", "ptr", window.Hwnd, "ptr", rect, "int")
+        NumPut("int", NumGet(rect, 8, "int") - 4, "int", NumGet(rect, 12, "int") - 4, corner)
+        DllCall("ClientToScreen", "ptr", window.Hwnd, "ptr", corner, "int")
+        point := NumGet(corner, 4, "int") << 16 | NumGet(corner, 0, "int") & 0xFFFF
+        this.Assert(SendMessage(0x0084, 0, point, , "ahk_id " window.Hwnd) = 17,
+            "the sizing grip's corner resizes the window: " label)
+    }
+
     static AssertCentered(window, label) {
         rect := Buffer(16, 0)
         this.Assert(!!DllCall("GetWindowRect", "ptr", window.Hwnd, "ptr", rect, "int"),
@@ -115,6 +138,10 @@ class InterfaceChecks {
                 "global Keybindings has Restore defaults and Apply; the title bar closes it")
             editor.GetClientPos(, , &firstWidth, &firstHeight)
             this.AssertCentered(editor, "Keybindings")
+            this.AssertSizeGrip(editor, "Keybindings")
+            overlay := SuiteGui("-Caption +ToolWindow", "Sizing grip probe")
+            try this.Assert(!SuiteSizeGrip.grips.Has(overlay.Hwnd), "windows that cannot resize have no sizing grip")
+            finally overlay.Destroy()
             expectedKeybindingsHeight := Min(860, Max(560, A_ScreenHeight - 125))
             monitor := WindowMonitorIndex(editor.Hwnd)
             MonitorGetWorkArea(monitor, &workLeft, &workTop, &workRight, &workBottom)
@@ -332,6 +359,7 @@ class InterfaceChecks {
                 this.Assert(helpWidth = 820 && helpHeight = expectedHelpHeight,
                     "Help opens tall enough for its introduction: " id)
                 this.AssertCentered(window, SuiteSettings.ModuleNames[id] " Help")
+                this.AssertSizeGrip(window, SuiteSettings.ModuleNames[id] " Help")
                 titlePart := app.ui.helpLayouts[id].header
                 statusPart := app.ui.helpLayouts[id].status
                 titlePart.GetPos(&headingX, , &headingW)
@@ -502,6 +530,7 @@ class InterfaceChecks {
                         && app.ui.pageLayouts["settings:" id].minHeight < defaultH,
                         "Settings can shrink below the opening size: " id)
                     this.AssertCentered(settings, SuiteSettings.ModuleNames[id] " Settings")
+                    this.AssertSizeGrip(settings, SuiteSettings.ModuleNames[id] " Settings")
                     settings.Show("w" (defaultW + 120) " h" (defaultH + 140))
                     settings.GetClientPos(, , &settingsW, &settingsH)
                     app.ui.ResizePage("settings:" id, settings, 0, settingsW, settingsH)
