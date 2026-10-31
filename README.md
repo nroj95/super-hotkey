@@ -58,17 +58,18 @@ Hold CapsLock or Pause and press another key for extra hotkeys, or tap it first 
 
 ## Start
 
-Install [AutoHotkey v2](https://www.autohotkey.com/) **64-bit**, extract the project and run `super-hotkey.ahk`.
+1. Install [AutoHotkey v2](https://www.autohotkey.com/) **64-bit**.
+2. Download the newest [release](https://github.com/nroj95/super-hotkey/releases), extract it and run `super-hotkey.ahk`.
+3. Right-click the tray icon and check **Run at startup** to have it ready after every sign-in.
 
 Try these first:
 
 - Hold `Win` and scroll to walk the active window through zones.
+- Press `Win + M`, then `Win + Shift + M`: only your display clears, and everything comes back in order.
 - Press `Win + F12` to open the Paper Pad notes drawer. It needs [Notepad3](https://www.rizonesoft.com/downloads/notepad3/) and asks you to install or locate it when it can't find it.
-- Press `Ctrl + Alt + K` to see and change every hotkey.
+- Press `Ctrl + Alt + K` to see and change your hotkeys.
 
-Right-click the tray icon for guides, settings and **Modules...**, where you can turn off what you don't need.
-
-Settings and logs live in `%LOCALAPPDATA%\nroj\SuperHotkey`.
+The tray icon also has guides, settings and **Modules...**, where you can turn off what you don't need. Settings and logs live in `%LOCALAPPDATA%\nroj\SuperHotkey`.
 
 ## Compatibility
 
