@@ -35,7 +35,7 @@ class PowerUpUtilities extends SuiteModule {
         this.AddAction("sleep", "system.sleep", "put computer to sleep", "sleep", "", "Pause + Escape")
         this.AddAction("awake", "system.stay-awake", "stay awake: 30 min, 1 h, 2 h, off",
             "awake-short", "", "Pause + End")
-        this.AddAction("awake", "system.stay-awake-long", "stay awake: 4 h, 8 h, until off, off",
+        this.AddAction("awake", "system.stay-awake-long", "stay awake: 4 h, 8 h, no limit, off",
             "awake-long", "", "Pause + Shift + End")
         ; Terminal copy shares Caps + C with F23: the Terminal scope wins there.
         this.AddAction("terminal", "terminal.copy", "copy terminal buffer as Markdown",
@@ -317,7 +317,7 @@ class PowerUpUtilities extends SuiteModule {
             . "to sleep."
             . "`r`n`r`nSTAY AWAKE"
             . "`r`nPause + End keeps the computer from sleeping for 30 minutes, 1 or 2 hours; "
-            . "Pause + Shift + End for 4 or 8 hours or until you turn it off. Each press "
+            . "Pause + Shift + End for 4 or 8 hours or with no limit. Each press "
             . "steps to the next duration, counted from now, and after the last one sleep "
             . "is allowed again. The tray icon's tooltip shows how long. The screen still "
             . "turns off and locks as usual, and choosing Sleep or closing a laptop lid "

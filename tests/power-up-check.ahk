@@ -29,7 +29,7 @@ class PowerUpChecks {
         durations := PU_StayAwake.Durations
         this.Assert(durations["short"][1] = 30 && durations["short"][3] = 120
             && durations["long"][1] = 240 && durations["long"][3] = 0,
-            "stay awake cycles 30 min to 2 h, and 4 h to until turned off")
+            "stay awake cycles 30 min to 2 h, and 4 h to no limit")
         this.Assert(PU_StayAwake.NextIndex("short", "", 0) = 1
             && PU_StayAwake.NextIndex("short", "short", 2) = 3,
             "each press steps to the next duration")

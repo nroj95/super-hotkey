@@ -283,7 +283,7 @@ class PU_SleepPolicy {
 ; the battery stay Windows' to decide. Pause + End cycles short durations and
 ; Pause + Shift + End long ones; each press counts from now.
 class PU_StayAwake {
-    ; Minutes; 0 stays awake until turned off.
+    ; Minutes; 0 means no limit.
     static Durations := Map("short", [30, 60, 120], "long", [240, 480, 0])
 
     __New(module) {
