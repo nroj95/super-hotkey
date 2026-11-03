@@ -172,19 +172,19 @@ class SuiteApplication {
                 context: (*) => SuiteWindowOwnership.AllowsWonderWindows(SuiteWorkingMonitor.UserWindow())})
         this.manager.AddAction("core.focus-outline", "show focus outline", ObjBindMethod(this, "FocusOutlineEvent"),
             ["Caps + Caps"], {category: "Global"})
-        ; Listed in default-key order: F1 clear, F2 copy, F3 restart, with the
-        ; unassigned verbose logging switch beside the other log actions.
+        ; Listed in default-key order: F1 clear, F2 copy, F3 restart, F4 suspend,
+        ; then the unassigned verbose logging switch.
         this.manager.AddAction("core.clear-log", "clear debug log",
             ObjBindMethod(this, "LogShortcutEvent", "clear"), ["Pause + F1"], {category: "Global"})
         this.manager.AddAction("core.copy-log", "copy debug log",
             ObjBindMethod(this, "LogShortcutEvent", "copy"), ["Pause + F2"], {category: "Global"})
-        this.manager.AddAction("core.verbose-log", "turn verbose logging on / off",
-            ObjBindMethod(this, "LogShortcutEvent", "verbose"), [], {category: "Global"})
         this.manager.AddAction("core.restart", "restart Super Hotkey", ObjBindMethod(this, "RestartEvent"),
             ["Pause + F3"], {category: "Global"})
         ; The one action that still answers while suspended, so it can resume.
         this.manager.AddAction("core.suspend", "suspend / resume Super Hotkey", ObjBindMethod(this, "SuspendEvent"),
             ["Pause + F4"], {category: "Global", whilePaused: true})
+        this.manager.AddAction("core.verbose-log", "turn verbose logging on / off",
+            ObjBindMethod(this, "LogShortcutEvent", "verbose"), [], {category: "Global"})
         for id in SuiteApplication.KeybindingsOrder
             this.modules[id].Register(this.manager)
     }

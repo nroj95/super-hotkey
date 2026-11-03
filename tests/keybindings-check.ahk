@@ -663,8 +663,8 @@ class KeybindingsChecks {
     static CheckDisplayOrder(rows) {
         this.AssertDisplaySequence(rows, [
             "core.keybindings", "core.close-active", "core.focus-outline", "core.clear-log",
-            "core.copy-log", "core.restart", "core.suspend"],
-            "Global shortcuts group application first, logs together, then restart")
+            "core.copy-log", "core.restart", "core.suspend", "core.verbose-log"],
+            "Global shortcuts group application first, then the keys in F1-F4 order, then unassigned verbose logging")
         this.AssertDisplaySequence(rows, [
             "paper-pad.help", "paper-pad.toggle", "paper-pad.hide",
             "paper-pad.previous", "paper-pad.next", "paper-pad.delete"],
