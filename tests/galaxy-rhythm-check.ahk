@@ -88,6 +88,12 @@ class GalaxyRhythmChecks {
         }
         this.Assert(placed = "bottom-right=1070,604 bottom-left=112,604 top-right=1070,16 top-left=112,16 ",
             "each corner keeps the upright bar 12 px in from the side and 16 px from the top or bottom")
+        this.Assert(GR_EnergyBar.Colors(1) = "3CB043 Background303030"
+            && GR_EnergyBar.Colors(0.5) = "E0B000 Background303030"
+            && GR_EnergyBar.Colors(0.25) = "D87018 Background303030"
+            && GR_EnergyBar.Colors(0.001) = "D03030 Background303030"
+            && GR_EnergyBar.Colors(-0.5) = "D03030 Background5A1414",
+            "the bar blends from green through yellow to red, with a dark red track on the road")
         this.Assert(GR_EnergyBar.Monitors("Primary").Length = 1
             && GR_EnergyBar.Monitors("Primary")[1] = MonitorGetPrimary()
             && GR_EnergyBar.Monitors("All").Length = MonitorGetCount()

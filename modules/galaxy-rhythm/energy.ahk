@@ -348,9 +348,19 @@ class GR_EnergyBar {
         return false
     }
 
-    ; Green when full, then yellow, orange and red; an empty red track on the road.
-    static Colors(share) => (share > 0.5 ? "3CB043" : share > 0.25 ? "E0B000" : share > 0.1 ? "E07000" : "D03030")
-        . (share > 0 ? " Background303030" : " Background5A1414")
+    ; Green when full, yellow at half and red when empty, blended smoothly in
+    ; whole percents as in Stardew Valley; an empty red track on the road.
+    static Colors(share) {
+        blend := Round(Max(0, Min(1, share)), 2)
+        low := blend < 0.5
+        from := low ? 0xD03030 : 0xE0B000
+        to := low ? 0xE0B000 : 0x3CB043
+        mix := low ? blend * 2 : blend * 2 - 1
+        color := 0
+        for shift in [16, 8, 0]
+            color |= Round(((from >> shift) & 0xFF) * (1 - mix) + ((to >> shift) & 0xFF) * mix) << shift
+        return Format("{:06X}", color) (share > 0 ? " Background303030" : " Background5A1414")
+    }
 
     ; The displays to show on: the primary display, every display, or the one
     ; named by its Windows device name; the primary while that one is
