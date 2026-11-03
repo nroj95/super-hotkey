@@ -15,7 +15,7 @@
 ; 10 % left says so. At zero the road to fainting starts, always from zero and
 ; with its notice: when the bar first empties, when stay awake ends and when
 ; the user is back after a faint without a real break. With Faint on, the
-; displays turn grey over RoadMinutes of activity, then Lights out shows and
+; displays turn grey over FadeMinutes of activity, then Lights out shows and
 ; the computer sleeps; the grey never comes without the faint, so without it
 ; the bar just stays empty. Stay awake holds the bar at zero: no grey and no
 ; faint. The level and the last input survive restarts in energy.ini. The bar
@@ -26,12 +26,13 @@
 class GR_Energy {
     static TickMs := 10000
     static ActiveMs := 60000      ; input this recent makes a tick active
-    static RoadMinutes := 60      ; activity from zero to the faint
+    static FadeDefault := 60      ; minutes of activity from zero to the faint
     static LowShare := 0.1
     ; Breaks pay most at first: up to BonusMinutes of extra rest, most of it
     ; within the first half hour.
     static BonusMinutes := 35
     static BonusDecayMinutes := 15
+    ; The notices; Road and Faint are only the default words of settings.
     static Low := "You're running low on energy"
     static Road := "You're running on fumes"
     static Faint := "Lights out"
@@ -86,6 +87,9 @@ class GR_Energy {
         this.nightHours := GR_Energy.Whole(read("NightHours", ""), 4, 12, 8)
         this.breakMinutes := GR_Energy.Whole(read("BreakMinutes", ""), 1, 60, 10)
         this.faint := read("Faint", 1) = "1"
+        this.roadMinutes := GR_Energy.Whole(read("FadeMinutes", ""), 10, 180, GR_Energy.FadeDefault)
+        this.roadText := GR_Bedtime.CleanText(read("RoadText", ""), GR_Energy.Road)
+        this.faintText := GR_Bedtime.CleanText(read("FaintText", ""), GR_Energy.Faint)
         position := read("Position", "bottom-right")
         this.position := GR_EnergyBar.IsCorner(position) ? position : "bottom-right"
         display := read("Display", "Primary")
@@ -93,14 +97,13 @@ class GR_Energy {
         ; name, such as \\.\DISPLAY2.
         this.display := display = "Primary" || display = "All"
             || RegExMatch(display, "i)^\\\\\.\\DISPLAY\d+$") ? display : "Primary"
-        this.level := Min(this.level, this.full)
-        if !this.show || !this.faint
-            this.module.grey.Set("energy", 0)
+        this.level := Max(-this.roadMinutes, Min(this.level, this.full))
+        this.Shade()
     }
 
     LoadState() {
         level := IniRead(this.statePath, "Energy", "Level", "")
-        this.level := IsNumber(level) ? Max(-GR_Energy.RoadMinutes, Min(Number(level), this.full)) : this.full
+        this.level := IsNumber(level) ? Max(-this.roadMinutes, Min(Number(level), this.full)) : this.full
         last := IniRead(this.statePath, "Energy", "LastInput", "")
         seen := IniRead(this.statePath, "Energy", "LastSeen", "")
         this.lastInput := IsTime(last) ? last : ""
@@ -200,7 +203,7 @@ class GR_Energy {
         if staying && this.level < 0
             this.level := 0
         if idleMs < GR_Energy.ActiveMs {
-            lowest := staying ? 0 : -GR_Energy.RoadMinutes
+            lowest := staying ? 0 : -this.roadMinutes
             this.level := Max(this.level - GR_Energy.TickMs / 60000, Min(this.level, lowest))
         }
         if this.level > this.full * GR_Energy.LowShare
@@ -213,13 +216,12 @@ class GR_Energy {
             this.roadShown := false
         else if !this.roadShown {
             this.roadShown := true
-            this.Notice(GR_Energy.Road)
+            this.Notice(this.roadText)
         }
-        this.module.grey.Set("energy", this.faint && !staying && this.level < 0
-            ? -this.level / GR_Energy.RoadMinutes : 0)
-        if this.faint && !staying && !this.fainting && this.level <= -GR_Energy.RoadMinutes {
+        this.Shade()
+        if this.faint && !staying && !this.fainting && this.level <= -this.roadMinutes {
             this.fainting := true
-            this.Notice(GR_Energy.Faint)
+            this.Notice(this.faintText)
             SetTimer(this.faintCallback, -SuiteNotice.NewsMs)
         }
         this.Save(now)
@@ -281,7 +283,16 @@ class GR_Energy {
         SetTimer(() => this.module.grey.Set("energy", 0), -5000)
     }
 
+    ; The grey of the road, cleared at once by stay awake or a suspended
+    ; suite; Draw runs it every second, so it never waits for a tick.
+    Shade() {
+        app := this.module.app
+        this.module.grey.Set("energy", this.show && this.faint && this.level < 0 && !SuiteStayAwake.active
+            && !app.suspended && app.ModuleActive(this.module.id) ? -this.level / this.roadMinutes : 0)
+    }
+
     Draw(*) {
+        this.Shade()
         if IsObject(this.bar)
             this.bar.Draw(this.level / this.full, this.show && this.Present(), this.display, this.position)
     }

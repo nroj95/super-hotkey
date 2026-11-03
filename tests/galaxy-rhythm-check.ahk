@@ -50,6 +50,21 @@ class GalaxyRhythmChecks {
             "once the module is on, a full 12-hour bar shows with the grey and the faint")
         this.Assert(energy.position = "bottom-right" && energy.display = "Primary",
             "the bar sits bottom right on the primary display")
+        this.Assert(energy.roadMinutes = 60 && energy.roadText = "You're running on fumes"
+            && energy.faintText = "Lights out",
+            "running on fumes greys over an hour of activity before Lights out")
+        IniWrite(30, energy.settingsPath, "Energy", "FadeMinutes")
+        IniWrite("Out of juice", energy.settingsPath, "Energy", "RoadText")
+        IniWrite("Bedtime, champ", energy.settingsPath, "Energy", "FaintText")
+        energy.LoadSettings()
+        this.Assert(energy.roadMinutes = 30 && energy.roadText = "Out of juice"
+            && energy.faintText = "Bedtime, champ",
+            "the fade length and the words at zero and at the faint load from Settings")
+        IniWrite(5, energy.settingsPath, "Energy", "FadeMinutes")
+        IniWrite("", energy.settingsPath, "Energy", "RoadText")
+        energy.LoadSettings()
+        this.Assert(energy.roadMinutes = 60 && energy.roadText = "You're running on fumes",
+            "a fade under 10 minutes falls back to an hour, and an empty message to its default words")
         IniWrite(30, energy.settingsPath, "Energy", "FullHours")
         IniWrite(6, energy.settingsPath, "Energy", "NightHours")
         IniWrite(0, energy.settingsPath, "Energy", "Faint")
@@ -116,6 +131,8 @@ class GalaxyRhythmChecks {
             this.Assert(Abs(grey.level - (30 + tick) / 60) < 0.001,
                 "the grey deepens with every active minute on the road")
             SuiteStayAwake.active := true
+            energy.Draw()
+            this.Assert(grey.level = 0, "stay awake clears the grey within a second, without waiting for a tick")
             energy.Tick(at("090100"), 0)
             this.Assert(energy.level = 0 && grey.level = 0, "stay awake holds the bar at zero, without grey")
             energy.Tick(at("090110"), 0)

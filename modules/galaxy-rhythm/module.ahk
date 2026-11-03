@@ -144,18 +144,38 @@ class GalaxyRhythmModule extends SuiteModule {
         energyControls.Push(night, window.AddUpDown("Range4-12", energy.nightHours),
             window.AddText("x523 y" (y + 4) " w30", "h"))
         rows.Advance(breaks)
-        ; The grey always leads to the faint, so they are one choice.
+        y := rows.y
+        energyControls.Push(window.AddText("x44 y" (y + 4) " w150", "At zero:"))
+        roadText := window.AddEdit("x200 y" y " w400 Limit" GR_Bedtime.TextLimit " vroadText", energy.roadText)
+        energyControls.Push(roadText)
+        rows.Advance(roadText)
+        ; The grey always leads to the faint, so they are one choice, and its
+        ; fields follow it like bedtime's sleep fields.
         faint := window.AddCheckbox("x44 y" rows.y " w540 vfaintEnergy",
             "Run out: fade to grey, then faint into sleep")
         faint.Value := energy.faint
         energyControls.Push(faint)
         rows.Advance(faint)
+        y := rows.y
+        faintControls := [window.AddText("x68 y" (y + 4) " w130", "Fade over")]
+        energyFade := window.AddEdit("x200 y" y " w60 Number venergyFade")
+        faintControls.Push(energyFade, window.AddUpDown("Range10-180", energy.roadMinutes),
+            window.AddText("x268 y" (y + 4) " w300", "min of activity"))
+        rows.Advance(energyFade)
+        y := rows.y
+        faintControls.Push(window.AddText("x68 y" (y + 4) " w130", "At faint:"))
+        faintText := window.AddEdit("x200 y" y " w400 Limit" GR_Bedtime.TextLimit " vfaintText", energy.faintText)
+        faintControls.Push(faintText)
+        rows.Advance(faintText)
         refreshEnergy(*) {
             for control in energyControls
                 control.Enabled := showEnergy.Value
+            for control in faintControls
+                control.Enabled := showEnergy.Value && faint.Value
         }
         refreshEnergy()
         showEnergy.OnEvent("Click", refreshEnergy)
+        faint.OnEvent("Click", refreshEnergy)
         rows.Show(ui, key, [["Apply", ObjBindMethod(this, "SaveSettings", ui), 100],
             ["Back", ObjBindMethod(ui, "BackToHelp", this.id), 90]])
     }
@@ -180,6 +200,9 @@ class GalaxyRhythmModule extends SuiteModule {
                 "NightHours", GR_Energy.Whole(window["nightHours"].Value, 4, 12, 8),
                 "BreakMinutes", GR_Energy.Whole(window["breakMinutes"].Value, 1, 60, 10),
                 "Faint", window["faintEnergy"].Value ? 1 : 0,
+                "FadeMinutes", GR_Energy.Whole(window["energyFade"].Value, 10, 180, GR_Energy.FadeDefault),
+                "RoadText", GR_Bedtime.CleanText(window["roadText"].Value, GR_Energy.Road),
+                "FaintText", GR_Bedtime.CleanText(window["faintText"].Value, GR_Energy.Faint),
                 "Position", GR_EnergyBar.Corners[window["position"].Value][1],
                 "Display", this.displayChoices[window["display"].Value])
             this.app.Settings.WritePreferences(this.id, Map("Bedtime", values, "Energy", energy))
@@ -216,7 +239,7 @@ class GalaxyRhythmModule extends SuiteModule {
             . "locked, with the screens off, asleep or off: breaks of 10 minutes or more count, "
             . "a 30-minute walk gives back about 1.5 hours, and a full night of 8 hours fills it. "
             . "Near empty it says so; at zero you're running on fumes, the screen greys over an "
-            . "hour of activity, and then Lights out puts the computer to sleep. Stay awake "
+            . "hour of activity by default, and then Lights out puts the computer to sleep. Stay awake "
             . "holds the bar at zero instead."
             . "`r`n`r`nTurn Galaxy Rhythm on in Modules and all of this is on; every time, length "
             . "and message can be changed in Settings."
