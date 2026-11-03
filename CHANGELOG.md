@@ -15,6 +15,7 @@
 
 ### Fixes
 
+- With more than one display, notices no longer hide behind a game in exclusive fullscreen: a notice for the game's display shows on the next one instead, and news shown on every display skips it.
 - **Power-Up Utilities:** when stay awake runs out, its "Sleep allowed again" notice shows on every display for 3 seconds. If the computer sleeps or is locked, the notice shows a second after you unlock instead of behind the lock screen.
 
 ## v1.0.0-beta.3

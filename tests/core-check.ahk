@@ -843,6 +843,23 @@ class CoreChecks {
             SuiteNotice.notices["status"].window.GetPos(, &statusY, , &statusHeight)
             this.Assert(Abs(statusY + statusHeight // 2 - (top + bottom) // 2) <= 2,
                 "a status notice returns to the center when the indicator hides")
+            this.Assert(SuiteNotice.CoveredMonitor() = 0, "no exclusive fullscreen game covers a display")
+            ; An exclusive fullscreen game hides whatever shows on its display.
+            if MonitorGetCount() >= 2 {
+                covered := SuiteWorkingMonitor.Get()
+                next := Mod(covered, MonitorGetCount()) + 1
+                original := SuiteNotice.GetOwnPropDesc("CoveredMonitor")
+                SuiteNotice.DefineProp("CoveredMonitor", {Call: (self) => covered})
+                try {
+                    SuiteNotice.Show("status", "Debug log copied")
+                    this.Assert(SuiteNotice.notices["status"].monitor = next,
+                        "a notice moves to the next display when a game covers the working one")
+                    SuiteNotice.ShowEverywhere("news", "Sleep allowed again")
+                    this.Assert(!SuiteNotice.notices.Has("news-" covered) && SuiteNotice.notices.Has("news-" next),
+                        "news skips the display a game covers")
+                }
+                finally SuiteNotice.DefineProp("CoveredMonitor", original)
+            }
         }
         finally SuiteNotice.Destroy()
         this.Assert(!SuiteNotice.notices.Count, "notices release every window")

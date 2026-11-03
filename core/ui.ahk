@@ -248,7 +248,8 @@ class SuiteNotice {
     static NewsMs := 3000
 
     ; Shows text in slot until Hide, or for durationMs when given. A monitor
-    ; index centers it there instead of on the working display.
+    ; index centers it there instead of on the working display. A display an
+    ; exclusive fullscreen game covers passes the notice to the next one.
     static Show(slot, text, durationMs := 0, monitor := 0) {
         if !this.notices.Has(slot)
             this.notices[slot] := {window: 0, text: "", monitor: 0, shown: false,
@@ -262,6 +263,9 @@ class SuiteNotice {
             notice.text := text
         }
         notice.monitor := monitor || SuiteWorkingMonitor.Get()
+        ; Nothing draws over an exclusive fullscreen game, so step aside.
+        if notice.monitor = this.CoveredMonitor()
+            notice.monitor := Mod(notice.monitor, MonitorGetCount()) + 1
         notice.shown := true
         this._Arrange()
         if durationMs
@@ -273,8 +277,21 @@ class SuiteNotice {
     ; News lasts longer than the 1.4 s answer to a press, since nobody was
     ; looking for it.
     static ShowEverywhere(slot, text) {
+        covered := this.CoveredMonitor()
         loop MonitorGetCount()
-            this.Show(slot "-" A_Index, text, this.NewsMs, A_Index)
+            if A_Index != covered
+                this.Show(slot "-" A_Index, text, this.NewsMs, A_Index)
+    }
+
+    ; The display an exclusive fullscreen game covers, or 0. With one display
+    ; there is nowhere else to go, so 0.
+    static CoveredMonitor() {
+        state := 0
+        if MonitorGetCount() < 2
+            || DllCall("shell32\SHQueryUserNotificationState", "int*", &state, "int")
+            || state != 3 ; QUNS_RUNNING_D3D_FULL_SCREEN
+            return 0
+        return WindowMonitorIndex(DllCall("GetForegroundWindow", "ptr"))
     }
 
     static Hide(slot, *) {
