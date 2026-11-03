@@ -17,10 +17,12 @@
 ; the user is back after a faint without a real break. With Faint on, the
 ; displays turn grey over FadeMinutes of activity, then Lights out shows and
 ; the computer sleeps; the grey never comes without the faint, so without it
-; the bar just stays empty. Stay awake holds the bar at zero: no grey and no
-; faint. The level and the last input survive restarts in energy.ini. The bar
-; sits in the corner Position names, bottom right by default, on the display
-; Display names, the primary one by default, or on all; a dry run draws no bar.
+; the bar just stays empty. Stay awake holds the bar at zero quietly: no
+; notice at zero, no grey and no faint, since the notice belongs to the grey
+; and comes once stay awake ends. The level and the last input survive
+; restarts in energy.ini. The bar sits in the corner Position names, bottom
+; right by default, on the display Display names, the primary one by default,
+; or on all; a dry run draws no bar.
 ; =============================================================================
 
 class GR_Energy {
@@ -212,9 +214,11 @@ class GR_Energy {
             this.lowShown := true
             this.Notice(GR_Energy.Low)
         }
+        ; The notice at zero announces the grey, so stay awake holds it back
+        ; until it ends.
         if this.level > 0
             this.roadShown := false
-        else if !this.roadShown {
+        else if !this.roadShown && !staying {
             this.roadShown := true
             this.Notice(this.roadText)
         }

@@ -238,7 +238,7 @@ class GalaxyRhythmModule extends SuiteModule {
             . "a 30-minute walk gives back about 1.5 hours, and a full night of 8 hours fills it. "
             . "Near empty it says so; at zero you're running on fumes, the screen greys over half "
             . "an hour of activity by default, and then Lights out puts the computer to sleep. Stay awake "
-            . "holds the bar at zero instead."
+            . "holds the bar quietly at zero instead."
             . "`r`n`r`nTurn Galaxy Rhythm on in Modules and all of this is on; every time, length "
             . "and message can be changed in Settings."
     }

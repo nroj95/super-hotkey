@@ -141,6 +141,17 @@ class GalaxyRhythmChecks {
             energy.Tick(at("090120"), 0)
             this.Assert(energy.level < 0 && this.ShownEverywhere(GR_Energy.Road),
                 "when stay awake ends, the road starts over from zero with its notice")
+            SuiteStayAwake.active := true
+            energy.level := 5
+            energy.Tick(at("090121"), 0)
+            energy.level := 0.1
+            energy.Tick(at("090122"), 0)
+            this.Assert(energy.level = 0 && grey.level = 0 && !this.ShownEverywhere(GR_Energy.Road),
+                "emptying while staying awake is quiet: the notice belongs to the grey")
+            SuiteStayAwake.active := false
+            energy.Tick(at("090123"), 0)
+            this.Assert(energy.level < 0 && this.ShownEverywhere(GR_Energy.Road),
+                "and comes once stay awake ends")
             energy.level := -29.9
             energy.Tick(at("090130"), 0)
             this.Assert(energy.fainting && grey.level = 1 && this.ShownEverywhere(GR_Energy.Faint),
