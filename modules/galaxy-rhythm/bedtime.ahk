@@ -1,22 +1,22 @@
 ; =============================================================================
-; bedtime.ahk - up to three messages at times the user chooses, the last of
-; which can also fade the displays to grey and put the computer to sleep
+; bedtime.ahk - two reminders at times the user chooses, then a last message
+; that fades the displays to grey and puts the computer to sleep
 ; =============================================================================
 ; Each message shows on every display when the clock reaches its time while the
 ; user is at the unlocked computer. A minute that passes while the computer
 ; sleeps or is locked is simply gone: nothing catches up later, so the rows
 ; never depend on each other or on their order.
 ;
-; With its sleep on, the last message starts the night, which lasts until the
-; wake-up time: the displays fade to grey over the fade time, the last word
+; The last row is the sleep: its message starts the night, which lasts until
+; the wake-up time: the displays fade to grey over the fade time, the last word
 ; shows, and once it has gone the computer sleeps; locking meanwhile changes
 ; nothing. Stay awake prevents only the sleep. On at bedtime, or switched on
 ; during the fade or the last word, it shows its own message and clears the
 ; grey; ending later in the night, it starts the fade again from the beginning.
 ; One sleep ends the night, as do suspending Super Hotkey, the computer
 ; sleeping some other way and the wake-up time. The module itself starts
-; disabled, so every row and the sleep start on: enabling Galaxy Rhythm is the
-; opt-in. settings.ini [Bedtime] holds them.
+; disabled, so every row starts on: enabling Galaxy Rhythm is the opt-in.
+; settings.ini [Bedtime] holds them.
 ; =============================================================================
 
 class GR_Bedtime {
@@ -39,7 +39,6 @@ class GR_Bedtime {
         this.module := module
         this.path := path
         this.rows := []
-        this.sleeps := false
         this.fadeMinutes := GR_Bedtime.FadeDefault
         this.wakeTime := GR_Bedtime.WakeDefault
         this.sleepText := GR_Bedtime.SleepDefault
@@ -79,7 +78,6 @@ class GR_Bedtime {
                 time: GR_Bedtime.ValidTime(time) ? time : defaults[1],
                 text: GR_Bedtime.CleanText(IniRead(this.path, "Bedtime", "Text" index, ""), defaults[2])})
         }
-        this.sleeps := IniRead(this.path, "Bedtime", "Sleep", 1) = "1"
         this.fadeMinutes := GR_Bedtime.CleanMinutes(IniRead(this.path, "Bedtime", "FadeMinutes", ""))
         wake := IniRead(this.path, "Bedtime", "WakeTime", GR_Bedtime.WakeDefault)
         this.wakeTime := GR_Bedtime.ValidTime(wake) ? wake : GR_Bedtime.WakeDefault
@@ -87,7 +85,7 @@ class GR_Bedtime {
             GR_Bedtime.SleepDefault)
         this.awakeText := GR_Bedtime.CleanText(IniRead(this.path, "Bedtime", "AwakeText", ""),
             GR_Bedtime.AwakeDefault)
-        if !this.sleeps || !this.rows[-1].show
+        if !this.rows[-1].show
             this.EndNight()
     }
 
@@ -143,7 +141,7 @@ class GR_Bedtime {
     }
 
     Show(index, now) {
-        if index != this.rows.Length || !this.sleeps {
+        if index != this.rows.Length {
             SuiteNotice.ShowEverywhere("status", this.rows[index].text)
             this.module.Report("bedtime message " index)
             return

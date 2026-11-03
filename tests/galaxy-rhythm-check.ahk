@@ -256,11 +256,11 @@ class GalaxyRhythmChecks {
         DirCreate(folder)
         path := folder "\settings.ini"
         bedtime := this.BedtimeFixture("bedtime-settings")
-        allOn := bedtime.sleeps
+        allOn := true
         for row in bedtime.rows
             allOn := allOn && row.show
         this.Assert(allOn && bedtime.rows[1].time = "0000" && bedtime.rows[3].text = "You feel sleepy",
-            "once the module is on, every bedtime message and the sleep are on, at 00:00, 01:00 and 02:00")
+            "once the module is on, both reminders and the sleep are on, at 00:00, 01:00 and 02:00")
         this.Assert(bedtime.fadeMinutes = 10 && bedtime.wakeTime = "0600"
             && bedtime.sleepText = "Good night" && bedtime.awakeText = "Stay awake prevented sleep",
             "the sleep fades over 10 min, says Good night and lasts the night until 06:00")
@@ -290,10 +290,8 @@ class GalaxyRhythmChecks {
         shown := (list) => list.Length ? list[1] : 0
         for row in bedtime.rows
             row.show := false
-        bedtime.sleeps := false
         this.Assert(!night("235955", "000005").Length, "turned-off messages never show")
-        for row in bedtime.rows
-            row.show := true
+        bedtime.rows[1].show := bedtime.rows[2].show := true
         this.Assert(shown(night("235955", "000005")) = 1 && this.ShownEverywhere("It's getting late"),
             "a message shows on every display when its time passes, across midnight too")
         this.Assert(!night("000005", "000010").Length, "a message shows once")
@@ -309,9 +307,8 @@ class GalaxyRhythmChecks {
         this.Assert(shown(night("005955", "010005")) = 2 && this.ShownEverywhere("zzz…"),
             "messages still show while staying awake")
         SuiteStayAwake.active := false
-        this.Assert(shown(night("015955", "020005")) = 3 && this.ShownEverywhere("You feel sleepy")
-            && module.reports[-1] = "bedtime message 3" && !bedtime.fadeStarted,
-            "without its sleep, the last row is only a message")
+        this.Assert(!night("015955", "020005").Length && !bedtime.fadeStarted,
+            "with the sleep row off, nothing happens at bedtime")
         bedtime.Stop()
     }
 
@@ -323,7 +320,6 @@ class GalaxyRhythmChecks {
         night := (last, now) => this.Night(bedtime, last, now)
         minutes := (count) => bedtime.fadeStarted + count * 60000
         bedtime.rows[3].show := true
-        bedtime.sleeps := true
         try {
             SuiteStayAwake.active := true
             night("015955", "020005")

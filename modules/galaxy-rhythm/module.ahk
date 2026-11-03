@@ -60,23 +60,27 @@ class GalaxyRhythmModule extends SuiteModule {
         window := ui.NewWindow(key, this.Name " - Settings", true)
         rows := SuitePageRows(window, 640)
         rows.Heading("BEDTIME")
-        rows.Text("Bedtime messages show on every display at their time while you use the unlocked"
-            . " computer. The last one can then fade the screen to grey and put the computer to sleep,"
-            . " unless stay awake is on.")
+        rows.Text("Two reminders, then the sleep: each message shows on every display at its time"
+            . " while you use the unlocked computer. The last one fades the screen to grey and puts"
+            . " the computer to sleep, unless stay awake is on.")
         for index, row in this.bedtime.rows {
             y := rows.y
-            show := window.AddCheckbox("x20 y" (y + 4) " w90 vshow" index, "Show at")
+            final := index = this.bedtime.rows.Length
+            show := window.AddCheckbox("x20 y" (y + 4) " w90 vshow" index, final ? "Sleep at" : "Show at")
             show.Value := row.show
             window.AddDateTime("x115 y" y " w75 +0x1 vtime" index, "HH:mm").Value := "20000101" row.time "00"
-            final := index = this.bedtime.rows.Length
-            text := window.AddEdit("x200 y" y " w" (final ? 260 : 400) " Limit" GR_Bedtime.TextLimit
-                . " vtext" index, row.text)
+            text := window.AddEdit("x200 y" y " w400 Limit" GR_Bedtime.TextLimit " vtext" index, row.text)
             rows.Advance(text)
         }
-        sleepBox := window.AddCheckbox("x475 y" (y + 4) " w140 vsleep", "then sleep")
-        sleepBox.Value := this.bedtime.sleeps
-        ; The sleep's fields, indented under the row they belong to.
+        ; The sleep's fields, indented under its row: what stay awake says
+        ; first, then the fade and the last word.
         sleepControls := []
+        y := rows.y
+        sleepControls.Push(window.AddText("x44 y" (y + 4) " w150", "If staying awake:"))
+        awakeText := window.AddEdit("x200 y" y " w400 Limit" GR_Bedtime.TextLimit " vawakeText",
+            this.bedtime.awakeText)
+        sleepControls.Push(awakeText)
+        rows.Advance(awakeText)
         y := rows.y
         sleepControls.Push(window.AddText("x44 y" (y + 4) " w150", "Fade to grey over"))
         fade := window.AddEdit("x200 y" y " w60 Number vfade")
@@ -87,22 +91,18 @@ class GalaxyRhythmModule extends SuiteModule {
         wake.Value := "20000101" this.bedtime.wakeTime "00"
         sleepControls.Push(wake)
         rows.Advance(fade)
-        for field in [["At sleep:", "sleepText", this.bedtime.sleepText],
-            ["If staying awake:", "awakeText", this.bedtime.awakeText]] {
-            y := rows.y
-            sleepControls.Push(window.AddText("x44 y" (y + 4) " w150", field[1]))
-            box := window.AddEdit("x200 y" y " w400 Limit" GR_Bedtime.TextLimit " v" field[2], field[3])
-            sleepControls.Push(box)
-            rows.Advance(box)
-        }
+        y := rows.y
+        sleepControls.Push(window.AddText("x44 y" (y + 4) " w150", "At sleep:"))
+        sleepText := window.AddEdit("x200 y" y " w400 Limit" GR_Bedtime.TextLimit " vsleepText",
+            this.bedtime.sleepText)
+        sleepControls.Push(sleepText)
+        rows.Advance(sleepText)
         refresh(*) {
-            sleepBox.Enabled := show.Value
             for control in sleepControls
-                control.Enabled := show.Value && sleepBox.Value
+                control.Enabled := show.Value
         }
         refresh()
         show.OnEvent("Click", refresh)
-        sleepBox.OnEvent("Click", refresh)
         rows.Heading("ENERGY BAR")
         rows.Text("The energy bar drains while you use the computer and refills while you rest away"
             . " from it: locked, with the screens off, asleep or off. A full night fills it.")
@@ -190,7 +190,6 @@ class GalaxyRhythmModule extends SuiteModule {
                 values["Time" index] := SubStr(window["time" index].Value, 9, 4)
                 values["Text" index] := GR_Bedtime.CleanText(window["text" index].Value, defaults[2])
             }
-            values["Sleep"] := window["sleep"].Value ? 1 : 0
             values["FadeMinutes"] := GR_Bedtime.CleanMinutes(window["fade"].Value)
             values["WakeTime"] := SubStr(window["wake"].Value, 9, 4)
             values["SleepText"] := GR_Bedtime.CleanText(window["sleepText"].Value, GR_Bedtime.SleepDefault)
@@ -226,7 +225,7 @@ class GalaxyRhythmModule extends SuiteModule {
             . "shows on every display at its time while you use the unlocked computer; a time "
             . "missed while the computer slept or was locked is skipped, never shown late."
             . "`r`n`r`nFADE TO SLEEP"
-            . "`r`nWith then sleep checked, the last message starts the night: the screen fades "
+            . "`r`nThe last message starts the night: the screen fades "
             . "to grey over 10 minutes, Good night shows, and the computer sleeps, even if you "
             . "lock it meanwhile. Stay awake (Pause + End in Power-Up Utilities) keeps it up, "
             . "even during the fade, and says so; if it ends before your wake-up time, 06:00 by "
