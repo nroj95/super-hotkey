@@ -473,31 +473,31 @@ class SuiteInterface {
             this.Report(failure, "Core / module settings")
     }
 
-    ; Each language is listed in its own name, English included. The language
-    ; loads at startup, so applying a choice restarts the suite.
+    ; Each language is listed in its own name, English included, in a list that
+    ; scrolls past 10 rows. The language loads at startup, so applying a
+    ; choice restarts the suite.
     ShowLanguage(*) {
         if this.Existing("language")
             return
         rows := SuitePageRows(this.NewWindow("language", T("{1} - Language", SuiteApplication.Name), true), 440)
         rows.Text(T("Automatic follows the Windows display language."))
-        choices := [{code: "", name: T("Automatic")}, {code: "en", name: SuiteLanguage.English}]
-        for language in SuiteLanguage.Available()
-            choices.Push(language)
-        this.languageChoices := []
-        for choice in choices {
-            control := rows.Radio(choice.name)
-            control.Value := choice.code = this.app.Settings.language
-            this.languageChoices.Push({code: choice.code, control: control})
+        this.languageCodes := ["", "en"]
+        names := [T("Automatic"), SuiteLanguage.English]
+        for language in SuiteLanguage.Available() {
+            this.languageCodes.Push(language.code)
+            names.Push(language.name)
         }
+        this.languageList := rows.List(names, Min(names.Length, 10))
+        for code in this.languageCodes
+            if code = this.app.Settings.language
+                this.languageList.Choose(A_Index)
         rows.Show(this, "language", [[T("Apply and restart"), ObjBindMethod(this, "SaveLanguage"), 160],
             [T("Cancel"), ObjBindMethod(this, "CloseWindow", "language"), 100]])
     }
 
     SaveLanguage(*) {
-        code := this.app.Settings.language
-        for choice in this.languageChoices
-            if choice.control.Value
-                code := choice.code
+        index := this.languageList.Value
+        code := index ? this.languageCodes[index] : this.app.Settings.language
         try {
             this.app.Settings.Save(this.app.Settings.modules, , code)
             this.CloseWindow("language")
@@ -773,9 +773,9 @@ class SuitePageRows {
     Checkbox(label, options := "") => this.Advance(
         this.window.AddCheckbox("x20 y" this.y " w" (this.width - 40) " " options, label))
 
-    ; One of a group of choices; the radios that follow each other form one group.
-    Radio(label, options := "") => this.Advance(
-        this.window.AddRadio("x20 y" this.y " w" (this.width - 40) " " options, label))
+    ; A list of items, rows tall, that scrolls when it holds more.
+    List(items, rows) => this.Advance(
+        this.window.AddListBox("x20 y" this.y " w" (this.width - 40) " r" rows, items))
 
     ; A label with a field of type beside it, in the page's field column.
     Field(label, type, options, value?) {

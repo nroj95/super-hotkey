@@ -659,8 +659,8 @@ class InterfaceChecks {
             this.Assert(app.ui.moduleControls.Count = 6,
                 "Modules presents all six features")
             app.ui.ShowLanguage()
-            this.Assert(app.ui.languageChoices.Length = 2 + SuiteLanguage.Available().Length
-                && app.ui.languageChoices[1].control.Value && !app.ui.languageChoices[2].control.Value,
+            this.Assert(ControlGetItems(app.ui.languageList).Length = 2 + SuiteLanguage.Available().Length
+                && app.ui.languageList.Value = 1,
                 "Language lists Automatic, English and each file, with the saved choice selected")
             app.ui.CloseWindow("language")
             descriptionCount := 0
