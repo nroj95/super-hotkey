@@ -84,8 +84,8 @@ class GalaxyRhythmChecks {
             GR_EnergyBar.Place(corner[1], 100, 0, 1100, 800, 18, 180, &x, &y)
             placed .= corner[1] "=" x "," y " "
         }
-        this.Assert(placed = "bottom-right=1070,600 bottom-left=112,600 top-right=1070,20 top-left=112,20 ",
-            "each corner keeps the upright bar 12 px in from the side and 20 px from the top or bottom")
+        this.Assert(placed = "bottom-right=1070,604 bottom-left=112,604 top-right=1070,16 top-left=112,16 ",
+            "each corner keeps the upright bar 12 px in from the side and 16 px from the top or bottom")
         this.Assert(GR_EnergyBar.Monitors("Primary").Length = 1
             && GR_EnergyBar.Monitors("Primary")[1] = MonitorGetPrimary()
             && GR_EnergyBar.Monitors("All").Length = MonitorGetCount()

@@ -311,7 +311,7 @@ class GR_EnergyBar {
     static Height := 160       ; the gauge, below its E
     static LabelHeight := 20
     static MarginX := 12       ; in from the side of its corner
-    static MarginY := 20       ; in from the top or bottom
+    static MarginY := 16       ; in from the top or bottom
     static Opacity := 140      ; of 255: see-through enough to read what lies behind
     static Corners := [["bottom-right", "Bottom right"], ["bottom-left", "Bottom left"],
         ["top-right", "Top right"], ["top-left", "Top left"]]
