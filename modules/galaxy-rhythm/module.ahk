@@ -306,7 +306,7 @@ class GalaxyRhythmModule extends SuiteModule {
         One sleep ends the night early.
 
         ENERGY BAR
-        A small upright bar marked E, bottom right on the primary display unless Settings moves it, drains with every minute you use the computer: 12 hours of activity empty it, and watching or reading without touching anything costs half, though it never greys the screen.
+        A small upright bar marked E, bottom right on the primary display unless Settings moves it, drains with every minute you use the computer, game controller included: 12 hours of activity empty it, and watching or reading without touching anything costs half, though it never greys the screen.
         It refills while you rest away from it: every break counts, but a 10-minute one pays best and gives back about 50 minutes, and a full night of 8 hours fills it.
         A break starts when the computer sees you go, as it locks, turns its screens off or sleeps; quiet time before that might have been reading or a film, so it doesn't count.
         So when you step away, lock the computer or put it to sleep, any way you like; Win + L and Pause + Escape in Power-Up Utilities do it in one press.

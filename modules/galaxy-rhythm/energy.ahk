@@ -2,11 +2,12 @@
 ; energy.ahk - an energy bar that drains while the user works and refills
 ; while they rest away from the computer
 ; =============================================================================
-; A minute with physical keyboard or mouse input costs a minute. A minute at
-; the unlocked computer with its screens on but no input, watching or
-; reading, costs half, down to zero but never onto the road; anything
-; programs do on their own is no input. A full bar holds FullHours of active
-; minutes.
+; A minute with physical keyboard, mouse or XInput game controller input
+; costs a minute; Windows does not count controllers as input, so PadIdleMs
+; reads them at each tick. A minute at the unlocked computer with its screens
+; on but no input, watching or reading, costs half, down to zero but never
+; onto the road; anything programs do on their own is no input. A full bar
+; holds FullHours of active minutes.
 ;
 ; Rest is the time from the moment the computer first saw the user gone, when
 ; it locked, turned its displays off, slept or was off, until they come back.
@@ -69,6 +70,8 @@ class GR_Energy {
         this.lowShown := false
         this.roadShown := false
         this.fainting := false
+        this.padPackets := Map()  ; controller slot -> XInput packet number at the last tick
+        this.padUsed := 0         ; A_TickCount when a controller last changed, or 0
         this.notification := 0
         this.bar := 0
         this.tickCallback := ObjBindMethod(this, "Tick")
@@ -214,7 +217,7 @@ class GR_Energy {
     ; the grey and the faint. Takes the time and idle milliseconds it pretends.
     Tick(now := "", idleMs := "") {
         now := now = "" ? A_Now : now
-        idleMs := idleMs = "" ? A_TimeIdlePhysical : idleMs
+        idleMs := idleMs = "" ? Min(A_TimeIdlePhysical, this.PadIdleMs()) : idleMs
         app := this.module.app
         this.lastSeen := now
         if !this.show || !this.Present() {
@@ -264,6 +267,26 @@ class GR_Energy {
             SetTimer(this.faintCallback, -SuiteNotice.NewsMs)
         }
         this.Save(now)
+    }
+
+    ; Windows' idle time never sees game controllers, so each tick reads the
+    ; XInput ones: a packet number changed since the last tick means a
+    ; controller was used meanwhile. Milliseconds since then, to a tick.
+    PadIdleMs() {
+        packets := Map()
+        state := Buffer(16, 0)
+        try loop 4
+            if !DllCall("xinput1_4\XInputGetState", "uint", A_Index - 1, "ptr", state, "uint")
+                packets[A_Index] := NumGet(state, 0, "uint")
+        return this.NotePads(packets, A_TickCount)
+    }
+
+    NotePads(packets, tick) {
+        for slot, packet in packets
+            if this.padPackets.Has(slot) && this.padPackets[slot] != packet
+                this.padUsed := tick
+        this.padPackets := packets
+        return this.padUsed ? tick - this.padUsed : 0x7FFFFFFF
     }
 
     ; At most once a minute, so ticks do not wear the disk.

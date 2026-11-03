@@ -137,6 +137,10 @@ class GalaxyRhythmChecks {
             energy.Tick(at("090011"), 120000)
             this.Assert(energy.level = 0 && grey.level = 0, "and stops at zero, never greying the screen")
             energy.level := before
+            pads := [energy.NotePads(Map(1, 7), 1000), energy.NotePads(Map(1, 7), 11000),
+                energy.NotePads(Map(1, 9), 21000), energy.NotePads(Map(1, 9), 31000)]
+            this.Assert(pads[1] = 0x7FFFFFFF && pads[2] = 0x7FFFFFFF && pads[3] = 0 && pads[4] = 10000,
+                "a game controller counts as input once its state changes between ticks")
             energy.level := 72.1
             energy.Tick(at("090020"), 0)
             this.Assert(this.ShownEverywhere(GR_Energy.Low), "10 % left says so")
