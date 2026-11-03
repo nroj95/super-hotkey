@@ -86,7 +86,7 @@ class GalaxyRhythmModule extends SuiteModule {
         fade := window.AddEdit("x200 y" y " w60 Number vfade")
         sleepControls.Push(fade, window.AddUpDown("Range1-" GR_Bedtime.FadeLimit, this.bedtime.fadeMinutes),
             window.AddText("x268 y" (y + 4) " w40", "min"),
-            window.AddText("x330 y" (y + 4) " w120", "Wake-up time"))
+            window.AddText("x330 y" (y + 4) " w120", "Night ends at"))
         wake := window.AddDateTime("x455 y" y " w75 +0x1 vwake", "HH:mm")
         wake.Value := "20000101" this.bedtime.wakeTime "00"
         sleepControls.Push(wake)
@@ -228,9 +228,8 @@ class GalaxyRhythmModule extends SuiteModule {
             . "`r`nThe last message starts the night: the screen fades "
             . "to grey over 10 minutes, Good night shows, and the computer sleeps, even if you "
             . "lock it meanwhile. Stay awake (Pause + End in Power-Up Utilities) keeps it up, "
-            . "even during the fade, and says so; if it ends before your wake-up time, 06:00 by "
-            . "default, the fade starts over. One sleep ends the night, and so does the wake-up "
-            . "time."
+            . "even during the fade, and says so; if it ends before the night ends, 06:00 by "
+            . "default, the fade starts over. One sleep ends the night early."
             . "`r`n`r`nENERGY BAR"
             . "`r`nA small bar, bottom right on the primary display unless Settings moves it, drains "
             . "with every minute you use the "

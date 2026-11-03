@@ -313,7 +313,7 @@ class GalaxyRhythmChecks {
     }
 
     ; One night of the sleep: the fade, stay awake on and off, the last word,
-    ; and the wake-up time. FadeStep takes the tick it pretends it is.
+    ; and the end of the night. FadeStep takes the tick it pretends it is.
     static BedtimeFade() {
         bedtime := this.BedtimeFixture("bedtime-fade")
         module := bedtime.module, app := module.app, grey := module.grey
@@ -325,7 +325,7 @@ class GalaxyRhythmChecks {
             night("015955", "020005")
             this.Assert(this.ShownEverywhere("Stay awake prevented sleep") && !bedtime.fadeStarted
                 && bedtime.until = "20261103060000",
-                "stay awake at bedtime says so, and the night lasts until the wake-up time")
+                "stay awake at bedtime says so, and the night lasts until it ends at 06:00")
             night("020005", "020010")
             this.Assert(!bedtime.fadeStarted, "nothing fades while stay awake lasts")
             SuiteStayAwake.active := false
@@ -368,7 +368,7 @@ class GalaxyRhythmChecks {
             SuiteStayAwake.active := false
             night("055955", "060005")
             this.Assert(!bedtime.fadeStarted && bedtime.until = "",
-                "stay awake ending after the wake-up time starts nothing")
+                "stay awake ending after the night has ended starts nothing")
         }
         finally {
             bedtime.Stop()

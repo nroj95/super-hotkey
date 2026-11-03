@@ -8,14 +8,14 @@
 ; never depend on each other or on their order.
 ;
 ; The last row is the sleep: its message starts the night, which lasts until
-; the wake-up time: the displays fade to grey over the fade time, the last word
-; shows, and once it has gone the computer sleeps; locking meanwhile changes
-; nothing. Stay awake prevents only the sleep. On at bedtime, or switched on
-; during the fade or the last word, it shows its own message and clears the
-; grey; ending later in the night, it starts the fade again from the beginning.
-; One sleep ends the night, as do suspending Super Hotkey, the computer
-; sleeping some other way and the wake-up time. The module itself starts
-; disabled, so every row starts on: enabling Galaxy Rhythm is the opt-in.
+; Night ends at (wakeTime): the displays fade to grey over the fade time, the
+; last word shows, and once it has gone the computer sleeps; locking meanwhile
+; changes nothing. Stay awake prevents only the sleep. On at bedtime, or
+; switched on during the fade or the last word, it shows its own message and
+; clears the grey; ending later in the night, it starts the fade again from
+; the beginning. One sleep ends the night early, as do suspending Super Hotkey
+; and the computer sleeping some other way. The module itself starts disabled,
+; so every row starts on: enabling Galaxy Rhythm is the opt-in.
 ; settings.ini [Bedtime] holds them.
 ; =============================================================================
 
