@@ -538,10 +538,10 @@ class KeybindingsEditor {
     BackToHelp(*) {
         if !this.CanLeave()
             return true
-        moduleId := this.moduleId
+        ; Help opens before the editor closes, on the editor's display.
+        if this.moduleId != "" && IsObject(SuiteState.App) && IsObject(SuiteState.App.ui)
+            SuiteState.App.ui.ShowHelp(this.moduleId)
         this.Close()
-        if moduleId != "" && IsObject(SuiteState.App) && IsObject(SuiteState.App.ui)
-            SuiteState.App.ui.ShowHelp(moduleId)
     }
 
     ; The title bar, Escape and the opening hotkey close the window. Returning

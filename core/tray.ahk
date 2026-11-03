@@ -422,20 +422,23 @@ class SuiteInterface {
         return true
     }
 
+    ; Each step opens the next page before closing the one it leaves, so the
+    ; next page centers on that page's display. Closed first, focus would
+    ; fall back to an app window, perhaps on another display, that decides.
     OpenSettingsFromHelp(id, *) {
-        this.CloseWindow("help:" id)
         this.ShowModuleSettings(id)
+        this.CloseWindow("help:" id)
     }
 
     BackToHelp(id, *) {
-        this.CloseWindow("settings:" id)
         this.ShowHelp(id)
+        this.CloseWindow("settings:" id)
     }
 
     OpenKeybindingsFromHelp(id, *) {
-        this.CloseWindow("help:" id)
         this.app.CancelInputs()
         this.app.manager.ShowSettings(id)
+        this.CloseWindow("help:" id)
     }
 
     ShowModules(*) {

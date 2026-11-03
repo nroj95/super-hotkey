@@ -5,6 +5,7 @@ class InterfaceChecks {
         this.SettingsCheckboxes()
         this.Interfaces()
         this.ClickedNavigation()
+        this.NavigationKeepsDisplay()
         this.WindowSizingAndCloaking()
     }
 
@@ -766,6 +767,47 @@ class InterfaceChecks {
             OnError(app.errorCallback, 0)
         }
         this.Assert(!failures.Length, "clicked navigation raises no errors")
+    }
+
+    ; Help moved to another display: its pages follow it there, though focus
+    ; would return to an app window on the first display in between.
+    static NavigationKeepsDisplay() {
+        if MonitorGetCount() < 2
+            return
+        app := SuiteApplication(true, SuiteChecks.directory "\navigation-display")
+        id := "cascade-kingdom"
+        returnTarget := SuiteGui(, "Focus return target")
+        previousTarget := SuiteFocusReturn.target
+        try {
+            app.Start()
+            MonitorGetWorkArea(1, &left, &top)
+            returnTarget.Show("NoActivate w300 h200")
+            WinMove(left + 40, top + 40, , , returnTarget)
+            SuiteFocusReturn.target := returnTarget.Hwnd
+            app.ui.ShowHelp(id)
+            MonitorGetWorkArea(2, &left, &top)
+            WinMove(left + 40, top + 40, , , app.ui.windows["help:" id])
+            app.ui.OpenSettingsFromHelp(id)
+            this.Assert(WindowMonitorIndex(app.ui.windows["settings:" id].Hwnd) = 2,
+                "Settings opens on the display Help was moved to")
+            app.ui.BackToHelp(id)
+            this.Assert(WindowMonitorIndex(app.ui.windows["help:" id].Hwnd) = 2,
+                "Back from Settings opens Help on the same display")
+            app.ui.OpenKeybindingsFromHelp(id)
+            this.Assert(WindowMonitorIndex(app.manager.editor.window.Hwnd) = 2,
+                "Keybindings opens on the display Help was on")
+            app.manager.editor.BackToHelp()
+            this.Assert(WindowMonitorIndex(app.ui.windows["help:" id].Hwnd) = 2
+                && !IsObject(app.manager.editor.window),
+                "Back from Keybindings opens Help on the same display")
+        }
+        finally {
+            app.Stop("Exit", 0)
+            OnExit(app.exitCallback, 0)
+            OnError(app.errorCallback, 0)
+            returnTarget.Destroy()
+            SuiteFocusReturn.target := previousTarget
+        }
     }
 
     static AssertFootersIntact(app, failures, label) {
