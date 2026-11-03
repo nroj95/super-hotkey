@@ -14,12 +14,13 @@
 ;
 ; 10 % left says so. At zero the road to fainting starts, always from zero and
 ; with its notice: when the bar first empties, when stay awake ends and when
-; the user is back after a faint without a real break. Over RoadMinutes of
-; activity the displays turn grey, then Lights out shows and the computer
-; sleeps. Stay awake holds the bar at zero: no grey and no faint. The level
-; and the last input survive restarts in energy.ini. The bar sits in the
-; corner Position names, bottom right by default, on the display Display
-; names, the primary one by default, or on all; a dry run draws no bar.
+; the user is back after a faint without a real break. With Faint on, the
+; displays turn grey over RoadMinutes of activity, then Lights out shows and
+; the computer sleeps; the grey never comes without the faint, so without it
+; the bar just stays empty. Stay awake holds the bar at zero: no grey and no
+; faint. The level and the last input survive restarts in energy.ini. The bar
+; sits in the corner Position names, bottom right by default, on the display
+; Display names, the primary one by default, or on all; a dry run draws no bar.
 ; =============================================================================
 
 class GR_Energy {
@@ -84,7 +85,6 @@ class GR_Energy {
         this.fullHours := GR_Energy.Whole(read("FullHours", ""), 4, 24, 12)
         this.nightHours := GR_Energy.Whole(read("NightHours", ""), 4, 12, 8)
         this.breakMinutes := GR_Energy.Whole(read("BreakMinutes", ""), 1, 60, 10)
-        this.grey := read("Grey", 1) = "1"
         this.faint := read("Faint", 1) = "1"
         position := read("Position", "bottom-right")
         this.position := GR_EnergyBar.IsCorner(position) ? position : "bottom-right"
@@ -94,7 +94,7 @@ class GR_Energy {
         this.display := display = "Primary" || display = "All"
             || RegExMatch(display, "i)^\\\\\.\\DISPLAY\d+$") ? display : "Primary"
         this.level := Min(this.level, this.full)
-        if !this.show
+        if !this.show || !this.faint
             this.module.grey.Set("energy", 0)
     }
 
@@ -215,7 +215,7 @@ class GR_Energy {
             this.roadShown := true
             this.Notice(GR_Energy.Road)
         }
-        this.module.grey.Set("energy", this.grey && !staying && this.level < 0
+        this.module.grey.Set("energy", this.faint && !staying && this.level < 0
             ? -this.level / GR_Energy.RoadMinutes : 0)
         if this.faint && !staying && !this.fainting && this.level <= -GR_Energy.RoadMinutes {
             this.fainting := true

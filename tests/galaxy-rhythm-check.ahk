@@ -45,7 +45,7 @@ class GalaxyRhythmChecks {
     ; Settings load within their ranges, and the level survives a restart.
     static EnergySettings() {
         energy := this.EnergyFixture("energy-settings")
-        this.Assert(energy.show && energy.grey && energy.faint && energy.level = 720
+        this.Assert(energy.show && energy.faint && energy.level = 720
             && energy.fullHours = 12 && energy.nightHours = 8 && energy.breakMinutes = 10,
             "once the module is on, a full 12-hour bar shows with the grey and the faint")
         this.Assert(energy.position = "bottom-right" && energy.display = "Primary",
@@ -173,8 +173,8 @@ class GalaxyRhythmChecks {
             energy.level := -59.95
             energy.Tick(at("130010"), 0)
             energy.Tick(at("130020"), 0)
-            this.Assert(energy.level = -60 && !energy.fainting && grey.level = 1,
-                "without the faint, the bar stays empty and the screen grey")
+            this.Assert(energy.level = -60 && !energy.fainting && grey.level = 0,
+                "without the faint there is no grey either: the bar just stays empty")
         }
         finally {
             SuiteStayAwake.active := false

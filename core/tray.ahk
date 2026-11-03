@@ -676,6 +676,19 @@ class SuitePageRows {
     Text(text, options := "") => this.Advance(
         this.window.AddText("x20 y" this.y " w" (this.width - 40) " " options, text))
 
+    ; A bold section title, set apart from the section above it and close to
+    ; the rows below, for pages with more than one section.
+    Heading(text) {
+        if this.y > SuitePageRows.Top
+            this.y += SuitePageRows.Gap
+        this.window.SetFont("bold")
+        control := this.window.AddText("x20 y" this.y " w" (this.width - 40), text)
+        this.window.SetFont("norm")
+        control.GetPos(, , , &height)
+        this.y += height + SuitePageRows.CaptionGap
+        return control
+    }
+
     Checkbox(label, options := "") => this.Advance(
         this.window.AddCheckbox("x20 y" this.y " w" (this.width - 40) " " options, label))
 

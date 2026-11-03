@@ -59,6 +59,7 @@ class GalaxyRhythmModule extends SuiteModule {
             return
         window := ui.NewWindow(key, this.Name " - Settings", true)
         rows := SuitePageRows(window, 640)
+        rows.Heading("BEDTIME")
         rows.Text("Bedtime messages show on every display at their time while you use the unlocked"
             . " computer. The last one can then fade the screen to grey and put the computer to sleep,"
             . " unless stay awake is on.")
@@ -102,6 +103,7 @@ class GalaxyRhythmModule extends SuiteModule {
         refresh()
         show.OnEvent("Click", refresh)
         sleepBox.OnEvent("Click", refresh)
+        rows.Heading("ENERGY BAR")
         rows.Text("The energy bar drains while you use the computer and refills while you rest away"
             . " from it: locked, with the screens off, asleep or off. A full night fills it.")
         energy := this.energy
@@ -142,14 +144,12 @@ class GalaxyRhythmModule extends SuiteModule {
         energyControls.Push(night, window.AddUpDown("Range4-12", energy.nightHours),
             window.AddText("x523 y" (y + 4) " w30", "h"))
         rows.Advance(breaks)
-        for option in [["greyEnergy", "Grey screen when running on fumes", energy.grey],
-            ["faintEnergy", "Faint: sleep when the bar runs out", energy.faint]] {
-            y := rows.y
-            box := window.AddCheckbox("x44 y" y " w500 v" option[1], option[2])
-            box.Value := option[3]
-            energyControls.Push(box)
-            rows.Advance(box)
-        }
+        ; The grey always leads to the faint, so they are one choice.
+        faint := window.AddCheckbox("x44 y" rows.y " w540 vfaintEnergy",
+            "Run out: fade to grey, then faint into sleep")
+        faint.Value := energy.faint
+        energyControls.Push(faint)
+        rows.Advance(faint)
         refreshEnergy(*) {
             for control in energyControls
                 control.Enabled := showEnergy.Value
@@ -179,7 +179,6 @@ class GalaxyRhythmModule extends SuiteModule {
                 "FullHours", GR_Energy.Whole(window["fullHours"].Value, 4, 24, 12),
                 "NightHours", GR_Energy.Whole(window["nightHours"].Value, 4, 12, 8),
                 "BreakMinutes", GR_Energy.Whole(window["breakMinutes"].Value, 1, 60, 10),
-                "Grey", window["greyEnergy"].Value ? 1 : 0,
                 "Faint", window["faintEnergy"].Value ? 1 : 0,
                 "Position", GR_EnergyBar.Corners[window["position"].Value][1],
                 "Display", this.displayChoices[window["display"].Value])
