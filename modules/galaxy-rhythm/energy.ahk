@@ -26,7 +26,7 @@
 class GR_Energy {
     static TickMs := 10000
     static ActiveMs := 60000      ; input this recent makes a tick active
-    static FadeDefault := 60      ; minutes of activity from zero to the faint
+    static FadeDefault := 30      ; minutes of activity from zero to the faint
     static LowShare := 0.1
     ; Breaks pay most at first: up to BonusMinutes of extra rest, most of it
     ; within the first half hour.

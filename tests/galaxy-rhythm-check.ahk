@@ -50,21 +50,21 @@ class GalaxyRhythmChecks {
             "once the module is on, a full 12-hour bar shows with the grey and the faint")
         this.Assert(energy.position = "bottom-right" && energy.display = "Primary",
             "the bar sits bottom right on the primary display")
-        this.Assert(energy.roadMinutes = 60 && energy.roadText = "You're running on fumes"
+        this.Assert(energy.roadMinutes = 30 && energy.roadText = "You're running on fumes"
             && energy.faintText = "Lights out",
-            "running on fumes greys over an hour of activity before Lights out")
-        IniWrite(30, energy.settingsPath, "Energy", "FadeMinutes")
+            "running on fumes greys over half an hour of activity before Lights out")
+        IniWrite(45, energy.settingsPath, "Energy", "FadeMinutes")
         IniWrite("Out of juice", energy.settingsPath, "Energy", "RoadText")
         IniWrite("Bedtime, champ", energy.settingsPath, "Energy", "FaintText")
         energy.LoadSettings()
-        this.Assert(energy.roadMinutes = 30 && energy.roadText = "Out of juice"
+        this.Assert(energy.roadMinutes = 45 && energy.roadText = "Out of juice"
             && energy.faintText = "Bedtime, champ",
             "the fade length and the words at zero and at the faint load from Settings")
         IniWrite(5, energy.settingsPath, "Energy", "FadeMinutes")
         IniWrite("", energy.settingsPath, "Energy", "RoadText")
         energy.LoadSettings()
-        this.Assert(energy.roadMinutes = 60 && energy.roadText = "You're running on fumes",
-            "a fade under 10 minutes falls back to an hour, and an empty message to its default words")
+        this.Assert(energy.roadMinutes = 30 && energy.roadText = "You're running on fumes",
+            "a fade under 10 minutes falls back to half an hour, and an empty message to its default words")
         IniWrite(30, energy.settingsPath, "Energy", "FullHours")
         IniWrite(6, energy.settingsPath, "Energy", "NightHours")
         IniWrite(0, energy.settingsPath, "Energy", "Faint")
@@ -126,9 +126,9 @@ class GalaxyRhythmChecks {
             energy.Tick(at("090040"), 0)
             this.Assert(energy.level < 0 && this.ShownEverywhere(GR_Energy.Road) && grey.level > 0,
                 "at zero you run on fumes, and the grey begins")
-            energy.level := -30
+            energy.level := -15
             energy.Tick(at("090050"), 0)
-            this.Assert(Abs(grey.level - (30 + tick) / 60) < 0.001,
+            this.Assert(Abs(grey.level - (15 + tick) / 30) < 0.001,
                 "the grey deepens with every active minute on the road")
             SuiteStayAwake.active := true
             energy.Draw()
@@ -141,10 +141,10 @@ class GalaxyRhythmChecks {
             energy.Tick(at("090120"), 0)
             this.Assert(energy.level < 0 && this.ShownEverywhere(GR_Energy.Road),
                 "when stay awake ends, the road starts over from zero with its notice")
-            energy.level := -59.9
+            energy.level := -29.9
             energy.Tick(at("090130"), 0)
             this.Assert(energy.fainting && grey.level = 1 && this.ShownEverywhere(GR_Energy.Faint),
-                "an hour on the road: fully grey, and Lights out")
+                "half an hour on the road: fully grey, and Lights out")
             ; Checks run uninterruptible, so the faint's timer is called by hand.
             SetTimer(energy.faintCallback, 0)
             energy.FaintNow()
@@ -187,10 +187,10 @@ class GalaxyRhythmChecks {
             this.Assert(Abs(energy.level - (before - tick)) < 0.001, "a suspended suite is no rest")
 
             energy.faint := false
-            energy.level := -59.95
+            energy.level := -29.95
             energy.Tick(at("130010"), 0)
             energy.Tick(at("130020"), 0)
-            this.Assert(energy.level = -60 && !energy.fainting && grey.level = 0,
+            this.Assert(energy.level = -30 && !energy.fainting && grey.level = 0,
                 "without the faint there is no grey either: the bar just stays empty")
         }
         finally {
