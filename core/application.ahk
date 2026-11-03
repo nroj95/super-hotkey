@@ -31,7 +31,7 @@ class SuiteModule {
     Suspend() => 0                     ; tray suspension, sleep or a locked session
     Resume() => 0
     ShowSettings(ui) => 0
-    HelpText() => ""
+    HelpText() => ""                   ; one sentence per line; see SuiteInterface.HelpParts
     HelpButtons() => []                ; extra Help footer buttons: [label, callback, width]
 }
 

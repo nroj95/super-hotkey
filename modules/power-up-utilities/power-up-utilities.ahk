@@ -285,33 +285,31 @@ class PowerUpUtilities extends SuiteModule {
 
     Report(text) => SuiteState.Log.Write("Power-Up Utilities", text)
 
-    HelpText() {
-        return "WHY I MADE THIS"
-            . "`r`nI wanted a collection of practical shortcuts for everyday tasks that "
-            . "didn't fit into the other modules."
-            . "`r`n`r`nMORE KEYS WITHOUT A NEW KEYBOARD"
-            . "`r`nSend F13-F24 or Numpad 0-9 using shortcuts, even if your keyboard "
-            . "doesn't have those keys. The virtual numpad is especially useful on "
-            . "compact keyboards without a number pad, while F13-F24 provides extra "
-            . "keys for shortcuts in compatible applications. Held virtual keys are "
-            . "released when you release their triggering hotkey."
-            . "`r`n`r`nTEXT AND TERMINAL ACTIONS"
-            . "`r`nInsert punctuation, special spaces or a yyyyMMdd-HHmmss timestamp. "
-            . "Terminal copy and clear operate only in Windows Terminal and use its "
-            . "default Ctrl + Shift + A, C and K shortcuts. "
-            . "Characters type as you press them and repeat while held, like real keys, "
-            . "so holding Pause and tapping - twice types two dashes. Text waits while "
-            . "Shift, Ctrl, Alt or Win is held, and Terminal actions run once you let go."
-            . "`r`n`r`nSYSTEM UTILITIES"
-            . "`r`nWake speakers that automatically enter standby, or put your computer "
-            . "to sleep."
-            . "`r`n`r`nSTAY AWAKE"
-            . "`r`nPause + End keeps the computer from sleeping for 30 minutes. Press again "
-            . "while its notice shows for 1, 2, 4 or 8 hours or no limit, counted from now; "
-            . "once the notice has gone, the next press starts over at 30 minutes. "
-            . "Pause + Shift + End allows sleep again. The tray icon's tooltip shows how "
-            . "long. The screen still "
-            . "turns off and locks as usual, and choosing Sleep or closing a laptop lid "
-            . "still sleeps. Suspending or exiting Super Hotkey ends it."
-    }
+    HelpText() => "
+    (
+        WHY I MADE THIS
+        I wanted a collection of practical shortcuts for everyday tasks that didn't fit into the other modules.
+
+        MORE KEYS WITHOUT A NEW KEYBOARD
+        Send F13-F24 or Numpad 0-9 using shortcuts, even if your keyboard doesn't have those keys.
+        The virtual numpad is especially useful on compact keyboards without a number pad, while F13-F24 provides extra keys for shortcuts in compatible applications.
+        Held virtual keys are released when you release their triggering hotkey.
+
+        TEXT AND TERMINAL ACTIONS
+        Insert punctuation, special spaces or a yyyyMMdd-HHmmss timestamp.
+        Terminal copy and clear operate only in Windows Terminal and use its default Ctrl + Shift + A, C and K shortcuts.
+        Characters type as you press them and repeat while held, like real keys, so holding Pause and tapping - twice types two dashes.
+        Text waits while Shift, Ctrl, Alt or Win is held, and Terminal actions run once you let go.
+
+        SYSTEM UTILITIES
+        Wake speakers that automatically enter standby, or put your computer to sleep.
+
+        STAY AWAKE
+        Pause + End keeps the computer from sleeping for 30 minutes.
+        Press again while its notice shows for 1, 2, 4 or 8 hours or no limit, counted from now; once the notice has gone, the next press starts over at 30 minutes.
+        Pause + Shift + End allows sleep again.
+        The tray icon's tooltip shows how long.
+        The screen still turns off and locks as usual, and choosing Sleep or closing a laptop lid still sleeps.
+        Suspending or exiting Super Hotkey ends it.
+    )"
 }

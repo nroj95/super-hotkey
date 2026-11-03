@@ -335,19 +335,24 @@ class InterfaceChecks {
                 window := app.ui.windows[key]
                 this.Assert(window.Title = SuiteSettings.ModuleNames[id] " - Getting started",
                     "module Help uses Getting started only in the title bar: " id)
-                guide := window["helpText"].Value
+                parts := app.ui.helpLayouts[id].guide
+                guide := ""
+                for part in parts
+                    guide .= part.control.Text "`n"
                 this.Assert(StrLen(guide) > 300 && !InStr(guide, "CURRENT SAVED SHORTCUTS"),
                     "help explains usage without listing every keybinding: " id)
                 firstHeading := Map("cascade-kingdom", "ADD A WINDOW",
-                    "wonder-windows", "ARRANGE YOUR WINDOWS",
+                    "wonder-windows", "CYCLE ZONES",
                     "power-up-utilities", "MORE KEYS WITHOUT A NEW KEYBOARD",
                     "galaxy-rhythm", "BEDTIME MESSAGES",
                     "paper-pad", "YOUR OWN QUICK-NOTES DRAWER",
                     "secret-layers", "HOLD A KEY FOR MORE HOTKEYS")
-                this.Assert(InStr(guide, "WHY I MADE THIS`r`n") = 1
-                    && InStr(guide, "`r`n`r`n" firstHeading[id]) > 0
+                this.Assert(parts.Length >= 4 && parts[1].heading && parts[1].control.Text = "WHY I MADE THIS"
+                    && !parts[2].heading && parts[3].heading && parts[3].control.Text = firstHeading[id]
                     && !InStr(guide, "GETTING STARTED"),
                     "each module starts with a personal introduction: " id)
+                this.Assert(!InStr(guide, "`r") && !InStr(parts[2].control.Text, "`n"),
+                    "a paragraph's sentences join into one line the page wraps: " id)
                 this.Assert(StrLen(guide) >= 600,
                     "each Help guide provides substantial practical usage details: " id)
                 if id = "cascade-kingdom"
@@ -359,9 +364,13 @@ class InterfaceChecks {
                     "Help opens tall enough for its introduction: " id)
                 this.AssertCentered(window, SuiteSettings.ModuleNames[id] " Help")
                 this.AssertSizeGrip(window, SuiteSettings.ModuleNames[id] " Help")
-                subclassData := 0
-                this.Assert(DllCall("comctl32\GetWindowSubclass", "ptr", window["helpText"].Hwnd,
-                    "ptr", SuiteBufferedPaint.callback, "uptr", 1, "uptr*", &subclassData, "int"),
+                buffered := true
+                for part in parts {
+                    subclassData := 0
+                    buffered := buffered && DllCall("comctl32\GetWindowSubclass", "ptr", part.control.Hwnd,
+                        "ptr", SuiteBufferedPaint.callback, "uptr", 1, "uptr*", &subclassData, "int")
+                }
+                this.Assert(buffered,
                     "the guide paints off-screen, so resizing never shows it half-drawn: " id)
                 titlePart := app.ui.helpLayouts[id].header
                 statusPart := app.ui.helpLayouts[id].status
@@ -373,27 +382,37 @@ class InterfaceChecks {
                     && statusX = headingX + headingW
                     && Abs(headingX + (headingW + statusW) / 2 - helpWidth / 2) <= 2,
                     "Help module name and status are centered as one line: " id)
-                guideControl := window["helpText"]
-                guideControl.GetPos(, &textY, , &textHeight)
-                this.Assert(guideControl.Type = "Text"
-                    && app.ui.helpLayouts[id].footer.divider.Visible,
-                    "help is plain GUI text with a shared footer divider: " id)
+                plain := app.ui.helpLayouts[id].footer.divider.Visible
+                for part in parts
+                    plain := plain && part.control.Type = "Text"
+                this.Assert(plain, "help is plain GUI text with a shared footer divider: " id)
+                parts[1].control.GetPos(, &textY)
+                parts[-1].control.GetPos(, &lastY, , &lastHeight)
+                textHeight := lastY + lastHeight - textY
                 app.ui.helpLayouts[id].footer.divider.GetPos(, &dividerY)
                 this.Assert(dividerY > textY + textHeight,
                     "the Help footer divider stays below the guide: " id)
-                fontHandle := SendMessage(0x0031, 0, 0, , guideControl.Hwnd)
+                parts[1].control.GetPos(, &headingY, , &headingHeight)
+                parts[2].control.GetPos(, &paragraphY)
+                parts[3].control.GetPos(, &nextHeadingY)
+                this.Assert(paragraphY - (headingY + headingHeight) < 6
+                    && nextHeadingY - paragraphY > 20,
+                    "a heading sits just above its paragraph, a blank line below the one before: " id)
                 fontData := Buffer(92, 0)
-                this.Assert(fontHandle && DllCall("GetObjectW", "ptr", fontHandle,
-                    "int", fontData.Size, "ptr", fontData, "int") = fontData.Size
-                    && NumGet(fontData, 16, "int") = 400,
-                    "help uses the original regular-weight font: " id)
+                for part in parts {
+                    fontHandle := SendMessage(0x0031, 0, 0, , part.control.Hwnd)
+                    this.Assert(fontHandle && DllCall("GetObjectW", "ptr", fontHandle,
+                        "int", fontData.Size, "ptr", fontData, "int") = fontData.Size
+                        && NumGet(fontData, 16, "int") = (part.heading ? 700 : 400),
+                        "help headings are bold and paragraphs regular: " id "/" A_Index)
+                }
                 fontFace := StrGet(fontData.Ptr + 28, 32, "UTF-16")
                 this.Assert(fontFace = "Cascadia Mono" || fontFace = "Consolas",
                     "help font is the old Cascadia Mono or the Windows fallback: " id)
                 this.Assert(helpWidth >= 560 && helpHeight >= 400
-                    && textHeight > 310 && textY + textHeight < helpHeight - 60,
+                    && textHeight > 150 && textY + textHeight < helpHeight - 60,
                     "initial help page fits its complete guide: " id)
-                this.Assert(app.ui.HelpTextHeight(id, helpWidth) <= textHeight,
+                this.Assert(Abs(app.ui.HelpTextHeight(id, helpWidth) - textHeight) <= 2,
                     "all Help guide paragraphs fit above the footer at startup: " id)
                 this.Assert(app.ui.helpWindowIds.Has(window.Hwnd),
                     "Help window has its own wrap-aware sizing guard: " id)
@@ -429,8 +448,10 @@ class InterfaceChecks {
                 window.Show("w1080 h750")
                 window.GetClientPos(, , &helpWidth, &helpHeight)
                 app.ui.ResizeHelp(id, window, 0, helpWidth, helpHeight)
-                window["helpText"].GetPos(, , , &textHeight)
-                this.Assert(textHeight > firstHeight, "help body grows vertically: " id)
+                parts[2].control.GetPos(, , &paragraphWidth)
+                parts[-1].control.GetPos(, &lastY, , &lastHeight)
+                this.Assert(paragraphWidth = helpWidth - 40 && lastY + lastHeight - textY <= firstHeight,
+                    "help paragraphs widen and rewrap with the window: " id)
                 this.Assert(app.ui.helpLayouts[id].renderedWidth = helpWidth
                     && app.ui.helpLayouts[id].renderedHeight = helpHeight,
                     "help live resizing processes one coherent control layout: " id)

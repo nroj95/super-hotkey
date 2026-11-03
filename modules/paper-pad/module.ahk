@@ -162,27 +162,29 @@ class PaperPadModule extends SuiteModule {
             MsgBox("The notes folder does not exist yet: " folder, "Paper Pad", "Iconi")
     }
 
-    HelpText() {
-        return "WHY I MADE THIS"
-            . "`r`nI wanted a place to quickly jot down anything, anytime, without "
-            . "worrying about saving files or finding notes buried in windows and tabs. "
-            . "Something I could open and hide instantly, easily switch between notes, "
-            . "and keep my ideas organized and separate from the clutter of everyday project work."
-            . "`r`n`r`nYOUR OWN QUICK-NOTES DRAWER"
-            . "`r`nPaper Pad opens a dedicated Notepad3 window without taking over your "
-            . "ordinary editor sessions. Use Open pad below or the configurable toggle "
-            . "hotkey. Notepad3's Ctrl + N creates a timestamped page automatically. "
-            . "Page navigation shortcuts work only inside the editor."
-            . "`r`n`r`nPAGES ARE REAL FILES"
-            . "`r`nNew pages receive timestamped filenames. They remain ordinary files "
-            . "in your notes folder, and Save As can rename a page within that folder. "
-            . "If you type before a native New is attached, use Save As to preserve it. "
-            . "Hiding Paper Pad preserves undo history, but switching pages clears it. "
-            . "You can still inspect and back up these files in an ordinary file manager."
-            . "`r`n`r`nSAVING AND RELOADING"
-            . "`r`nPaper Pad automatically saves changes when switching pages, hiding or exiting. "
-            . "Settings lets you choose your Notepad3 executable, notes folder, display "
-            . "and drawer size. Changing paths never moves existing notes. "
-            . "Notepad3 controls external-file reloads, which may replace unsaved text."
-    }
+    HelpText() => "
+    (
+        WHY I MADE THIS
+        I wanted a place to quickly jot down anything, anytime, without worrying about saving files or finding notes buried in windows and tabs.
+        Something I could open and hide instantly, easily switch between notes, and keep my ideas organized and separate from the clutter of everyday project work.
+
+        YOUR OWN QUICK-NOTES DRAWER
+        Paper Pad opens a dedicated Notepad3 window without taking over your ordinary editor sessions.
+        Use Open pad below or the configurable toggle hotkey.
+        Notepad3's Ctrl + N creates a timestamped page automatically.
+        Page navigation shortcuts work only inside the editor.
+
+        PAGES ARE REAL FILES
+        New pages receive timestamped filenames.
+        They remain ordinary files in your notes folder, and Save As can rename a page within that folder.
+        If you type before a native New is attached, use Save As to preserve it.
+        Hiding Paper Pad preserves undo history, but switching pages clears it.
+        You can still inspect and back up these files in an ordinary file manager.
+
+        SAVING AND RELOADING
+        Paper Pad automatically saves changes when switching pages, hiding or exiting.
+        Settings lets you choose your Notepad3 executable, notes folder, display and drawer size.
+        Changing paths never moves existing notes.
+        Notepad3 controls external-file reloads, which may replace unsaved text.
+    )"
 }

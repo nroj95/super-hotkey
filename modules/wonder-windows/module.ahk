@@ -261,42 +261,40 @@ class WonderWindowsModule extends SuiteModule {
         }
     }
 
-    HelpText() {
-        return "WHY I MADE THIS"
-            . "`r`nWindows already has window-management shortcuts, but I found many of them "
-            . "frustrating or incomplete. I wanted something more powerful, consistent "
-            . "and predictable, without constantly reaching for the mouse."
-            . "`r`n`r`nCYCLE ZONES"
-            . "`r`nHold Win and scroll, or press Win + Left or Right, to walk the window "
-            . "through fourths and halves: full height first, then upper and lower fourths, "
-            . "then upper and lower halves. Left and scroll down start at the left fourth; "
-            . "Right and scroll up start at the right fourth. The other key steps back, so "
-            . "Left then Right jumps to the last zone. Release the keys to start over next "
-            . "time. Settings can switch the cycle to thirds. Sizes an app cannot shrink to "
-            . "are skipped."
-            . "`r`n`r`nARRANGE YOUR WINDOWS"
-            . "`r`nWin + Shift + Enter stretches a window across to its neighbors, then "
-            . "also up and down so it fills the free space, then back to its original size. "
-            . "Win + Backspace minimizes the active window; focus stays on that display "
-            . "while it has windows left, then moves to the next display. Win + Shift + "
-            . "Backspace brings back the windows it minimized, newest first."
-            . "`r`n`r`nBETTER WINDOWS KEYS"
-            . "`r`nWindows' own keys work as you know them, with fewer surprises. Win + M, "
-            . "Win + Home and Win + D take Shift to bring back what they minimized, however "
-            . "much you do in between. They act on your display only, except Win + D, which "
-            . "reaches every display, and focus stays on your display. Win + Down undoes a "
-            . "placement, and puts a cascade window back in its cascade, before it minimizes."
-            . "`r`n`r`nFOCUS, STACKS AND FULLSCREEN"
-            . "`r`nWin + PgDn and PgUp step focus through every window on screen in reading "
-            . "order: displays left to right, columns left to right, top before bottom, and "
-            . "outline the window they reach; double-tap Caps to outline where you are. "
-            . "A stack of overlapping windows counts once, as its front window. "
-            . "Move a window onto its nearest neighbor to stack it in front. Bring forward the next window stacked with the active one, "
-            . "and cycle a window between maximized and half-height positions. Layout actions exit F11 fullscreen before repositioning a window. "
-            . "Win + Alt + Enter shows the next maximized or fullscreen window on your display, minimized or not, and minimizes "
-            . "the others there, so one big window is out at a time; add Shift to go back. "
-            . "Keybindings below shows the current hotkey for each action."
-    }
+    HelpText() => "
+    (
+        WHY I MADE THIS
+        Windows already has window-management shortcuts, but I found many of them frustrating or incomplete.
+        I wanted something more powerful, consistent and predictable, without constantly reaching for the mouse.
+
+        CYCLE ZONES
+        Hold Win and scroll, or press Win + Left or Right, to walk the window through fourths and halves: full height first, then upper and lower fourths, then upper and lower halves.
+        Left and scroll down start at the left fourth; Right and scroll up start at the right fourth.
+        The other key steps back, so Left then Right jumps to the last zone.
+        Release the keys to start over next time.
+        Settings can switch the cycle to thirds.
+        Sizes an app cannot shrink to are skipped.
+
+        ARRANGE YOUR WINDOWS
+        Win + Shift + Enter stretches a window across to its neighbors, then also up and down so it fills the free space, then back to its original size.
+        Win + Backspace minimizes the active window; focus stays on that display while it has windows left, then moves to the next display.
+        Win + Shift + Backspace brings back the windows it minimized, newest first.
+
+        BETTER WINDOWS KEYS
+        Windows' own keys work as you know them, with fewer surprises.
+        Win + M, Win + Home and Win + D take Shift to bring back what they minimized, however much you do in between.
+        They act on your display only, except Win + D, which reaches every display, and focus stays on your display.
+        Win + Down undoes a placement, and puts a cascade window back in its cascade, before it minimizes.
+
+        FOCUS, STACKS AND FULLSCREEN
+        Win + PgDn and PgUp step focus through every window on screen in reading order: displays left to right, columns left to right, top before bottom, and outline the window they reach; double-tap Caps to outline where you are.
+        A stack of overlapping windows counts once, as its front window.
+        Move a window onto its nearest neighbor to stack it in front.
+        Bring forward the next window stacked with the active one, and cycle a window between maximized and half-height positions.
+        Layout actions exit F11 fullscreen before repositioning a window.
+        Win + Alt + Enter shows the next maximized or fullscreen window on your display, minimized or not, and minimizes the others there, so one big window is out at a time; add Shift to go back.
+        Keybindings below shows the current hotkey for each action.
+    )"
 }
 
 ; Before Cascade Kingdom adopts a manually positioned window, leave F11

@@ -69,19 +69,21 @@ class SecretLayersModule extends SuiteModule {
             ui.Report(failure, "Secret Layers / settings")
     }
 
-    HelpText() {
-        return "WHY I MADE THIS"
-            . "`r`nI wanted to get more out of my existing keyboard. CapsLock and Pause seemed "
-            . "like perfect candidates for unlocking an entirely new set of shortcuts "
-            . "without adding more keys."
-            . "`r`n`r`nHOLD A KEY FOR MORE HOTKEYS"
-            . "`r`nHold CapsLock or Pause, then press another key to run its assigned action. "
-            . "A short tap instead arms the next key for 1.4 seconds, so you don't need "
-            . "to hold both keys at once. Tap the same key again to cancel the layer or "
-            . "trigger an assigned double-tap action. Only one layer can be active at a time."
-            . "`r`n`r`nTOGGLE CAPS LOCK"
-            . "`r`nDouble-tap Shift to toggle Caps Lock while its layer is enabled. "
-            . "Only two quick taps of the same Shift key count, without another key "
-            . "in between. Turn off the CapsLock layer and the key works normally again."
-    }
+    HelpText() => "
+    (
+        WHY I MADE THIS
+        I wanted to get more out of my existing keyboard.
+        CapsLock and Pause seemed like perfect candidates for unlocking an entirely new set of shortcuts without adding more keys.
+
+        HOLD A KEY FOR MORE HOTKEYS
+        Hold CapsLock or Pause, then press another key to run its assigned action.
+        A short tap instead arms the next key for 1.4 seconds, so you don't need to hold both keys at once.
+        Tap the same key again to cancel the layer or trigger an assigned double-tap action.
+        Only one layer can be active at a time.
+
+        TOGGLE CAPS LOCK
+        Double-tap Shift to toggle Caps Lock while its layer is enabled.
+        Only two quick taps of the same Shift key count, without another key in between.
+        Turn off the CapsLock layer and the key works normally again.
+    )"
 }

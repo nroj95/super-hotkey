@@ -140,27 +140,25 @@ class CascadeKingdomModule extends SuiteModule {
             ui.Report(failure, "Cascade Kingdom / settings")
     }
 
-    HelpText() {
-        return "WHY I MADE THIS"
-            . "`r`nI wanted an easier way to manage lots of open windows: keep them large "
-            . "and neatly organized, switch between them effortlessly, and avoid digging "
-            . "through a messy pile of overlapping windows."
-            . "`r`n`r`nADD A WINDOW"
-            . "`r`nPress Caps + Insert to add the active window, and Caps + Shift + Insert to take "
-            . "it out again: it returns to where it was before it joined. Or drag a window: "
-            . "corner guides mark the slots, and releasing with its "
-            . "top-left corner on one adds it. Resizing never adds a window, and dragging a "
-            . "member away from its slot releases it. With one display selected in Settings, "
-            . "added windows move there and dragging to another display leaves a window "
-            . "outside the cascade. A disconnected selected display pauses adding until it "
-            . "returns or you change Settings."
-            . "`r`n`r`nFOCUS TABS"
-            . "`r`nEach slot has a focus tab on both sides: at the lower left and the upper "
-            . "right. Click either to select a slot. Click again to cycle windows sharing "
-            . "that slot. Active tabs and drop guides use your Windows accent color; "
-            . "choose the inactive tab color in Settings. A cascade of one window shows "
-            . "no tabs."
-    }
+    HelpText() => "
+    (
+        WHY I MADE THIS
+        I wanted an easier way to manage lots of open windows: keep them large and neatly organized, switch between them effortlessly, and avoid digging through a messy pile of overlapping windows.
+
+        ADD A WINDOW
+        Press Caps + Insert to add the active window, and Caps + Shift + Insert to take it out again: it returns to where it was before it joined.
+        Or drag a window: corner guides mark the slots, and releasing with its top-left corner on one adds it.
+        Resizing never adds a window, and dragging a member away from its slot releases it.
+        With one display selected in Settings, added windows move there and dragging to another display leaves a window outside the cascade.
+        A disconnected selected display pauses adding until it returns or you change Settings.
+
+        FOCUS TABS
+        Each slot has a focus tab on both sides: at the lower left and the upper right.
+        Click either to select a slot.
+        Click again to cycle windows sharing that slot.
+        Active tabs and drop guides use your Windows accent color; choose the inactive tab color in Settings.
+        A cascade of one window shows no tabs.
+    )"
 }
 
 ; A window that Wonder Windows positions by hand leaves its cascade at once,

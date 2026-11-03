@@ -213,34 +213,27 @@ class GalaxyRhythmModule extends SuiteModule {
             ui.Report(failure, "Galaxy Rhythm / settings")
     }
 
-    HelpText() {
-        return "WHY I MADE THIS"
-            . "`r`nMy sleep rhythm has always been a mess, and the more projects I have going, "
-            . "the worse it gets. I wanted some structure without being nagged: a few gentle "
-            . "nudges at night, like the cozy nights of a farming game, and a computer that "
-            . "knows when to call it a day."
-            . "`r`n`r`nBEDTIME MESSAGES"
-            . "`r`nSettings can show up to three messages at times you choose: by default "
-            . "It's getting late at 00:00, zzz… at 01:00 and You feel sleepy at 02:00. Each "
-            . "shows on every display at its time while you use the unlocked computer; a time "
-            . "missed while the computer slept or was locked is skipped, never shown late."
-            . "`r`n`r`nFADE TO SLEEP"
-            . "`r`nThe last message starts the night: the screen fades "
-            . "to grey over 10 minutes, Good night shows, and the computer sleeps, even if you "
-            . "lock it meanwhile. Stay awake (Pause + End in Power-Up Utilities) keeps it up, "
-            . "even during the fade, and says so; if it ends before the night ends, 06:00 by "
-            . "default, the fade starts over. One sleep ends the night early."
-            . "`r`n`r`nENERGY BAR"
-            . "`r`nA small upright bar marked E, bottom right on the primary display unless Settings "
-            . "moves it, drains "
-            . "with every minute you use the "
-            . "computer: 12 hours of activity empty it. It refills while you rest away from it, "
-            . "locked, with the screens off, asleep or off: breaks of 10 minutes or more count, "
-            . "a 30-minute walk gives back about 1.5 hours, and a full night of 8 hours fills it. "
-            . "Near empty it says so; at zero you're running on fumes, the screen greys over half "
-            . "an hour of activity by default, and then Lights out puts the computer to sleep. Stay awake "
-            . "holds the bar quietly at zero instead."
-            . "`r`n`r`nTurn Galaxy Rhythm on in Modules and all of this is on; every time, length "
-            . "and message can be changed in Settings."
-    }
+    HelpText() => "
+    (
+        WHY I MADE THIS
+        My sleep rhythm has always been a mess, and the more projects I have going, the worse it gets.
+        I wanted some structure without being nagged: a few gentle nudges at night, like the cozy nights of a farming game, and a computer that knows when to call it a day.
+
+        BEDTIME MESSAGES
+        Settings can show up to three messages at times you choose: by default It's getting late at 00:00, zzz… at 01:00 and You feel sleepy at 02:00.
+        Each shows on every display at its time while you use the unlocked computer; a time missed while the computer slept or was locked is skipped, never shown late.
+
+        FADE TO SLEEP
+        The last message starts the night: the screen fades to grey over 10 minutes, Good night shows, and the computer sleeps, even if you lock it meanwhile.
+        Stay awake (Pause + End in Power-Up Utilities) keeps it up, even during the fade, and says so; if it ends before the night ends, 06:00 by default, the fade starts over.
+        One sleep ends the night early.
+
+        ENERGY BAR
+        A small upright bar marked E, bottom right on the primary display unless Settings moves it, drains with every minute you use the computer: 12 hours of activity empty it.
+        It refills while you rest away from it, locked, with the screens off, asleep or off: breaks of 10 minutes or more count, a 30-minute walk gives back about 1.5 hours, and a full night of 8 hours fills it.
+        Near empty it says so; at zero you're running on fumes, the screen greys over half an hour of activity by default, and then Lights out puts the computer to sleep.
+        Stay awake holds the bar quietly at zero instead.
+
+        Turn Galaxy Rhythm on in Modules and all of this is on; every time, length and message can be changed in Settings.
+    )"
 }

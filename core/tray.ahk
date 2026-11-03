@@ -227,8 +227,15 @@ class SuiteInterface {
         window.SetFont("s10 c" statusColor, "Cascadia Mono")
         status := window.AddText("x420 y18 w250 h25", state)
         window.SetFont("s10 cDefault", "Cascadia Mono")
-        content := window.AddText("x20 y55 w860 h455 vhelpText", module.HelpText())
-        SuiteBufferedPaint.Attach(content)
+        guide := []
+        for part in SuiteInterface.HelpParts(module.HelpText()) {
+            if part.heading
+                window.SetFont("bold")
+            control := window.AddText("x20 y55 w860", part.text)
+            window.SetFont("norm")
+            SuiteBufferedPaint.Attach(control)
+            guide.Push({control: control, heading: part.heading})
+        }
         buttons := module.HelpButtons()
         if module.hasSettings
             buttons.Push(["Settings...", ObjBindMethod(this, "OpenSettingsFromHelp", id), 120])
@@ -238,7 +245,7 @@ class SuiteInterface {
         width := 820
         height := 480
         this.helpLayouts[id] := {header: header, status: status, statusColor: statusColor,
-            content: content, footer: footer, width: width, height: height,
+            guide: guide, footer: footer, width: width, height: height,
             renderedWidth: 0, renderedHeight: 0}
         this.helpWindowIds[window.Hwnd] := id
         if !this.helpSizingInstalled {
@@ -273,9 +280,10 @@ class SuiteInterface {
             {control: layout.header, x: headerX, y: 18, w: headerWidth, h: 25},
             {control: layout.status, x: headerX + headerWidth, y: 18,
                 w: statusWidth, h: 25},
-            {control: layout.content, x: 20, y: 55, w: width - 40, h: height - 145},
             {control: layout.footer.divider, x: 20, y: height - 64, w: width - 40, h: 2}
         ]
+        for row in this.HelpGuideRows(id, width)
+            positions.Push({control: row.control, x: 20, y: 55 + row.y, w: width - 40, h: row.h})
         x := width - 10 - layout.footer.total
         for item in layout.footer.buttons {
             positions.Push({control: item.button, x: x, y: height - 49,
@@ -312,9 +320,39 @@ class SuiteInterface {
         }
     }
 
+    ; A guide as modules write it: sections apart by blank lines, one sentence
+    ; per line, each section under an optional heading line in capitals.
+    ; Returns its parts in order: {text, heading}, a paragraph's sentences
+    ; joined into one line for the page to wrap.
+    static HelpParts(text) {
+        parts := []
+        paragraph := ""
+        for line in StrSplit(StrReplace(text, "`r"), "`n") {
+            line := Trim(line)
+            if line = "" {
+                if paragraph != ""
+                    parts.Push({text: paragraph, heading: false})
+                paragraph := ""
+            }
+            else if paragraph = "" && line == StrUpper(line) && RegExMatch(line, "[A-Z]")
+                parts.Push({text: line, heading: true})
+            else
+                paragraph .= (paragraph = "" ? "" : " ") line
+        }
+        if paragraph != ""
+            parts.Push({text: paragraph, heading: false})
+        return parts
+    }
+
     HelpTextHeight(id, clientWidth) {
+        rows := this.HelpGuideRows(id, clientWidth)
+        return rows.Length ? rows[-1].y + rows[-1].h : 0
+    }
+
+    ; The guide's parts wrapped at clientWidth, stacked from 0: {control, y, h}.
+    ; A blank line ends a paragraph; a heading sits just above its paragraph.
+    HelpGuideRows(id, clientWidth) {
         window := this.windows["help:" id]
-        text := this.helpLayouts[id].content
         window.GetClientPos(, , &logicalWidth)
         rect := Buffer(16, 0)
         if !logicalWidth || !DllCall("GetClientRect", "ptr", window.Hwnd,
@@ -324,20 +362,26 @@ class SuiteInterface {
         hdc := DllCall("GetDC", "ptr", window.Hwnd, "ptr")
         if !hdc
             throw OSError(A_LastError, "Get Help text drawing context")
-        font := SendMessage(0x0031, 0, 0, , text.Hwnd)
-        previous := font ? DllCall("SelectObject", "ptr", hdc, "ptr", font, "ptr") : 0
+        rows := []
+        y := 0
         try {
-            bounds := Buffer(16, 0)
-            NumPut("int", Max(1, Round((clientWidth - 40) * scale)), bounds, 8)
-            DllCall("DrawTextW", "ptr", hdc, "str", text.Text, "int", -1,
-                "ptr", bounds, "uint", 0xC10, "int") ; word wrap, measure, no prefix
-            return Ceil(NumGet(bounds, 12, "int") / scale)
+            for part in this.helpLayouts[id].guide {
+                if A_Index > 1
+                    y += this.helpLayouts[id].guide[A_Index - 1].heading ? 3 : 17 ; one blank line
+                font := SendMessage(0x0031, 0, 0, , part.control.Hwnd)
+                previous := font ? DllCall("SelectObject", "ptr", hdc, "ptr", font, "ptr") : 0
+                bounds := Buffer(16, 0)
+                NumPut("int", Max(1, Round((clientWidth - 40) * scale)), bounds, 8)
+                DllCall("DrawTextW", "ptr", hdc, "str", part.control.Text, "int", -1,
+                    "ptr", bounds, "uint", 0xC10, "int") ; word wrap, measure, no prefix
+                if previous
+                    DllCall("SelectObject", "ptr", hdc, "ptr", previous)
+                rows.Push({control: part.control, y: y, h: Ceil(NumGet(bounds, 12, "int") / scale)})
+                y += rows[-1].h
+            }
         }
-        finally {
-            if previous
-                DllCall("SelectObject", "ptr", hdc, "ptr", previous)
-            DllCall("ReleaseDC", "ptr", window.Hwnd, "ptr", hdc)
-        }
+        finally DllCall("ReleaseDC", "ptr", window.Hwnd, "ptr", hdc)
+        return rows
     }
 
     KeepHelpTextVisible(edge, proposed, messageId, hwnd) {
