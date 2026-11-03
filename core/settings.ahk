@@ -1,5 +1,6 @@
 ; Saved suite preferences, per-module preference files and their backups.
 ; Saved choices are independent of the module/layer choices of this run.
+; [interface] language holds a lang file's code, "en", or "" for automatic.
 class SuiteSettings {
     static BackupsKept := 20
 
@@ -45,7 +46,12 @@ class SuiteSettings {
             this.modules[id] := this.ReadFlag("modules", id, SuiteSettings.ModuleDefault(id))
         this.layers := Map("caps", this.ReadFlag("layers", "caps", true),
             "pause", this.ReadFlag("layers", "pause", true))
+        this.language := KB_Manifest.Get(this.document, "interface", "language")
+        if !SuiteSettings.ValidLanguage(this.language)
+            throw Error("Invalid setting: interface/language.")
     }
+
+    static ValidLanguage(code) => RegExMatch(code, "^([A-Za-z]{2,3}(-[A-Za-z0-9]{1,8})*)?$")
 
     static ModuleDefault(id) => !SuiteSettings.OffByDefault.Has(id)
 
@@ -58,9 +64,13 @@ class SuiteSettings {
 
     ; Rebuilding the layers section drops keys earlier versions saved there,
     ; and verbose logging, which lasts one run, is no longer saved.
-    Save(modules, layers := unset) {
+    Save(modules, layers := unset, language := unset) {
         if !IsSet(layers)
             layers := this.layers
+        if !IsSet(language)
+            language := this.language
+        if !SuiteSettings.ValidLanguage(language)
+            throw ValueError("Invalid language choice: " language)
         document := Map()
         for section, values in this.document
             if section != "logging"
@@ -78,11 +88,13 @@ class SuiteSettings {
                 throw ValueError("Missing or invalid layer choice: " id)
             document["layers"][id] := layers[id] ? "1" : "0"
         }
+        document["interface"] := Map("language", language)
         DirCreate this.directory
         KB_Manifest.WriteAtomic(this.path, document)
         this.document := document
         this.modules := modules.Clone()
         this.layers := layers.Clone()
+        this.language := language
     }
 
     WritePreferences(id, changes) {

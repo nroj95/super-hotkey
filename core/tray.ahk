@@ -1,6 +1,7 @@
 ; =============================================================================
-; One flat tray. Module entries open their guides; module settings, the log and
-; module selection are pages built with the shared helpers below.
+; One flat tray. Module entries open their guides; module settings, the log,
+; module selection and the language are pages built with the shared helpers
+; below.
 ; =============================================================================
 class SuiteInterface {
     __New(app) {
@@ -39,6 +40,7 @@ class SuiteInterface {
         A_TrayMenu.Delete()
         A_TrayMenu.Add("Modules...", ObjBindMethod(this, "ShowModules"))
         A_TrayMenu.Add("Keybindings...", ObjBindMethod(this.app, "ShowKeybindings"))
+        A_TrayMenu.Add(T("Language..."), ObjBindMethod(this, "ShowLanguage"))
         A_TrayMenu.Add()
         for id in SuiteSettings.ModuleOrder
             A_TrayMenu.Add(SuiteSettings.ModuleNames[id], ObjBindMethod(this, "ShowHelp", id))
@@ -323,7 +325,8 @@ class SuiteInterface {
     ; A guide as modules write it: sections apart by blank lines, one sentence
     ; per line, each section under an optional heading line in capitals.
     ; Returns its parts in order: {text, heading}, a paragraph's sentences
-    ; joined into one line for the page to wrap.
+    ; joined into one line for the page to wrap. Each line is shown in the
+    ; suite's language; headings are found in the English.
     static HelpParts(text) {
         parts := []
         paragraph := ""
@@ -335,9 +338,9 @@ class SuiteInterface {
                 paragraph := ""
             }
             else if paragraph = "" && line == StrUpper(line) && RegExMatch(line, "[A-Z]")
-                parts.Push({text: line, heading: true})
+                parts.Push({text: SuiteLanguage.Text(line), heading: true})
             else
-                paragraph .= (paragraph = "" ? "" : " ") line
+                paragraph .= (paragraph = "" ? "" : " ") SuiteLanguage.Text(line)
         }
         if paragraph != ""
             parts.Push({text: paragraph, heading: false})
@@ -468,6 +471,40 @@ class SuiteInterface {
         }
         catch Error as failure
             this.Report(failure, "Core / module settings")
+    }
+
+    ; Each language is listed in its own name, English included. The language
+    ; loads at startup, so applying a choice restarts the suite.
+    ShowLanguage(*) {
+        if this.Existing("language")
+            return
+        rows := SuitePageRows(this.NewWindow("language", T("{1} - Language", SuiteApplication.Name), true), 440)
+        rows.Text(T("Automatic follows the Windows display language."))
+        choices := [{code: "", name: T("Automatic")}, {code: "en", name: SuiteLanguage.English}]
+        for language in SuiteLanguage.Available()
+            choices.Push(language)
+        this.languageChoices := []
+        for choice in choices {
+            control := rows.Radio(choice.name)
+            control.Value := choice.code = this.app.Settings.language
+            this.languageChoices.Push({code: choice.code, control: control})
+        }
+        rows.Show(this, "language", [[T("Apply and restart"), ObjBindMethod(this, "SaveLanguage"), 160],
+            [T("Cancel"), ObjBindMethod(this, "CloseWindow", "language"), 100]])
+    }
+
+    SaveLanguage(*) {
+        code := this.app.Settings.language
+        for choice in this.languageChoices
+            if choice.control.Value
+                code := choice.code
+        try {
+            this.app.Settings.Save(this.app.Settings.modules, , code)
+            this.CloseWindow("language")
+            Reload()
+        }
+        catch Error as failure
+            this.Report(failure, "Core / language")
     }
 
     ShowModuleSettings(id, *) => this.app.modules[id].ShowSettings(this)
@@ -687,7 +724,7 @@ class SuiteInterface {
             choices := Map()
             for id in SuiteSettings.ModuleOrder
                 choices[id] := SuiteSettings.ModuleDefault(id)
-            app.Settings.Save(choices, Map("caps", true, "pause", true))
+            app.Settings.Save(choices, Map("caps", true, "pause", true), "")
             app.Settings.ResetModulePreferences(sections)
             SuiteState.Log.Write("Core", "defaults restored; backup: " backup)
             Reload()
@@ -735,6 +772,10 @@ class SuitePageRows {
 
     Checkbox(label, options := "") => this.Advance(
         this.window.AddCheckbox("x20 y" this.y " w" (this.width - 40) " " options, label))
+
+    ; One of a group of choices; the radios that follow each other form one group.
+    Radio(label, options := "") => this.Advance(
+        this.window.AddRadio("x20 y" this.y " w" (this.width - 40) " " options, label))
 
     ; A label with a field of type beside it, in the page's field column.
     Field(label, type, options, value?) {

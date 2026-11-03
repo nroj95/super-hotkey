@@ -74,7 +74,7 @@ Try these first:
 - Press `Win + F12` to open the Paper Pad notes drawer. It needs [Notepad3](https://www.rizonesoft.com/downloads/notepad3/) and asks you to install or locate it when it can't find it.
 - Press `Ctrl + Alt + K` to see and change your hotkeys.
 
-The tray icon also has guides, settings and **Modules...**, where you can turn off what you don't need. Settings and logs live in `%LOCALAPPDATA%\nroj\SuperHotkey`.
+The tray icon also has guides, settings and **Modules...**, where you can turn off what you don't need, and **Language...**. Settings and logs live in `%LOCALAPPDATA%\nroj\SuperHotkey`.
 
 ## Compatibility
 
@@ -85,6 +85,8 @@ PowerToys FancyZones does all three, so it isn't supported; disable it in PowerT
 ## Develop
 
 Edit `core/` and `modules/` directly; [AGENTS.md](AGENTS.md) explains the architecture. Run `python tests/check.py` before committing.
+
+To translate Super Hotkey into your language, see [lang/README.md](lang/README.md).
 
 Super Hotkey is free, and I'll never charge for it. The official source is [github.com/nroj95/super-hotkey](https://github.com/nroj95/super-hotkey); a paid version anywhere else doesn't come from me.
 

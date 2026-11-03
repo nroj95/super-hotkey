@@ -87,14 +87,14 @@ class InterfaceChecks {
             this.Assert(A_IconTip = "Super Hotkey v1.0.0-beta.3 - dry run",
                 "tray hover text includes its assigned version and dry-run suffix")
             count := DllCall("GetMenuItemCount", "ptr", A_TrayMenu.Handle, "int")
-            this.Assert(count = 20,
-                "tray includes application suspension and an explicit app restart")
+            this.Assert(count = 21,
+                "tray includes Language..., application suspension and an explicit app restart")
             loop count
                 this.Assert(!DllCall("GetSubMenu", "ptr", A_TrayMenu.Handle, "int", A_Index - 1, "ptr"),
                     "tray entry has no submenu: " A_Index)
-            for item in [[11, "Verbose logging"], [12, "Open settings folder"],
-                [14, "Run at startup"], [15, "Suspend"],
-                [16, "Restart Super Hotkey"], [17, "Reset to defaults..."]] {
+            for item in [[2, "Language..."], [12, "Verbose logging"], [13, "Open settings folder"],
+                [15, "Run at startup"], [16, "Suspend"],
+                [17, "Restart Super Hotkey"], [18, "Reset to defaults..."]] {
                 name := Buffer(256, 0)
                 DllCall("GetMenuStringW", "ptr", A_TrayMenu.Handle,
                     "uint", item[1], "ptr", name, "int", 128, "uint", 0x400, "int")
@@ -102,15 +102,15 @@ class InterfaceChecks {
                     "tray exposes " item[2] " directly")
             }
             verboseStatus := (*) => DllCall("GetMenuState", "ptr", A_TrayMenu.Handle,
-                "uint", 11, "uint", 0x400, "uint")
+                "uint", 12, "uint", 0x400, "uint")
             this.Assert(!(verboseStatus.Call() & 8),
                 "verbose logging starts unchecked in the tray")
             startupState := DllCall("GetMenuState", "ptr", A_TrayMenu.Handle,
-                "uint", 14, "uint", 0x400, "uint")
+                "uint", 15, "uint", 0x400, "uint")
             this.Assert(startupState & 3,
                 "Run at startup is disabled during safe dry-run testing")
             hotkeyState := (*) => DllCall("GetMenuState", "ptr", A_TrayMenu.Handle,
-                "uint", 15, "uint", 0x400, "uint")
+                "uint", 16, "uint", 0x400, "uint")
             this.Assert(!(hotkeyState.Call() & 8) && !app.suspended,
                 "Suspend starts unchecked")
             app.ui.ToggleSuspension()
@@ -658,6 +658,11 @@ class InterfaceChecks {
                 "utility footer has its buttons: " page)
             this.Assert(app.ui.moduleControls.Count = 6,
                 "Modules presents all six features")
+            app.ui.ShowLanguage()
+            this.Assert(app.ui.languageChoices.Length = 2 + SuiteLanguage.Available().Length
+                && app.ui.languageChoices[1].control.Value && !app.ui.languageChoices[2].control.Value,
+                "Language lists Automatic, English and each file, with the saved choice selected")
+            app.ui.CloseWindow("language")
             descriptionCount := 0
             for id in SuiteSettings.ModuleOrder {
                 app.ui.moduleControls[id].GetPos(, &checkY, , &checkHeight)

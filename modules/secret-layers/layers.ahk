@@ -312,7 +312,8 @@ class KeyboardLayers {
             return
         }
         layer := this.selected != "" ? this.selected : this.armed
-        text := StrUpper(SubStr(layer, 1, 1)) SubStr(layer, 2) (this.selected != "" ? " held" : " - next key")
+        name := StrUpper(SubStr(layer, 1, 1)) SubStr(layer, 2)
+        text := this.selected != "" ? T("{1} held", name) : T("{1} - next key", name)
         try SuiteNotice.Show("layer", text)
         catch Error as failure
             SuiteState.Log.Error("Secret Layers / indicator", failure)

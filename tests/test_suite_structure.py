@@ -110,7 +110,7 @@ class SuiteStructureTests(unittest.TestCase):
             self.assertNotRegex(text, r'(?m)^#SingleInstance\b')
 
     def test_sources_are_utf8_with_lf(self):
-        for path in [*RUNTIME, *ROOT.glob('tests/*')]:
+        for path in [*RUNTIME, *ROOT.glob('tests/*'), *ROOT.glob('tools/*'), *ROOT.glob('lang/*')]:
             if path.is_dir():
                 continue
             data = path.read_bytes()

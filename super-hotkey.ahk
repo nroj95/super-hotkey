@@ -7,6 +7,7 @@
 #Include "%A_ScriptDir%\core\keybindings-editor.ahk"
 #Include "%A_ScriptDir%\core\logging.ahk"
 #Include "%A_ScriptDir%\core\settings.ahk"
+#Include "%A_ScriptDir%\core\language.ahk"
 #Include "%A_ScriptDir%\core\ui.ahk"
 #Include "%A_ScriptDir%\core\windows.ahk"
 #Include "%A_ScriptDir%\core\power.ahk"
@@ -77,6 +78,7 @@ SuperHotkeyMain() {
             }
         }
         app := SuiteApplication(dryRun)
+        SuiteLanguage.Load(app.Settings.language)
         app.Start(openSettings)
     }
     catch Error as failure {

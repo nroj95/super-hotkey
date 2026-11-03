@@ -1,0 +1,373 @@
+; language:
+; Super Hotkey translation; see lang/README.md. Keep each = line;
+; python tools/lang.py --update adds new text and rewrites these comments.
+
+; core/tray.ahk
+
+Language...
+=
+
+{1} - Language
+=
+
+Automatic follows the Windows display language.
+=
+
+Automatic
+=
+
+Apply and restart
+=
+
+Cancel
+=
+
+; modules/cascade-kingdom/module.ahk
+
+WHY I MADE THIS
+=
+
+I wanted an easier way to manage lots of open windows: keep them large and neatly organized, switch between them effortlessly, and avoid digging through a messy pile of overlapping windows.
+=
+
+ADD A WINDOW
+=
+
+Press Caps + Insert to add the active window, and Caps + Shift + Insert to take it out again: it returns to where it was before it joined.
+=
+
+Or drag a window: corner guides mark the slots, and releasing with its top-left corner on one adds it.
+=
+
+Resizing never adds a window, and dragging a member away from its slot releases it.
+=
+
+With one display selected in Settings, added windows move there and dragging to another display leaves a window outside the cascade.
+=
+
+A disconnected selected display pauses adding until it returns or you change Settings.
+=
+
+FOCUS TABS
+=
+
+Each slot has a focus tab on both sides: at the lower left and the upper right.
+=
+
+Click either to select a slot.
+=
+
+Click again to cycle windows sharing that slot.
+=
+
+Active tabs and drop guides use your Windows accent color; choose the inactive tab color in Settings.
+=
+
+A cascade of one window shows no tabs.
+=
+
+; modules/galaxy-rhythm/module.ahk
+
+My sleep rhythm has always been a mess, and the more projects I have going, the worse it gets.
+=
+
+I wanted some structure without being nagged: a few gentle nudges at night, like the cozy nights of a farming game, and a computer that knows when to call it a day.
+=
+
+BEDTIME MESSAGES
+=
+
+Settings can show up to three messages at times you choose: by default It's getting late at 00:00, zzz… at 01:00 and You feel sleepy at 02:00.
+=
+
+Each shows on every display at its time while you use the unlocked computer; a time missed while the computer slept or was locked is skipped, never shown late.
+=
+
+FADE TO SLEEP
+=
+
+The last message starts the night: the screen fades to grey over 10 minutes, Good night shows, and the computer sleeps, even if you lock it meanwhile.
+=
+
+Stay awake (Pause + End in Power-Up Utilities) keeps it up, even during the fade, and says so; if it ends before the night ends, 06:00 by default, the fade starts over.
+=
+
+One sleep ends the night early.
+=
+
+ENERGY BAR
+=
+
+A small upright bar marked E, bottom right on the primary display unless Settings moves it, drains with every minute you use the computer: 12 hours of activity empty it.
+=
+
+It refills while you rest away from it, locked, with the screens off, asleep or off: breaks of 10 minutes or more count, a 30-minute walk gives back about 1.5 hours, and a full night of 8 hours fills it.
+=
+
+Near empty it says so; at zero you're running on fumes, the screen greys over half an hour of activity by default, and then Lights out puts the computer to sleep.
+=
+
+Stay awake holds the bar quietly at zero instead.
+=
+
+Turn Galaxy Rhythm on in Modules and all of this is on; every time, length and message can be changed in Settings.
+=
+
+; modules/paper-pad/module.ahk
+
+I wanted a place to quickly jot down anything, anytime, without worrying about saving files or finding notes buried in windows and tabs.
+=
+
+Something I could open and hide instantly, easily switch between notes, and keep my ideas organized and separate from the clutter of everyday project work.
+=
+
+YOUR OWN QUICK-NOTES DRAWER
+=
+
+Paper Pad opens a dedicated Notepad3 window without taking over your ordinary editor sessions.
+=
+
+Use Open pad below or the configurable toggle hotkey.
+=
+
+Notepad3's Ctrl + N creates a timestamped page automatically.
+=
+
+Page navigation shortcuts work only inside the editor.
+=
+
+PAGES ARE REAL FILES
+=
+
+New pages receive timestamped filenames.
+=
+
+They remain ordinary files in your notes folder, and Save As can rename a page within that folder.
+=
+
+If you type before a native New is attached, use Save As to preserve it.
+=
+
+Hiding Paper Pad preserves undo history, but switching pages clears it.
+=
+
+You can still inspect and back up these files in an ordinary file manager.
+=
+
+SAVING AND RELOADING
+=
+
+Paper Pad automatically saves changes when switching pages, hiding or exiting.
+=
+
+Settings lets you choose your Notepad3 executable, notes folder, display and drawer size.
+=
+
+Changing paths never moves existing notes.
+=
+
+Notepad3 controls external-file reloads, which may replace unsaved text.
+=
+
+; modules/power-up-utilities/power-up-utilities.ahk
+
+I wanted a collection of practical shortcuts for everyday tasks that didn't fit into the other modules.
+=
+
+MORE KEYS WITHOUT A NEW KEYBOARD
+=
+
+Send F13-F24 or Numpad 0-9 using shortcuts, even if your keyboard doesn't have those keys.
+=
+
+The virtual numpad is especially useful on compact keyboards without a number pad, while F13-F24 provides extra keys for shortcuts in compatible applications.
+=
+
+Held virtual keys are released when you release their triggering hotkey.
+=
+
+TEXT AND TERMINAL ACTIONS
+=
+
+Insert punctuation, special spaces or a yyyyMMdd-HHmmss timestamp.
+=
+
+Terminal copy and clear operate only in Windows Terminal and use its default Ctrl + Shift + A, C and K shortcuts.
+=
+
+Characters type as you press them and repeat while held, like real keys, so holding Pause and tapping - twice types two dashes.
+=
+
+Text waits while Shift, Ctrl, Alt or Win is held, and Terminal actions run once you let go.
+=
+
+SYSTEM UTILITIES
+=
+
+Wake speakers that automatically enter standby, or put your computer to sleep.
+=
+
+STAY AWAKE
+=
+
+Pause + End keeps the computer from sleeping for 30 minutes.
+=
+
+Press again while its notice shows for 1, 2, 4 or 8 hours or no limit, counted from now; once the notice has gone, the next press starts over at 30 minutes.
+=
+
+Pause + Shift + End allows sleep again.
+=
+
+The tray icon's tooltip shows how long.
+=
+
+The screen still turns off and locks as usual, and choosing Sleep or closing a laptop lid still sleeps.
+=
+
+Suspending or exiting Super Hotkey ends it.
+=
+
+; modules/secret-layers/layers.ahk
+
+{1} held
+=
+
+{1} - next key
+=
+
+; modules/secret-layers/module.ahk
+
+show Secret Layers help
+=
+
+Secret Layers - Settings
+=
+
+Modules is the master switch. These choices control each layer independently.
+=
+
+Enable Pause layer
+=
+
+Enable CapsLock layer
+=
+
+Double-tap Shift to toggle Caps Lock while this layer is enabled.
+=
+
+Back
+=
+
+I wanted to get more out of my existing keyboard.
+=
+
+CapsLock and Pause seemed like perfect candidates for unlocking an entirely new set of shortcuts without adding more keys.
+=
+
+HOLD A KEY FOR MORE HOTKEYS
+=
+
+Hold CapsLock or Pause, then press another key to run its assigned action.
+=
+
+A short tap instead arms the next key for 1.4 seconds, so you don't need to hold both keys at once.
+=
+
+Tap the same key again to cancel the layer or trigger an assigned double-tap action.
+=
+
+Only one layer can be active at a time.
+=
+
+TOGGLE CAPS LOCK
+=
+
+Double-tap Shift to toggle Caps Lock while its layer is enabled.
+=
+
+Only two quick taps of the same Shift key count, without another key in between.
+=
+
+Turn off the CapsLock layer and the key works normally again.
+=
+
+; modules/wonder-windows/module.ahk
+
+Windows already has window-management shortcuts, but I found many of them frustrating or incomplete.
+=
+
+I wanted something more powerful, consistent and predictable, without constantly reaching for the mouse.
+=
+
+CYCLE ZONES
+=
+
+Hold Win and scroll, or press Win + Left or Right, to walk the window through fourths and halves: full height first, then upper and lower fourths, then upper and lower halves.
+=
+
+Left and scroll down start at the left fourth; Right and scroll up start at the right fourth.
+=
+
+The other key steps back, so Left then Right jumps to the last zone.
+=
+
+Release the keys to start over next time.
+=
+
+Settings can switch the cycle to thirds.
+=
+
+Sizes an app cannot shrink to are skipped.
+=
+
+ARRANGE YOUR WINDOWS
+=
+
+Win + Shift + Enter stretches a window across to its neighbors, then also up and down so it fills the free space, then back to its original size.
+=
+
+Win + Backspace minimizes the active window; focus stays on that display while it has windows left, then moves to the next display.
+=
+
+Win + Shift + Backspace brings back the windows it minimized, newest first.
+=
+
+BETTER WINDOWS KEYS
+=
+
+Windows' own keys work as you know them, with fewer surprises.
+=
+
+Win + M, Win + Home and Win + D take Shift to bring back what they minimized, however much you do in between.
+=
+
+They act on your display only, except Win + D, which reaches every display, and focus stays on your display.
+=
+
+Win + Down undoes a placement, and puts a cascade window back in its cascade, before it minimizes.
+=
+
+FOCUS, STACKS AND FULLSCREEN
+=
+
+Win + PgDn and PgUp step focus through every window on screen in reading order: displays left to right, columns left to right, top before bottom, and outline the window they reach; double-tap Caps to outline where you are.
+=
+
+A stack of overlapping windows counts once, as its front window.
+=
+
+Move a window onto its nearest neighbor to stack it in front.
+=
+
+Bring forward the next window stacked with the active one, and cycle a window between maximized and half-height positions.
+=
+
+Layout actions exit F11 fullscreen before repositioning a window.
+=
+
+Win + Alt + Enter shows the next maximized or fullscreen window on your display, minimized or not, and minimizes the others there, so one big window is out at a time; add Shift to go back.
+=
+
+Keybindings below shows the current hotkey for each action.
+=

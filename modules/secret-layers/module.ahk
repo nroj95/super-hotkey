@@ -17,7 +17,7 @@ class SecretLayersModule extends SuiteModule {
     }
 
     Register(manager) {
-        manager.AddAction("secret-layers.help", "show Secret Layers help",
+        manager.AddAction("secret-layers.help", T("show Secret Layers help"),
             ObjBindMethod(this.app, "HelpShortcutEvent", this.id), [],
             {category: "Secret Layers", available: ObjBindMethod(this, "Available")})
         if this.Available() && this.app.activeLayers["caps"]
@@ -46,13 +46,13 @@ class SecretLayersModule extends SuiteModule {
         if ui.Existing(key)
             return
         settings := this.app.Settings
-        rows := SuitePageRows(ui.NewWindow(key, "Secret Layers - Settings", true), 600)
-        rows.Text("Modules is the master switch. These choices control each layer independently.")
-        rows.Checkbox("Enable Pause layer", "vpause").Value := settings.layers["pause"]
-        rows.Checkbox("Enable CapsLock layer", "vcaps").Value := settings.layers["caps"]
-        rows.Caption("Double-tap Shift to toggle Caps Lock while this layer is enabled.", true)
-        rows.Show(ui, key, [["Apply and restart", ObjBindMethod(this, "SaveSettings", ui), 160],
-            ["Back", ObjBindMethod(ui, "BackToHelp", this.id), 100]])
+        rows := SuitePageRows(ui.NewWindow(key, T("Secret Layers - Settings"), true), 600)
+        rows.Text(T("Modules is the master switch. These choices control each layer independently."))
+        rows.Checkbox(T("Enable Pause layer"), "vpause").Value := settings.layers["pause"]
+        rows.Checkbox(T("Enable CapsLock layer"), "vcaps").Value := settings.layers["caps"]
+        rows.Caption(T("Double-tap Shift to toggle Caps Lock while this layer is enabled."), true)
+        rows.Show(ui, key, [[T("Apply and restart"), ObjBindMethod(this, "SaveSettings", ui), 160],
+            [T("Back"), ObjBindMethod(ui, "BackToHelp", this.id), 100]])
     }
 
     SaveSettings(ui, *) {

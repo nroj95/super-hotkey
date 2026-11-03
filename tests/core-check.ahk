@@ -1,4 +1,4 @@
-; Settings, the lifecycle, input gating, logging, notices, the working display and the focus border.
+; Settings, translations, the lifecycle, input gating, logging, notices, the working display and the focus border.
 ; Disposable preferences, dry-run inputs and test-owned windows only.
 class CoreChecks {
     static Run() {
@@ -11,6 +11,7 @@ class CoreChecks {
         this.CheckDryRunLifecycle()
         this.CheckModuleStartFailure()
         this.Preferences()
+        this.Language()
         this.ApplicationSuspension()
         this.DisabledModuleWarning()
         this.PowerCancellation()
@@ -450,6 +451,37 @@ class CoreChecks {
         logger.verbose := true
         logger.Debug("Wonder Windows", "visible diagnostic")
         this.Assert(InStr(logger.Read(), "visible diagnostic"), "global verbose mode enables module diagnostics")
+    }
+
+    ; Checks run in English; this one swaps a language in and always restores it.
+    static Language() {
+        language := SuiteLanguage.Decode("; language: Test`n`nHello`n= Hei`n`nEmpty`n=`n`n"
+            . "{1} held`n= {1} holdes`n`nTwo``nlines`n= To``nlinjer`n`nWHY`n= HVORFOR`n`nOne.`n= En.`n`nTwo.`n= To.`n")
+        this.Assert(language.name = "Test" && language.texts.Count = 6 && !language.texts.Has("Empty")
+            && language.texts["Two`nlines"] == "To`nlinjer",
+            "a language file maps English to translations, undoing escapes and skipping empty lines")
+        this.Assert(T("Hello") == "Hello" && T("{1} held", "Caps") == "Caps held",
+            "without a language, text stays English and fills its values")
+        saved := SuiteLanguage.texts
+        try {
+            SuiteLanguage.texts := language.texts
+            parts := SuiteInterface.HelpParts("WHY`nOne.`nTwo.`nUnknown.")
+            this.Assert(T("Hello") == "Hei" && T("{1} held", "Caps") == "Caps holdes" && T("Missing") == "Missing"
+                && parts.Length = 2 && parts[1].heading && parts[1].text == "HVORFOR"
+                && parts[2].text == "En. To. Unknown.",
+                "a language translates text and guide lines, and leaves the rest English")
+        }
+        finally SuiteLanguage.texts := saved
+        found := false
+        for entry in SuiteLanguage.Available()
+            found := found || entry.code = "nb" && entry.name = "Norsk bokmål"
+        this.Assert(found, "the Language page lists each language file in its own name")
+        settings := SuiteSettings(SuiteChecks.directory "\language")
+        this.Assert(settings.language = "", "the language follows Windows by default")
+        settings.Save(settings.modules, , "nb")
+        settings.Save(settings.modules)
+        this.Assert(SuiteSettings(settings.directory).language = "nb", "a language choice survives other saves")
+        SuiteChecks.Rejects(() => settings.Save(settings.modules, , "..\x"), "an invalid language choice is refused")
     }
 
     static ApplicationSuspension() {

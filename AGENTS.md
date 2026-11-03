@@ -11,6 +11,7 @@ Super Hotkey is one AutoHotkey v2 64-bit process: a launcher, a small core and s
 | `core/keybindings.ahk` | actions, their persistence and all native hotkey dispatch, including layer suffixes |
 | `core/keybindings-editor.ahk` | the Keybindings window |
 | `core/settings.ahk`, `core/logging.ahk` | suite preferences, backups and the shared log |
+| `core/language.ahk`, `lang/`, `tools/lang.py` | `T()`, the language files and the script that keeps them in step with the code |
 | `core/ui.ahk`, `core/tray.ahk` | every GUI, on-screen notices and the only tray |
 | `core/power.ahk` | staying awake and sleeping the computer, shared by every module |
 | `core/windows.ahk`, `core/focus-border.ahk` | window queries, activation, closing, DPI boundaries, the working display, and manual and managed window ownership |
@@ -26,6 +27,7 @@ Super Hotkey is one AutoHotkey v2 64-bit process: a launcher, a small core and s
 - every feature must make sense to a keyboard-only user whose pointer is parked on another display. the pointer chooses a display only through a click; otherwise the active app window decides. choose displays with `SuiteWorkingMonitor` in `core/windows.ahk`, never the raw pointer position. show messages with `SuiteNotice` in `core/ui.ahk`, centered on the working display, not as tooltips beside the pointer; a display that an exclusive fullscreen game covers passes its notices to the next display. answers to a press last 1.4 s. news the user did not just ask for, such as stay awake running out, shows on every display for 3 s with `SuiteNotice.ShowEverywhere`, since the active window is then only a guess; news from while they were away waits until they unlock.
 - commands that hide, show or rearrange many windows act on the working display only, even where the Windows key they improve spans every display (Win + M, Win + Home); each display keeps its own memory of what to bring back. commands that move focus may cross displays (Caps + Tab, Win + PgUp/PgDn). the deliberate exceptions are Win + D, which minimizes every display into each display's memory, and gathering every cascade onto one display (Caps + Home).
 - AutoHotkey threads share one OS thread. scope DPI awareness to single native calls with the `*Pixels` helpers, never across `Sleep` or dialogs in a thread that is not `Critical`.
+- visible text is English inside `T("...")`, a quoted literal, with `{1}` for filled-in values; guides are translated line by line. write whole sentences, never text glued from pieces, and call `T()` where text is shown or registered, never in a static initializer, which runs before the launcher loads the language. logs, IDs, saved values, key names and module names stay English. after changing visible text, run `python tools/lang.py --update`; checks fail until `lang/` matches the code. `tests/test_language.py` lists the files whose text is all translated.
 - errors and lifecycle events are always logged; verbose logging is the only debug switch, and since it records window titles it lasts one run and is never saved.
 
 ## user data and other applications
