@@ -395,13 +395,17 @@ class InterfaceChecks {
                         "Galaxy Rhythm's Help gives a second wind of a quarter bar, once a day")
                     rhythm.ShowSettings(app.ui)
                     settings := app.ui.windows["settings:" id]
+                    pageApply := app.ui.pageLayouts["settings:" id].apply
+                    greyAtOpen := IsObject(pageApply) && !pageApply.Enabled
                     rhythm.ToggleNightOff()
-                    synced := settings["nightOff"].Value = 1 && button.Text = "Back on"
+                    synced := settings["nightOff"].Value = 1 && button.Text = "Back on" && !pageApply.Enabled
                     settings["nightOff"].Value := 0
+                    pageApply.Enabled := true ; as a click on the checkbox does
                     rhythm.SaveSettings(app.ui)
-                    this.Assert(synced && !rhythm.Off() && button.Text = "Tonight off"
-                        && !app.ui.windows.Has("settings:" id),
-                        "Settings' Tonight off checkbox follows Help's button, and Apply turns it back")
+                    this.Assert(greyAtOpen && synced && !rhythm.Off() && button.Text = "Tonight off"
+                        && app.ui.windows.Has("settings:" id) && !pageApply.Enabled,
+                        "Settings' Tonight off follows Help's button; Apply, grey until a change, saves and stays open")
+                    app.ui.CloseWindow("settings:" id)
                 }
                 window.GetClientPos(, , &helpWidth, &helpHeight)
                 fullHeight := Max(480, app.ui.HelpContentHeight(id, 820) + SuiteInterface.FooterBand)

@@ -247,7 +247,7 @@ class WonderWindowsModule extends SuiteModule {
             WW_zone_cycle_unit := unit
             this.givesBackWindowsKeys := giveBack
             WW_EndZoneCycle()
-            ui.CloseWindow(key)
+            ui.Applied(key)
         }
         catch Error as failure
             ui.Report(failure, "Wonder Windows / settings")

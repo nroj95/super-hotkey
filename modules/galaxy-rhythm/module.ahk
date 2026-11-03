@@ -290,7 +290,7 @@ class GalaxyRhythmModule extends SuiteModule {
             ; already taken follows a new start of the day.
             if nightOff != this.nightOffShown || nightOff && this.Off() && this.bedtime.wakeTime != wakeBefore
                 this.SetNightOff(nightOff)
-            ui.CloseWindow(key)
+            ui.Applied(key)
         }
         catch Error as failure
             ui.Report(failure, "Galaxy Rhythm / settings")

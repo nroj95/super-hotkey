@@ -134,7 +134,7 @@ class CascadeKingdomModule extends SuiteModule {
             if routingChanged && this.started && IsCascadeEnabled()
                 this.Resume()
             QueueFocusCornerUpdate()
-            ui.CloseWindow(key)
+            ui.Applied(key)
         }
         catch Error as failure
             ui.Report(failure, "Cascade Kingdom / settings")

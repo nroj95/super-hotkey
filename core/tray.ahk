@@ -316,7 +316,19 @@ class SuiteInterface {
             try control.OnEvent("Focus", ObjBindMethod(this, "RevealControl", key))
         }
         this.LayerFooter(window, footer)
-        this.pageLayouts[key] := {footer: footer, controls: controls,
+        ; A first footer button named Apply saves without closing, like
+        ; Keybindings': grey until something on the page changes, and grey
+        ; again once the page calls Applied.
+        apply := footer.buttons.Length && footer.buttons[1].button.Text = "Apply" ? footer.buttons[1].button : 0
+        if apply {
+            apply.Enabled := false
+            for item in controls
+                if item.control.Type != "Text" && item.control.Type != "Button" {
+                    try item.control.OnEvent("Change", (*) => apply.Enabled := true)
+                    try item.control.OnEvent("Click", (*) => apply.Enabled := true)
+                }
+        }
+        this.pageLayouts[key] := {footer: footer, controls: controls, apply: apply,
             width: width, height: height, minWidth: minWidth, minHeight: minHeight,
             content: height - SuiteInterface.FooterBand, offset: 0,
             renderedWidth: 0, renderedHeight: 0}
@@ -324,6 +336,17 @@ class SuiteInterface {
         window.OnEvent("Size", ObjBindMethod(this, "ResizePage", key))
         SuiteShowCentered(window, width, height, ObjBindMethod(this, "ResizePage", key),
             SuiteInterface.OpenShare)
+    }
+
+    ; The page saved: it stays open with Apply grey until the next change,
+    ; handing focus to the last footer button if Apply had it.
+    Applied(key) {
+        if !this.pageLayouts.Has(key) || !this.pageLayouts[key].apply
+            return
+        apply := this.pageLayouts[key].apply
+        if DllCall("GetFocus", "ptr") = apply.Hwnd
+            this.pageLayouts[key].footer.buttons[-1].button.Focus()
+        apply.Enabled := false
     }
 
     ResizePage(key, window, minMax, width, height) {

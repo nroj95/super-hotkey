@@ -262,11 +262,12 @@ class CascadeChecks {
                 "mirroring applies at once and re-lays out the cascades")
             SetTimer(RefreshCascadeDisplays, 0)
             path := app.Settings.directory "\cascade-kingdom\settings.ini"
-            this.Assert(!app.ui.windows.Has("settings:cascade-kingdom")
+            this.Assert(app.ui.windows.Has("settings:cascade-kingdom")
+                && !app.ui.pageLayouts["settings:cascade-kingdom"].apply.Enabled
                 && IniRead(path, "Controls", "Display") = expectedDisplay
                 && IniRead(path, "Controls", "Mirrored") = "1"
                 && IniRead(path, "FocusTabs", "InactiveSlotColor") = "Cyan",
-                "Apply persists the destination device, mirroring and inactive tab color")
+                "Apply persists the destination device, mirroring and inactive tab color, and keeps Settings open")
             InitializeCascadeState()
             this.Assert(CascadeState.targetDisplay = expectedDisplay && CascadeState.mirrored
                 && CascadeState.focusCornerInactiveSlotColorName = "Cyan",
@@ -308,7 +309,7 @@ class CascadeChecks {
                 "Cascade Kingdom Settings use Apply without restart")
             app.modules["cascade-kingdom"].SaveSettings(app.ui)
             path := app.Settings.directory "\cascade-kingdom\settings.ini"
-            this.Assert(!app.ui.windows.Has("settings:cascade-kingdom")
+            this.Assert(app.ui.windows.Has("settings:cascade-kingdom")
                 && CascadeState.focusCornerVisible = expectedVisible
                 && CascadeState.focusCornerInactiveSlotColorName = inactiveName
                 && CascadeState.focusCornerInactiveSlotColor = CascadeState.focusTabColorPresets[inactiveName],
