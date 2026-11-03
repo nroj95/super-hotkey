@@ -76,6 +76,8 @@ class InterfaceChecks {
 
     static Interfaces() {
         app := SuiteApplication(true, SuiteChecks.directory "\new-interfaces")
+        ; Galaxy Rhythm is opt-in; turn it on like a user would, to see it everywhere.
+        app.activeModules["galaxy-rhythm"] := true
         try {
             app.Start()
             this.Assert(SuiteApplication.Name = "Super Hotkey"

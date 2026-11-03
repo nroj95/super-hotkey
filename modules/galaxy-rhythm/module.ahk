@@ -135,6 +135,7 @@ class GalaxyRhythmModule extends SuiteModule {
             . "lock it meanwhile. Stay awake (Pause + End in Power-Up Utilities) keeps it up, "
             . "even during the fade, and says so; if it ends before your wake-up time, 06:00 by "
             . "default, the fade starts over. One sleep ends the night, and so does the wake-up "
-            . "time. Every time, length and message can be changed, and everything starts off."
+            . "time. Turn Galaxy Rhythm on in Modules and all of this is on; every time, length "
+            . "and message can be changed in Settings."
     }
 }

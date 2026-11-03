@@ -3,8 +3,11 @@
 class SuiteSettings {
     static BackupsKept := 20
 
-    static ModuleOrder := ["cascade-kingdom", "wonder-windows", "power-up-utilities", "galaxy-rhythm",
-        "paper-pad", "secret-layers"]
+    ; The keyboard and window tools first, then the rhythm modules.
+    static ModuleOrder := ["cascade-kingdom", "wonder-windows", "power-up-utilities", "paper-pad",
+        "secret-layers", "galaxy-rhythm"]
+    ; Opt-in modules: enabling one in Modules is the user's explicit choice.
+    static OffByDefault := Map("galaxy-rhythm", true)
     static ModuleNames := Map("cascade-kingdom", "Cascade Kingdom", "wonder-windows", "Wonder Windows",
         "power-up-utilities", "Power-Up Utilities", "galaxy-rhythm", "Galaxy Rhythm", "paper-pad", "Paper Pad",
         "secret-layers", "Secret Layers")
@@ -39,11 +42,13 @@ class SuiteSettings {
     ReadValues() {
         this.modules := Map()
         for id in SuiteSettings.ModuleOrder
-            this.modules[id] := this.ReadFlag("modules", id, true)
+            this.modules[id] := this.ReadFlag("modules", id, SuiteSettings.ModuleDefault(id))
         this.layers := Map("caps", this.ReadFlag("layers", "caps", true),
             "pause", this.ReadFlag("layers", "pause", true))
         this.verbose := this.ReadFlag("logging", "verbose", false)
     }
+
+    static ModuleDefault(id) => !SuiteSettings.OffByDefault.Has(id)
 
     ReadFlag(section, key, fallback) {
         value := KB_Manifest.Get(this.document, section, key, fallback ? "1" : "0")

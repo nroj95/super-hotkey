@@ -66,15 +66,15 @@ class GalaxyRhythmChecks {
         DirCreate(folder)
         path := folder "\settings.ini"
         bedtime := this.BedtimeFixture("bedtime-settings")
-        allOff := !bedtime.sleeps
+        allOn := bedtime.sleeps
         for row in bedtime.rows
-            allOff := allOff && !row.show
-        this.Assert(allOff && bedtime.rows[1].time = "0000" && bedtime.rows[3].text = "You feel sleepy",
-            "every bedtime message and the sleep start off, at 00:00, 01:00 and 02:00")
+            allOn := allOn && row.show
+        this.Assert(allOn && bedtime.rows[1].time = "0000" && bedtime.rows[3].text = "You feel sleepy",
+            "once the module is on, every bedtime message and the sleep are on, at 00:00, 01:00 and 02:00")
         this.Assert(bedtime.fadeMinutes = 10 && bedtime.wakeTime = "0600"
             && bedtime.sleepText = "Good night" && bedtime.awakeText = "Stay awake prevented sleep",
             "the sleep fades over 10 min, says Good night and lasts the night until 06:00")
-        IniWrite(1, path, "Bedtime", "Show2")
+        IniWrite(0, path, "Bedtime", "Show2")
         IniWrite("0130", path, "Bedtime", "Time2")
         IniWrite("9999", path, "Bedtime", "Time3")
         IniWrite("Off to bed", path, "Bedtime", "Text1")
@@ -82,7 +82,7 @@ class GalaxyRhythmChecks {
         IniWrite("25", path, "Bedtime", "FadeMinutes")
         IniWrite("0615", path, "Bedtime", "WakeTime")
         bedtime.Load()
-        this.Assert(bedtime.rows[2].show && bedtime.rows[2].time = "0130" && bedtime.rows[2].text = "zzz…"
+        this.Assert(!bedtime.rows[2].show && bedtime.rows[2].time = "0130" && bedtime.rows[2].text = "zzz…"
             && bedtime.rows[3].time = "0200" && bedtime.rows[1].text = "Off to bed"
             && bedtime.awakeText = "Up late again" && bedtime.fadeMinutes = 25 && bedtime.wakeTime = "0615",
             "saved bedtime rows load, and an unusable time falls back to its default")
@@ -98,6 +98,9 @@ class GalaxyRhythmChecks {
         module := bedtime.module, app := module.app
         night := (last, now) => this.Night(bedtime, last, now)
         shown := (list) => list.Length ? list[1] : 0
+        for row in bedtime.rows
+            row.show := false
+        bedtime.sleeps := false
         this.Assert(!night("235955", "000005").Length, "turned-off messages never show")
         for row in bedtime.rows
             row.show := true

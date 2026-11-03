@@ -34,7 +34,8 @@ class CoreChecks {
         enabled := 0
         for id, value in settings.modules
             enabled += value
-        this.Assert(enabled = SuiteSettings.ModuleOrder.Length && enabled = 6, "all six modules default to enabled")
+        this.Assert(enabled = 5 && !settings.modules["galaxy-rhythm"],
+            "the five tool modules default to enabled, and Galaxy Rhythm to disabled")
         choices := settings.modules.Clone()
         choices["secret-layers"] := false
         settings.Save(choices)

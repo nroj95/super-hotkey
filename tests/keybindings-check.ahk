@@ -743,6 +743,8 @@ class KeybindingsChecks {
 
     static ActiveShortcutVisibility() {
         app := SuiteApplication(true, SuiteChecks.directory "\visibility")
+        ; Galaxy Rhythm is opt-in; turn it on like a user would, to see it listed.
+        app.activeModules["galaxy-rhythm"] := true
         app.InitializeCatalog()
         manager := app.manager
         try {
@@ -813,7 +815,7 @@ class KeybindingsChecks {
                 }
             }
             expectedOrder := ["Global", "Paper Pad", "Cascade Kingdom",
-                "Wonder Windows", "Power-Up Utilities", "Galaxy Rhythm", "Secret Layers"]
+                "Wonder Windows", "Power-Up Utilities", "Secret Layers", "Galaxy Rhythm"]
             this.Assert(mainHeadings.Length = expectedOrder.Length,
                 "Keybindings includes exactly the module sections")
             for index, expectedName in expectedOrder

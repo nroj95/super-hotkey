@@ -14,8 +14,9 @@
 ; during the fade or the last word, it shows its own message and clears the
 ; grey; ending later in the night, it starts the fade again from the beginning.
 ; One sleep ends the night, as do suspending Super Hotkey, the computer
-; sleeping some other way and the wake-up time. Every row and the sleep start
-; off; settings.ini [Bedtime] holds them.
+; sleeping some other way and the wake-up time. The module itself starts
+; disabled, so every row and the sleep start on: enabling Galaxy Rhythm is the
+; opt-in. settings.ini [Bedtime] holds them.
 ; =============================================================================
 
 class GR_Bedtime {
@@ -74,11 +75,11 @@ class GR_Bedtime {
         this.rows := []
         for index, defaults in GR_Bedtime.Defaults {
             time := IniRead(this.path, "Bedtime", "Time" index, defaults[1])
-            this.rows.Push({show: IniRead(this.path, "Bedtime", "Show" index, 0) = "1",
+            this.rows.Push({show: IniRead(this.path, "Bedtime", "Show" index, 1) = "1",
                 time: GR_Bedtime.ValidTime(time) ? time : defaults[1],
                 text: GR_Bedtime.CleanText(IniRead(this.path, "Bedtime", "Text" index, ""), defaults[2])})
         }
-        this.sleeps := IniRead(this.path, "Bedtime", "Sleep", 0) = "1"
+        this.sleeps := IniRead(this.path, "Bedtime", "Sleep", 1) = "1"
         this.fadeMinutes := GR_Bedtime.CleanMinutes(IniRead(this.path, "Bedtime", "FadeMinutes", ""))
         wake := IniRead(this.path, "Bedtime", "WakeTime", GR_Bedtime.WakeDefault)
         this.wakeTime := GR_Bedtime.ValidTime(wake) ? wake : GR_Bedtime.WakeDefault

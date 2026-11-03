@@ -18,8 +18,8 @@ Use any module on its own or combine them.
 | [Cascade Kingdom](#cascade-kingdom) | Keep many windows in an overlapping cascade |
 | [Paper Pad](#paper-pad) | A quick-notes drawer using Notepad3 |
 | [Power-Up Utilities](#power-up-utilities) | Extra keys, text shortcuts and system utilities |
-| [Galaxy Rhythm](#galaxy-rhythm) | Gentle bedtime nudges and an optional fade to sleep |
 | [Secret Layers](#secret-layers) | Use CapsLock and Pause as extra keyboard layers |
+| [Galaxy Rhythm](#galaxy-rhythm) | Gentle bedtime nudges and a fade to sleep, off until you turn it on |
 
 ### Wonder Windows
 
@@ -53,13 +53,13 @@ Send F13-F24 or use a virtual number pad, even if your keyboard doesn't have tho
 
 In Windows Terminal, copy the buffer as Markdown or clear it; both use Terminal's default `Ctrl + Shift + A`, `C` and `K` shortcuts. Other shortcuts wake speakers that have gone into standby or put the computer to sleep. `Pause + End` keeps it awake for 30 minutes; press again while the notice shows for 1, 2, 4 or 8 hours or no limit, and `Pause + Shift + End` lets it sleep again.
 
-### Galaxy Rhythm
-
-Gentle structure for an irregular sleep rhythm, without nagging. Its settings show up to three bedtime messages at times you choose, by default *It's getting late* at midnight, *zzz…* at 1:00 and *You feel sleepy* at 2:00. After the last, the screen can fade to grey over 10 minutes, say *Good night* and put the computer to sleep; Power-Up Utilities' stay awake keeps it up. Everything starts off.
-
 ### Secret Layers
 
 Hold CapsLock or Pause and press another key for extra hotkeys, or tap it first so you don't have to hold both. `Caps` and `Pause` hotkeys use these layers. Double-tap Shift to toggle Caps Lock.
+
+### Galaxy Rhythm
+
+Gentle structure for an irregular sleep rhythm, without nagging. Its settings show up to three bedtime messages at times you choose, by default *It's getting late* at midnight, *zzz…* at 1:00 and *You feel sleepy* at 2:00. After the last, the screen fades to grey over 10 minutes, says *Good night* and puts the computer to sleep; Power-Up Utilities' stay awake keeps it up. The module starts disabled: turn it on in Modules and the whole night is on, ready to adjust in Settings.
 
 ## Start
 
