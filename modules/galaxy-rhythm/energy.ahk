@@ -3,8 +3,10 @@
 ; while they rest away from the computer
 ; =============================================================================
 ; A minute with physical keyboard, mouse or XInput game controller input
-; costs a minute; Windows does not count controllers as input, so PadIdleMs
-; reads them at each tick. A minute at the unlocked computer with its screens
+; costs a minute; Windows does not count controllers as input, so connected
+; ones are read ten times a second, and only XInput's real input counts: a
+; button, a trigger past its threshold or a stick beyond its dead zone, never
+; a thumb resting on a stick. A minute at the unlocked computer with its screens
 ; on but no input, watching or reading, costs half, down to zero but never
 ; onto the road; anything programs do on their own is no input. A full bar
 ; holds FullHours of active minutes.
@@ -43,6 +45,12 @@ class GR_Energy {
     static TickMs := 10000
     static ActiveMs := 60000      ; input this recent makes a tick active
     static PassiveShare := 0.5    ; of a tick's cost while the user only watches or reads
+    static PadPollMs := 100
+    ; XInput's thresholds for real input: XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE,
+    ; XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE and XINPUT_GAMEPAD_TRIGGER_THRESHOLD.
+    static LeftStickDeadZone := 7849
+    static RightStickDeadZone := 8689
+    static TriggerThreshold := 30
     static FadeDefault := 30      ; minutes of activity from zero to the faint
     static LowShare := 0.1
     static RestedShare := 0.05    ; the least a break gives back to say so
@@ -72,8 +80,10 @@ class GR_Energy {
         this.lowShown := false
         this.roadShown := false
         this.fainting := false
-        this.padPackets := Map()  ; controller slot -> XInput packet number at the last tick
-        this.padUsed := 0         ; A_TickCount when a controller last changed, or 0
+        this.padSlots := []       ; XInput slots connected at the last tick
+        this.padButtons := Map()  ; slot -> its buttons at the last reading
+        this.padUsed := 0         ; A_TickCount when a controller was last used, or 0
+        this.padCallback := ObjBindMethod(this, "PollPads")
         this.notification := 0
         this.bar := 0
         this.tickCallback := ObjBindMethod(this, "Tick")
@@ -179,6 +189,7 @@ class GR_Energy {
         SetTimer(this.tickCallback, 0)
         SetTimer(this.drawCallback, 0)
         SetTimer(this.faintCallback, 0)
+        SetTimer(this.padCallback, 0)
         OnMessage(0x0218, this.powerCallback, 0)
         if this.notification
             DllCall("UnregisterPowerSettingNotification", "ptr", this.notification)
@@ -275,24 +286,39 @@ class GR_Energy {
         this.Save(now)
     }
 
-    ; Windows' idle time never sees game controllers, so each tick reads the
-    ; XInput ones: a packet number changed since the last tick means a
-    ; controller was used meanwhile. Milliseconds since then, to a tick.
+    ; Windows' idle time never sees game controllers, so each tick looks for
+    ; XInput ones, and while one is connected PollPads reads it ten times a
+    ; second. Milliseconds since a controller was last used.
     PadIdleMs() {
-        packets := Map()
+        slots := []
         state := Buffer(16, 0)
         try loop 4
             if !DllCall("xinput1_4\XInputGetState", "uint", A_Index - 1, "ptr", state, "uint")
-                packets[A_Index] := NumGet(state, 0, "uint")
-        return this.NotePads(packets, A_TickCount)
+                slots.Push(A_Index - 1)
+        this.padSlots := slots
+        SetTimer(this.padCallback, slots.Length ? GR_Energy.PadPollMs : 0)
+        return this.padUsed ? A_TickCount - this.padUsed : 0x7FFFFFFF
     }
 
-    NotePads(packets, tick) {
-        for slot, packet in packets
-            if this.padPackets.Has(slot) && this.padPackets[slot] != packet
-                this.padUsed := tick
-        this.padPackets := packets
-        return this.padUsed ? tick - this.padUsed : 0x7FFFFFFF
+    PollPads(*) {
+        state := Buffer(16, 0) ; XINPUT_STATE
+        for slot in this.padSlots
+            try if !DllCall("xinput1_4\XInputGetState", "uint", slot, "ptr", state, "uint")
+                this.NotePad(slot, NumGet(state, 4, "ushort"), NumGet(state, 6, "uchar"), NumGet(state, 7, "uchar"),
+                    NumGet(state, 8, "short"), NumGet(state, 10, "short"),
+                    NumGet(state, 12, "short"), NumGet(state, 14, "short"), A_TickCount)
+    }
+
+    ; Real input as XInput defines it: a button pressed or released, a trigger
+    ; past its threshold or a stick beyond its dead zone, so a thumb resting
+    ; on a stick does not count, and a stick held over does.
+    NotePad(slot, buttons, leftTrigger, rightTrigger, leftX, leftY, rightX, rightY, tick) {
+        if this.padButtons.Has(slot) && this.padButtons[slot] != buttons
+            || Max(leftTrigger, rightTrigger) > GR_Energy.TriggerThreshold
+            || Sqrt(leftX ** 2 + leftY ** 2) > GR_Energy.LeftStickDeadZone
+            || Sqrt(rightX ** 2 + rightY ** 2) > GR_Energy.RightStickDeadZone
+            this.padUsed := tick
+        this.padButtons[slot] := buttons
     }
 
     ; At most once a minute, so ticks do not wear the disk.

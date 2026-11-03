@@ -144,10 +144,20 @@ class GalaxyRhythmChecks {
             energy.Tick(at("090011"), 120000)
             this.Assert(energy.level = 0 && grey.level = 0, "and stops at zero, never greying the screen")
             energy.level := before
-            pads := [energy.NotePads(Map(1, 7), 1000), energy.NotePads(Map(1, 7), 11000),
-                energy.NotePads(Map(1, 9), 21000), energy.NotePads(Map(1, 9), 31000)]
-            this.Assert(pads[1] = 0x7FFFFFFF && pads[2] = 0x7FFFFFFF && pads[3] = 0 && pads[4] = 10000,
-                "a game controller counts as input once its state changes between ticks")
+            used := (buttons, leftTrigger, rightTrigger, leftX, leftY, rightX, rightY) => (
+                energy.padUsed := 0,
+                energy.NotePad(0, buttons, leftTrigger, rightTrigger, leftX, leftY, rightX, rightY, 5000),
+                energy.padUsed = 5000)
+            ; One controller's readings in order, each with whether it counts.
+            readings := [[[0, 0, 0, 0, 0, 0, 0], false], [[0, 12, 20, 3000, -4000, 5000, 6000], false],
+                [[0x1000, 0, 0, 0, 0, 0, 0], true], [[0x1000, 0, 0, 0, 0, 0, 0], false],
+                [[0, 0, 0, 0, 0, 0, 0], true], [[0, 31, 0, 0, 0, 0, 0], true],
+                [[0, 0, 0, 0, 8000, 0, 0], true], [[0, 0, 0, 0, 0, -6200, 6200], true], [[0, 0, 0, 0, 0, 0, 0], false]]
+            judged := true
+            for reading in readings
+                judged := judged && used(reading[1]*) = reading[2]
+            this.Assert(judged, "a controller counts only real input: a button pressed or released, a trigger"
+                . " pulled or a stick beyond its dead zone, not a resting thumb or a button held down")
             energy.level := 72.1
             energy.Tick(at("090020"), 0)
             this.Assert(this.ShownEverywhere(GR_Energy.Low), "10 % left says so")
