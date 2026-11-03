@@ -315,7 +315,8 @@ class GalaxyRhythmModule extends SuiteModule {
         A small upright bar marked E, bottom right on the primary display unless Settings moves it, is your energy for the day: every minute you use the computer, game controller included, costs a minute, and 10 hours of activity empty it.
         Watching or reading without touching anything costs half, though it never greys the screen.
         It never refills during the day: when your day starts, 06:00 by default, it starts over.
-        As in Stardew Valley, a late night costs you: stop before the first bedtime message, 00:00 by default, and the next day starts full; keep going and it starts with less, down to half from the sleep at 02:00 on, and half of that again if the bar ran dry.
+        As in Stardew Valley, a late night costs you: go to bed before the first bedtime message, 00:00 by default, and the next day starts full; stay up and it starts with less, down to half from the sleep at 02:00 on, and half of that again if the bar ran dry.
+        An all-nighter counts as both, so the day starts at a quarter.
         Breaks make it last instead: one of 5 minutes or more holds the bar still for twice as long once you're back, up to an hour.
         A break starts when the computer sees you go, as it locks, turns its screens off or sleeps; quiet time before that might have been reading or a film, so it doesn't count.
         So when you step away, lock the computer or put it to sleep, any way you like; Win + L and Pause + Escape in Power-Up Utilities do it in one press.

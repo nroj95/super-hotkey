@@ -13,9 +13,12 @@
 ;
 ; The bar never refills during the day. At Your day starts at (bedtime's
 ; wakeTime) it starts over, as a day does in Stardew Valley: full if the
-; computer was last used before bedtime's first message, half from its sleep
+; night's sleep began before bedtime's first message, half from its sleep
 ; on, sliding between the two in between, and halved again after a day that
-; ran dry (MorningShare). An all-nighter is thus a late night like any other.
+; ran dry (MorningShare). The sleep is the break still going at the day
+; start, or the last one of SleepMinutes or more that ended after the first
+; message, so an early riser is not up late. Up all night, with no such
+; break, counts as both late and dry.
 ;
 ; Breaks hold the bar still instead: one of BreakMinutes or more, the least
 ; screen-work guidance asks for, lets the next use cost nothing for twice its
@@ -67,6 +70,7 @@ class GR_Energy {
     ; The morning bar after using the computer from bedtime's sleep on, and
     ; the share left of it after a day that ran dry.
     static LateShare := 0.5
+    static SleepMinutes := 180    ; the shortest break that counts as a night's sleep
     static DryShare := 0.5
     static WindShare := 0.25      ; of a full bar a second wind gives back, once a day
     ; The default words of the notices, which Settings can change.
@@ -88,6 +92,8 @@ class GR_Energy {
         this.awaySince := ""     ; A_Now when the computer first saw the user gone
         this.buffer := 0         ; minutes of use that cost nothing, earned by breaks
         this.lastUp := ""        ; A_Now of the last tick at the computer
+        this.sleepFrom := ""     ; A_Now when the last break of SleepMinutes or more began
+        this.sleepTo := ""       ; and when it ended
         this.dayStarted := ""    ; A_Now of the day start the bar last started over at
         this.dry := false        ; the bar ran empty since the day started
         this.windDay := ""       ; A_Now of the day start of the day a second wind was taken
@@ -118,16 +124,19 @@ class GR_Energy {
     }
 
     ; The share of a full bar a day starting at dayStart begins with, for a
-    ; computer last used at lastUp, bedtime's first message at lateTime and
-    ; its sleep at sleepTime (HHmm): full before lateTime, LateShare from
-    ; sleepTime on, sliding between, and DryShare of that after a dry day.
-    static MorningShare(dayStart, lastUp, lateTime, sleepTime, dry) {
+    ; night's sleep that began at bedtime, "" when up all night, with
+    ; bedtime's first message at lateTime and its sleep at sleepTime (HHmm):
+    ; full before lateTime, LateShare from sleepTime on, sliding between,
+    ; and DryShare of that after a dry day; up all night is late and dry.
+    static MorningShare(dayStart, bedtime, lateTime, sleepTime, dry) {
+        if bedtime = ""
+            return GR_Energy.LateShare * GR_Energy.DryShare
         late := GR_Energy.LastAt(dayStart, lateTime)
         span := DateDiff(GR_Energy.LastAt(dayStart, sleepTime), late, "Seconds")
         share := 1
-        if lastUp != "" && DateDiff(lastUp, late, "Seconds") > 0
+        if DateDiff(bedtime, late, "Seconds") > 0
             share := span > 0 ? Max(GR_Energy.LateShare,
-                1 - (1 - GR_Energy.LateShare) * DateDiff(lastUp, late, "Seconds") / span) : GR_Energy.LateShare
+                1 - (1 - GR_Energy.LateShare) * DateDiff(bedtime, late, "Seconds") / span) : GR_Energy.LateShare
         return dry ? share * GR_Energy.DryShare : share
     }
 
@@ -170,6 +179,10 @@ class GR_Energy {
         this.awaySince := IsTime(since) ? since : ""
         this.buffer := IsNumber(standstill) ? Max(0, Min(Number(standstill), GR_Energy.BufferLimit)) : 0
         this.lastUp := IsTime(up) ? up : ""
+        sleepFrom := IniRead(this.statePath, "Energy", "SleepFrom", "")
+        sleepTo := IniRead(this.statePath, "Energy", "SleepTo", "")
+        this.sleepFrom := IsTime(sleepFrom) ? sleepFrom : ""
+        this.sleepTo := IsTime(sleepTo) ? sleepTo : ""
         this.dayStarted := IsTime(started) ? started : ""
         this.dry := IniRead(this.statePath, "Energy", "Dry", 0) = "1"
         wind := IniRead(this.statePath, "Energy", "SecondWind", "")
@@ -187,6 +200,8 @@ class GR_Energy {
             IniWrite(this.away ? this.awaySince : "", this.statePath, "Energy", "AwaySince")
             IniWrite(Round(this.buffer, 2), this.statePath, "Energy", "Buffer")
             IniWrite(this.lastUp, this.statePath, "Energy", "LastUp")
+            IniWrite(this.sleepFrom, this.statePath, "Energy", "SleepFrom")
+            IniWrite(this.sleepTo, this.statePath, "Energy", "SleepTo")
             IniWrite(this.dayStarted, this.statePath, "Energy", "DayStarted")
             IniWrite(this.dry ? 1 : 0, this.statePath, "Energy", "Dry")
             IniWrite(this.windDay, this.statePath, "Energy", "SecondWind")
@@ -280,7 +295,10 @@ class GR_Energy {
         this.lastUp := now
         if this.away {
             this.away := false
-            this.TakeBreak(DateDiff(now, this.awaySince, "Seconds") / 60)
+            minutes := DateDiff(now, this.awaySince, "Seconds") / 60
+            if minutes >= GR_Energy.SleepMinutes
+                this.sleepFrom := this.awaySince, this.sleepTo := now
+            this.TakeBreak(minutes)
         }
         ; A night off pauses the drain, its notices, the grey and the faint.
         if this.module.Off(now) {
@@ -362,13 +380,24 @@ class GR_Energy {
     }
 
     ; At the start of a day the bar starts over, once, whether the user is
-    ; there or not: by MorningShare for how late the computer was used and
+    ; there or not: by MorningShare for when the night's sleep began and
     ; whether the day ran dry. The first run only notes the day.
     StartDay(now) {
         start := GR_Energy.LastAt(now, this.module.bedtime.wakeTime)
         if this.dayStarted != "" && DateDiff(start, this.dayStarted, "Seconds") > 0 {
             rows := this.module.bedtime.rows
-            share := GR_Energy.MorningShare(start, this.lastUp, rows[1].time, rows[-1].time, this.dry)
+            late := GR_Energy.LastAt(start, rows[1].time)
+            ; The sleep still going, else the last one that ended after the
+            ; first message; seen after it without either, up all night.
+            if this.away
+                bedtime := this.awaySince
+            else if this.sleepTo != "" && DateDiff(this.sleepTo, late, "Seconds") > 0
+                bedtime := this.sleepFrom
+            else if this.lastUp != "" && DateDiff(this.lastUp, late, "Seconds") > 0
+                bedtime := ""
+            else
+                bedtime := late
+            share := GR_Energy.MorningShare(start, bedtime, rows[1].time, rows[-1].time, this.dry)
             this.level := this.full * share
             this.buffer := 0
             this.dry := false
