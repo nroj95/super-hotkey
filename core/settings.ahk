@@ -14,7 +14,7 @@ class SuiteSettings {
     static ModuleDescriptions := Map("cascade-kingdom", "Automatic window placement and cascades.",
         "wonder-windows", "Window hotkeys, layouts, stretching and navigation.",
         "power-up-utilities", "Extra keyboard, text and system actions.",
-        "galaxy-rhythm", "Bedtime messages and an optional fade to sleep.",
+        "galaxy-rhythm", "Bedtime messages, a fade to sleep and an energy bar.",
         "paper-pad", "A persistent Notepad3 drawer for quick notes.",
         "secret-layers", "Independent CapsLock and Pause hotkey layers.")
 

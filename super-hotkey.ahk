@@ -22,6 +22,7 @@
 #Include "%A_ScriptDir%\modules\power-up-utilities\utilities.ahk"
 #Include "%A_ScriptDir%\modules\galaxy-rhythm\grey-screen.ahk"
 #Include "%A_ScriptDir%\modules\galaxy-rhythm\bedtime.ahk"
+#Include "%A_ScriptDir%\modules\galaxy-rhythm\energy.ahk"
 #Include "%A_ScriptDir%\modules\galaxy-rhythm\module.ahk"
 #Include "%A_ScriptDir%\modules\cascade-kingdom\commands.ahk"
 #Include "%A_ScriptDir%\modules\cascade-kingdom\controls.ahk"

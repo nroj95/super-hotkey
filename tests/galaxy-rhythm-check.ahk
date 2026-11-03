@@ -1,16 +1,165 @@
-; Galaxy Rhythm: the grey screen's levels and a night of bedtime messages and
-; fading on a fake clock.
-; Disposable preferences and dry-run modules only: bedtime never sleeps, the
-; displays never turn grey, and staying awake is only pretended.
+; Galaxy Rhythm: the grey screen's levels, a night of bedtime messages and
+; fading, and a day of the energy bar, all on a fake clock.
+; Disposable preferences and dry-run modules only: bedtime and fainting never
+; sleep, the displays never turn grey, and staying awake is only pretended.
 class GalaxyRhythmChecks {
     static Run() {
         this.GreyLevels()
         this.BedtimeSettings()
         this.BedtimeNight()
         this.BedtimeFade()
+        this.EnergyRefill()
+        this.EnergySettings()
+        this.EnergyDay()
     }
 
     static Assert(condition, label) => SuiteChecks.Assert(condition, label)
+
+    static EnergyFixture(name) {
+        reports := []
+        app := {suspended: false, systemSuspended: false, sessionLocked: false,
+            ModuleActive: (app, id) => true}
+        module := {app: app, id: "galaxy-rhythm", stopping: false, dryRun: true,
+            Name: "Galaxy Rhythm", grey: GR_GreyScreen(true),
+            reports: reports, Report: (module, text) => reports.Push(text)}
+        folder := SuiteChecks.directory "\" name
+        DirCreate(folder)
+        return GR_Energy(module, folder "\settings.ini", folder "\energy.ini")
+    }
+
+    static EnergyRefill() {
+        full := 720, night := 480
+        this.Assert(Abs(GR_Energy.Refill(30, full, night) - 90) < 1,
+            "a 30-minute walk gives back about 1.5 hours")
+        this.Assert(GR_Energy.Refill(480, full, night) >= full
+            && GR_Energy.Refill(240, full, night) > full / 2 && GR_Energy.Refill(240, full, night) < full,
+            "a full night fills the bar, and asleep from 02:00 to 06:00 only half fills it")
+        this.Assert(GR_Energy.Refill(10, full, night) / 10 > 2 * GR_Energy.Refill(240, full, night) / 240,
+            "breaks pay most in their first minutes")
+        this.Assert(GR_Energy.Restarted("20261103120000", "20261103130000", 1800000)
+            && !GR_Energy.Restarted("20261103120000", "20261103130000", 7200000)
+            && !GR_Energy.Restarted("", "20261103130000", 1800000),
+            "a computer started after the suite last ticked was off meanwhile")
+    }
+
+    ; Settings load within their ranges, and the level survives a restart.
+    static EnergySettings() {
+        energy := this.EnergyFixture("energy-settings")
+        this.Assert(energy.show && energy.grey && energy.faint && energy.level = 720
+            && energy.fullHours = 12 && energy.nightHours = 8 && energy.breakMinutes = 10,
+            "once the module is on, a full 12-hour bar shows with the grey and the faint")
+        IniWrite(30, energy.settingsPath, "Energy", "FullHours")
+        IniWrite(6, energy.settingsPath, "Energy", "NightHours")
+        IniWrite(0, energy.settingsPath, "Energy", "Faint")
+        energy.LoadSettings()
+        this.Assert(energy.fullHours = 12 && energy.nightHours = 6 && !energy.faint,
+            "saved energy settings load, and one out of range falls back to its default")
+        IniWrite(6, energy.settingsPath, "Energy", "FullHours")
+        energy.LoadSettings()
+        this.Assert(energy.level = 360, "a smaller bar caps the energy already there")
+        energy.level := 123.45
+        energy.lastInput := energy.lastSeen := "20261103120000"
+        energy.module.dryRun := false  ; writes only to the check's own folder
+        energy.SaveState()
+        reloaded := GR_Energy(energy.module, energy.settingsPath, energy.statePath)
+        this.Assert(reloaded.level = 123.45 && reloaded.lastInput = "20261103120000",
+            "the energy level and the last input survive a restart")
+    }
+
+    ; One day on a fake clock: Tick takes the time and idle milliseconds.
+    static EnergyDay() {
+        energy := this.EnergyFixture("energy-day")
+        module := energy.module, app := module.app, grey := module.grey
+        at := (time) => "20261103" time
+        tick := 1 / 6  ; minutes in an active tick
+        try {
+            energy.Tick(at("090000"), 0)
+            this.Assert(Abs(energy.level - (720 - tick)) < 0.001, "an active tick costs its ten seconds")
+            before := energy.level
+            energy.Tick(at("090010"), 120000)
+            this.Assert(energy.level = before, "idle time costs nothing")
+            energy.level := 72.1
+            energy.Tick(at("090020"), 0)
+            this.Assert(this.ShownEverywhere(GR_Energy.Low), "10 % left says so")
+            energy.Tick(at("090030"), 0)
+            this.Assert(!this.ShownEverywhere(GR_Energy.Low), "only once")
+            energy.level := 0.1
+            energy.Tick(at("090040"), 0)
+            this.Assert(energy.level < 0 && this.ShownEverywhere(GR_Energy.Road) && grey.level > 0,
+                "at zero you run on fumes, and the grey begins")
+            energy.level := -30
+            energy.Tick(at("090050"), 0)
+            this.Assert(Abs(grey.level - (30 + tick) / 60) < 0.001,
+                "the grey deepens with every active minute on the road")
+            SuiteStayAwake.active := true
+            energy.Tick(at("090100"), 0)
+            this.Assert(energy.level = 0 && grey.level = 0, "stay awake holds the bar at zero, without grey")
+            energy.Tick(at("090110"), 0)
+            this.Assert(energy.level = 0 && !this.ShownEverywhere(GR_Energy.Road), "and keeps quiet there")
+            SuiteStayAwake.active := false
+            energy.Tick(at("090120"), 0)
+            this.Assert(energy.level < 0 && this.ShownEverywhere(GR_Energy.Road),
+                "when stay awake ends, the road starts over from zero with its notice")
+            energy.level := -59.9
+            energy.Tick(at("090130"), 0)
+            this.Assert(energy.fainting && grey.level = 1 && this.ShownEverywhere(GR_Energy.Faint),
+                "an hour on the road: fully grey, and Lights out")
+            ; Checks run uninterruptible, so the faint's timer is called by hand.
+            SetTimer(energy.faintCallback, 0)
+            energy.FaintNow()
+            this.Assert(module.reports[-1] = "dry run: energy faint" && energy.level = 0 && grey.level = 0,
+                "then the computer sleeps")
+            app.systemSuspended := true
+            energy.Tick(at("090500"), 0)
+            app.systemSuspended := false
+            energy.Tick(at("090510"), 0)
+            this.Assert(energy.level < 0 && this.ShownEverywhere(GR_Energy.Road),
+                "back from a faint without a real break, the road starts over")
+
+            energy.level := 100
+            energy.Tick(at("100000"), 0)
+            app.sessionLocked := true
+            energy.Tick(at("101500"), 900000)
+            app.sessionLocked := false
+            energy.Tick(at("103000"), 0)
+            this.Assert(Abs(energy.level - (100 - 2 * tick + GR_Energy.Refill(30, 720, 480))) < 0.001
+                && this.ShownEverywhere("Rested: +13 %"),
+                "a locked 30-minute walk refills from the last input before leaving, and says so")
+            before := energy.level
+            app.sessionLocked := true
+            energy.Tick(at("103300"), 180000)
+            app.sessionLocked := false
+            energy.Tick(at("103500"), 0)
+            this.Assert(Abs(energy.level - (before - tick)) < 0.001 && !this.ShownEverywhere("Rested: +1 %"),
+                "a five-minute break is too short to count")
+            before := energy.level
+            energy.displayOff := true
+            energy.Tick(at("110000"), 1500000)
+            energy.displayOff := false
+            energy.Tick(at("112000"), 0)
+            this.Assert(energy.level > before + 60, "screens turned off by Windows count as rest too")
+            before := energy.level
+            app.suspended := true
+            energy.Tick(at("120000"), 0)
+            app.suspended := false
+            energy.Tick(at("130000"), 0)
+            this.Assert(Abs(energy.level - (before - tick)) < 0.001, "a suspended suite is no rest")
+
+            energy.faint := false
+            energy.level := -59.95
+            energy.Tick(at("130010"), 0)
+            energy.Tick(at("130020"), 0)
+            this.Assert(energy.level = -60 && !energy.fainting && grey.level = 1,
+                "without the faint, the bar stays empty and the screen grey")
+        }
+        finally {
+            SuiteStayAwake.active := false
+            SetTimer(energy.faintCallback, 0)
+            grey.Clear()
+            loop MonitorGetCount()
+                SuiteNotice.Hide("status-" A_Index)
+        }
+    }
 
     ; Whether text shows on each display, hiding it afterwards.
     static ShownEverywhere(text) {
