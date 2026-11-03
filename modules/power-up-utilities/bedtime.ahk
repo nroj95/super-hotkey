@@ -127,7 +127,7 @@ class PU_Bedtime {
         if this.until != "" && !this.fadeStarted {
             if DateDiff(now, this.until, "Seconds") >= 0
                 this.until := ""
-            else if !this.module.stayAwake.index && this.Present()
+            else if !SuiteStayAwake.active && this.Present()
                 this.StartFade()
         }
         return shown
@@ -146,7 +146,7 @@ class PU_Bedtime {
             return
         }
         this.until := PU_Bedtime.NextMoment(now, this.wakeTime)
-        if this.module.stayAwake.index
+        if SuiteStayAwake.active
             this.Prevented()
         else
             this.StartFade()
@@ -165,7 +165,7 @@ class PU_Bedtime {
     FadeStep(tick := "") {
         if !this.fadeStarted
             return
-        if this.module.stayAwake.index {
+        if SuiteStayAwake.active {
             this.Prevented()
             return
         }
@@ -207,7 +207,7 @@ class PU_Bedtime {
         if !this.saying || this.module.stopping || !app.ModuleActive(this.module.id)
             || app.suspended || app.systemSuspended
             return
-        if this.module.stayAwake.index {
+        if SuiteStayAwake.active {
             this.Prevented()
             return
         }
@@ -223,7 +223,7 @@ class PU_Bedtime {
             this.CancelFade()
             return
         }
-        try this.module.utilities.Sleep()
+        try SuiteSleep.Now()
         catch Error as failure {
             this.CancelFade()
             SuiteState.Log.Error("Power-Up Utilities / bedtime sleep", failure)

@@ -34,7 +34,7 @@ class PowerUpChecks {
         app := {suspended: false, systemSuspended: false, sessionLocked: false,
             ModuleActive: (app, id) => true}
         module := {app: app, id: "power-up-utilities", stopping: false, dryRun: true,
-            Name: "Power-Up Utilities", stayAwake: {index: 0}, grey: PU_GreyScreen(true),
+            Name: "Power-Up Utilities", grey: PU_GreyScreen(true),
             reports: reports, Report: (module, text) => reports.Push(text)}
         return PU_Bedtime(module, SuiteChecks.directory "\" name "\settings.ini")
     }
@@ -104,10 +104,10 @@ class PowerUpChecks {
         this.Assert(!night("005955", "010005").Length, "a locked computer skips its message")
         app.sessionLocked := false
         this.Assert(!night("010005", "010010").Length, "unlocking afterwards shows nothing late")
-        module.stayAwake.index := 1
+        SuiteStayAwake.active := true
         this.Assert(shown(night("005955", "010005")) = 2 && this.ShownEverywhere("zzz…"),
             "messages still show while staying awake")
-        module.stayAwake.index := 0
+        SuiteStayAwake.active := false
         this.Assert(shown(night("015955", "020005")) = 3 && this.ShownEverywhere("You feel sleepy")
             && module.reports[-1] = "bedtime message 3" && !bedtime.fadeStarted,
             "without its sleep, the last row is only a message")
@@ -124,25 +124,25 @@ class PowerUpChecks {
         bedtime.rows[3].show := true
         bedtime.sleeps := true
         try {
-            module.stayAwake.index := 1
+            SuiteStayAwake.active := true
             night("015955", "020005")
             this.Assert(this.ShownEverywhere("Stay awake prevented sleep") && !bedtime.fadeStarted
                 && bedtime.until = "20261103060000",
                 "stay awake at bedtime says so, and the night lasts until the wake-up time")
             night("020005", "020010")
             this.Assert(!bedtime.fadeStarted, "nothing fades while stay awake lasts")
-            module.stayAwake.index := 0
+            SuiteStayAwake.active := false
             night("020010", "020015")
             this.Assert(bedtime.fadeStarted && this.ShownEverywhere("You feel sleepy"),
                 "stay awake ending in the night starts the fade with the last message")
             bedtime.FadeStep(minutes(5))
             this.Assert(grey.level = 0.5 && !bedtime.saying, "halfway through the fade, half grey")
-            module.stayAwake.index := 1
+            SuiteStayAwake.active := true
             bedtime.FadeStep(minutes(6))
             this.Assert(!bedtime.fadeStarted && grey.level = 0
                 && this.ShownEverywhere("Stay awake prevented sleep"),
                 "stay awake switched on mid-fade clears the grey and says so")
-            module.stayAwake.index := 0
+            SuiteStayAwake.active := false
             night("021000", "021005")
             this.Assert(bedtime.fadeStarted && this.ShownEverywhere("You feel sleepy"),
                 "the fade starts over when stay awake ends again")
@@ -150,12 +150,12 @@ class PowerUpChecks {
             this.Assert(grey.level = 1 && bedtime.saying && this.ShownEverywhere("Good night"),
                 "fully grey, the last word shows")
             ; Checks run uninterruptible, so the sleep's timer is called by hand.
-            module.stayAwake.index := 1
+            SuiteStayAwake.active := true
             bedtime.SleepAfterMessage()
             this.Assert(!bedtime.fadeStarted && grey.level = 0 && module.reports[-1] != "dry run: bedtime sleep"
                 && this.ShownEverywhere("Stay awake prevented sleep"),
                 "Pause + End during the last word keeps the computer up")
-            module.stayAwake.index := 0
+            SuiteStayAwake.active := false
             night("023000", "023005")
             bedtime.FadeStep(minutes(10))
             SuiteNotice.Hide("status-1")
@@ -166,9 +166,9 @@ class PowerUpChecks {
             app.sessionLocked := false
             night("024000", "024005")
             this.Assert(!bedtime.fadeStarted, "one sleep per night")
-            module.stayAwake.index := 1
+            SuiteStayAwake.active := true
             night("015955", "020005")
-            module.stayAwake.index := 0
+            SuiteStayAwake.active := false
             night("055955", "060005")
             this.Assert(!bedtime.fadeStarted && bedtime.until = "",
                 "stay awake ending after the wake-up time starts nothing")
@@ -275,7 +275,7 @@ class PowerUpChecks {
     }
 }
 
-class PU_SleepPolicyProbe extends PU_SleepPolicy {
+class PU_SleepPolicyProbe extends SuiteSleepPolicy {
     __New(directory, values := 0) {
         super.__New(directory)
         this.activeScheme := "{11111111-1111-1111-1111-111111111111}"

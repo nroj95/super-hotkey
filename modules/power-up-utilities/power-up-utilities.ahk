@@ -18,7 +18,6 @@ class PowerUpUtilities extends SuiteModule {
         this.activeJob := 0
         this.catalog := Map()
         this.pollCallback := ObjBindMethod(this, "CheckPending")
-        this.powerCallback := ObjBindMethod(this, "PowerEvent")
         this.keyboard := PU_Keyboard(this)
         this.terminal := PU_Terminal(this)
         this.utilities := PU_Utilities(this)
@@ -81,28 +80,19 @@ class PowerUpUtilities extends SuiteModule {
     }
 
     Start() {
-        OnMessage(0x0218, this.powerCallback) ; WM_POWERBROADCAST
-        try this.utilities.sleepPolicy.Recover()
-        catch Error as failure {
-            SuiteState.Log.Error("Power-Up Utilities / sleep recovery", failure)
-            TrayTip("Could not restore the previous Away Mode settings: " failure.Message,
-                this.Name, 2)
-        }
         this.bedtime.Start()
     }
 
-    ; An interrupted sleep transaction is restored at the latest on exit.
+    ; Ends stay awake and bedtime, restoring the colors; core restores an
+    ; interrupted sleep transaction.
     Stop(*) {
         if this.stopping
             return
         this.stopping := true
-        OnMessage(0x0218, this.powerCallback, 0)
         this.bedtime.Stop()
         this.grey.Clear()
         this.CancelWork()
         this.stayAwake.End()
-        if !this.dryRun
-            this.utilities.sleepPolicy.Restore()
     }
 
     ; Suspending Super Hotkey hands everything back to Windows, staying awake
@@ -121,10 +111,6 @@ class PowerUpUtilities extends SuiteModule {
     SetTrayStatus(text) {
         if IsObject(this.app.ui)
             this.app.ui.SetTrayStatus(this.id, text)
-    }
-
-    PowerEvent(event, *) {
-        this.utilities.sleepPolicy.OnPowerEvent(event)
     }
 
     Enabled(actionId) {

@@ -9,6 +9,7 @@
 #Include "%A_ScriptDir%\core\settings.ahk"
 #Include "%A_ScriptDir%\core\ui.ahk"
 #Include "%A_ScriptDir%\core\windows.ahk"
+#Include "%A_ScriptDir%\core\power.ahk"
 #Include "%A_ScriptDir%\core\focus-border.ahk"
 #Include "%A_ScriptDir%\core\application.ahk"
 #Include "%A_ScriptDir%\core\tray.ahk"

@@ -12,13 +12,14 @@ Super Hotkey is one AutoHotkey v2 64-bit process: a launcher, a small core and f
 | `core/keybindings-editor.ahk` | the Keybindings window |
 | `core/settings.ahk`, `core/logging.ahk` | suite preferences, backups and the shared log |
 | `core/ui.ahk`, `core/tray.ahk` | every GUI, on-screen notices and the only tray |
+| `core/power.ahk` | staying awake and sleeping the computer, shared by every module |
 | `core/windows.ahk`, `core/focus-border.ahk` | window queries, activation, closing, DPI boundaries, the working display, and manual and managed window ownership |
 | `modules/<id>/module.ahk` | a module's lifecycle, actions, settings page and guide |
 
 ## design rules
 
 - users assign **hotkeys** to **actions** in **Keybindings**. use these words consistently.
-- a module overrides only the `SuiteModule` methods it needs and registers its actions in `Register`. core never calls module internals, and modules never call each other: they share behavior through core, such as the `SuiteWindowOwnership.OnClaim` hook and the `SuiteManagedWindows` provider. `tests/test_suite_structure.py` enforces both rules and the shared global namespace.
+- a module overrides only the `SuiteModule` methods it needs and registers its actions in `Register`. core never calls module internals, and modules never call each other: they share behavior through core, such as the `SuiteWindowOwnership.OnClaim` hook, the `SuiteManagedWindows` provider and `SuiteStayAwake` and `SuiteSleep`. `tests/test_suite_structure.py` enforces both rules and the shared global namespace.
 - Keybindings owns every hotkey, including CapsLock and Pause layer suffixes. an action that `replaces` a Windows key, such as Wonder Windows' Win + Up, keeps claiming that key, doing nothing, after the user moves or disables it, so Windows' own version never comes back as a surprise; Wonder Windows settings can give those keys back. a `whilePaused` action, the suspend toggle, still answers while suspended. Secret Layers' `KeyboardLayers` owns only the two prefix keys. only registered complementary scopes may share a hotkey; Paper Pad editor navigation works only in its editor.
 - native input callbacks only queue work. cancel queued work on reconfiguration, suspension and exit, and always release held output.
 - disabled modules and layers release their inputs and keep their assignments editable. CapsLock and Pause behave normally unless reassigned.

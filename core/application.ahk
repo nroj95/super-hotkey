@@ -108,6 +108,7 @@ class SuiteApplication {
         for warning in this.manager.loadWarnings
             this.startupWarnings.Push(warning)
         if !this.dryRun {
+            SuiteSleep.Start(this.Settings.directory)
             SuiteWorkingMonitor.Start(this.manager)
             for id in SuiteSettings.ModuleOrder
                 if this.ModuleActive(id)
@@ -367,6 +368,7 @@ class SuiteApplication {
     }
 
     PowerEvent(event, *) {
+        SuiteSleep.OnPowerEvent(event)
         ; PBT_APMSUSPEND, PBT_APMRESUMESUSPEND, PBT_APMRESUMEAUTOMATIC
         if event != 4 && event != 7 && event != 0x12
             return
@@ -435,6 +437,8 @@ class SuiteApplication {
         for id in SuiteSettings.ModuleOrder
             if this.modules.Has(id)
                 this.Cleanup(SuiteSettings.ModuleNames[id], ObjBindMethod(this.modules[id], "Stop", reason, code))
+        this.Cleanup("Core / stay awake", (*) => SuiteStayAwake.Release())
+        this.Cleanup("Core / sleep", (*) => SuiteSleep.Stop())
         this.Cleanup("Core / focus border", (*) => SuiteFocusBorder.Hide("", true))
         this.Cleanup("Core / working monitor", (*) => SuiteWorkingMonitor.Stop())
         this.Cleanup("Core / notices", (*) => SuiteNotice.Destroy())
