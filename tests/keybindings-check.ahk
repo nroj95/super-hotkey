@@ -684,11 +684,15 @@ class KeybindingsChecks {
             "wonder-windows.stretch",
             "wonder-windows.move-onto-up", "wonder-windows.move-onto-down",
             "wonder-windows.move-onto-left", "wonder-windows.move-onto-right",
+            "wonder-windows.minimize", "wonder-windows.restore-minimized",
+            "wonder-windows.maximize", "wonder-windows.restore",
+            "wonder-windows.minimize-all", "wonder-windows.restore-all",
+            "wonder-windows.minimize-others", "wonder-windows.restore-others",
+            "wonder-windows.minimize-everywhere", "wonder-windows.restore-everywhere",
             "wonder-windows.focus-up", "wonder-windows.focus-down",
             "wonder-windows.cycle-stacked",
-            "wonder-windows.cycle-expanded-next", "wonder-windows.cycle-expanded-previous",
-            "wonder-windows.minimize", "wonder-windows.restore-minimized"],
-            "Wonder Windows groups placing, resizing, relocating, switching and minimizing")
+            "wonder-windows.cycle-expanded-next", "wonder-windows.cycle-expanded-previous"],
+            "Wonder Windows lists zones, then arranging, Windows keys beside their Shift twins, and focus")
         this.AssertDisplaySequence(rows, [
             "power-up-utilities.help", "power-up-utilities.system.wake-speakers",
             "power-up-utilities.system.sleep", "power-up-utilities.system.stay-awake",
@@ -722,11 +726,12 @@ class KeybindingsChecks {
         for row in rows
             if row.id = "" && InStr(row.label, "Wonder Windows") = 1
                 wonderHeadings.Push(row.label)
-        expectedWonder := ["Wonder Windows"]
+        expectedWonder := ["Wonder Windows", "Wonder Windows / Arrange your windows",
+            "Wonder Windows / Better Windows keys", "Wonder Windows / Focus, stacks and fullscreen"]
         wonderOrdered := wonderHeadings.Length = expectedWonder.Length
         for index, heading in expectedWonder
             wonderOrdered := wonderOrdered && wonderHeadings.Has(index) && wonderHeadings[index] = heading
-        this.Assert(wonderOrdered, "Wonder Windows keeps its actions under one heading")
+        this.Assert(wonderOrdered, "Wonder Windows subcategories follow the sections of its guide")
     }
 
     static RouteExists(manager, actionId) {

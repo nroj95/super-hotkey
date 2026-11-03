@@ -28,9 +28,9 @@ class WonderWindowsModule extends SuiteModule {
         SuiteWindowOwnership.OnRelease(WW_PrepareWindowForAdoption)
     }
 
-    ; Registration order is the Keybindings display order: Help, then by task,
-    ; from placing a window to minimizing many. replaces names the Windows key
-    ; an action improves.
+    ; Registration order is the Keybindings display order: Help and zone
+    ; cycling, then one subcategory per section of the guide. replaces names
+    ; the Windows key an action improves.
     Register(manager) {
         this.manager := manager
         manager.AddAction("wonder-windows.help", "show Wonder Windows help",
@@ -40,48 +40,59 @@ class WonderWindowsModule extends SuiteModule {
             ["Win + WheelDown", "Win + Left"], ["down"], {replaces: ["Win + Left"]})
         this.Add("zones-from-right", "cycle zones from the right", WW_CycleZone,
             ["Win + WheelUp", "Win + Right"], ["up"], {replaces: ["Win + Right"]})
-        this.Add("maximize", "maximize, then upper / lower half", WW_MaximizeWindowTarget, ["Win + Up"],
-            , {replaces: ["Win + Up"]})
-        this.Add("restore", "undo placement, then minimize", WW_RestoreOrMinimizeWindow, ["Win + Down"],
-            , {replaces: ["Win + Down"]})
+        arrange := "Arrange your windows"
         this.Add("stretch", "stretch to neighbors: across / fill / back", WW_CycleNeighborStretch,
-            ["Win + Shift + Enter"])
+            ["Win + Shift + Enter"], , {section: arrange})
         for side in [["up", "above"], ["down", "below"], ["left", "to the left"], ["right", "to the right"]]
             this.Add("move-onto-" side[1], "stack on nearest window " side[2],
-                WW_MoveOntoWindow, ["Win + Alt + " side[1], "Caps + Win + " side[1]], [side[1]])
-        this.Add("focus-up", "focus previous visible window", WW_CycleWindowFocus, ["Win + PgUp"], ["up"])
-        this.Add("focus-down", "focus next visible window", WW_CycleWindowFocus, ["Win + PgDn"], ["down"])
-        this.Add("cycle-stacked", "cycle windows in current stack", WW_CycleMonitorWindows, ["Win + Enter"])
-        this.Add("cycle-expanded-next", "show next maximized or fullscreen window",
-            WW_CycleMaximizedFullscreenWindows, ["Win + Alt + Enter", "Caps + Win + Enter"], ["next"])
-        this.Add("cycle-expanded-previous", "show previous maximized or fullscreen window",
-            WW_CycleMaximizedFullscreenWindows, ["Win + Alt + Shift + Enter", "Caps + Win + Shift + Enter"], ["previous"])
-        this.Add("minimize", "minimize active window", WW_MinimizeActiveWindow, ["Win + Backspace"])
+                WW_MoveOntoWindow, ["Win + Alt + " side[1], "Caps + Win + " side[1]], [side[1]], {section: arrange})
+        this.Add("minimize", "minimize active window", WW_MinimizeActiveWindow, ["Win + Backspace"],
+            , {section: arrange})
         this.Add("restore-minimized", "restore last minimized window", WW_RestoreMinimizedWindow,
-            ["Win + Shift + Backspace"])
-        ; Improved Windows keys that act on whole displays, so from any window.
+            ["Win + Shift + Backspace"], , {section: arrange})
+        ; Each key beside its Shift twin. The display-wide ones answer from any window.
+        keys := "Better Windows keys"
+        this.Add("maximize", "maximize, then upper / lower half", WW_MaximizeWindowTarget, ["Win + Up"],
+            , {section: keys, replaces: ["Win + Up"]})
+        this.Add("restore", "undo placement, then minimize", WW_RestoreOrMinimizeWindow, ["Win + Down"],
+            , {section: keys, replaces: ["Win + Down"]})
         this.Add("minimize-all", "minimize all windows on this display", WW_MinimizeAllWindows, ["Win + M"],
-            , {replaces: ["Win + M"], anyWindow: true})
-        this.Add("minimize-others", "minimize other windows on this display", WW_MinimizeOtherWindows,
-            ["Win + Home"], , {replaces: ["Win + Home"], anyWindow: true})
-        this.Add("restore-others", "restore windows behind the active window", WW_RestoreOtherWindows,
-            ["Win + Shift + Home"], , {anyWindow: true})
+            , {section: keys, replaces: ["Win + M"], anyWindow: true})
         this.Add("restore-all", "restore windows minimized on this display", WW_RestoreAllWindows,
-            ["Win + Shift + M"], , {replaces: ["Win + Shift + M"], anyWindow: true})
+            ["Win + Shift + M"], , {section: keys, replaces: ["Win + Shift + M"], anyWindow: true})
+        this.Add("minimize-others", "minimize other windows on this display", WW_MinimizeOtherWindows,
+            ["Win + Home"], , {section: keys, replaces: ["Win + Home"], anyWindow: true})
+        this.Add("restore-others", "restore windows behind the active window", WW_RestoreOtherWindows,
+            ["Win + Shift + Home"], , {section: keys, anyWindow: true})
         this.Add("minimize-everywhere", "minimize all windows on every display", WW_MinimizeEveryDisplay,
-            ["Win + D"], , {replaces: ["Win + D"], anyWindow: true})
+            ["Win + D"], , {section: keys, replaces: ["Win + D"], anyWindow: true})
         this.Add("restore-everywhere", "restore windows minimized on every display", WW_RestoreEveryDisplay,
-            ["Win + Shift + D"], , {anyWindow: true})
+            ["Win + Shift + D"], , {section: keys, anyWindow: true})
+        focus := "Focus, stacks and fullscreen"
+        this.Add("focus-up", "focus previous visible window", WW_CycleWindowFocus, ["Win + PgUp"], ["up"],
+            {section: focus})
+        this.Add("focus-down", "focus next visible window", WW_CycleWindowFocus, ["Win + PgDn"], ["down"],
+            {section: focus})
+        this.Add("cycle-stacked", "cycle windows in current stack", WW_CycleMonitorWindows, ["Win + Enter"],
+            , {section: focus})
+        this.Add("cycle-expanded-next", "show next maximized or fullscreen window",
+            WW_CycleMaximizedFullscreenWindows, ["Win + Alt + Enter", "Caps + Win + Enter"], ["next"],
+            {section: focus})
+        this.Add("cycle-expanded-previous", "show previous maximized or fullscreen window",
+            WW_CycleMaximizedFullscreenWindows, ["Win + Alt + Shift + Enter", "Caps + Win + Shift + Enter"],
+            ["previous"], {section: focus})
     }
 
-    ; anyWindow drops the check that the active window is one Wonder Windows
-    ; may arrange.
+    ; section is the Keybindings subcategory. anyWindow drops the check that
+    ; the active window is one Wonder Windows may arrange.
     Add(id, label, command, bindings, arguments := unset, options := {}) {
         actionId := "wonder-windows." id
         arguments := IsSet(arguments) ? arguments : []
         this.catalog[actionId] := {command: command, arguments: arguments}
+        section := Keybindings.Option(options, "section", "")
         this.manager.AddAction(actionId, label, ObjBindMethod(this, "Event"), bindings,
-            {category: "Wonder Windows", available: ObjBindMethod(this, "Available"),
+            {category: "Wonder Windows" (section = "" ? "" : " / " section),
+                available: ObjBindMethod(this, "Available"),
                 context: Keybindings.Option(options, "anyWindow", false) ? 0 : ObjBindMethod(this, "WindowContext"),
                 replaces: Keybindings.Option(options, "replaces", []),
                 keepsReplaced: ObjBindMethod(this, "KeepsWindowsKeys")})
