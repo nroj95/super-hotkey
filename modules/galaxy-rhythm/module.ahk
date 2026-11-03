@@ -230,7 +230,8 @@ class GalaxyRhythmModule extends SuiteModule {
         A small upright bar marked E, bottom right on the primary display unless Settings moves it, drains with every minute you use the computer: 12 hours of activity empty it.
         It refills while you rest away from it, locked, with the screens off, asleep or off: every break counts, but a 10-minute one pays best and gives back about 50 minutes, and a full night of 8 hours fills it.
         A break starts when the computer sees you go, as it locks, turns its screens off or sleeps; quiet time before that might have been reading or a film, so it doesn't count.
-        So when you step away, lock with Win + L or sleep with Pause + Escape in Power-Up Utilities, and if you often just walk off, set the screens to turn off after a few minutes in Windows' power settings.
+        So when you step away, lock the computer or put it to sleep, any way you like; Win + L and Pause + Escape in Power-Up Utilities do it in one press.
+        If you often just walk off, set the screens to turn off after a few minutes in Windows' power settings.
         Coming back from a break of about 8 minutes or more, Rested says how much it gave back, unless Settings turns that off.
         Near empty it says so; at zero you're running on fumes, the screen greys over half an hour of activity by default, and then Lights out puts the computer to sleep.
         Stay awake holds the bar quietly at zero instead.
