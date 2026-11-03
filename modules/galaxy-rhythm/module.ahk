@@ -216,6 +216,11 @@ class GalaxyRhythmModule extends SuiteModule {
             window.AddText("x523 y" (y + 4) " w30", "h"))
         rows.Advance(night)
         y := rows.y
+        energyControls.Push(window.AddText("x44 y" (y + 4) " w150", "Running low:"))
+        lowText := window.AddEdit("x200 y" y " w400 Limit" GR_Bedtime.TextLimit " vlowText", energy.lowText)
+        energyControls.Push(lowText)
+        rows.Advance(lowText)
+        y := rows.y
         energyControls.Push(window.AddText("x44 y" (y + 4) " w150", "At zero:"))
         roadText := window.AddEdit("x200 y" y " w400 Limit" GR_Bedtime.TextLimit " vroadText", energy.roadText)
         energyControls.Push(roadText)
@@ -271,6 +276,7 @@ class GalaxyRhythmModule extends SuiteModule {
                 "Rested", window["rested"].Value ? 1 : 0,
                 "Faint", window["faintEnergy"].Value ? 1 : 0,
                 "FadeMinutes", GR_Energy.Whole(window["energyFade"].Value, 10, 180, GR_Energy.FadeDefault),
+                "LowText", GR_Bedtime.CleanText(window["lowText"].Value, GR_Energy.Low),
                 "RoadText", GR_Bedtime.CleanText(window["roadText"].Value, GR_Energy.Road),
                 "FaintText", GR_Bedtime.CleanText(window["faintText"].Value, GR_Energy.Faint),
                 "Position", GR_EnergyBar.Corners[window["position"].Value][1],

@@ -59,7 +59,7 @@ class GR_Energy {
     ; RampMinutes puts the most energy per minute away at 10 minutes.
     static BonusMinutes := 35
     static RampMinutes := 2.5
-    ; The notices; Road and Faint are only the default words of settings.
+    ; The default words of the notices, which Settings can change.
     static Low := "You're running low on energy"
     static Road := "You're running on fumes"
     static Faint := "Lights out"
@@ -131,6 +131,7 @@ class GR_Energy {
         this.rested := read("Rested", 1) = "1"
         this.faint := read("Faint", 1) = "1"
         this.roadMinutes := GR_Energy.Whole(read("FadeMinutes", ""), 10, 180, GR_Energy.FadeDefault)
+        this.lowText := GR_Bedtime.CleanText(read("LowText", ""), GR_Energy.Low)
         this.roadText := GR_Bedtime.CleanText(read("RoadText", ""), GR_Energy.Road)
         this.faintText := GR_Bedtime.CleanText(read("FaintText", ""), GR_Energy.Faint)
         position := read("Position", "bottom-right")
@@ -269,7 +270,7 @@ class GR_Energy {
             this.lowShown := false
         else if this.level > 0 && !this.lowShown {
             this.lowShown := true
-            this.Notice(GR_Energy.Low)
+            this.Notice(this.lowText)
         }
         if this.level > 0
             this.roadShown := false

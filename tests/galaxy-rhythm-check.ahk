@@ -59,20 +59,23 @@ class GalaxyRhythmChecks {
             "once the module is on, a full 12-hour bar shows with the grey and the faint")
         this.Assert(energy.position = "bottom-right" && energy.display = "Primary",
             "the bar sits bottom right on the primary display")
-        this.Assert(energy.roadMinutes = 30 && energy.roadText = "You're running on fumes"
-            && energy.faintText = "Lights out",
+        this.Assert(energy.roadMinutes = 30 && energy.lowText = "You're running low on energy"
+            && energy.roadText = "You're running on fumes" && energy.faintText = "Lights out",
             "running on fumes greys over half an hour of activity before Lights out")
         IniWrite(45, energy.settingsPath, "Energy", "FadeMinutes")
+        IniWrite("Getting tired", energy.settingsPath, "Energy", "LowText")
         IniWrite("Out of juice", energy.settingsPath, "Energy", "RoadText")
         IniWrite("Bedtime, champ", energy.settingsPath, "Energy", "FaintText")
         energy.LoadSettings()
-        this.Assert(energy.roadMinutes = 45 && energy.roadText = "Out of juice"
+        this.Assert(energy.roadMinutes = 45 && energy.lowText = "Getting tired" && energy.roadText = "Out of juice"
             && energy.faintText = "Bedtime, champ",
-            "the fade length and the words at zero and at the faint load from Settings")
+            "the fade length and the words running low, at zero and at the faint load from Settings")
         IniWrite(5, energy.settingsPath, "Energy", "FadeMinutes")
+        IniWrite("", energy.settingsPath, "Energy", "LowText")
         IniWrite("", energy.settingsPath, "Energy", "RoadText")
         energy.LoadSettings()
-        this.Assert(energy.roadMinutes = 30 && energy.roadText = "You're running on fumes",
+        this.Assert(energy.roadMinutes = 30 && energy.lowText = "You're running low on energy"
+            && energy.roadText = "You're running on fumes",
             "a fade under 10 minutes falls back to half an hour, and an empty message to its default words")
         IniWrite(30, energy.settingsPath, "Energy", "FullHours")
         IniWrite(6, energy.settingsPath, "Energy", "NightHours")
