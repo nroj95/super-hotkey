@@ -18,7 +18,7 @@
 ; off; settings.ini [Bedtime] holds them.
 ; =============================================================================
 
-class PU_Bedtime {
+class GR_Bedtime {
     static Defaults := [["0000", "It's getting late"], ["0100", "zzz…"], ["0200", "You feel sleepy"]]
     static SleepDefault := "Good night"
     static AwakeDefault := "Stay awake prevented sleep"
@@ -31,16 +31,18 @@ class PU_Bedtime {
     static GapSeconds := 120
     static TickMs := 5000
     static FadeStepMs := 1000
+    ; Keys that could stay stuck down if held as the computer sleeps.
+    static HeldKeys := ["Ctrl", "Alt", "Shift", "LWin", "RWin", "CapsLock", "Pause", "CtrlBreak"]
 
     __New(module, path) {
         this.module := module
         this.path := path
         this.rows := []
         this.sleeps := false
-        this.fadeMinutes := PU_Bedtime.FadeDefault
-        this.wakeTime := PU_Bedtime.WakeDefault
-        this.sleepText := PU_Bedtime.SleepDefault
-        this.awakeText := PU_Bedtime.AwakeDefault
+        this.fadeMinutes := GR_Bedtime.FadeDefault
+        this.wakeTime := GR_Bedtime.WakeDefault
+        this.sleepText := GR_Bedtime.SleepDefault
+        this.awakeText := GR_Bedtime.AwakeDefault
         this.last := ""        ; A_Now at the previous tick
         this.until := ""       ; while a night lasts, when it ends (A_Now format)
         this.fadeStarted := 0  ; A_TickCount while fading
@@ -56,11 +58,11 @@ class PU_Bedtime {
     ; One line of at most TextLimit characters; empty means the default words.
     static CleanText(text, fallback) {
         text := Trim(RegExReplace(text, "\s+", " "))
-        return text = "" ? fallback : SubStr(text, 1, PU_Bedtime.TextLimit)
+        return text = "" ? fallback : SubStr(text, 1, GR_Bedtime.TextLimit)
     }
 
-    static CleanMinutes(text) => IsInteger(text) && text >= 1 && text <= PU_Bedtime.FadeLimit
-        ? Integer(text) : PU_Bedtime.FadeDefault
+    static CleanMinutes(text) => IsInteger(text) && text >= 1 && text <= GR_Bedtime.FadeLimit
+        ? Integer(text) : GR_Bedtime.FadeDefault
 
     ; The first moment after now at the HHmm time.
     static NextMoment(now, time) {
@@ -70,27 +72,27 @@ class PU_Bedtime {
 
     Load() {
         this.rows := []
-        for index, defaults in PU_Bedtime.Defaults {
+        for index, defaults in GR_Bedtime.Defaults {
             time := IniRead(this.path, "Bedtime", "Time" index, defaults[1])
             this.rows.Push({show: IniRead(this.path, "Bedtime", "Show" index, 0) = "1",
-                time: PU_Bedtime.ValidTime(time) ? time : defaults[1],
-                text: PU_Bedtime.CleanText(IniRead(this.path, "Bedtime", "Text" index, ""), defaults[2])})
+                time: GR_Bedtime.ValidTime(time) ? time : defaults[1],
+                text: GR_Bedtime.CleanText(IniRead(this.path, "Bedtime", "Text" index, ""), defaults[2])})
         }
         this.sleeps := IniRead(this.path, "Bedtime", "Sleep", 0) = "1"
-        this.fadeMinutes := PU_Bedtime.CleanMinutes(IniRead(this.path, "Bedtime", "FadeMinutes", ""))
-        wake := IniRead(this.path, "Bedtime", "WakeTime", PU_Bedtime.WakeDefault)
-        this.wakeTime := PU_Bedtime.ValidTime(wake) ? wake : PU_Bedtime.WakeDefault
-        this.sleepText := PU_Bedtime.CleanText(IniRead(this.path, "Bedtime", "SleepText", ""),
-            PU_Bedtime.SleepDefault)
-        this.awakeText := PU_Bedtime.CleanText(IniRead(this.path, "Bedtime", "AwakeText", ""),
-            PU_Bedtime.AwakeDefault)
+        this.fadeMinutes := GR_Bedtime.CleanMinutes(IniRead(this.path, "Bedtime", "FadeMinutes", ""))
+        wake := IniRead(this.path, "Bedtime", "WakeTime", GR_Bedtime.WakeDefault)
+        this.wakeTime := GR_Bedtime.ValidTime(wake) ? wake : GR_Bedtime.WakeDefault
+        this.sleepText := GR_Bedtime.CleanText(IniRead(this.path, "Bedtime", "SleepText", ""),
+            GR_Bedtime.SleepDefault)
+        this.awakeText := GR_Bedtime.CleanText(IniRead(this.path, "Bedtime", "AwakeText", ""),
+            GR_Bedtime.AwakeDefault)
         if !this.sleeps || !this.rows[-1].show
             this.EndNight()
     }
 
     Start() {
         this.last := A_Now
-        SetTimer(this.tickCallback, PU_Bedtime.TickMs)
+        SetTimer(this.tickCallback, GR_Bedtime.TickMs)
     }
 
     Stop() {
@@ -109,7 +111,7 @@ class PU_Bedtime {
         shown := []
         if last != "" {
             gap := DateDiff(now, last, "Seconds")
-            if gap > 0 && gap <= PU_Bedtime.GapSeconds && this.Present()
+            if gap > 0 && gap <= GR_Bedtime.GapSeconds && this.Present()
                 for index, row in this.rows {
                     if !row.show
                         continue
@@ -145,7 +147,7 @@ class PU_Bedtime {
             this.module.Report("bedtime message " index)
             return
         }
-        this.until := PU_Bedtime.NextMoment(now, this.wakeTime)
+        this.until := GR_Bedtime.NextMoment(now, this.wakeTime)
         if SuiteStayAwake.active
             this.Prevented()
         else
@@ -157,7 +159,7 @@ class PU_Bedtime {
         this.module.Report("bedtime message " this.rows.Length ", fading to sleep over " this.fadeMinutes " min")
         this.fadeStarted := A_TickCount
         this.saying := false
-        SetTimer(this.fadeCallback, PU_Bedtime.FadeStepMs)
+        SetTimer(this.fadeCallback, GR_Bedtime.FadeStepMs)
     }
 
     ; Greys a little more each second; fully grey, the last word shows and
@@ -211,7 +213,7 @@ class PU_Bedtime {
             this.Prevented()
             return
         }
-        for key in PowerUpUtilities.BlockingKeys("sleep")
+        for key in GR_Bedtime.HeldKeys
             if GetKeyState(key, "P") {
                 SetTimer(this.sleepCallback, -250)
                 return
@@ -226,7 +228,7 @@ class PU_Bedtime {
         try SuiteSleep.Now()
         catch Error as failure {
             this.CancelFade()
-            SuiteState.Log.Error("Power-Up Utilities / bedtime sleep", failure)
+            SuiteState.Log.Error("Galaxy Rhythm / bedtime sleep", failure)
             TrayTip(failure.Message, this.module.Name, 2)
             return
         }

@@ -9,7 +9,7 @@
 ; records the levels.
 ; =============================================================================
 
-class PU_GreyScreen {
+class GR_GreyScreen {
     ; How much of each source channel feeds every output channel when grey.
     static Luminance := [0.3, 0.59, 0.11]
 
@@ -45,7 +45,7 @@ class PU_GreyScreen {
             return
         try this._Apply(greyest)
         catch Error as failure
-            SuiteState.Log.Error("Power-Up Utilities / grey screen", failure)
+            SuiteState.Log.Error("Galaxy Rhythm / grey screen", failure)
     }
 
     ; Mixes identity and grey by level; level 0 also releases the API.
@@ -63,7 +63,7 @@ class PU_GreyScreen {
             row := A_Index
             loop 5 {
                 column := A_Index
-                grey := row <= 3 && column <= 3 ? PU_GreyScreen.Luminance[row] : row = column
+                grey := row <= 3 && column <= 3 ? GR_GreyScreen.Luminance[row] : row = column
                 NumPut("float", (1 - level) * (row = column) + level * grey, matrix, ((row - 1) * 5 + column - 1) * 4)
             }
         }

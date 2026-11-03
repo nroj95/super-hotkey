@@ -602,7 +602,7 @@ class SuiteInterface {
     }
 
     ResetDefaults(*) {
-        if MsgBox("Re-enable all five modules and both layers, and restore default hotkeys and preferences?"
+        if MsgBox("Re-enable all modules and both layers, and restore default hotkeys and preferences?"
             . "`n`nNotes, their folder, editor path, Notepad3 preferences and page state will be kept."
             . "`nA settings backup will be created. The suite will restart.",
             SuiteApplication.Name, "YesNo Default2 Icon?") != "Yes"

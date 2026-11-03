@@ -1,6 +1,6 @@
 ; =============================================================================
 ; utilities.ahk - speaker wake, the sleep hotkey and stay awake's steps; simple
-; text actions live in dispatch, bedtime messages in bedtime.ahk
+; text actions live in dispatch
 ; =============================================================================
 ; Preserve the original sound and 16% temporary volume floor. Retain the exact
 ; endpoint object and restore only a level that still matches our own change.

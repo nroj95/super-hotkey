@@ -813,9 +813,9 @@ class KeybindingsChecks {
                 }
             }
             expectedOrder := ["Global", "Paper Pad", "Cascade Kingdom",
-                "Wonder Windows", "Power-Up Utilities", "Secret Layers"]
+                "Wonder Windows", "Power-Up Utilities", "Galaxy Rhythm", "Secret Layers"]
             this.Assert(mainHeadings.Length = expectedOrder.Length,
-                "Keybindings includes exactly the five assignable sections")
+                "Keybindings includes exactly the module sections")
             for index, expectedName in expectedOrder
                 this.Assert(mainHeadings[index] = expectedName,
                     "Keybindings section order: " expectedName)
@@ -836,6 +836,7 @@ class KeybindingsChecks {
                 "Cascade Kingdom", "cascade-kingdom.help",
                 "Wonder Windows", "wonder-windows.help",
                 "Power-Up Utilities", "power-up-utilities.help",
+                "Galaxy Rhythm", "galaxy-rhythm.help",
                 "Secret Layers", "secret-layers.help")
             for index, row in rows {
                 if row.id != "" || !expectedHelp.Has(row.label)
@@ -854,8 +855,10 @@ class KeybindingsChecks {
                 && saved["paper-pad.help"].bindings[2] = "",
                 "Paper Pad Help defaults to Pause + F12")
             this.Assert(saved["secret-layers.help"].bindings[1] = ""
-                && saved["secret-layers.help"].bindings[2] = "",
-                "Secret Layers Help remains unassigned by default")
+                && saved["secret-layers.help"].bindings[2] = ""
+                && saved["galaxy-rhythm.help"].bindings[1] = ""
+                && saved["galaxy-rhythm.help"].bindings[2] = "",
+                "Secret Layers and Galaxy Rhythm Help remain unassigned by default")
             this.Assert(saved["cascade-kingdom.help"].bindings[1]
                 = Keybindings.Parse("Caps + H").signature
                 && saved["wonder-windows.help"].bindings[1]

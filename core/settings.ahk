@@ -3,12 +3,15 @@
 class SuiteSettings {
     static BackupsKept := 20
 
-    static ModuleOrder := ["cascade-kingdom", "wonder-windows", "power-up-utilities", "paper-pad", "secret-layers"]
+    static ModuleOrder := ["cascade-kingdom", "wonder-windows", "power-up-utilities", "galaxy-rhythm",
+        "paper-pad", "secret-layers"]
     static ModuleNames := Map("cascade-kingdom", "Cascade Kingdom", "wonder-windows", "Wonder Windows",
-        "power-up-utilities", "Power-Up Utilities", "paper-pad", "Paper Pad", "secret-layers", "Secret Layers")
+        "power-up-utilities", "Power-Up Utilities", "galaxy-rhythm", "Galaxy Rhythm", "paper-pad", "Paper Pad",
+        "secret-layers", "Secret Layers")
     static ModuleDescriptions := Map("cascade-kingdom", "Automatic window placement and cascades.",
         "wonder-windows", "Window hotkeys, layouts, stretching and navigation.",
         "power-up-utilities", "Extra keyboard, text and system actions.",
+        "galaxy-rhythm", "Bedtime messages and an optional fade to sleep.",
         "paper-pad", "A persistent Notepad3 drawer for quick notes.",
         "secret-layers", "Independent CapsLock and Pause hotkey layers.")
 

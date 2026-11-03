@@ -84,14 +84,14 @@ class InterfaceChecks {
             this.Assert(A_IconTip = "Super Hotkey v1.0.0-beta.3 - dry run",
                 "tray hover text includes its assigned version and dry-run suffix")
             count := DllCall("GetMenuItemCount", "ptr", A_TrayMenu.Handle, "int")
-            this.Assert(count = 19,
+            this.Assert(count = 20,
                 "tray includes application suspension and an explicit app restart")
             loop count
                 this.Assert(!DllCall("GetSubMenu", "ptr", A_TrayMenu.Handle, "int", A_Index - 1, "ptr"),
                     "tray entry has no submenu: " A_Index)
-            for item in [[10, "Verbose logging"], [11, "Open settings folder"],
-                [13, "Run at startup"], [14, "Suspend"],
-                [15, "Restart Super Hotkey"], [16, "Reset to defaults..."]] {
+            for item in [[11, "Verbose logging"], [12, "Open settings folder"],
+                [14, "Run at startup"], [15, "Suspend"],
+                [16, "Restart Super Hotkey"], [17, "Reset to defaults..."]] {
                 name := Buffer(256, 0)
                 DllCall("GetMenuStringW", "ptr", A_TrayMenu.Handle,
                     "uint", item[1], "ptr", name, "int", 128, "uint", 0x400, "int")
@@ -99,15 +99,15 @@ class InterfaceChecks {
                     "tray exposes " item[2] " directly")
             }
             verboseStatus := (*) => DllCall("GetMenuState", "ptr", A_TrayMenu.Handle,
-                "uint", 10, "uint", 0x400, "uint")
+                "uint", 11, "uint", 0x400, "uint")
             this.Assert(!(verboseStatus.Call() & 8),
                 "verbose logging starts unchecked in the tray")
             startupState := DllCall("GetMenuState", "ptr", A_TrayMenu.Handle,
-                "uint", 13, "uint", 0x400, "uint")
+                "uint", 14, "uint", 0x400, "uint")
             this.Assert(startupState & 3,
                 "Run at startup is disabled during safe dry-run testing")
             hotkeyState := (*) => DllCall("GetMenuState", "ptr", A_TrayMenu.Handle,
-                "uint", 14, "uint", 0x400, "uint")
+                "uint", 15, "uint", 0x400, "uint")
             this.Assert(!(hotkeyState.Call() & 8) && !app.suspended,
                 "Suspend starts unchecked")
             app.ui.ToggleSuspension()
@@ -339,6 +339,7 @@ class InterfaceChecks {
                 firstHeading := Map("cascade-kingdom", "ADD A WINDOW",
                     "wonder-windows", "ARRANGE YOUR WINDOWS",
                     "power-up-utilities", "MORE KEYS WITHOUT A NEW KEYBOARD",
+                    "galaxy-rhythm", "BEDTIME MESSAGES",
                     "paper-pad", "YOUR OWN QUICK-NOTES DRAWER",
                     "secret-layers", "HOLD A KEY FOR MORE HOTKEYS")
                 this.Assert(InStr(guide, "WHY I MADE THIS`r`n") = 1
@@ -620,8 +621,8 @@ class InterfaceChecks {
             this.AssertCentered(window, page)
             this.Assert(layout.footer.buttons.Length >= 2,
                 "utility footer has its buttons: " page)
-            this.Assert(app.ui.moduleControls.Count = 5,
-                "Modules presents all five renamed features")
+            this.Assert(app.ui.moduleControls.Count = 6,
+                "Modules presents all six features")
             descriptionCount := 0
             for id in SuiteSettings.ModuleOrder {
                 app.ui.moduleControls[id].GetPos(, &checkY, , &checkHeight)
@@ -648,8 +649,8 @@ class InterfaceChecks {
                     descriptionCount += 1
                 }
             }
-            this.Assert(descriptionCount = 5,
-                "all five Module descriptions are actually present and visible")
+            this.Assert(descriptionCount = 6,
+                "all six Module descriptions are actually present and visible")
             window.Show("w" (layout.width + 100) " h" (layout.height + 130))
             window.GetClientPos(, , &pageW, &pageH)
             app.ui.ResizePage(page, window, 0, pageW, pageH)
@@ -670,7 +671,7 @@ class InterfaceChecks {
             OnExit(app.exitCallback, 0)
             OnError(app.errorCallback, 0)
         }
-        this.Assert(!InStr(SuiteState.Log.Read(), "ERROR"), "the five-module GUI smoke test emits no errors")
+        this.Assert(!InStr(SuiteState.Log.Read(), "ERROR"), "the six-module GUI smoke test emits no errors")
     }
 
     ; Posts BN_CLICKED, so the button's action runs through AutoHotkey's real

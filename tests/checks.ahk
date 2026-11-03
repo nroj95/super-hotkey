@@ -5,6 +5,7 @@
 #Include "%A_ScriptDir%\tests\interface-check.ahk"
 #Include "%A_ScriptDir%\tests\paper-pad-check.ahk"
 #Include "%A_ScriptDir%\tests\power-up-check.ahk"
+#Include "%A_ScriptDir%\tests\galaxy-rhythm-check.ahk"
 #Include "%A_ScriptDir%\tests\wonder-windows-check.ahk"
 #Include "%A_ScriptDir%\tests\cascade-kingdom-check.ahk"
 class SuiteChecks {
@@ -54,6 +55,7 @@ class SuiteChecks {
         InterfaceChecks.Run()
         PaperPadChecks.Run()
         PowerUpChecks.Run()
+        GalaxyRhythmChecks.Run()
         WonderWindowsChecks.Run()
         CascadeChecks.Run()
     }
