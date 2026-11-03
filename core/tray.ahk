@@ -589,18 +589,15 @@ class SuiteInterface {
             A_TrayMenu.Uncheck("Verbose logging")
     }
 
+    ; Verbose logging records window titles, so it lasts only until the
+    ; suite exits: forgotten, it never outlives the run it was meant for.
     ApplyVerbose(enabled) {
-        this.app.Settings.Save(this.app.Settings.modules, this.app.Settings.layers, enabled)
         SuiteState.Log.verbose := enabled
         SuiteState.Log.Write("Core", "verbose debugging " (enabled ? "enabled" : "disabled"))
         this.UpdateVerboseTray()
     }
 
-    ToggleVerboseTray(*) {
-        try this.ApplyVerbose(!SuiteState.Log.verbose)
-        catch Error as failure
-            this.Report(failure, "Core / logging preference")
-    }
+    ToggleVerboseTray(*) => this.ApplyVerbose(!SuiteState.Log.verbose)
 
     CopyLog(*) {
         try {
@@ -690,7 +687,7 @@ class SuiteInterface {
             choices := Map()
             for id in SuiteSettings.ModuleOrder
                 choices[id] := SuiteSettings.ModuleDefault(id)
-            app.Settings.Save(choices, Map("caps", true, "pause", true), false)
+            app.Settings.Save(choices, Map("caps", true, "pause", true))
             app.Settings.ResetModulePreferences(sections)
             SuiteState.Log.Write("Core", "defaults restored; backup: " backup)
             Reload()

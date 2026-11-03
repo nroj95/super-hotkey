@@ -45,7 +45,6 @@ class SuiteSettings {
             this.modules[id] := this.ReadFlag("modules", id, SuiteSettings.ModuleDefault(id))
         this.layers := Map("caps", this.ReadFlag("layers", "caps", true),
             "pause", this.ReadFlag("layers", "pause", true))
-        this.verbose := this.ReadFlag("logging", "verbose", false)
     }
 
     static ModuleDefault(id) => !SuiteSettings.OffByDefault.Has(id)
@@ -57,15 +56,15 @@ class SuiteSettings {
         return value = "1"
     }
 
-    ; Rebuilding the layers section drops keys earlier versions saved there.
-    Save(modules, layers := unset, verbose := unset) {
+    ; Rebuilding the layers section drops keys earlier versions saved there,
+    ; and verbose logging, which lasts one run, is no longer saved.
+    Save(modules, layers := unset) {
         if !IsSet(layers)
             layers := this.layers
-        if !IsSet(verbose)
-            verbose := this.verbose
         document := Map()
         for section, values in this.document
-            document[section] := values.Clone()
+            if section != "logging"
+                document[section] := values.Clone()
         document["meta"] := Map("schema", "1")
         document["modules"] := Map()
         document["layers"] := Map()
@@ -79,15 +78,11 @@ class SuiteSettings {
                 throw ValueError("Missing or invalid layer choice: " id)
             document["layers"][id] := layers[id] ? "1" : "0"
         }
-        if verbose != 0 && verbose != 1
-            throw ValueError("Invalid verbose logging preference.")
-        document["logging"] := Map("verbose", verbose ? "1" : "0")
         DirCreate this.directory
         KB_Manifest.WriteAtomic(this.path, document)
         this.document := document
         this.modules := modules.Clone()
         this.layers := layers.Clone()
-        this.verbose := !!verbose
     }
 
     WritePreferences(id, changes) {

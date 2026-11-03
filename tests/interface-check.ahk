@@ -52,7 +52,7 @@ class InterfaceChecks {
     static SettingsCheckboxes() {
         app := SuiteApplication(true, SuiteChecks.directory "\checkbox-settings")
         app.InitializeCatalog()
-        app.Settings.Save(app.Settings.modules, Map("caps", true, "pause", false), false)
+        app.Settings.Save(app.Settings.modules, Map("caps", true, "pause", false))
         manager := app.manager
         try {
             manager.SetPaused(true)
@@ -122,13 +122,24 @@ class InterfaceChecks {
                 && app.manager.paused,
                 "Resume hotkeys preserves another pause reason, including dry run")
             app.ui.ToggleVerboseTray()
-            this.Assert(SuiteState.Log.verbose && app.Settings.verbose
-                && (verboseStatus.Call() & 8),
-                "tray enables and checks persistent verbose logging")
+            this.Assert(SuiteState.Log.verbose && (verboseStatus.Call() & 8)
+                && !KB_Manifest.Read(app.Settings.path).Has("logging"),
+                "tray enables and checks verbose logging for this run only")
             app.ui.ToggleVerboseTray()
-            this.Assert(!SuiteState.Log.verbose && !app.Settings.verbose
-                && !(verboseStatus.Call() & 8),
+            this.Assert(!SuiteState.Log.verbose && !(verboseStatus.Call() & 8),
                 "tray disables and unchecks verbose logging")
+            app.RunLogShortcut("verbose")
+            this.Assert(SuiteState.Log.verbose && (verboseStatus.Call() & 8)
+                && SuiteNotice.notices["status"].text = "Verbose logging on",
+                "the verbose logging action turns it on, checks the tray and says so")
+            app.RunLogShortcut("verbose")
+            this.Assert(!SuiteState.Log.verbose && SuiteNotice.notices["status"].text = "Verbose logging off",
+                "the same action turns verbose logging off again")
+            SuiteNotice.Hide("status")
+            this.Assert(app.manager.actions.Has("core.verbose-log")
+                && app.manager.actions["core.verbose-log"].defaults[1] = ""
+                && app.manager.actions["core.verbose-log"].defaults[2] = "",
+                "verbose logging has an action that starts unassigned")
             firstEditor := app.manager.editor.window.Hwnd
             app.ShowKeybindings()
             this.Assert(app.manager.editor.window.Hwnd = firstEditor, "every Keybindings entry reuses the global editor")

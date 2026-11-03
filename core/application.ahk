@@ -67,7 +67,7 @@ class SuiteApplication {
         this.sessionCallback := ObjBindMethod(this, "SessionEvent")
         this.resumeCallback := ObjBindMethod(this, "ResumeInputs")
         SuiteState.App := this
-        SuiteState.Log := SuiteLog(directory, 2097152, this.Settings.verbose)
+        SuiteState.Log := SuiteLog(directory) ; verbose starts off every run
         if this.Settings.loadWarning != "" {
             this.startupWarnings.Push(this.Settings.loadWarning)
             SuiteState.Log.Write("Core", StrReplace(this.Settings.loadWarning, "`n", " "), "ERROR")
@@ -172,11 +172,14 @@ class SuiteApplication {
                 context: (*) => SuiteWindowOwnership.AllowsWonderWindows(SuiteWorkingMonitor.UserWindow())})
         this.manager.AddAction("core.focus-outline", "show focus outline", ObjBindMethod(this, "FocusOutlineEvent"),
             ["Caps + Caps"], {category: "Global"})
-        ; Listed in default-key order: F1 clear, F2 copy, F3 restart.
+        ; Listed in default-key order: F1 clear, F2 copy, F3 restart, with the
+        ; unassigned verbose logging switch beside the other log actions.
         this.manager.AddAction("core.clear-log", "clear debug log",
             ObjBindMethod(this, "LogShortcutEvent", "clear"), ["Pause + F1"], {category: "Global"})
         this.manager.AddAction("core.copy-log", "copy debug log",
             ObjBindMethod(this, "LogShortcutEvent", "copy"), ["Pause + F2"], {category: "Global"})
+        this.manager.AddAction("core.verbose-log", "turn verbose logging on / off",
+            ObjBindMethod(this, "LogShortcutEvent", "verbose"), [], {category: "Global"})
         this.manager.AddAction("core.restart", "restart Super Hotkey", ObjBindMethod(this, "RestartEvent"),
             ["Pause + F3"], {category: "Global"})
         ; The one action that still answers while suspended, so it can resume.
@@ -242,6 +245,10 @@ class SuiteApplication {
             return
         if kind = "copy"
             SuiteNotice.Show("status", this.ui.CopyLog() ? "Debug log copied" : "Debug log copy failed", 1400)
+        else if kind = "verbose" {
+            this.ui.ApplyVerbose(!SuiteState.Log.verbose)
+            SuiteNotice.Show("status", "Verbose logging " (SuiteState.Log.verbose ? "on" : "off"), 1400)
+        }
         else
             SuiteNotice.Show("status", this.ui.ClearLog() ? "Debug log cleared" : "Debug log clear failed", 1400)
     }

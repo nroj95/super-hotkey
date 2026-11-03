@@ -414,12 +414,19 @@ class CoreChecks {
 
     static Preferences() {
         settings := SuiteSettings(SuiteChecks.directory "\upgrade-preferences")
-        this.Assert(settings.layers["caps"] && settings.layers["pause"] && !settings.verbose,
-            "both keyboard layers default on; verbose debugging defaults off")
-        settings.Save(settings.modules, Map("caps", false, "pause", true), true)
+        this.Assert(settings.layers["caps"] && settings.layers["pause"],
+            "both keyboard layers default on")
+        ; An earlier version saved verbose logging; the next save drops it.
+        settings.Save(settings.modules)
+        document := KB_Manifest.Read(settings.path)
+        document["logging"] := Map("verbose", "1")
+        KB_Manifest.WriteAtomic(settings.path, document)
+        settings := SuiteSettings(settings.directory)
+        settings.Save(settings.modules, Map("caps", false, "pause", true))
         loaded := SuiteSettings(settings.directory)
-        this.Assert(!loaded.layers["caps"] && loaded.layers["pause"] && loaded.verbose,
-            "independent layers and the one global debug preference survive restart")
+        this.Assert(!loaded.layers["caps"] && loaded.layers["pause"]
+            && !KB_Manifest.Read(settings.path).Has("logging"),
+            "independent layers survive restart; verbose logging is never saved")
         document := KB_Manifest.Read(settings.path)
         document["layers"]["pause"] := "invalid"
         KB_Manifest.WriteAtomic(settings.path, document)

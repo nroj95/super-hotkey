@@ -5,6 +5,7 @@
 ### Breaking changes
 
 - **Power-Up Utilities:** `Pause + Shift + End` allows sleep again instead of cycling long durations. `Pause + End` steps through 30 min, 1 h, 2 h, 4 h, 8 h and no limit while its notice shows; once the notice has gone, the next press starts over at 30 min instead of carrying on from a press long ago. A hotkey you assigned to the long cycle is not carried over.
+- Verbose logging lasts until Super Hotkey exits or restarts, so it can't be forgotten on: it records window titles. It always starts off, and a saved choice from earlier versions is dropped. A new *turn verbose logging on / off* action in Keybindings, unassigned by default, switches it from the keyboard and says which way it went.
 
 ### Changes
 
