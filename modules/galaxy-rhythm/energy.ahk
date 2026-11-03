@@ -17,7 +17,9 @@
 ; the user is back after a faint without a real break. Over RoadMinutes of
 ; activity the displays turn grey, then Lights out shows and the computer
 ; sleeps. Stay awake holds the bar at zero: no grey and no faint. The level
-; and the last input survive restarts in energy.ini; a dry run draws no bar.
+; and the last input survive restarts in energy.ini. The bar sits in the
+; corner Position names, bottom right by default, on the display Display
+; names, the primary one by default, or on all; a dry run draws no bar.
 ; =============================================================================
 
 class GR_Energy {
@@ -84,6 +86,13 @@ class GR_Energy {
         this.breakMinutes := GR_Energy.Whole(read("BreakMinutes", ""), 1, 60, 10)
         this.grey := read("Grey", 1) = "1"
         this.faint := read("Faint", 1) = "1"
+        position := read("Position", "bottom-right")
+        this.position := GR_EnergyBar.IsCorner(position) ? position : "bottom-right"
+        display := read("Display", "Primary")
+        ; The primary display, every display, or one by its Windows device
+        ; name, such as \\.\DISPLAY2.
+        this.display := display = "Primary" || display = "All"
+            || RegExMatch(display, "i)^\\\\\.\\DISPLAY\d+$") ? display : "Primary"
         this.level := Min(this.level, this.full)
         if !this.show
             this.module.grey.Set("energy", 0)
@@ -274,50 +283,86 @@ class GR_Energy {
 
     Draw(*) {
         if IsObject(this.bar)
-            this.bar.Draw(this.level / this.full, this.show && this.Present())
+            this.bar.Draw(this.level / this.full, this.show && this.Present(), this.display, this.position)
     }
 }
 
-; The bar itself: small, see-through and click-through, just above the
-; taskbar in the bottom-left corner of the working display, hidden while a
-; window fills that display.
+; The bar itself: small, see-through and click-through, in a corner of the
+; work area, so just inside the taskbar, on the display chosen or on all,
+; and hidden on a display a window fills. One window per display.
 class GR_EnergyBar {
     static Width := 180
     static Height := 8
     static Margin := 12
+    static Corners := [["bottom-right", "Bottom right"], ["bottom-center", "Bottom middle"],
+        ["bottom-left", "Bottom left"], ["top-right", "Top right"], ["top-center", "Top middle"],
+        ["top-left", "Top left"]]
 
     __New() {
-        this.window := 0
-        this.progress := 0
-        this.colors := ""
-        this.shown := false
+        this.bars := Map()  ; monitor index -> {window, progress, colors, shown}
+    }
+
+    static IsCorner(text) {
+        for corner in GR_EnergyBar.Corners
+            if corner[1] = text
+                return true
+        return false
     }
 
     ; Green when full, then yellow, orange and red; an empty red track on the road.
     static Colors(share) => (share > 0.5 ? "3CB043" : share > 0.25 ? "E0B000" : share > 0.1 ? "E07000" : "D03030")
         . (share > 0 ? " Background303030" : " Background5A1414")
 
-    Draw(share, visible) {
-        monitor := SuiteWorkingMonitor.Choose(SuiteWorkingMonitor.recent)
-        if !visible || GR_EnergyBar.Fullscreen(monitor) {
-            if this.shown
-                this.window.Hide()
-            this.shown := false
-            return
-        }
-        if !this.window
-            this._Build()
+    ; The displays to show on: the primary display, every display, or the one
+    ; named by its Windows device name; the primary while that one is
+    ; disconnected.
+    static Monitors(display) {
+        monitors := []
+        if display != "Primary"
+            loop MonitorGetCount()
+                try if display = "All" || MonitorGetName(A_Index) = display
+                    monitors.Push(A_Index)
+        if !monitors.Length
+            monitors.Push(MonitorGetPrimary())
+        return monitors
+    }
+
+    ; Where a width x height bar sits in a corner of a work area.
+    static Place(corner, left, top, right, bottom, width, height, &x, &y) {
+        margin := GR_EnergyBar.Margin
+        x := InStr(corner, "left") ? left + margin : InStr(corner, "right") ? right - width - margin
+            : left + (right - left - width) // 2
+        y := InStr(corner, "top") ? top + margin : bottom - height - margin
+    }
+
+    Draw(share, visible, display, corner) {
+        wanted := Map()
+        if visible
+            for monitor in GR_EnergyBar.Monitors(display)
+                if !GR_EnergyBar.Fullscreen(monitor)
+                    wanted[monitor] := true
+        for monitor, bar in this.bars
+            if bar.shown && !wanted.Has(monitor) {
+                bar.window.Hide()
+                bar.shown := false
+            }
         colors := GR_EnergyBar.Colors(share)
-        if colors != this.colors {
-            this.progress.Opt("c" colors)
-            this.colors := colors
+        for monitor in wanted {
+            if !this.bars.Has(monitor)
+                this.bars[monitor] := GR_EnergyBar._Build()
+            bar := this.bars[monitor]
+            if colors != bar.colors {
+                bar.progress.Opt("c" colors)
+                bar.colors := colors
+            }
+            bar.progress.Value := Round(Max(0, Min(1, share)) * 1000)
+            bar.window.GetPos(, , &width, &height)
+            MonitorGetWorkArea(monitor, &left, &top, &right, &bottom)
+            GR_EnergyBar.Place(corner, left, top, right, bottom, width, height, &x, &y)
+            DllCall("SetWindowPos", "ptr", bar.window.Hwnd, "ptr", -1, "int", x, "int", y,
+                "int", 0, "int", 0, "uint", 0x51, "int") ; HWND_TOPMOST; SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW
+            bar.shown := true
         }
-        this.progress.Value := Round(Max(0, Min(1, share)) * 1000)
-        this.window.GetPos(, , &width, &height)
-        MonitorGetWorkArea(monitor, &left, , , &bottom)
-        DllCall("SetWindowPos", "ptr", this.window.Hwnd, "ptr", -1, "int", left + GR_EnergyBar.Margin,
-            "int", bottom - height - GR_EnergyBar.Margin, "int", 0, "int", 0, "uint", 0x51, "int")
-        this.shown := true
     }
 
     ; The foreground window covers its whole display, as games and videos do.
@@ -332,20 +377,19 @@ class GR_EnergyBar {
         return x <= left && y <= top && x + width >= right && y + height >= bottom
     }
 
-    _Build() {
+    static _Build() {
         ; WS_EX_LAYERED and WS_EX_TRANSPARENT pass clicks through; never activate.
-        this.window := SuiteGui("+AlwaysOnTop -Caption +ToolWindow +E0x80020 +E0x08000000")
-        this.window.MarginX := this.window.MarginY := 0
-        this.progress := this.window.AddProgress("x0 y0 w" GR_EnergyBar.Width " h" GR_EnergyBar.Height
-            . " -Theme Range0-1000")
-        DllCall("SetLayeredWindowAttributes", "ptr", this.window.Hwnd, "uint", 0, "uchar", 190, "uint", 2)
-        this.window.Show("Hide AutoSize")
+        window := SuiteGui("+AlwaysOnTop -Caption +ToolWindow +E0x80020 +E0x08000000")
+        window.MarginX := window.MarginY := 0
+        progress := window.AddProgress("x0 y0 w" GR_EnergyBar.Width " h" GR_EnergyBar.Height " -Theme Range0-1000")
+        DllCall("SetLayeredWindowAttributes", "ptr", window.Hwnd, "uint", 0, "uchar", 190, "uint", 2)
+        window.Show("Hide AutoSize")
+        return {window: window, progress: progress, colors: "", shown: false}
     }
 
     Destroy() {
-        if this.window
-            try this.window.Destroy()
-        this.window := 0
-        this.shown := false
+        for monitor, bar in this.bars
+            try bar.window.Destroy()
+        this.bars := Map()
     }
 }

@@ -59,7 +59,7 @@ Hold CapsLock or Pause and press another key for extra hotkeys, or tap it first 
 
 ### Galaxy Rhythm
 
-Gentle structure for an irregular sleep rhythm, without nagging. Its settings show up to three bedtime messages at times you choose, by default *It's getting late* at midnight, *zzz…* at 1:00 and *You feel sleepy* at 2:00. After the last, the screen fades to grey over 10 minutes, says *Good night* and puts the computer to sleep; Power-Up Utilities' stay awake keeps it up. A small energy bar in the bottom-left corner drains while you use the computer and refills while you rest away from it, locked, with the screens off, asleep or off; short breaks pay extra, and a full night fills it. Run it empty and the screen greys over an hour until you faint into sleep. The module starts disabled: turn it on in Modules and all of it is on, ready to adjust in Settings.
+Gentle structure for an irregular sleep rhythm, without nagging. Its settings show up to three bedtime messages at times you choose, by default *It's getting late* at midnight, *zzz…* at 1:00 and *You feel sleepy* at 2:00. After the last, the screen fades to grey over 10 minutes, says *Good night* and puts the computer to sleep; Power-Up Utilities' stay awake keeps it up. A small energy bar, bottom right on the primary display unless you move it, drains while you use the computer and refills while you rest away from it, locked, with the screens off, asleep or off; short breaks pay extra, and a full night fills it. Run it empty and the screen greys over an hour until you faint into sleep. The module starts disabled: turn it on in Modules and all of it is on, ready to adjust in Settings.
 
 ## Start
 

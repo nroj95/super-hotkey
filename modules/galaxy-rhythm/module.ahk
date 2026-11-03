@@ -10,6 +10,7 @@ class GalaxyRhythmModule extends SuiteModule {
     __New(app) {
         super.__New(app, "galaxy-rhythm")
         this.stopping := false
+        this.displayChoices := []  ; the settings page's Display values
         this.grey := GR_GreyScreen(app.dryRun)
         folder := app.Settings.directory "\" this.id
         this.bedtime := GR_Bedtime(this, folder "\settings.ini")
@@ -113,6 +114,25 @@ class GalaxyRhythmModule extends SuiteModule {
             window.AddText("x523 y" (y + 4) " w30", "h"))
         rows.Advance(hours)
         y := rows.y
+        energyControls.Push(window.AddText("x44 y" (y + 4) " w150", "Position"))
+        corners := []
+        for corner in GR_EnergyBar.Corners
+            corners.Push(corner[2])
+        position := window.AddDropDownList("x200 y" y " w200 vposition", corners)
+        for index, corner in GR_EnergyBar.Corners
+            if corner[1] = energy.position
+                position.Choose(index)
+        energyControls.Push(position)
+        rows.Advance(position)
+        y := rows.y
+        choices := ui.DisplayChoices(energy.display, true)
+        this.displayChoices := choices.values
+        energyControls.Push(window.AddText("x44 y" (y + 4) " w150", "Display"))
+        display := window.AddDropDownList("x200 y" y " w400 vdisplay", choices.names)
+        display.Choose(choices.selected)
+        energyControls.Push(display)
+        rows.Advance(display)
+        y := rows.y
         energyControls.Push(window.AddText("x44 y" (y + 4) " w150", "Breaks count from"))
         breaks := window.AddEdit("x200 y" y " w60 Number vbreakMinutes")
         energyControls.Push(breaks, window.AddUpDown("Range1-60", energy.breakMinutes),
@@ -160,7 +180,9 @@ class GalaxyRhythmModule extends SuiteModule {
                 "NightHours", GR_Energy.Whole(window["nightHours"].Value, 4, 12, 8),
                 "BreakMinutes", GR_Energy.Whole(window["breakMinutes"].Value, 1, 60, 10),
                 "Grey", window["greyEnergy"].Value ? 1 : 0,
-                "Faint", window["faintEnergy"].Value ? 1 : 0)
+                "Faint", window["faintEnergy"].Value ? 1 : 0,
+                "Position", GR_EnergyBar.Corners[window["position"].Value][1],
+                "Display", this.displayChoices[window["display"].Value])
             this.app.Settings.WritePreferences(this.id, Map("Bedtime", values, "Energy", energy))
             this.bedtime.Load()
             this.energy.LoadSettings()
@@ -189,7 +211,8 @@ class GalaxyRhythmModule extends SuiteModule {
             . "default, the fade starts over. One sleep ends the night, and so does the wake-up "
             . "time."
             . "`r`n`r`nENERGY BAR"
-            . "`r`nA small bar in the bottom-left corner drains with every minute you use the "
+            . "`r`nA small bar, bottom right on the primary display unless Settings moves it, drains "
+            . "with every minute you use the "
             . "computer: 12 hours of activity empty it. It refills while you rest away from it, "
             . "locked, with the screens off, asleep or off: breaks of 10 minutes or more count, "
             . "a 30-minute walk gives back about 1.5 hours, and a full night of 8 hours fills it. "
