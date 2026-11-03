@@ -310,7 +310,8 @@ class GR_EnergyBar {
     static Width := 18
     static Height := 160       ; the gauge, below its E
     static LabelHeight := 20
-    static Margin := 12
+    static MarginX := 12       ; in from the side of its corner
+    static MarginY := 20       ; in from the top or bottom
     static Opacity := 140      ; of 255: see-through enough to read what lies behind
     static Corners := [["bottom-right", "Bottom right"], ["bottom-left", "Bottom left"],
         ["top-right", "Top right"], ["top-left", "Top left"]]
@@ -346,9 +347,8 @@ class GR_EnergyBar {
 
     ; Where a width x height bar sits in a corner of a work area.
     static Place(corner, left, top, right, bottom, width, height, &x, &y) {
-        margin := GR_EnergyBar.Margin
-        x := InStr(corner, "left") ? left + margin : right - width - margin
-        y := InStr(corner, "top") ? top + margin : bottom - height - margin
+        x := InStr(corner, "left") ? left + GR_EnergyBar.MarginX : right - width - GR_EnergyBar.MarginX
+        y := InStr(corner, "top") ? top + GR_EnergyBar.MarginY : bottom - height - GR_EnergyBar.MarginY
     }
 
     Draw(share, visible, display, corner) {
