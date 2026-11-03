@@ -98,12 +98,14 @@ class GalaxyRhythmChecks {
         energy.LoadSettings()
         this.Assert(energy.level = 360, "a smaller bar caps the energy already there")
         energy.level := 123.45
-        energy.lastInput := energy.lastSeen := "20261103120000"
+        energy.lastSeen := "20261103120000"
+        energy.Left("20261103115000")
         energy.module.dryRun := false  ; writes only to the check's own folder
         energy.SaveState()
         reloaded := GR_Energy(energy.module, energy.settingsPath, energy.statePath)
-        this.Assert(reloaded.level = 123.45 && reloaded.lastInput = "20261103120000",
-            "the energy level and the last input survive a restart")
+        this.Assert(reloaded.level = 123.45 && reloaded.lastSeen = "20261103120000"
+            && reloaded.awaySince = "20261103115000",
+            "the energy level, the last tick and when the user left survive a restart")
     }
 
     ; One day on a fake clock: Tick takes the time and idle milliseconds.
@@ -172,14 +174,16 @@ class GalaxyRhythmChecks {
             energy.level := 100
             energy.Tick(at("100000"), 0)
             app.sessionLocked := true
+            energy.Left(at("100000"))
             energy.Tick(at("101500"), 900000)
             app.sessionLocked := false
             energy.Tick(at("103000"), 0)
             this.Assert(Abs(energy.level - (100 - 2 * tick + GR_Energy.Refill(30, 720, 480))) < 0.001
                 && this.ShownEverywhere("Rested: +14 %"),
-                "a locked 30-minute walk refills from the last input before leaving, and says so")
+                "a locked 30-minute walk refills from the lock, and says so")
             before := energy.level
             app.sessionLocked := true
+            energy.Left(at("103000"))
             energy.Tick(at("103300"), 180000)
             app.sessionLocked := false
             energy.Tick(at("103500"), 0)
@@ -189,6 +193,7 @@ class GalaxyRhythmChecks {
             before := energy.level
             energy.rested := false
             app.sessionLocked := true
+            energy.Left(at("103500"))
             energy.Tick(at("104500"), 600000)
             app.sessionLocked := false
             energy.Tick(at("105500"), 0)
@@ -200,12 +205,13 @@ class GalaxyRhythmChecks {
             energy.Tick(at("110000"), 1500000)
             energy.displayOff := false
             energy.Tick(at("112000"), 0)
-            this.Assert(energy.level > before + 60, "screens turned off by Windows count as rest too")
+            this.Assert(Abs(energy.level - (before + GR_Energy.Refill(20, 720, 480) - tick)) < 0.001,
+                "screens turned off by Windows count as rest from then, not from the reading before")
             before := energy.level
             app.suspended := true
             energy.Tick(at("120000"), 0)
             app.sessionLocked := true
-            energy.Left()
+            energy.Left(at("125000"))
             energy.Tick(at("125000"), 0)
             app.sessionLocked := false
             app.suspended := false
@@ -216,13 +222,14 @@ class GalaxyRhythmChecks {
             energy.Tick(at("130010"), 0)
             app.suspended := false
             app.sessionLocked := true
-            energy.Left()
+            energy.Left(at("130010"))
             energy.Tick(at("133000"), 1200000)
             app.sessionLocked := false
             energy.Tick(at("134000"), 0)
             this.Assert(energy.level > before + 60, "a break straight after a suspension counts from its end")
             energy.level := -20
             app.sessionLocked := true
+            energy.Left(at("134000"))
             energy.Tick(at("134100"), 60000)
             app.sessionLocked := false
             energy.Tick(at("134200"), 0)

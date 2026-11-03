@@ -6,9 +6,12 @@
 ; anything programs do on their own cost nothing. A full bar holds FullHours
 ; of active minutes.
 ;
-; Rest is the time since the last input before leaving, counted when the user
-; comes back to a computer that was locked, had its displays off, was asleep
-; or was off. Time while the suite is suspended or the bar hidden is neither
+; Rest is the time from the moment the computer first saw the user gone, when
+; it locked, turned its displays off, slept or was off, until they come back.
+; Idle time before that is not rest, since it may have been reading or a
+; film: walking off without locking loses the minutes until the displays turn
+; off, so the guide suggests Win + L, sleep or a short display timeout. Time
+; while the suite is suspended or the bar hidden is neither
 ; use nor rest, even locked, and a break starts no earlier than its end; a
 ; closed suite is not rest unless the computer was off. Every break counts,
 ; but its first minutes pay almost nothing, so a break pays most per minute at
@@ -23,8 +26,8 @@
 ; the computer sleeps; the grey never comes without the faint, so without it
 ; the bar just stays empty. Stay awake holds the bar at zero quietly: no
 ; notice at zero, no grey and no faint, since the notice belongs to the grey
-; and comes once stay awake ends. The level and the last input survive
-; restarts in energy.ini. The bar, outlined so it shows on dark backgrounds,
+; and comes once stay awake ends. The level, the last tick and when the user
+; left survive restarts in energy.ini. The bar, outlined so it shows on dark backgrounds,
 ; sits in the corner Position names, bottom right by default, on the display
 ; Display names, the primary one by default, or on all; a dry run draws no bar.
 ; =============================================================================
@@ -52,10 +55,10 @@ class GR_Energy {
         this.settingsPath := settingsPath
         this.statePath := statePath
         this.level := 0          ; active minutes left; below zero is the road
-        this.lastInput := ""     ; A_Now of the last input while present
         this.lastSeen := ""      ; A_Now of the last tick
         this.savedMinute := ""
-        this.away := false       ; locked, displays off or asleep since lastInput
+        this.away := false       ; locked, displays off or asleep since awaySince
+        this.awaySince := ""     ; A_Now when the computer first saw the user gone
         this.displayOff := false
         this.staying := false    ; stay awake at the previous tick
         this.lowShown := false
@@ -112,10 +115,10 @@ class GR_Energy {
     LoadState() {
         level := IniRead(this.statePath, "Energy", "Level", "")
         this.level := IsNumber(level) ? Max(-this.roadMinutes, Min(Number(level), this.full)) : this.full
-        last := IniRead(this.statePath, "Energy", "LastInput", "")
         seen := IniRead(this.statePath, "Energy", "LastSeen", "")
-        this.lastInput := IsTime(last) ? last : ""
+        since := IniRead(this.statePath, "Energy", "AwaySince", "")
         this.lastSeen := IsTime(seen) ? seen : ""
+        this.awaySince := IsTime(since) ? since : ""
     }
 
     SaveState() {
@@ -125,18 +128,18 @@ class GR_Energy {
             SplitPath(this.statePath, , &directory)
             DirCreate(directory)
             IniWrite(Round(this.level, 2), this.statePath, "Energy", "Level")
-            IniWrite(this.lastInput, this.statePath, "Energy", "LastInput")
             IniWrite(this.lastSeen, this.statePath, "Energy", "LastSeen")
+            IniWrite(this.away ? this.awaySince : "", this.statePath, "Energy", "AwaySince")
         }
         catch Error as failure
             SuiteState.Log.Error("Galaxy Rhythm / energy state", failure)
     }
 
     Start() {
-        ; Off or restarted since the last tick: that time was rest.
-        this.away := GR_Energy.Restarted(this.lastSeen, A_Now, A_TickCount) && this.lastInput != ""
-        if !this.away
-            this.lastInput := ""
+        ; Off since the last tick: rest from leaving, or from that tick.
+        this.away := GR_Energy.Restarted(this.lastSeen, A_Now, A_TickCount)
+        if this.away && this.awaySince = ""
+            this.awaySince := this.lastSeen
         guid := Buffer(16, 0)
         DllCall("Ole32\CLSIDFromString", "wstr", GR_Energy.DisplayState, "ptr", guid)
         OnMessage(0x0218, this.powerCallback) ; WM_POWERBROADCAST
@@ -172,11 +175,17 @@ class GR_Energy {
             return
         this.displayOff := NumGet(lParam, 20, "uint") = 0
         if this.displayOff
-            this.away := true
+            this.Left()
     }
 
-    ; The user stepped away: locked, or the computer went to sleep.
-    Left() => this.away := true
+    ; The user stepped away: locked, the displays went off or the computer
+    ; went to sleep. The first sign starts the break.
+    Left(now := "") {
+        if this.away
+            return
+        this.away := true
+        this.awaySince := now = "" ? A_Now : now
+    }
 
     Present() {
         app := this.module.app
@@ -195,19 +204,18 @@ class GR_Energy {
             ; A suspended suite or a hidden bar is neither use nor rest, even
             ; locked meanwhile: a break starts no earlier than its end.
             if app.suspended || !this.show
-                this.away := false, this.lastInput := now
+                this.away := false
             else if app.sessionLocked || app.systemSuspended || this.displayOff
-                this.away := true
+                this.Left(now)
             this.Save(now)
             return
         }
         if this.away {
             this.away := false
-            rest := this.lastInput = "" ? 0 : DateDiff(now, this.lastInput, "Seconds") / 60
+            rest := DateDiff(now, this.awaySince, "Seconds") / 60
             if rest > 0
                 this.Rest(rest)
         }
-        this.lastInput := DateAdd(now, -(idleMs // 1000), "Seconds")
         staying := SuiteStayAwake.active
         if this.staying && !staying
             this.roadShown := false
