@@ -68,25 +68,24 @@ class GalaxyRhythmChecks {
         IniWrite(30, energy.settingsPath, "Energy", "FullHours")
         IniWrite(6, energy.settingsPath, "Energy", "NightHours")
         IniWrite(0, energy.settingsPath, "Energy", "Faint")
-        IniWrite("top-center", energy.settingsPath, "Energy", "Position")
+        IniWrite("top-left", energy.settingsPath, "Energy", "Position")
         IniWrite("\\.\DISPLAY2", energy.settingsPath, "Energy", "Display")
         energy.LoadSettings()
         this.Assert(energy.fullHours = 12 && energy.nightHours = 6 && !energy.faint
-            && energy.position = "top-center" && energy.display = "\\.\DISPLAY2",
+            && energy.position = "top-left" && energy.display = "\\.\DISPLAY2",
             "saved energy settings load, and one out of range falls back to its default")
-        IniWrite("middle", energy.settingsPath, "Energy", "Position")
+        IniWrite("top-center", energy.settingsPath, "Energy", "Position")
         IniWrite("DISPLAY2", energy.settingsPath, "Energy", "Display")
         energy.LoadSettings()
         this.Assert(energy.position = "bottom-right" && energy.display = "Primary",
-            "an unknown position or display falls back to bottom right on the primary display")
+            "a retired middle position, or an unknown display, falls back to bottom right on the primary display")
         placed := ""
         for corner in GR_EnergyBar.Corners {
-            GR_EnergyBar.Place(corner[1], 100, 0, 1100, 800, 180, 8, &x, &y)
+            GR_EnergyBar.Place(corner[1], 100, 0, 1100, 800, 18, 180, &x, &y)
             placed .= corner[1] "=" x "," y " "
         }
-        this.Assert(placed = "bottom-right=908,780 bottom-center=510,780 bottom-left=112,780 "
-            . "top-right=908,12 top-center=510,12 top-left=112,12 ",
-            "each position keeps the bar 12 px inside its corner or centered on its edge")
+        this.Assert(placed = "bottom-right=1070,608 bottom-left=112,608 top-right=1070,12 top-left=112,12 ",
+            "each corner keeps the upright bar 12 px inside it")
         this.Assert(GR_EnergyBar.Monitors("Primary").Length = 1
             && GR_EnergyBar.Monitors("Primary")[1] = MonitorGetPrimary()
             && GR_EnergyBar.Monitors("All").Length = MonitorGetCount()

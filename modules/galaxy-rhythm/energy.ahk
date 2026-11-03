@@ -302,16 +302,19 @@ class GR_Energy {
     }
 }
 
-; The bar itself: small, see-through and click-through, in a corner of the
-; work area, so just inside the taskbar, on the display chosen or on all,
-; and hidden on a display a window fills. One window per display.
+; The bar itself: an upright, see-through and click-through gauge marked E
+; that fills from the bottom, in a corner of the work area, so just inside the
+; taskbar, on the display chosen or on all, and hidden on a display a window
+; fills. One window per display.
 class GR_EnergyBar {
-    static Width := 180
-    static Height := 8
+    static Width := 18
+    static Height := 160       ; the gauge, below its E
+    static LabelHeight := 20
     static Margin := 12
-    static Corners := [["bottom-right", "Bottom right"], ["bottom-center", "Bottom middle"],
-        ["bottom-left", "Bottom left"], ["top-right", "Top right"], ["top-center", "Top middle"],
-        ["top-left", "Top left"]]
+    static Opacity := 140      ; of 255: see-through enough to read what lies behind
+    ; Only corners: an upright bar has no sensible middle of an edge.
+    static Corners := [["bottom-right", "Bottom right"], ["bottom-left", "Bottom left"],
+        ["top-right", "Top right"], ["top-left", "Top left"]]
 
     __New() {
         this.bars := Map()  ; monitor index -> {window, progress, colors, shown}
@@ -345,8 +348,7 @@ class GR_EnergyBar {
     ; Where a width x height bar sits in a corner of a work area.
     static Place(corner, left, top, right, bottom, width, height, &x, &y) {
         margin := GR_EnergyBar.Margin
-        x := InStr(corner, "left") ? left + margin : InStr(corner, "right") ? right - width - margin
-            : left + (right - left - width) // 2
+        x := InStr(corner, "left") ? left + margin : right - width - margin
         y := InStr(corner, "top") ? top + margin : bottom - height - margin
     }
 
@@ -396,8 +398,12 @@ class GR_EnergyBar {
         ; WS_EX_LAYERED and WS_EX_TRANSPARENT pass clicks through; never activate.
         window := SuiteGui("+AlwaysOnTop -Caption +ToolWindow +E0x80020 +E0x08000000")
         window.MarginX := window.MarginY := 0
-        progress := window.AddProgress("x0 y0 w" GR_EnergyBar.Width " h" GR_EnergyBar.Height " -Theme Range0-1000")
-        DllCall("SetLayeredWindowAttributes", "ptr", window.Hwnd, "uint", 0, "uchar", 190, "uint", 2)
+        window.BackColor := "202020"
+        window.SetFont("s9 bold cFFFFFF", "Segoe UI")
+        window.AddText("x0 y0 w" GR_EnergyBar.Width " h" GR_EnergyBar.LabelHeight " Center 0x200", "E") ; SS_CENTERIMAGE
+        progress := window.AddProgress("x0 y" GR_EnergyBar.LabelHeight " w" GR_EnergyBar.Width
+            . " h" GR_EnergyBar.Height " -Theme Vertical Range0-1000")
+        DllCall("SetLayeredWindowAttributes", "ptr", window.Hwnd, "uint", 0, "uchar", GR_EnergyBar.Opacity, "uint", 2)
         window.Show("Hide AutoSize")
         return {window: window, progress: progress, colors: "", shown: false}
     }
