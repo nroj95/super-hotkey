@@ -63,9 +63,9 @@ class PowerUpChecks {
             allOff := allOff && !row.show
         this.Assert(allOff && bedtime.rows[1].time = "0000" && bedtime.rows[3].text = "You feel sleepy",
             "every bedtime message and the sleep start off, at 00:00, 01:00 and 02:00")
-        this.Assert(bedtime.fadeMinutes = 10 && bedtime.wakeTime = "0700"
+        this.Assert(bedtime.fadeMinutes = 10 && bedtime.wakeTime = "0600"
             && bedtime.sleepText = "Good night" && bedtime.awakeText = "Stay awake prevented sleep",
-            "the sleep fades over 10 min, says Good night and lasts the night until 07:00")
+            "the sleep fades over 10 min, says Good night and lasts the night until 06:00")
         IniWrite(1, path, "Bedtime", "Show2")
         IniWrite("0130", path, "Bedtime", "Time2")
         IniWrite("9999", path, "Bedtime", "Time3")
@@ -127,7 +127,7 @@ class PowerUpChecks {
             module.stayAwake.index := 1
             night("015955", "020005")
             this.Assert(this.ShownEverywhere("Stay awake prevented sleep") && !bedtime.fadeStarted
-                && bedtime.until = "20261103070000",
+                && bedtime.until = "20261103060000",
                 "stay awake at bedtime says so, and the night lasts until the wake-up time")
             night("020005", "020010")
             this.Assert(!bedtime.fadeStarted, "nothing fades while stay awake lasts")
@@ -169,7 +169,7 @@ class PowerUpChecks {
             module.stayAwake.index := 1
             night("015955", "020005")
             module.stayAwake.index := 0
-            night("065955", "070005")
+            night("055955", "060005")
             this.Assert(!bedtime.fadeStarted && bedtime.until = "",
                 "stay awake ending after the wake-up time starts nothing")
         }

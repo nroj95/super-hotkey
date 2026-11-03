@@ -22,7 +22,7 @@ class PU_Bedtime {
     static Defaults := [["0000", "It's getting late"], ["0100", "zzz…"], ["0200", "You feel sleepy"]]
     static SleepDefault := "Good night"
     static AwakeDefault := "Stay awake prevented sleep"
-    static WakeDefault := "0700"
+    static WakeDefault := "0600"
     static FadeDefault := 10  ; minutes
     static FadeLimit := 120
     static TextLimit := 60
