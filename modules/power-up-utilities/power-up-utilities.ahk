@@ -1,9 +1,12 @@
-; Power-Up Utilities: extra keys, text and Terminal macros, and system actions.
-; Macros run once their trigger key and modifiers are released, outside input
-; callbacks, with Caps or Pause still allowed down; staying awake types nothing
-; and answers each press at once.
+; Power-Up Utilities: extra keys, text and Terminal macros, system actions and
+; bedtime messages, the module's only settings. Macros run once their trigger
+; key and modifiers are released, outside input callbacks, with Caps or Pause
+; still allowed down; staying awake types nothing and answers each press at once.
 
 class PowerUpUtilities extends SuiteModule {
+    hasSettings := true
+    resetSections := ["Bedtime"]
+
     __New(app) {
         super.__New(app, "power-up-utilities")
         this.manager := 0
@@ -20,6 +23,7 @@ class PowerUpUtilities extends SuiteModule {
         this.terminal := PU_Terminal(this)
         this.utilities := PU_Utilities(this)
         this.stayAwake := PU_StayAwake(this)
+        this.bedtime := PU_Bedtime(this, app.Settings.directory "\" this.id "\settings.ini")
     }
 
     dryRun => this.app.dryRun
@@ -83,6 +87,7 @@ class PowerUpUtilities extends SuiteModule {
             TrayTip("Could not restore the previous Away Mode settings: " failure.Message,
                 this.Name, 2)
         }
+        this.bedtime.Start()
     }
 
     ; An interrupted sleep transaction is restored at the latest on exit.
@@ -91,6 +96,7 @@ class PowerUpUtilities extends SuiteModule {
             return
         this.stopping := true
         OnMessage(0x0218, this.powerCallback, 0)
+        this.bedtime.Stop()
         this.CancelWork()
         this.stayAwake.End()
         if !this.dryRun
@@ -303,6 +309,63 @@ class PowerUpUtilities extends SuiteModule {
 
     Report(text) => SuiteState.Log.Write("Power-Up Utilities", text)
 
+    ; One row per bedtime message: Show at, its time and its words. The last
+    ; row's sleep checkbox, and below it the message shown when stay awake
+    ; prevents that sleep, stay grey until they can apply.
+    ShowSettings(ui) {
+        key := "settings:" this.id
+        if ui.Existing(key)
+            return
+        window := ui.NewWindow(key, this.Name " - Settings", true)
+        rows := SuitePageRows(window, 640)
+        rows.Text("Bedtime messages show on every display at their time while you use the unlocked"
+            . " computer. The last one can then put the computer to sleep, unless stay awake is on.")
+        for index, row in this.bedtime.rows {
+            y := rows.y
+            show := window.AddCheckbox("x20 y" (y + 4) " w90 vshow" index, "Show at")
+            show.Value := row.show
+            window.AddDateTime("x115 y" y " w75 +0x1 vtime" index, "HH:mm").Value := "20000101" row.time "00"
+            final := index = this.bedtime.rows.Length
+            text := window.AddEdit("x200 y" y " w" (final ? 260 : 400) " Limit" PU_Bedtime.TextLimit
+                . " vtext" index, row.text)
+            rows.Advance(text)
+        }
+        sleepBox := window.AddCheckbox("x475 y" (y + 4) " w140 vsleep", "then sleep")
+        sleepBox.Value := this.bedtime.sleeps
+        y := rows.y
+        awakeLabel := window.AddText("x20 y" (y + 4) " w170", "If staying awake:")
+        awakeText := window.AddEdit("x200 y" y " w400 Limit" PU_Bedtime.TextLimit " vawakeText",
+            this.bedtime.awakeText)
+        rows.Advance(awakeText)
+        refresh := (*) => (sleepBox.Enabled := show.Value,
+            awakeLabel.Enabled := awakeText.Enabled := show.Value && sleepBox.Value)
+        refresh()
+        show.OnEvent("Click", refresh)
+        sleepBox.OnEvent("Click", refresh)
+        rows.Show(ui, key, [["Apply", ObjBindMethod(this, "SaveSettings", ui), 100],
+            ["Back", ObjBindMethod(ui, "BackToHelp", this.id), 90]])
+    }
+
+    SaveSettings(ui, *) {
+        key := "settings:" this.id
+        window := ui.windows[key]
+        try {
+            values := Map()
+            for index, defaults in PU_Bedtime.Defaults {
+                values["Show" index] := window["show" index].Value ? 1 : 0
+                values["Time" index] := SubStr(window["time" index].Value, 9, 4)
+                values["Text" index] := PU_Bedtime.CleanText(window["text" index].Value, defaults[2])
+            }
+            values["Sleep"] := window["sleep"].Value ? 1 : 0
+            values["AwakeText"] := PU_Bedtime.CleanText(window["awakeText"].Value, PU_Bedtime.AwakeDefault)
+            this.app.Settings.WritePreferences(this.id, Map("Bedtime", values))
+            this.bedtime.Load()
+            ui.CloseWindow(key)
+        }
+        catch Error as failure
+            ui.Report(failure, "Power-Up Utilities / settings")
+    }
+
     HelpText() {
         return "WHY I MADE THIS"
             . "`r`nI wanted a collection of practical shortcuts for everyday tasks that "
@@ -331,5 +394,10 @@ class PowerUpUtilities extends SuiteModule {
             . "long. The screen still "
             . "turns off and locks as usual, and choosing Sleep or closing a laptop lid "
             . "still sleeps. Suspending or exiting Super Hotkey ends it."
+            . "`r`n`r`nBEDTIME"
+            . "`r`nSettings can show up to three messages at times you choose, such as "
+            . "It's getting late at midnight, and put the computer to sleep after the last "
+            . "unless stay awake is on. Each shows at its time while you use the unlocked "
+            . "computer; a time missed while away is skipped."
     }
 }

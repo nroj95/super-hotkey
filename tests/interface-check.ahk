@@ -475,7 +475,7 @@ class InterfaceChecks {
                     this.Assert(SendMessage(0x007F, 0, 0, , window.Hwnd)
                         = SuiteIcons.handles[1], "module help uses one application icon: " id)
 
-                if id != "power-up-utilities" {
+                if app.modules[id].hasSettings {
                     app.ui.OpenSettingsFromHelp(id)
                     this.Assert(!app.ui.windows.Has(key)
                         && app.ui.windows.Has("settings:" id),

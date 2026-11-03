@@ -19,6 +19,7 @@
 #Include "%A_ScriptDir%\modules\power-up-utilities\keyboard.ahk"
 #Include "%A_ScriptDir%\modules\power-up-utilities\terminal.ahk"
 #Include "%A_ScriptDir%\modules\power-up-utilities\utilities.ahk"
+#Include "%A_ScriptDir%\modules\power-up-utilities\bedtime.ahk"
 #Include "%A_ScriptDir%\modules\cascade-kingdom\commands.ahk"
 #Include "%A_ScriptDir%\modules\cascade-kingdom\controls.ahk"
 #Include "%A_ScriptDir%\modules\cascade-kingdom\debug.ahk"

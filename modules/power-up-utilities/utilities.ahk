@@ -1,6 +1,6 @@
 ; =============================================================================
 ; utilities.ahk - speaker wake, sleep and stay awake; simple text actions live
-; in dispatch
+; in dispatch, bedtime messages in bedtime.ahk
 ; =============================================================================
 ; Preserve the original sound and 16% temporary volume floor. Retain the exact
 ; endpoint object and restore only a level that still matches our own change.
@@ -63,6 +63,11 @@ class PU_Utilities {
     SleepComputer(job) {
         if !this.app.JobValid(job) || !this.app.InputsReleased(job.event)
             return
+        this.Sleep()
+    }
+
+    ; Also the sleep after the last bedtime message.
+    Sleep() {
         this.app.CancelWork()
         token := 0
         previousPrivileges := Buffer(16, 0)
