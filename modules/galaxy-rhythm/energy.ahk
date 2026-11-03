@@ -20,9 +20,9 @@
 ; the bar just stays empty. Stay awake holds the bar at zero quietly: no
 ; notice at zero, no grey and no faint, since the notice belongs to the grey
 ; and comes once stay awake ends. The level and the last input survive
-; restarts in energy.ini. The bar sits in the corner Position names, bottom
-; right by default, on the display Display names, the primary one by default,
-; or on all; a dry run draws no bar.
+; restarts in energy.ini. The bar, outlined so it shows on dark backgrounds,
+; sits in the corner Position names, bottom right by default, on the display
+; Display names, the primary one by default, or on all; a dry run draws no bar.
 ; =============================================================================
 
 class GR_Energy {
@@ -303,13 +303,15 @@ class GR_Energy {
 }
 
 ; The bar itself: an upright, see-through and click-through gauge marked E
-; that fills from the bottom, in a corner of the work area, so just inside the
+; that fills from the bottom, outlined in light grey so it shows on dark
+; backgrounds too, in a corner of the work area, so just inside the
 ; taskbar, on the display chosen or on all, and hidden on a display a window
 ; fills. One window per display.
 class GR_EnergyBar {
     static Width := 18
     static Height := 160       ; the gauge, below its E
     static LabelHeight := 20
+    static Outline := 2        ; the light frame around the E and the gauge
     static MarginX := 12       ; in from the side of its corner
     static MarginY := 16       ; in from the top or bottom
     static Opacity := 140      ; of 255: see-through enough to read what lies behind
@@ -397,13 +399,16 @@ class GR_EnergyBar {
         ; WS_EX_LAYERED and WS_EX_TRANSPARENT pass clicks through; never activate.
         window := SuiteGui("+AlwaysOnTop -Caption +ToolWindow +E0x80020 +E0x08000000")
         window.MarginX := window.MarginY := 0
-        window.BackColor := "202020"
+        ; The window's own colour shows only as the outline around the controls.
+        window.BackColor := "D0D0D0"
         window.SetFont("s9 bold cFFFFFF", "Segoe UI")
-        window.AddText("x0 y0 w" GR_EnergyBar.Width " h" GR_EnergyBar.LabelHeight " Center 0x200", "E") ; SS_CENTERIMAGE
-        progress := window.AddProgress("x0 y" GR_EnergyBar.LabelHeight " w" GR_EnergyBar.Width
+        edge := GR_EnergyBar.Outline
+        window.AddText("x" edge " y" edge " w" GR_EnergyBar.Width " h" GR_EnergyBar.LabelHeight
+            . " Center 0x200 Background202020", "E") ; SS_CENTERIMAGE
+        progress := window.AddProgress("x" edge " y" edge + GR_EnergyBar.LabelHeight " w" GR_EnergyBar.Width
             . " h" GR_EnergyBar.Height " -Theme Vertical Range0-1000")
         DllCall("SetLayeredWindowAttributes", "ptr", window.Hwnd, "uint", 0, "uchar", GR_EnergyBar.Opacity, "uint", 2)
-        window.Show("Hide AutoSize")
+        window.Show("Hide w" GR_EnergyBar.Width + 2 * edge " h" GR_EnergyBar.LabelHeight + GR_EnergyBar.Height + 2 * edge)
         return {window: window, progress: progress, colors: "", shown: false}
     }
 
