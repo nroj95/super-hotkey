@@ -224,6 +224,18 @@ class CascadeChecks {
                 "Paper Pad lists each display once and defaults to the actual primary display")
             for value in choices.values
                 this.Assert(value != "Primary", "the duplicate primary-display alias is not a choice")
+            numbers := ""
+            for index, value in choices.values
+                numbers .= SuiteInterface.DisplayNumber(value, 0) ","
+                    . (InStr(choices.names[index], "Display " SuiteInterface.DisplayNumber(value, 0) " - ") = 1) " "
+            this.Assert(SuiteInterface.DisplayNumber("\\.\DISPLAY2", 1) = 2
+                && SuiteInterface.DisplayNumber("odd", 3) = 3 && !InStr(numbers, ",0 "),
+                "each display is labelled with the number Windows' Identify shows: " numbers)
+            ordered := true
+            loop choices.values.Length - 1
+                ordered := ordered && SuiteInterface.DisplayNumber(choices.values[A_Index], 0)
+                    < SuiteInterface.DisplayNumber(choices.values[A_Index + 1], 0)
+            this.Assert(ordered, "displays are listed in Windows' order, 1 first")
             all := app.ui.DisplayChoices("All", true)
             this.Assert(all.values.Length = MonitorGetCount() + 1
                 && all.values[all.selected] = "All" && all.names[all.selected] = "All displays",

@@ -430,6 +430,7 @@ class SuiteInterface {
     ; =========================================================================
 
     ; Display dropdown entries; the stored value is the Windows device name.
+    ; Each display is numbered and listed as Windows' Identify numbers it.
     DisplayChoices(selected, includeAll := false) {
         values := includeAll ? ["All"] : []
         names := includeAll ? ["All displays"] : []
@@ -437,14 +438,29 @@ class SuiteInterface {
         primary := MonitorGetPrimary()
         if selected = "Primary"
             selected := MonitorGetName(primary)
+        displays := []
         loop MonitorGetCount() {
             try {
                 name := MonitorGetName(A_Index)
                 MonitorGetWorkArea(A_Index)
-                values.Push(name)
-                names.Push("Display " A_Index " - " models.Get(name, name)
-                    . (A_Index = primary ? " (primary)" : ""))
+                displays.Push({name: name, number: SuiteInterface.DisplayNumber(name, A_Index),
+                    primary: A_Index = primary})
             }
+        }
+        ; Few displays, so a simple insertion sort by number.
+        loop displays.Length - 1 {
+            index := A_Index + 1
+            while index > 1 && displays[index - 1].number > displays[index].number {
+                swapped := displays[index - 1]
+                displays[index - 1] := displays[index]
+                displays[index] := swapped
+                index -= 1
+            }
+        }
+        for display in displays {
+            values.Push(display.name)
+            names.Push("Display " display.number " - " models.Get(display.name, display.name)
+                . (display.primary ? " (primary)" : ""))
         }
         selectedIndex := 0
         for index, name in values
@@ -457,6 +473,11 @@ class SuiteInterface {
         }
         return {values: values, names: names, selected: selectedIndex}
     }
+
+    ; Windows' own display number, from a device name such as \\.\DISPLAY2;
+    ; AutoHotkey's order, which always lists the primary first, otherwise.
+    static DisplayNumber(name, fallback) => RegExMatch(name, "i)^\\\\\.\\DISPLAY(\d+)$", &match)
+        ? Integer(match[1]) : fallback
 
     GetDisplayModels() {
         models := Map()
