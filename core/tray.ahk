@@ -442,8 +442,11 @@ class SuiteInterface {
         this.LayerFooter(window, footer)
         width := 820
         height := 480
+        ; Narrow enough to sit beside other windows, but never hiding a button.
+        minWidth := Max(560, footer.total + 20)
+        window.Opt("+MinSize" minWidth "x300")
         this.helpLayouts[id] := {header: header, status: status, statusColor: statusColor,
-            guide: guide, footer: footer, width: width, height: height, offset: 0,
+            guide: guide, footer: footer, width: width, height: height, minWidth: minWidth, offset: 0,
             renderedWidth: 0, renderedHeight: 0}
         this.helpWindowIds[window.Hwnd] := id
         this.WatchScrolling(window, {help: id})
@@ -463,7 +466,7 @@ class SuiteInterface {
         if minMax = -1 || !this.helpLayouts.Has(id)
             return
         layout := this.helpLayouts[id]
-        width := Max(560, width)
+        width := Max(layout.minWidth, width)
         height := Max(300, height)
         if width = layout.renderedWidth && height = layout.renderedHeight
             return

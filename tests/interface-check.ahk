@@ -383,6 +383,16 @@ class InterfaceChecks {
                     rhythm.ToggleNightOff()
                     this.Assert(tonight && button.Text = "Tonight off" && !rhythm.Off(),
                         "Galaxy Rhythm's Help takes tonight off until the day starts, and Back on ends it")
+                    wind := 0
+                    for hwnd, control in window
+                        if control.Type = "Button" && control.Text = "Second wind"
+                            wind := control
+                    rhythm.energy.level := 100
+                    rhythm.TakeSecondWind()
+                    once := rhythm.energy.level = 250
+                    rhythm.TakeSecondWind()
+                    this.Assert(IsObject(wind) && once && rhythm.energy.level = 250,
+                        "Galaxy Rhythm's Help gives a second wind of a quarter bar, once a day")
                     rhythm.ShowSettings(app.ui)
                     settings := app.ui.windows["settings:" id]
                     rhythm.ToggleNightOff()
@@ -461,7 +471,7 @@ class InterfaceChecks {
                 narrowHeight := app.ui.HelpTextHeight(id, 560)
                 this.Assert(narrowHeight > fullWidthHeight,
                     "Help paragraphs wrap into more lines when narrower: " id)
-                this.Assert(560 > app.ui.helpLayouts[id].footer.total + 20,
+                this.Assert(app.ui.helpLayouts[id].minWidth >= Max(560, app.ui.helpLayouts[id].footer.total + 20),
                     "minimum width keeps every footer button visible: " id)
                 window.Show("w560 h300")
                 window.GetClientPos(, , &helpWidth, &helpHeight)
@@ -535,7 +545,7 @@ class InterfaceChecks {
                 window.Show("w560 h650")
                 window.GetClientPos(, , &helpWidth, &helpHeight)
                 app.ui.ResizeHelp(id, window, 0, helpWidth, helpHeight)
-                this.Assert(helpWidth = 560
+                this.Assert(helpWidth = app.ui.helpLayouts[id].minWidth
                     && app.ui.helpLayouts[id].footer.divider.Visible,
                     "Help narrows to a footer-safe width and keeps the divider: " id)
                 window.Show("w1080 h750")

@@ -7,12 +7,13 @@
 ; One time, Your day starts at (the bedtime wakeTime), ends both bedtime's
 ; night and a night off. Help's Tonight off button starts a night off:
 ; until the day starts, no bedtime messages or sleep, and no drain, energy
-; notices, grey or faint, while rest still counts. night.ini keeps it across
-; restarts.
+; notices, grey or faint, though how late the computer is used still shapes
+; the next morning's bar. night.ini keeps it across restarts.
 class GalaxyRhythmModule extends SuiteModule {
     hasSettings := true
     resetSections := ["Bedtime", "Energy"]
     static OffLabel := "Tonight off"
+    static WindLabel := "Second wind"
     static OnLabel := "Back on"
 
     __New(app) {
@@ -35,8 +36,16 @@ class GalaxyRhythmModule extends SuiteModule {
     Off(now := "") => this.offUntil != "" && DateDiff(now = "" ? A_Now : now, this.offUntil, "Seconds") < 0
 
     HelpButtons() => this.app.ModuleActive(this.id)
-        ? [[this.Off() ? GalaxyRhythmModule.OnLabel : GalaxyRhythmModule.OffLabel,
+        ? [[GalaxyRhythmModule.WindLabel, ObjBindMethod(this, "TakeSecondWind"), 120],
+            [this.Off() ? GalaxyRhythmModule.OnLabel : GalaxyRhythmModule.OffLabel,
             ObjBindMethod(this, "ToggleNightOff"), 120]] : []
+
+    ; Once a day, a quarter of a full bar back, from Help.
+    TakeSecondWind(*) {
+        SuiteNotice.Show("status", this.energy.SecondWind()
+            ? Format("Second wind: +{1} %", Round(GR_Energy.WindShare * 100))
+            : "Second wind already taken today", 1400)
+    }
 
     ; Does what the button says, even if the night off ended while Help
     ; stayed open.
@@ -127,8 +136,8 @@ class GalaxyRhythmModule extends SuiteModule {
         window := ui.NewWindow(key, this.Name " - Settings", true)
         rows := SuitePageRows(window, 640)
         rows.Heading("YOUR DAY")
-        rows.Text("One time for every morning: it ends bedtime's night, and a night off, taken here or with"
-            . " the button in Help.")
+        rows.Text("One time for every morning: it ends bedtime's night and a night off, and starts the energy"
+            . " bar over. A night off can also be taken with the button in Help.")
         y := rows.y
         window.AddText("x20 y" (y + 4) " w170", "Your day starts at")
         wake := window.AddDateTime("x200 y" y " w75 +0x1 vwake", "HH:mm")
@@ -177,8 +186,9 @@ class GalaxyRhythmModule extends SuiteModule {
         refresh()
         show.OnEvent("Click", refresh)
         rows.Heading("ENERGY BAR")
-        rows.Text("The energy bar drains while you use the computer and refills while you rest away"
-            . " from it: locked, with the screens off, asleep or off. A full night fills it.")
+        rows.Text("The energy bar is your energy for the day: it drains while you use the computer,"
+            . " breaks of 5 minutes or more hold it still for a while, and it starts over when your day"
+            . " starts, with less after a late night.")
         energy := this.energy
         y := rows.y
         showEnergy := window.AddCheckbox("x20 y" (y + 4) " w240 vshowEnergy", "Show energy bar")
@@ -207,14 +217,6 @@ class GalaxyRhythmModule extends SuiteModule {
         display.Choose(choices.selected)
         energyControls.Push(display)
         rows.Advance(display)
-        y := rows.y
-        rested := window.AddCheckbox("x44 y" (y + 4) " w280 vrested", "Say what a break gave back")
-        rested.Value := energy.rested
-        energyControls.Push(rested, window.AddText("x330 y" (y + 4) " w120", "Full night"))
-        night := window.AddEdit("x455 y" y " w60 Number vnightHours")
-        energyControls.Push(night, window.AddUpDown("Range4-12", energy.nightHours),
-            window.AddText("x523 y" (y + 4) " w30", "h"))
-        rows.Advance(night)
         y := rows.y
         energyControls.Push(window.AddText("x44 y" (y + 4) " w150", "Running low:"))
         lowText := window.AddEdit("x200 y" y " w400 Limit" GR_Bedtime.TextLimit " vlowText", energy.lowText)
@@ -271,9 +273,7 @@ class GalaxyRhythmModule extends SuiteModule {
             values["SleepText"] := GR_Bedtime.CleanText(window["sleepText"].Value, GR_Bedtime.SleepDefault)
             values["AwakeText"] := GR_Bedtime.CleanText(window["awakeText"].Value, GR_Bedtime.AwakeDefault)
             energy := Map("Show", window["showEnergy"].Value ? 1 : 0,
-                "FullHours", GR_Energy.Whole(window["fullHours"].Value, 4, 24, 12),
-                "NightHours", GR_Energy.Whole(window["nightHours"].Value, 4, 12, 8),
-                "Rested", window["rested"].Value ? 1 : 0,
+                "FullHours", GR_Energy.Whole(window["fullHours"].Value, 4, 24, 10),
                 "Faint", window["faintEnergy"].Value ? 1 : 0,
                 "FadeMinutes", GR_Energy.Whole(window["energyFade"].Value, 10, 180, GR_Energy.FadeDefault),
                 "LowText", GR_Bedtime.CleanText(window["lowText"].Value, GR_Energy.Low),
@@ -312,18 +312,20 @@ class GalaxyRhythmModule extends SuiteModule {
         One sleep ends the night early.
 
         ENERGY BAR
-        A small upright bar marked E, bottom right on the primary display unless Settings moves it, drains with every minute you use the computer, game controller included: 12 hours of activity empty it, and watching or reading without touching anything costs half, though it never greys the screen.
-        It refills while you rest away from it: every break counts, but a 10-minute one pays best and gives back about 50 minutes, and a full night of 8 hours fills it.
+        A small upright bar marked E, bottom right on the primary display unless Settings moves it, is your energy for the day: every minute you use the computer, game controller included, costs a minute, and 10 hours of activity empty it.
+        Watching or reading without touching anything costs half, though it never greys the screen.
+        It never refills during the day: when your day starts, 06:00 by default, it starts over.
+        As in Stardew Valley, a late night costs you: stop before the first bedtime message, 00:00 by default, and the next day starts full; keep going and it starts with less, down to half from the sleep at 02:00 on, and half of that again if the bar ran dry.
+        Breaks make it last instead: one of 5 minutes or more holds the bar still for twice as long once you're back, up to an hour.
         A break starts when the computer sees you go, as it locks, turns its screens off or sleeps; quiet time before that might have been reading or a film, so it doesn't count.
         So when you step away, lock the computer or put it to sleep, any way you like; Win + L and Pause + Escape in Power-Up Utilities do it in one press.
         If you often just walk off, set the screens to turn off after a few minutes in Windows' power settings.
-        Coming back from a break of about 8 minutes or more, Rested says how much it gave back.
         Near empty it says so; at zero you're running on fumes, the screen greys over half an hour of activity by default, and then Lights out puts the computer to sleep.
-        You wake halfway back into the grey, with time to save your work, and only rest clears the rest.
-        Rest while the screen greys pays at a night's pace, without the 10-minute bonus, until it has paid off what you overspent.
+        You wake halfway back into the grey, with time to save your work, and the grey stays until your day starts over.
         Stay awake doesn't touch the bar.
 
         Turn Galaxy Rhythm on in Modules and all of this is on; every time, length and message can be changed in Settings.
-        For a game night, Tonight off below pauses all of it until your day starts, while rest still counts; Back on ends it early.
+        For a game night, Tonight off below pauses all of it until your day starts, though how late you stay up still shapes the next morning; Back on ends it early.
+        Once a day, Second wind below gives back a quarter of a full bar, even out of the grey.
     )"
 }

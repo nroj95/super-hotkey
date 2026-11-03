@@ -98,10 +98,19 @@ One sleep ends the night early.
 ENERGY BAR
 =
 
-A small upright bar marked E, bottom right on the primary display unless Settings moves it, drains with every minute you use the computer, game controller included: 12 hours of activity empty it, and watching or reading without touching anything costs half, though it never greys the screen.
+A small upright bar marked E, bottom right on the primary display unless Settings moves it, is your energy for the day: every minute you use the computer, game controller included, costs a minute, and 10 hours of activity empty it.
 =
 
-It refills while you rest away from it: every break counts, but a 10-minute one pays best and gives back about 50 minutes, and a full night of 8 hours fills it.
+Watching or reading without touching anything costs half, though it never greys the screen.
+=
+
+It never refills during the day: when your day starts, 06:00 by default, it starts over.
+=
+
+As in Stardew Valley, a late night costs you: stop before the first bedtime message, 00:00 by default, and the next day starts full; keep going and it starts with less, down to half from the sleep at 02:00 on, and half of that again if the bar ran dry.
+=
+
+Breaks make it last instead: one of 5 minutes or more holds the bar still for twice as long once you're back, up to an hour.
 =
 
 A break starts when the computer sees you go, as it locks, turns its screens off or sleeps; quiet time before that might have been reading or a film, so it doesn't count.
@@ -113,16 +122,10 @@ So when you step away, lock the computer or put it to sleep, any way you like; W
 If you often just walk off, set the screens to turn off after a few minutes in Windows' power settings.
 =
 
-Coming back from a break of about 8 minutes or more, Rested says how much it gave back.
-=
-
 Near empty it says so; at zero you're running on fumes, the screen greys over half an hour of activity by default, and then Lights out puts the computer to sleep.
 =
 
-You wake halfway back into the grey, with time to save your work, and only rest clears the rest.
-=
-
-Rest while the screen greys pays at a night's pace, without the 10-minute bonus, until it has paid off what you overspent.
+You wake halfway back into the grey, with time to save your work, and the grey stays until your day starts over.
 =
 
 Stay awake doesn't touch the bar.
@@ -131,7 +134,10 @@ Stay awake doesn't touch the bar.
 Turn Galaxy Rhythm on in Modules and all of this is on; every time, length and message can be changed in Settings.
 =
 
-For a game night, Tonight off below pauses all of it until your day starts, while rest still counts; Back on ends it early.
+For a game night, Tonight off below pauses all of it until your day starts, though how late you stay up still shapes the next morning; Back on ends it early.
+=
+
+Once a day, Second wind below gives back a quarter of a full bar, even out of the grey.
 =
 
 ; modules/paper-pad/module.ahk

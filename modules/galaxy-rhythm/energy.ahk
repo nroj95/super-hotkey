@@ -1,44 +1,49 @@
 ; =============================================================================
-; energy.ahk - an energy bar that drains while the user works and refills
-; while they rest away from the computer
+; energy.ahk - an energy bar that is a daily budget: it drains while the
+; user works, breaks hold it still, and it starts over each morning
 ; =============================================================================
 ; A minute with physical keyboard, mouse or XInput game controller input
 ; costs a minute; Windows does not count controllers as input, so connected
 ; ones are read ten times a second, and only XInput's real input counts: a
 ; button, a trigger past its threshold or a stick beyond its dead zone, never
-; a thumb resting on a stick. A minute at the unlocked computer with its screens
-; on but no input, watching or reading, costs half, down to zero but never
-; onto the road; anything programs do on their own is no input. A full bar
-; holds FullHours of active minutes.
+; a thumb resting on a stick. A minute at the unlocked computer with its
+; screens on but no input, watching or reading, costs half, down to zero but
+; never onto the road; anything programs do on their own is no input. A full
+; bar holds FullHours of active minutes.
 ;
-; Rest is the time from the moment the computer first saw the user gone, when
-; it locked, turned its displays off, slept or was off, until they come back.
-; Idle time before that is not rest, since it may have been reading or a
-; film: walking off without locking loses the minutes until the displays turn
-; off, so the guide suggests Win + L, sleep or a short display timeout. Time
-; while the suite is suspended or the bar hidden is neither use nor rest,
-; even locked, and a break starts no earlier than its end. A suite closed by
-; hand is not rest, even across a reboot, while a Windows shutdown or a
-; crash leaves the time until the next start as rest. Every break counts,
-; but its first minutes pay almost nothing, so a break pays most per minute
-; at about 10 minutes (Refill); a full night (NightHours) refills the whole
-; bar.
-; Rest pays off the road before it fills the bar, at the night's rate without
-; the bonus (Recover), and a break that gives back 5 % or more says so,
-; unless Rested is off.
+; The bar never refills during the day. At Your day starts at (bedtime's
+; wakeTime) it starts over, as a day does in Stardew Valley: full if the
+; computer was last used before bedtime's first message, half from its sleep
+; on, sliding between the two in between, and halved again after a day that
+; ran dry (MorningShare). An all-nighter is thus a late night like any other.
+;
+; Breaks hold the bar still instead: one of BreakMinutes or more, the least
+; screen-work guidance asks for, lets the next use cost nothing for twice its
+; length, up to BufferLimit, silently. A break across the start of a day
+; earns nothing; the new day is its reward. A break is the time from the
+; moment the computer first saw the user gone, when it locked, turned its
+; displays off, slept or was off, until they come back. Idle time before that
+; may have been reading or a film: walking off without locking loses the
+; minutes until the displays turn off, so the guide suggests Win + L, sleep
+; or a short display timeout. Time while the suite is suspended or the bar
+; hidden is no break, even locked, and a break starts no earlier than its
+; end. A suite closed by hand is no break, even across a reboot, while a
+; Windows shutdown or a crash leaves the time until the next start as one.
 ;
 ; 10 % left says so. At zero the road to fainting starts with its notice.
 ; With Faint on, the displays turn grey over FadeMinutes of activity, then
 ; Lights out shows and the computer sleeps; the user wakes halfway along the
-; road, with time to save their work. The grey never comes without the faint,
-; so without it the bar just stays empty. Stay awake never touches the bar:
-; it keeps the computer up while the user is away, when the bar neither
-; drains nor greys. A night off (the module's Off) pauses the drain, its
-; notices, the grey and the faint until the day starts; rest still counts.
-; The level, the last tick and when the user left survive restarts in
-; energy.ini. The bar, outlined so it shows on dark backgrounds,
-; sits in the corner Position names, bottom right by default, on the display
-; Display names, the primary one by default, or on all; a dry run draws no bar.
+; road, with time to save their work, and the grey stays until the day
+; starts over. The grey never comes without the faint, so without it the bar
+; just stays empty. Stay awake never touches the bar: it keeps the computer
+; up while the user is away, when the bar neither drains nor greys. A night
+; off (the module's Off) pauses the drain, its notices, the grey and the
+; faint until the day starts; how late the computer was used still counts.
+; The level, the standstill left, when the computer was last used and when
+; the day last started survive restarts in energy.ini. The bar, outlined so
+; it shows on dark backgrounds, sits in the corner Position names, bottom
+; right by default, on the display Display names, the primary one by
+; default, or on all; a dry run draws no bar.
 ; =============================================================================
 
 class GR_Energy {
@@ -53,12 +58,17 @@ class GR_Energy {
     static TriggerThreshold := 30
     static FadeDefault := 30      ; minutes of activity from zero to the faint
     static LowShare := 0.1
-    static RestedShare := 0.05    ; the least a break gives back to say so
     static WakeShare := 0.5       ; of the road still owed after a faint
-    ; A break's rest plus BonusMinutes, ramped in over its first minutes:
-    ; RampMinutes puts the most energy per minute away at 10 minutes.
-    static BonusMinutes := 35
-    static RampMinutes := 2.5
+    ; A break of BreakMinutes or more holds the bar still for BufferShare
+    ; times its length, up to BufferLimit minutes in all.
+    static BreakMinutes := 5
+    static BufferShare := 2
+    static BufferLimit := 60
+    ; The morning bar after using the computer from bedtime's sleep on, and
+    ; the share left of it after a day that ran dry.
+    static LateShare := 0.5
+    static DryShare := 0.5
+    static WindShare := 0.25      ; of a full bar a second wind gives back, once a day
     ; The default words of the notices, which Settings can change.
     static Low := "You're running low on energy"
     static Road := "You're running on fumes"
@@ -76,6 +86,11 @@ class GR_Energy {
         this.savedMinute := ""
         this.away := false       ; locked, displays off or asleep since awaySince
         this.awaySince := ""     ; A_Now when the computer first saw the user gone
+        this.buffer := 0         ; minutes of use that cost nothing, earned by breaks
+        this.lastUp := ""        ; A_Now of the last tick at the computer
+        this.dayStarted := ""    ; A_Now of the day start the bar last started over at
+        this.dry := false        ; the bar ran empty since the day started
+        this.windDay := ""       ; A_Now of the day start of the day a second wind was taken
         this.displayOff := false
         this.lowShown := false
         this.roadShown := false
@@ -96,24 +111,24 @@ class GR_Energy {
 
     full => this.fullHours * 60
 
-    ; Energy back, in active minutes, for restMinutes of rest: a full night
-    ; fills the bar, a minute away is almost nothing, and 10 minutes pay best.
-    static Refill(restMinutes, fullMinutes, nightMinutes) {
-        x := restMinutes / GR_Energy.RampMinutes
-        ramp := 1 - Exp(-x) * (1 + x + x * x / 2)
-        return (restMinutes + GR_Energy.BonusMinutes) * ramp * fullMinutes / nightMinutes
+    ; The latest moment at or before now when the clock showed time (HHmm).
+    static LastAt(now, time) {
+        moment := SubStr(now, 1, 8) time "00"
+        return DateDiff(moment, now, "Seconds") > 0 ? DateAdd(moment, -1, "Days") : moment
     }
 
-    ; The level after minutes of rest from level: on the road a break pays
-    ; only what a night would, without the bonus, until the debt is paid;
-    ; the rest of the break goes on along Refill.
-    static Recover(level, minutes, fullMinutes, nightMinutes) {
-        rate := fullMinutes / nightMinutes
-        payoff := Max(0, -level) / rate
-        if minutes <= payoff
-            return level + minutes * rate
-        return Min(Max(level, 0) + GR_Energy.Refill(minutes, fullMinutes, nightMinutes)
-            - GR_Energy.Refill(payoff, fullMinutes, nightMinutes), fullMinutes)
+    ; The share of a full bar a day starting at dayStart begins with, for a
+    ; computer last used at lastUp, bedtime's first message at lateTime and
+    ; its sleep at sleepTime (HHmm): full before lateTime, LateShare from
+    ; sleepTime on, sliding between, and DryShare of that after a dry day.
+    static MorningShare(dayStart, lastUp, lateTime, sleepTime, dry) {
+        late := GR_Energy.LastAt(dayStart, lateTime)
+        span := DateDiff(GR_Energy.LastAt(dayStart, sleepTime), late, "Seconds")
+        share := 1
+        if lastUp != "" && DateDiff(lastUp, late, "Seconds") > 0
+            share := span > 0 ? Max(GR_Energy.LateShare,
+                1 - (1 - GR_Energy.LateShare) * DateDiff(lastUp, late, "Seconds") / span) : GR_Energy.LateShare
+        return dry ? share * GR_Energy.DryShare : share
     }
 
     static Whole(text, low, high, fallback) => IsNumber(text) && text >= low && text <= high
@@ -126,9 +141,7 @@ class GR_Energy {
     LoadSettings() {
         read := (key, fallback) => IniRead(this.settingsPath, "Energy", key, fallback)
         this.show := read("Show", 1) = "1"
-        this.fullHours := GR_Energy.Whole(read("FullHours", ""), 4, 24, 12)
-        this.nightHours := GR_Energy.Whole(read("NightHours", ""), 4, 12, 8)
-        this.rested := read("Rested", 1) = "1"
+        this.fullHours := GR_Energy.Whole(read("FullHours", ""), 4, 24, 10)
         this.faint := read("Faint", 1) = "1"
         this.roadMinutes := GR_Energy.Whole(read("FadeMinutes", ""), 10, 180, GR_Energy.FadeDefault)
         this.lowText := GR_Bedtime.CleanText(read("LowText", ""), GR_Energy.Low)
@@ -150,8 +163,17 @@ class GR_Energy {
         this.level := IsNumber(level) ? Max(-this.roadMinutes, Min(Number(level), this.full)) : this.full
         seen := IniRead(this.statePath, "Energy", "LastSeen", "")
         since := IniRead(this.statePath, "Energy", "AwaySince", "")
+        standstill := IniRead(this.statePath, "Energy", "Buffer", "")
+        up := IniRead(this.statePath, "Energy", "LastUp", "")
+        started := IniRead(this.statePath, "Energy", "DayStarted", "")
         this.lastSeen := IsTime(seen) ? seen : ""
         this.awaySince := IsTime(since) ? since : ""
+        this.buffer := IsNumber(standstill) ? Max(0, Min(Number(standstill), GR_Energy.BufferLimit)) : 0
+        this.lastUp := IsTime(up) ? up : ""
+        this.dayStarted := IsTime(started) ? started : ""
+        this.dry := IniRead(this.statePath, "Energy", "Dry", 0) = "1"
+        wind := IniRead(this.statePath, "Energy", "SecondWind", "")
+        this.windDay := IsTime(wind) ? wind : ""
     }
 
     SaveState() {
@@ -163,6 +185,11 @@ class GR_Energy {
             IniWrite(Round(this.level, 2), this.statePath, "Energy", "Level")
             IniWrite(this.lastSeen, this.statePath, "Energy", "LastSeen")
             IniWrite(this.away ? this.awaySince : "", this.statePath, "Energy", "AwaySince")
+            IniWrite(Round(this.buffer, 2), this.statePath, "Energy", "Buffer")
+            IniWrite(this.lastUp, this.statePath, "Energy", "LastUp")
+            IniWrite(this.dayStarted, this.statePath, "Energy", "DayStarted")
+            IniWrite(this.dry ? 1 : 0, this.statePath, "Energy", "Dry")
+            IniWrite(this.windDay, this.statePath, "Energy", "SecondWind")
         }
         catch Error as failure
             SuiteState.Log.Error("Galaxy Rhythm / energy state", failure)
@@ -231,13 +258,15 @@ class GR_Energy {
             && !app.systemSuspended && !app.sessionLocked && !this.displayOff
     }
 
-    ; One tick: rest on coming back, drain while active, then the notices,
-    ; the grey and the faint. Takes the time and idle milliseconds it pretends.
+    ; One tick: the start of a day, a break on coming back, the drain, then
+    ; the notices, the grey and the faint. Takes the time and idle
+    ; milliseconds it pretends.
     Tick(now := "", idleMs := "") {
         now := now = "" ? A_Now : now
         idleMs := idleMs = "" ? Min(A_TimeIdlePhysical, this.PadIdleMs()) : idleMs
         app := this.module.app
         this.lastSeen := now
+        this.StartDay(now)
         if !this.show || !this.Present() {
             ; A suspended suite or a hidden bar is neither use nor rest, even
             ; locked meanwhile: a break starts no earlier than its end.
@@ -248,24 +277,26 @@ class GR_Energy {
             this.Save(now)
             return
         }
+        this.lastUp := now
         if this.away {
             this.away := false
-            rest := DateDiff(now, this.awaySince, "Seconds") / 60
-            if rest > 0
-                this.Rest(rest)
+            this.TakeBreak(DateDiff(now, this.awaySince, "Seconds") / 60)
         }
-        ; A night off pauses the drain, its notices, the grey and the faint;
-        ; rest still counts.
+        ; A night off pauses the drain, its notices, the grey and the faint.
         if this.module.Off(now) {
             this.Shade()
             this.Save(now)
             return
         }
-        cost := GR_Energy.TickMs / 60000
-        if idleMs < GR_Energy.ActiveMs
-            this.level := Max(this.level - cost, Min(this.level, -this.roadMinutes))
-        else ; watching or reading: half the cost, and never onto the road
-            this.level := Max(this.level - cost * GR_Energy.PassiveShare, Min(this.level, 0))
+        ; Watching or reading costs half, and never onto the road; a break's
+        ; standstill pays first.
+        active := idleMs < GR_Energy.ActiveMs
+        cost := GR_Energy.TickMs / 60000 * (active ? 1 : GR_Energy.PassiveShare)
+        covered := Min(this.buffer, cost)
+        this.buffer -= covered
+        this.level := Max(this.level - (cost - covered), Min(this.level, active ? -this.roadMinutes : 0))
+        if this.level <= 0
+            this.dry := true
         if this.level > this.full * GR_Energy.LowShare
             this.lowShown := false
         else if this.level > 0 && !this.lowShown {
@@ -330,15 +361,51 @@ class GR_Energy {
         this.SaveState()
     }
 
-    ; A break on the road pays off its debt first, slowly, so only a real
-    ; break clears the grey.
-    Rest(minutes) {
-        before := this.level
-        this.level := GR_Energy.Recover(before, minutes, this.full, this.nightHours * 60)
-        share := (this.level - before) / this.full
-        this.module.Report("rested " Round(minutes, 1) " min, +" Round(share * 100, 1) " %")
-        if this.rested && share >= GR_Energy.RestedShare && !this.module.Off()
-            this.Notice("Rested: +" Round(share * 100) " %")
+    ; At the start of a day the bar starts over, once, whether the user is
+    ; there or not: by MorningShare for how late the computer was used and
+    ; whether the day ran dry. The first run only notes the day.
+    StartDay(now) {
+        start := GR_Energy.LastAt(now, this.module.bedtime.wakeTime)
+        if this.dayStarted != "" && DateDiff(start, this.dayStarted, "Seconds") > 0 {
+            rows := this.module.bedtime.rows
+            share := GR_Energy.MorningShare(start, this.lastUp, rows[1].time, rows[-1].time, this.dry)
+            this.level := this.full * share
+            this.buffer := 0
+            this.dry := false
+            this.lowShown := false
+            this.roadShown := false
+            this.module.Report("day starts at " Round(share * 100) " %")
+            this.Shade()
+        }
+        if this.dayStarted = "" || DateDiff(start, this.dayStarted, "Seconds") > 0
+            this.dayStarted := start
+    }
+
+    ; A break of BreakMinutes or more holds the bar still for BufferShare
+    ; times its length, silently. One across the start of a day earns
+    ; nothing: the new day is its reward.
+    TakeBreak(minutes) {
+        if minutes < GR_Energy.BreakMinutes
+            || this.dayStarted != "" && DateDiff(this.awaySince, this.dayStarted, "Seconds") < 0
+            return
+        this.buffer := Min(GR_Energy.BufferLimit, this.buffer + minutes * GR_Energy.BufferShare)
+        this.module.Report("break of " Round(minutes) " min: the bar stands still for " Round(this.buffer) " min")
+    }
+
+    ; Once a day, from one day start to the next, a second wind gives back
+    ; WindShare of a full bar, even out of the grey. False if already taken.
+    SecondWind(now := "") {
+        day := GR_Energy.LastAt(now = "" ? A_Now : now, this.module.bedtime.wakeTime)
+        if this.windDay = day
+            return false
+        this.windDay := day
+        this.level := Min(this.full, this.level + this.full * GR_Energy.WindShare)
+        if this.level > 0
+            this.roadShown := false
+        this.Shade()
+        this.SaveState()
+        this.module.Report("second wind")
+        return true
     }
 
     Notice(text) {
@@ -348,7 +415,7 @@ class GR_Energy {
 
     ; Once Lights out has gone: taking the night off meanwhile keeps the
     ; computer up. The faint keeps half the debt, so waking straight away
-    ; leaves time to save work, and only rest clears the rest.
+    ; leaves time to save work, and the grey stays until the day starts over.
     FaintNow(*) {
         app := this.module.app
         if !this.fainting
