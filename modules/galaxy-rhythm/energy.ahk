@@ -8,13 +8,17 @@
 ;
 ; Rest is the time since the last input before leaving, counted when the user
 ; comes back to a computer that was locked, had its displays off, was asleep
-; or was off; a suspended or closed suite is not rest. Breaks shorter than
-; BreakMinutes do not count. A full night (NightHours) refills the whole bar,
-; and breaks pay most in their first half hour (Refill).
+; or was off. Time while the suite is suspended or the bar hidden is neither
+; use nor rest, even locked, and a break starts no earlier than its end; a
+; closed suite is not rest unless the computer was off. Every break counts,
+; but its first minutes pay almost nothing, so a break pays most per minute at
+; about 10 minutes (Refill); a full night (NightHours) refills the whole bar.
+; Rest pays off the road before it fills the bar, and a break that gives back
+; 5 % or more says so, unless Rested is off.
 ;
-; 10 % left says so. At zero the road to fainting starts, always from zero and
-; with its notice: when the bar first empties, when stay awake ends and when
-; the user is back after a faint without a real break. With Faint on, the
+; 10 % left says so. At zero the road to fainting starts with its notice:
+; when the bar first empties, when stay awake ends, always from zero, and
+; once the rest after a faint is spent. With Faint on, the
 ; displays turn grey over FadeMinutes of activity, then Lights out shows and
 ; the computer sleeps; the grey never comes without the faint, so without it
 ; the bar just stays empty. Stay awake holds the bar at zero quietly: no
@@ -30,10 +34,11 @@ class GR_Energy {
     static ActiveMs := 60000      ; input this recent makes a tick active
     static FadeDefault := 30      ; minutes of activity from zero to the faint
     static LowShare := 0.1
-    ; Breaks pay most at first: up to BonusMinutes of extra rest, most of it
-    ; within the first half hour.
+    static RestedShare := 0.05    ; the least a break gives back to say so
+    ; A break's rest plus BonusMinutes, ramped in over its first minutes:
+    ; RampMinutes puts the most energy per minute away at 10 minutes.
     static BonusMinutes := 35
-    static BonusDecayMinutes := 15
+    static RampMinutes := 2.5
     ; The notices; Road and Faint are only the default words of settings.
     static Low := "You're running low on energy"
     static Road := "You're running on fumes"
@@ -69,10 +74,11 @@ class GR_Energy {
     full => this.fullHours * 60
 
     ; Energy back, in active minutes, for restMinutes of rest: a full night
-    ; fills the bar, and the first half hour of a break counts extra.
+    ; fills the bar, a minute away is almost nothing, and 10 minutes pay best.
     static Refill(restMinutes, fullMinutes, nightMinutes) {
-        boosted := restMinutes + GR_Energy.BonusMinutes * (1 - Exp(-restMinutes / GR_Energy.BonusDecayMinutes))
-        return boosted * fullMinutes / nightMinutes
+        x := restMinutes / GR_Energy.RampMinutes
+        ramp := 1 - Exp(-x) * (1 + x + x * x / 2)
+        return (restMinutes + GR_Energy.BonusMinutes) * ramp * fullMinutes / nightMinutes
     }
 
     static Whole(text, low, high, fallback) => IsNumber(text) && text >= low && text <= high
@@ -87,7 +93,7 @@ class GR_Energy {
         this.show := read("Show", 1) = "1"
         this.fullHours := GR_Energy.Whole(read("FullHours", ""), 4, 24, 12)
         this.nightHours := GR_Energy.Whole(read("NightHours", ""), 4, 12, 8)
-        this.breakMinutes := GR_Energy.Whole(read("BreakMinutes", ""), 1, 60, 10)
+        this.rested := read("Rested", 1) = "1"
         this.faint := read("Faint", 1) = "1"
         this.roadMinutes := GR_Energy.Whole(read("FadeMinutes", ""), 10, 180, GR_Energy.FadeDefault)
         this.roadText := GR_Bedtime.CleanText(read("RoadText", ""), GR_Energy.Road)
@@ -186,7 +192,11 @@ class GR_Energy {
         app := this.module.app
         this.lastSeen := now
         if !this.show || !this.Present() {
-            if app.sessionLocked || app.systemSuspended || this.displayOff
+            ; A suspended suite or a hidden bar is neither use nor rest, even
+            ; locked meanwhile: a break starts no earlier than its end.
+            if app.suspended || !this.show
+                this.away := false, this.lastInput := now
+            else if app.sessionLocked || app.systemSuspended || this.displayOff
                 this.away := true
             this.Save(now)
             return
@@ -194,7 +204,7 @@ class GR_Energy {
         if this.away {
             this.away := false
             rest := this.lastInput = "" ? 0 : DateDiff(now, this.lastInput, "Seconds") / 60
-            if rest >= this.breakMinutes
+            if rest > 0
                 this.Rest(rest)
         }
         this.lastInput := DateAdd(now, -(idleMs // 1000), "Seconds")
@@ -239,14 +249,15 @@ class GR_Energy {
         this.SaveState()
     }
 
-    ; A break back from the road starts at zero, then adds its refill.
+    ; A break on the road pays off its debt first, so a moment away never
+    ; clears the grey.
     Rest(minutes) {
-        before := Max(this.level, 0)
+        before := this.level
         this.level := Min(before + GR_Energy.Refill(minutes, this.full, this.nightHours * 60), this.full)
-        gained := Round((this.level - before) / this.full * 100)
-        this.module.Report("rested " Round(minutes) " min, +" gained " %")
-        if gained >= 1
-            this.Notice("Rested: +" gained " %")
+        share := (this.level - before) / this.full
+        this.module.Report("rested " Round(minutes, 1) " min, +" Round(share * 100, 1) " %")
+        if this.rested && share >= GR_Energy.RestedShare
+            this.Notice("Rested: +" Round(share * 100) " %")
     }
 
     Notice(text) {

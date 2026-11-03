@@ -135,15 +135,13 @@ class GalaxyRhythmModule extends SuiteModule {
         energyControls.Push(display)
         rows.Advance(display)
         y := rows.y
-        energyControls.Push(window.AddText("x44 y" (y + 4) " w150", "Breaks count from"))
-        breaks := window.AddEdit("x200 y" y " w60 Number vbreakMinutes")
-        energyControls.Push(breaks, window.AddUpDown("Range1-60", energy.breakMinutes),
-            window.AddText("x268 y" (y + 4) " w40", "min"),
-            window.AddText("x330 y" (y + 4) " w120", "Full night"))
+        rested := window.AddCheckbox("x44 y" (y + 4) " w280 vrested", "Say what a break gave back")
+        rested.Value := energy.rested
+        energyControls.Push(rested, window.AddText("x330 y" (y + 4) " w120", "Full night"))
         night := window.AddEdit("x455 y" y " w60 Number vnightHours")
         energyControls.Push(night, window.AddUpDown("Range4-12", energy.nightHours),
             window.AddText("x523 y" (y + 4) " w30", "h"))
-        rows.Advance(breaks)
+        rows.Advance(night)
         y := rows.y
         energyControls.Push(window.AddText("x44 y" (y + 4) " w150", "At zero:"))
         roadText := window.AddEdit("x200 y" y " w400 Limit" GR_Bedtime.TextLimit " vroadText", energy.roadText)
@@ -197,7 +195,7 @@ class GalaxyRhythmModule extends SuiteModule {
             energy := Map("Show", window["showEnergy"].Value ? 1 : 0,
                 "FullHours", GR_Energy.Whole(window["fullHours"].Value, 4, 24, 12),
                 "NightHours", GR_Energy.Whole(window["nightHours"].Value, 4, 12, 8),
-                "BreakMinutes", GR_Energy.Whole(window["breakMinutes"].Value, 1, 60, 10),
+                "Rested", window["rested"].Value ? 1 : 0,
                 "Faint", window["faintEnergy"].Value ? 1 : 0,
                 "FadeMinutes", GR_Energy.Whole(window["energyFade"].Value, 10, 180, GR_Energy.FadeDefault),
                 "RoadText", GR_Bedtime.CleanText(window["roadText"].Value, GR_Energy.Road),
@@ -230,9 +228,11 @@ class GalaxyRhythmModule extends SuiteModule {
 
         ENERGY BAR
         A small upright bar marked E, bottom right on the primary display unless Settings moves it, drains with every minute you use the computer: 12 hours of activity empty it.
-        It refills while you rest away from it, locked, with the screens off, asleep or off: breaks of 10 minutes or more count, a 30-minute walk gives back about 1.5 hours, and a full night of 8 hours fills it.
+        It refills while you rest away from it, locked, with the screens off, asleep or off: every break counts, but a 10-minute one pays best and gives back about 50 minutes, and a full night of 8 hours fills it.
+        Coming back from a break of about 8 minutes or more, Rested says how much it gave back, unless Settings turns that off.
         Near empty it says so; at zero you're running on fumes, the screen greys over half an hour of activity by default, and then Lights out puts the computer to sleep.
         Stay awake holds the bar quietly at zero instead.
+        A break while the screen greys pays off what you overspent first, so a moment away doesn't clear the grey.
 
         Turn Galaxy Rhythm on in Modules and all of this is on; every time, length and message can be changed in Settings.
     )"
