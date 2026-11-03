@@ -18,6 +18,7 @@
 
 ### Fixes
 
+- Help and Settings pages open at most 80 % of the display, like a cascade window, and scroll when their content is taller, by the scrollbar, the wheel, `PgUp`, `PgDn`, `Home` and `End`, or by tabbing to a field. On a small or scaled screen, such as 1366 × 768 or 1080p at 150 %, the longest guides and Galaxy Rhythm's Settings no longer run off the bottom.
 - Settings, Keybindings and Back open on the display the page you came from is on. Moving Help to another display and pressing Settings... no longer opens Settings back on the display of the app you were in before.
 - With more than one display, notices no longer hide behind a game in exclusive fullscreen: a notice for the game's display shows on the next one instead, and news shown on every display skips it.
 - **Power-Up Utilities:** when stay awake runs out, its "Sleep allowed again" notice shows on every display for 3 seconds. If the computer sleeps or is locked, the notice shows a second after you unlock instead of behind the lock screen.

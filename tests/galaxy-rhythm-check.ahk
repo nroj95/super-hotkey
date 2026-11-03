@@ -119,6 +119,13 @@ class GalaxyRhythmChecks {
         this.Assert(reloaded.level = 123.45 && reloaded.lastSeen = "20261103120000"
             && reloaded.awaySince = "20261103115000",
             "the energy level, the last tick and when the user left survive a restart")
+        energy.Stop("Exit")
+        closed := GR_Energy(energy.module, energy.settingsPath, energy.statePath)
+        energy.lastSeen := "20261103120000"
+        energy.Stop("Shutdown")
+        afterShutdown := GR_Energy(energy.module, energy.settingsPath, energy.statePath)
+        this.Assert(closed.lastSeen = "" && afterShutdown.lastSeen = "20261103120000",
+            "closing the suite by hand counts no rest until it starts again, while a Windows shutdown does")
     }
 
     ; One day on a fake clock: Tick takes the time and idle milliseconds.

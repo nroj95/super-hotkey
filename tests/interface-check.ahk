@@ -394,9 +394,14 @@ class InterfaceChecks {
                         "Settings' Tonight off checkbox follows Help's button, and Apply turns it back")
                 }
                 window.GetClientPos(, , &helpWidth, &helpHeight)
-                expectedHelpHeight := Max(480, 145 + app.ui.HelpTextHeight(id, 820) + 12)
-                this.Assert(helpWidth = 820 && helpHeight = expectedHelpHeight,
-                    "Help opens tall enough for its introduction: " id)
+                fullHeight := Max(480, app.ui.HelpContentHeight(id, 820) + SuiteInterface.FooterBand)
+                WinGetPos(, , &outerWidth, &outerHeight, "ahk_id " window.Hwnd)
+                MonitorGetWorkArea(SuiteWorkingMonitor.Get(window.Hwnd), &workLeft, &workTop, &workRight, &workBottom)
+                scrolls := !!(WinGetStyle("ahk_id " window.Hwnd) & 0x00200000) ; WS_VSCROLL
+                this.Assert((helpWidth = 820 || outerWidth <= (workRight - workLeft) * 0.8 + 1)
+                    && (helpHeight = fullHeight && !scrolls
+                        || scrolls && outerHeight <= (workBottom - workTop) * 0.8 + 1),
+                    "Help opens showing its whole guide, or at 80 % of the display and scrolling: " id)
                 this.AssertCentered(window, SuiteSettings.ModuleNames[id] " Help")
                 this.AssertSizeGrip(window, SuiteSettings.ModuleNames[id] " Help")
                 buffered := true
@@ -425,7 +430,7 @@ class InterfaceChecks {
                 parts[-1].control.GetPos(, &lastY, , &lastHeight)
                 textHeight := lastY + lastHeight - textY
                 app.ui.helpLayouts[id].footer.divider.GetPos(, &dividerY)
-                this.Assert(dividerY > textY + textHeight,
+                this.Assert(scrolls || dividerY > textY + textHeight,
                     "the Help footer divider stays below the guide: " id)
                 parts[1].control.GetPos(, &headingY, , &headingHeight)
                 parts[2].control.GetPos(, &paragraphY)
@@ -444,38 +449,37 @@ class InterfaceChecks {
                 fontFace := StrGet(fontData.Ptr + 28, 32, "UTF-16")
                 this.Assert(fontFace = "Cascadia Mono" || fontFace = "Consolas",
                     "help font is the old Cascadia Mono or the Windows fallback: " id)
-                this.Assert(helpWidth >= 560 && helpHeight >= 400
-                    && textHeight > 150 && textY + textHeight < helpHeight - 60,
-                    "initial help page fits its complete guide: " id)
+                this.Assert(helpWidth >= 560 && helpHeight >= 300 && textHeight > 150
+                    && (scrolls || textY + textHeight < helpHeight - 60),
+                    "initial help page fits its complete guide, or scrolls: " id)
                 this.Assert(Abs(app.ui.HelpTextHeight(id, helpWidth) - textHeight) <= 2,
-                    "all Help guide paragraphs fit above the footer at startup: " id)
-                this.Assert(app.ui.helpWindowIds.Has(window.Hwnd),
-                    "Help window has its own wrap-aware sizing guard: " id)
+                    "Help measures its guide as the page lays it out: " id)
+                this.Assert(app.ui.helpWindowIds.Has(window.Hwnd) && app.ui.scrollPages.Has(window.Hwnd),
+                    "Help window scrolls its guide: " id)
                 fullWidthHeight := app.ui.HelpTextHeight(id, 820)
                 narrowHeight := app.ui.HelpTextHeight(id, 560)
                 this.Assert(narrowHeight > fullWidthHeight,
                     "Help paragraphs wrap into more lines when narrower: " id)
                 this.Assert(560 > app.ui.helpLayouts[id].footer.total + 20,
                     "minimum width keeps every footer button visible: " id)
-                physicalWindow := Buffer(16, 0)
-                physicalClient := Buffer(16, 0)
-                DllCall("GetWindowRect", "ptr", window.Hwnd, "ptr", physicalWindow, "int")
-                DllCall("GetClientRect", "ptr", window.Hwnd, "ptr", physicalClient, "int")
-                scale := NumGet(physicalClient, 8, "int") / helpWidth
-                borderW := NumGet(physicalWindow, 8, "int")
-                    - NumGet(physicalWindow, 0, "int") - NumGet(physicalClient, 8, "int")
-                borderH := NumGet(physicalWindow, 12, "int")
-                    - NumGet(physicalWindow, 4, "int") - NumGet(physicalClient, 12, "int")
-                sizing := Buffer(16, 0)
-                NumPut("int", 100, sizing, 0)
-                NumPut("int", 100, sizing, 4)
-                NumPut("int", 100 + Round(560 * scale) + borderW, sizing, 8)
-                NumPut("int", 100 + Round(400 * scale) + borderH, sizing, 12)
-                app.ui.KeepHelpTextVisible(8, sizing.Ptr, 0, window.Hwnd)
-                minimumHeight := Ceil(Max(400, 145 + narrowHeight) * scale) + borderH
-                this.Assert(NumGet(sizing, 12, "int") - NumGet(sizing, 4, "int")
-                    >= minimumHeight,
-                    "narrow window can't hide wrapped text under its footer: " id)
+                window.Show("w560 h300")
+                window.GetClientPos(, , &helpWidth, &helpHeight)
+                app.ui.ResizeHelp(id, window, 0, helpWidth, helpHeight)
+                window.GetClientPos(, , &helpWidth, &helpHeight)
+                view := helpHeight - SuiteInterface.FooterBand
+                app.ui.WheelMessage(-120 << 16, 0, 0x020A, parts[2].control.Hwnd)
+                wheeled := app.ui.helpLayouts[id].offset = SuiteInterface.WheelStep
+                closeButton := app.ui.helpLayouts[id].footer.buttons[-1].button
+                app.ui.KeyMessage(0x23, 0, 0x0100, closeButton.Hwnd) ; End
+                parts[-1].control.GetPos(, &lastY, , &lastHeight)
+                closeButton.GetPos(, &buttonY)
+                this.Assert(!!(WinGetStyle("ahk_id " window.Hwnd) & 0x00200000) && wheeled
+                    && Abs(lastY + lastHeight - (view - 18)) <= 2 && buttonY = helpHeight - 49,
+                    "a short Help scrolls by wheel and End to its last line, above a fixed footer: " id)
+                app.ui.KeyMessage(0x24, 0, 0x0100, closeButton.Hwnd) ; Home
+                parts[1].control.GetPos(, &firstY)
+                this.Assert(app.ui.helpLayouts[id].offset = 0 && firstY = textY,
+                    "Home scrolls Help back to the top: " id)
                 style := WinGetStyle("ahk_id " window.Hwnd)
                 this.Assert(!!(style & 0x00040000) && !!(style & 0x00010000),
                     "help window is resizable and maximizable: " id)
@@ -483,6 +487,7 @@ class InterfaceChecks {
                 window.Show("w1080 h750")
                 window.GetClientPos(, , &helpWidth, &helpHeight)
                 app.ui.ResizeHelp(id, window, 0, helpWidth, helpHeight)
+                window.GetClientPos(, , &helpWidth, &helpHeight)
                 parts[2].control.GetPos(, , &paragraphWidth)
                 parts[-1].control.GetPos(, &lastY, , &lastHeight)
                 this.Assert(paragraphWidth = helpWidth - 40 && lastY + lastHeight - textY <= firstHeight,
@@ -498,6 +503,7 @@ class InterfaceChecks {
                     window.Show("w" (960 + iteration * 25) " h" (610 + iteration * 20))
                     window.GetClientPos(, , &helpWidth, &helpHeight)
                     app.ui.ResizeHelp(id, window, 0, helpWidth, helpHeight)
+                    window.GetClientPos(, , &helpWidth, &helpHeight)
                     for item in app.ui.helpLayouts[id].footer.buttons {
                         item.button.GetPos(&buttonX, &buttonY, &buttonW)
                         this.Assert(buttonY = helpHeight - 49
@@ -522,11 +528,12 @@ class InterfaceChecks {
                 window.Show("w1080 h750")
                 window.GetClientPos(, , &helpWidth, &helpHeight)
                 app.ui.ResizeHelp(id, window, 0, helpWidth, helpHeight)
+                window.GetClientPos(, , &helpWidth, &helpHeight)
                 for control in window {
                     if control.Type != "Button"
                         continue
                     control.GetPos(&buttonX, &buttonY, &buttonWidth)
-                    this.Assert(buttonY > textY + textHeight
+                    this.Assert(buttonY > helpHeight - SuiteInterface.FooterBand
                         && buttonX >= 0 && buttonX + buttonWidth <= helpWidth,
                         "help navigation stays in the footer: " id "/" control.Text)
                 }
@@ -578,8 +585,13 @@ class InterfaceChecks {
                         "module Settings are resizable: " id)
                     defaultW := app.ui.pageLayouts["settings:" id].width
                     defaultH := app.ui.pageLayouts["settings:" id].height
-                    this.Assert(settingsW = defaultW && settingsH = defaultH,
-                        "module Settings open at a sensible size: " id)
+                    WinGetPos(, , &outerWidth, &outerHeight, "ahk_id " settings.Hwnd)
+                    MonitorGetWorkArea(SuiteWorkingMonitor.Get(settings.Hwnd), &workLeft, &workTop, &workRight, &workBottom)
+                    pageScrolls := !!(WinGetStyle("ahk_id " settings.Hwnd) & 0x00200000)
+                    this.Assert((settingsW = defaultW || outerWidth <= (workRight - workLeft) * 0.8 + 1)
+                        && (settingsH = defaultH && !pageScrolls
+                            || pageScrolls && outerHeight <= (workBottom - workTop) * 0.8 + 1),
+                        "module Settings open at full size, or at 80 % of the display and scrolling: " id)
                     this.Assert(app.ui.pageLayouts["settings:" id].minWidth < defaultW
                         && app.ui.pageLayouts["settings:" id].minHeight < defaultH,
                         "Settings can shrink below the opening size: " id)
@@ -588,6 +600,7 @@ class InterfaceChecks {
                     settings.Show("w" (defaultW + 120) " h" (defaultH + 140))
                     settings.GetClientPos(, , &settingsW, &settingsH)
                     app.ui.ResizePage("settings:" id, settings, 0, settingsW, settingsH)
+                    settings.GetClientPos(, , &settingsW, &settingsH)
                     pageFooter := app.ui.pageLayouts["settings:" id].footer
                     pageFooter.divider.GetPos(, &settingsDividerY)
                     pageFooter.buttons[-1].button.GetPos(&lastButtonX, &lastButtonY, &lastButtonW)
@@ -602,6 +615,19 @@ class InterfaceChecks {
                     this.Assert(settingsW = app.ui.pageLayouts["settings:" id].minWidth
                         && settingsH = app.ui.pageLayouts["settings:" id].minHeight,
                         "Settings support smaller manual resizing: " id)
+                    pageLayout := app.ui.pageLayouts["settings:" id]
+                    lastField := 0
+                    for item in pageLayout.controls
+                        if item.control.Type != "Text" && (!lastField || item.y > lastField.y)
+                            lastField := item
+                    hidden := lastField.y + lastField.h + 10 > settingsH - SuiteInterface.FooterBand
+                    app.ui.RevealControl("settings:" id, lastField.control)
+                    lastField.control.GetPos(, &fieldY, , &fieldH)
+                    pageFooter.band.GetPos(, &bandY)
+                    this.Assert(!!(WinGetStyle("ahk_id " settings.Hwnd) & 0x00200000)
+                        && (pageLayout.offset > 0) = hidden && fieldY >= 0 && fieldY + fieldH <= bandY,
+                        "a short Settings page scrolls, and a field reached by Tab comes into view: " id)
+                    app.ui.ScrollPage(settings.Hwnd, 0)
                     backFound := false
                     for control in settings
                         if control.Type = "Button" && control.Text = "Back"
@@ -647,8 +673,9 @@ class InterfaceChecks {
             this.Assert(app.ui.windows.Has("help:paper-pad"),
                 "the Help shortcut opens the page again")
             app.ui.windows["help:paper-pad"].GetClientPos(, , &lastHelpW, &lastHelpH)
-            expectedHelpHeight := Max(480, 145 + app.ui.HelpTextHeight("paper-pad", 820) + 12)
-            this.Assert(lastHelpW = 820 && lastHelpH = expectedHelpHeight,
+            expectedHelpHeight := Max(480, app.ui.HelpContentHeight("paper-pad", 820) + SuiteInterface.FooterBand)
+            this.Assert(lastHelpW = 820 && lastHelpH = expectedHelpHeight
+                || !!(WinGetStyle("ahk_id " app.ui.windows["help:paper-pad"].Hwnd) & 0x00200000),
                 "Help reopens at its content-based default regardless of prior resizing")
             this.AssertCentered(app.ui.windows["help:paper-pad"], "reopened Paper Pad Help")
             app.ui.CloseWindow("help:paper-pad")

@@ -1,7 +1,8 @@
 ; =============================================================================
 ; One flat tray. Module entries open their guides; module settings, the log,
 ; module selection and the language are pages built with the shared helpers
-; below.
+; below. Help and pages open at most 80 % of the working display and scroll
+; their content under a fixed footer.
 ; =============================================================================
 class SuiteInterface {
     __New(app) {
@@ -10,9 +11,11 @@ class SuiteInterface {
         this.moduleControls := Map()
         this.helpLayouts := Map()
         this.helpWindowIds := Map()
-        this.helpSizingCallback := ObjBindMethod(this, "KeepHelpTextVisible")
-        this.helpSizingInstalled := false
         this.pageLayouts := Map()
+        this.scrollPages := Map()  ; window handle -> {help: id} or {page: key}
+        this.scrollHandlers := [[0x0115, ObjBindMethod(this, "ScrollBarMessage")], ; WM_VSCROLL
+            [0x020A, ObjBindMethod(this, "WheelMessage")], [0x0100, ObjBindMethod(this, "KeyMessage")]]
+        this.scrollInstalled := false
         this.pageFooters := Map()
         this.startupPath := A_Startup "\Super Hotkey.lnk"
         this.trayStatus := Map()
@@ -91,11 +94,15 @@ class SuiteInterface {
         return window
     }
 
+    ; Buttons along the bottom on an opaque band the page's content scrolls
+    ; under. y is where the buttons start.
     Footer(window, buttons, y, width := 800) {
         total := 0
         for item in buttons
             total += (item.Length >= 3 ? item[3] : 130) + 10
         x := width - 10 - total
+        band := window.AddText("x0 y" (y + 49 - SuiteInterface.FooterBand) " w" width
+            " h" SuiteInterface.FooterBand " Background" window.BackColor)
         divider := window.AddText("x20 y" (y - 15) " w" (width - 40) " h2 +0x10", "")
         controls := []
         for item in buttons {
@@ -105,11 +112,183 @@ class SuiteInterface {
             controls.Push({button: control, width: buttonWidth})
             x += buttonWidth + 10
         }
-        footer := {divider: divider, buttons: controls, total: total}
+        footer := {band: band, divider: divider, buttons: controls, total: total}
         this.pageFooters[window.Hwnd] := footer
         return footer
     }
 
+    ; =========================================================================
+    ; Scrolling: Help and Settings open at their full size, up to OpenShare of
+    ; the working display like a cascade window, and content that does not fit
+    ; above the footer band scrolls under it: by the scrollbar, the wheel,
+    ; PgUp, PgDn, Home and End while a button has focus, arrows too in Help,
+    ; and by tabbing to a field out of view.
+    ; =========================================================================
+    static OpenShare := 0.8
+    static FooterBand := 72  ; from the band's top to the window's bottom
+    static WheelStep := 60
+
+    ; Every control clips the siblings above it, and the footer sits above
+    ; the content, so content scrolls under the band and never over a button.
+    LayerFooter(window, footer) {
+        for control in window
+            control.Opt("+0x04000000") ; WS_CLIPSIBLINGS
+        layers := [footer.band, footer.divider]
+        for item in footer.buttons
+            layers.Push(item.button)
+        if SuiteSizeGrip.grips.Has(window.Hwnd)
+            for dot in SuiteSizeGrip.grips[window.Hwnd]
+                layers.Push(dot)
+        for control in layers ; each to the top, so the last ends uppermost
+            DllCall("SetWindowPos", "ptr", control.Hwnd, "ptr", 0, "int", 0, "int", 0,
+                "int", 0, "int", 0, "uint", 0x13) ; HWND_TOP; SWP_NOSIZE | SWP_NOMOVE | SWP_NOACTIVATE
+    }
+
+    WatchScrolling(window, page) {
+        this.scrollPages[window.Hwnd] := page
+        if this.scrollInstalled
+            return
+        for handler in this.scrollHandlers
+            OnMessage(handler[1], handler[2])
+        this.scrollInstalled := true
+    }
+
+    ; Shows the scrollbar while the content, measured by contentAt at a client
+    ; width, is taller than the space above the band, and keeps the offset in
+    ; range. The bar's width counts as client width when deciding, so showing
+    ; it never undoes itself; width becomes the client width left beside it.
+    FitScroll(window, layout, contentAt, &width, height) {
+        view := height - SuiteInterface.FooterBand
+        shown := !!(DllCall("GetWindowLongPtrW", "ptr", window.Hwnd, "int", -16, "ptr") & 0x00200000) ; WS_VSCROLL
+        bar := shown ? this.ScrollBarWidth(window) : 0
+        need := contentAt.Call(width + bar) > view
+        if need != shown {
+            DllCall("ShowScrollBar", "ptr", window.Hwnd, "int", 1, "int", need) ; SB_VERT
+            window.GetClientPos(, , &width)
+        }
+        content := contentAt.Call(width)
+        layout.offset := need ? Max(0, Min(layout.offset, content - view)) : 0
+        info := Buffer(28, 0) ; SCROLLINFO
+        NumPut("uint", 28, "uint", 0x7, "int", 0, "int", Max(0, content - 1), "uint", Max(0, view),
+            "int", layout.offset, info) ; SIF_RANGE | SIF_PAGE | SIF_POS
+        DllCall("SetScrollInfo", "ptr", window.Hwnd, "int", 1, "ptr", info, "int", true)
+    }
+
+    ScrollBarWidth(window) {
+        window.GetClientPos(, , &logicalWidth)
+        rect := Buffer(16, 0)
+        DllCall("GetClientRect", "ptr", window.Hwnd, "ptr", rect, "int")
+        scale := NumGet(rect, 8, "int") / Max(1, logicalWidth)
+        return Ceil(DllCall("GetSystemMetrics", "int", 2, "int") / scale) ; SM_CXVSCROLL
+    }
+
+    PageLayout(hwnd) {
+        page := this.scrollPages[hwnd]
+        return page.HasOwnProp("help") ? this.helpLayouts[page.help] : this.pageLayouts[page.page]
+    }
+
+    ; Lays the page out again at its current size, scrolled to offset.
+    ScrollPage(hwnd, offset) {
+        page := this.scrollPages[hwnd]
+        layout := this.PageLayout(hwnd)
+        offset := Max(0, Round(offset))
+        if offset = layout.offset
+            return
+        layout.offset := offset
+        window := GuiFromHwnd(hwnd)
+        window.GetClientPos(, , &width, &height)
+        layout.renderedWidth := 0
+        if page.HasOwnProp("help")
+            this.ResizeHelp(page.help, window, 0, width, height)
+        else
+            this.ResizePage(page.page, window, 0, width, height)
+    }
+
+    ScrollView(hwnd) {
+        GuiFromHwnd(hwnd).GetClientPos(, , , &height)
+        return height - SuiteInterface.FooterBand
+    }
+
+    ScrollBarMessage(wParam, lParam, message, hwnd) {
+        if !this.scrollPages.Has(hwnd) || lParam
+            return
+        offset := this.PageLayout(hwnd).offset
+        view := this.ScrollView(hwnd)
+        switch wParam & 0xFFFF {
+            case 0: offset -= 20                  ; SB_LINEUP
+            case 1: offset += 20                  ; SB_LINEDOWN
+            case 2: offset -= view - 20           ; SB_PAGEUP
+            case 3: offset += view - 20           ; SB_PAGEDOWN
+            case 4, 5:                            ; SB_THUMBPOSITION, SB_THUMBTRACK
+                info := Buffer(28, 0)
+                NumPut("uint", 28, "uint", 0x10, info) ; SIF_TRACKPOS
+                DllCall("GetScrollInfo", "ptr", hwnd, "int", 1, "ptr", info, "int")
+                offset := NumGet(info, 24, "int")
+            case 6: offset := 0                   ; SB_TOP
+            case 7: offset := 0x7FFFFFFF          ; SB_BOTTOM
+            default: return 0
+        }
+        this.ScrollPage(hwnd, offset)
+        return 0
+    }
+
+    ; The wheel anywhere on a page scrolls it, except over a list that
+    ; scrolls itself.
+    WheelMessage(wParam, lParam, message, hwnd) {
+        root := DllCall("GetAncestor", "ptr", hwnd, "uint", 2, "ptr") ; GA_ROOT
+        if !this.scrollPages.Has(root) || WinGetClass("ahk_id " hwnd) = "ListBox"
+            return
+        this.ScrollPage(root, this.PageLayout(root).offset
+            - (wParam << 32 >> 48) / 120 * SuiteInterface.WheelStep)
+        return 0
+    }
+
+    ; Keys scroll a page while a button has focus, where they do nothing else.
+    KeyMessage(wParam, lParam, message, hwnd) {
+        root := DllCall("GetAncestor", "ptr", hwnd, "uint", 2, "ptr")
+        if !this.scrollPages.Has(root) || WinGetClass("ahk_id " hwnd) != "Button"
+            return
+        help := this.scrollPages[root].HasOwnProp("help")
+        offset := this.PageLayout(root).offset
+        view := this.ScrollView(root)
+        switch wParam {
+            case 0x21: offset -= view - 20        ; PgUp
+            case 0x22: offset += view - 20        ; PgDn
+            case 0x24: offset := 0                ; Home
+            case 0x23: offset := 0x7FFFFFFF       ; End
+            case 0x26:                            ; Up
+                if !help
+                    return
+                offset -= 20
+            case 0x28:                            ; Down
+                if !help
+                    return
+                offset += 20
+            default: return
+        }
+        this.ScrollPage(root, offset)
+        return 0
+    }
+
+    ; A field reached by Tab scrolls into view.
+    RevealControl(key, control, *) {
+        if !this.pageLayouts.Has(key)
+            return
+        layout := this.pageLayouts[key]
+        hwnd := this.windows[key].Hwnd
+        view := this.ScrollView(hwnd)
+        for item in layout.controls
+            if item.control = control {
+                if item.y - 10 < layout.offset
+                    this.ScrollPage(hwnd, item.y - 10)
+                else if item.y + item.h + 10 > layout.offset + view
+                    this.ScrollPage(hwnd, item.y + item.h + 10 - view)
+                return
+            }
+    }
+
+    ; Opens a page at its full size, up to OpenShare of the working display;
+    ; it can shrink to minHeight, and scrolls when shorter than its content.
     ShowPage(key, width, height, minWidth := 0, minHeight := 0) {
         window := this.windows[key]
         footer := this.pageFooters[window.Hwnd]
@@ -117,9 +296,10 @@ class SuiteInterface {
             minWidth := width
         if !minHeight
             minHeight := height
+        minHeight := Min(minHeight, SuiteInterface.FooterBand + 160)
         window.Opt("+Resize +MinSize" minWidth "x" minHeight " +0x02000000")
         controls := []
-        footerHandles := Map(footer.divider.Hwnd, true)
+        footerHandles := Map(footer.band.Hwnd, true, footer.divider.Hwnd, true)
         for item in footer.buttons
             footerHandles[item.button.Hwnd] := true
         for control in window {
@@ -128,12 +308,17 @@ class SuiteInterface {
             control.GetPos(&x, &y, &w, &h)
             controls.Push({control: control, x: x, y: y, w: w, h: h,
                 stretchWidth: x + w >= width - 50 && w >= 300})
+            try control.OnEvent("Focus", ObjBindMethod(this, "RevealControl", key))
         }
+        this.LayerFooter(window, footer)
         this.pageLayouts[key] := {footer: footer, controls: controls,
             width: width, height: height, minWidth: minWidth, minHeight: minHeight,
+            content: height - SuiteInterface.FooterBand, offset: 0,
             renderedWidth: 0, renderedHeight: 0}
+        this.WatchScrolling(window, {page: key})
         window.OnEvent("Size", ObjBindMethod(this, "ResizePage", key))
-        SuiteShowCentered(window, width, height, ObjBindMethod(this, "ResizePage", key))
+        SuiteShowCentered(window, width, height, ObjBindMethod(this, "ResizePage", key),
+            SuiteInterface.OpenShare)
     }
 
     ResizePage(key, window, minMax, width, height) {
@@ -144,13 +329,15 @@ class SuiteInterface {
         height := Max(layout.minHeight, height)
         if width = layout.renderedWidth && height = layout.renderedHeight
             return
+        this.FitScroll(window, layout, (*) => layout.content, &width, height)
         dx := width - layout.width
-        dy := height - layout.height
         positions := []
         for item in layout.controls {
-            positions.Push({control: item.control, x: item.x, y: item.y,
+            positions.Push({control: item.control, x: item.x, y: item.y - layout.offset,
                 w: item.stretchWidth ? Max(45, item.w + dx) : item.w, h: item.h})
         }
+        positions.Push({control: layout.footer.band, x: 0, y: height - SuiteInterface.FooterBand,
+            w: width, h: SuiteInterface.FooterBand})
         positions.Push({control: layout.footer.divider, x: 20,
             y: height - 64, w: width - 40, h: 2})
         x := width - 10 - layout.footer.total
@@ -168,6 +355,8 @@ class SuiteInterface {
         if this.windows.Has(key) {
             if this.helpWindowIds.Has(this.windows[key].Hwnd)
                 this.helpWindowIds.Delete(this.windows[key].Hwnd)
+            if this.scrollPages.Has(this.windows[key].Hwnd)
+                this.scrollPages.Delete(this.windows[key].Hwnd)
             if this.pageLayouts.Has(key)
                 this.pageLayouts.Delete(key)
             if InStr(key, "help:") = 1 && this.helpLayouts.Has(SubStr(key, 6))
@@ -182,9 +371,10 @@ class SuiteInterface {
     CloseAll() {
         for key in this.windows.Clone()
             this.CloseWindow(key)
-        if this.helpSizingInstalled {
-            OnMessage(0x0214, this.helpSizingCallback, 0)
-            this.helpSizingInstalled := false
+        if this.scrollInstalled {
+            for handler in this.scrollHandlers
+                OnMessage(handler[1], handler[2], 0)
+            this.scrollInstalled := false
         }
         this.helpWindowIds.Clear()
     }
@@ -218,7 +408,7 @@ class SuiteInterface {
         module := this.app.modules[id]
         name := module.Name
         window := this.NewWindow(key, name " - Getting started", false,
-            "+Resize +MinSize560x400 +0x02000000")
+            "+Resize +MinSize560x300 +0x02000000")
         state := this.app.ModuleActive(id) ? "enabled" : "disabled"
         if this.app.dryRun && this.app.ModuleActive(id)
             state := "dry run; feature effects are inactive"
@@ -244,48 +434,54 @@ class SuiteInterface {
         buttons.Push(["Keybindings...", ObjBindMethod(this, "OpenKeybindingsFromHelp", id), 135])
         buttons.Push(["Close", ObjBindMethod(this, "CloseWindow", key), 100])
         footer := this.Footer(window, buttons, 455, 900)
+        this.LayerFooter(window, footer)
         width := 820
         height := 480
         this.helpLayouts[id] := {header: header, status: status, statusColor: statusColor,
-            guide: guide, footer: footer, width: width, height: height,
+            guide: guide, footer: footer, width: width, height: height, offset: 0,
             renderedWidth: 0, renderedHeight: 0}
         this.helpWindowIds[window.Hwnd] := id
-        if !this.helpSizingInstalled {
-            OnMessage(0x0214, this.helpSizingCallback)
-            this.helpSizingInstalled := true
-        }
+        this.WatchScrolling(window, {help: id})
         window.OnEvent("Size", ObjBindMethod(this, "ResizeHelp", id))
-        ; Measure after giving the hidden GUI its opening width. Keep the compact
-        ; default when it fits, but grow taller rather than clip the new intro.
+        ; Measure after giving the hidden GUI its opening width: the whole
+        ; guide when it fits, never shorter than the compact default.
         window.Show("Hide w" width " h" height)
-        height := Max(height, 145 + this.HelpTextHeight(id, width) + 12)
-        SuiteShowCentered(window, width, height, ObjBindMethod(this, "ResizeHelp", id))
+        height := Max(height, this.HelpContentHeight(id, width) + SuiteInterface.FooterBand)
+        SuiteShowCentered(window, width, height, ObjBindMethod(this, "ResizeHelp", id),
+            SuiteInterface.OpenShare)
     }
+
+    ; The header and the guide above the footer band, at a client width.
+    HelpContentHeight(id, clientWidth) => 73 + this.HelpTextHeight(id, clientWidth)
 
     ResizeHelp(id, window, minMax, width, height) {
         if minMax = -1 || !this.helpLayouts.Has(id)
             return
         layout := this.helpLayouts[id]
         width := Max(560, width)
-        height := Max(400, height)
+        height := Max(300, height)
         if width = layout.renderedWidth && height = layout.renderedHeight
             return
         if minMax = 0 {
             layout.width := width
             layout.height := height
         }
+        this.FitScroll(window, layout, (clientWidth) => this.HelpContentHeight(id, clientWidth), &width, height)
 
         headerWidth := this.HelpHeadingWidth(window, layout.header)
         statusWidth := this.HelpHeadingWidth(window, layout.status)
         headerX := Floor((width - headerWidth - statusWidth) / 2)
+        top := -layout.offset
         positions := [
-            {control: layout.header, x: headerX, y: 18, w: headerWidth, h: 25},
-            {control: layout.status, x: headerX + headerWidth, y: 18,
+            {control: layout.header, x: headerX, y: top + 18, w: headerWidth, h: 25},
+            {control: layout.status, x: headerX + headerWidth, y: top + 18,
                 w: statusWidth, h: 25},
+            {control: layout.footer.band, x: 0, y: height - SuiteInterface.FooterBand,
+                w: width, h: SuiteInterface.FooterBand},
             {control: layout.footer.divider, x: 20, y: height - 64, w: width - 40, h: 2}
         ]
         for row in this.HelpGuideRows(id, width)
-            positions.Push({control: row.control, x: 20, y: 55 + row.y, w: width - 40, h: row.h})
+            positions.Push({control: row.control, x: 20, y: top + 55 + row.y, w: width - 40, h: row.h})
         x := width - 10 - layout.footer.total
         for item in layout.footer.buttons {
             positions.Push({control: item.button, x: x, y: height - 49,
@@ -385,44 +581,6 @@ class SuiteInterface {
         }
         finally DllCall("ReleaseDC", "ptr", window.Hwnd, "ptr", hdc)
         return rows
-    }
-
-    KeepHelpTextVisible(edge, proposed, messageId, hwnd) {
-        if !this.helpWindowIds.Has(hwnd)
-            return
-        id := this.helpWindowIds[hwnd]
-        window := this.windows["help:" id]
-        current := Buffer(16, 0)
-        client := Buffer(16, 0)
-        if !DllCall("GetWindowRect", "ptr", hwnd, "ptr", current, "int")
-            || !DllCall("GetClientRect", "ptr", hwnd, "ptr", client, "int")
-            return
-        window.GetClientPos(, , &logicalWidth)
-        if !logicalWidth
-            return
-        scale := NumGet(client, 8, "int") / logicalWidth
-        borderWidth := NumGet(current, 8, "int") - NumGet(current, 0, "int")
-            - NumGet(client, 8, "int")
-        borderHeight := NumGet(current, 12, "int") - NumGet(current, 4, "int")
-            - NumGet(client, 12, "int")
-
-        left := NumGet(proposed, 0, "int")
-        top := NumGet(proposed, 4, "int")
-        right := NumGet(proposed, 8, "int")
-        bottom := NumGet(proposed, 12, "int")
-        clientWidth := Max(560, Floor((right - left - borderWidth) / scale))
-        ; The footer must remain separate from even the longest wrapped guide.
-        requiredClientHeight := Max(400, 145 + this.HelpTextHeight(id, clientWidth))
-        requiredOuterHeight := Ceil(requiredClientHeight * scale) + borderHeight
-        if bottom - top >= requiredOuterHeight
-            return
-
-        ; Preserve the edge being dragged rather than jumping the whole window.
-        if edge = 3 || edge = 4 || edge = 5
-            NumPut("int", bottom - requiredOuterHeight, proposed, 4)
-        else
-            NumPut("int", top + requiredOuterHeight, proposed, 12)
-        return true
     }
 
     ; Each step opens the next page before closing the one it leaves, so the

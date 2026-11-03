@@ -98,10 +98,10 @@ class GalaxyRhythmModule extends SuiteModule {
         this.energy.Start()
     }
 
-    Stop(*) {
+    Stop(reason := "Exit", *) {
         this.stopping := true
         this.bedtime.Stop()
-        this.energy.Stop()
+        this.energy.Stop(reason)
         this.grey.Clear()
     }
 

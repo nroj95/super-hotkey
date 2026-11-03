@@ -110,7 +110,9 @@ class SuiteBufferedPaint {
     }
 }
 
-SuiteShowCentered(window, width, height, layoutCallback := 0, fitWorkArea := false) {
+; Shows window centered on the working display at a client size of width x
+; height; a fitShare of 1 or less caps it at that share of the work area.
+SuiteShowCentered(window, width, height, layoutCallback := 0, fitShare := 0) {
     SuiteFocusReturn.Remember()
     ; Size while hidden so the user only sees the correctly centered layout.
     window.Show("Hide w" width " h" height)
@@ -121,8 +123,8 @@ SuiteShowCentered(window, width, height, layoutCallback := 0, fitWorkArea := fal
     outerWidth := NumGet(rect, 8, "int") - NumGet(rect, 0, "int")
     outerHeight := NumGet(rect, 12, "int") - NumGet(rect, 4, "int")
     MonitorGetWorkArea(SuiteWorkingMonitor.Get(window.Hwnd), &left, &top, &right, &bottom)
-    if fitWorkArea {
-        fitted := SuiteFitClientSize(window, width, height, right - left, bottom - top)
+    if fitShare {
+        fitted := SuiteFitClientSize(window, width, height, (right - left) * fitShare, (bottom - top) * fitShare)
         window.Show("Hide w" fitted.width " h" fitted.height)
         if !DllCall("GetWindowRect", "ptr", window.Hwnd, "ptr", rect, "int")
             throw OSError(A_LastError, "Measure Super Hotkey window")

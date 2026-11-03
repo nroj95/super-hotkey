@@ -14,11 +14,13 @@
 ; Idle time before that is not rest, since it may have been reading or a
 ; film: walking off without locking loses the minutes until the displays turn
 ; off, so the guide suggests Win + L, sleep or a short display timeout. Time
-; while the suite is suspended or the bar hidden is neither
-; use nor rest, even locked, and a break starts no earlier than its end; a
-; closed suite is not rest unless the computer was off. Every break counts,
-; but its first minutes pay almost nothing, so a break pays most per minute at
-; about 10 minutes (Refill); a full night (NightHours) refills the whole bar.
+; while the suite is suspended or the bar hidden is neither use nor rest,
+; even locked, and a break starts no earlier than its end. A suite closed by
+; hand is not rest, even across a reboot, while a Windows shutdown or a
+; crash leaves the time until the next start as rest. Every break counts,
+; but its first minutes pay almost nothing, so a break pays most per minute
+; at about 10 minutes (Refill); a full night (NightHours) refills the whole
+; bar.
 ; Rest pays off the road before it fills the bar, at the night's rate without
 ; the bonus (Recover), and a break that gives back 5 % or more says so,
 ; unless Rested is off.
@@ -170,7 +172,10 @@ class GR_Energy {
         SetTimer(this.drawCallback, 1000)
     }
 
-    Stop() {
+    ; Closed for any reason but Windows shutting down or logging off, the time
+    ; until the next start is no rest, even across a reboot: the user may
+    ; have kept working meanwhile.
+    Stop(reason := "Exit") {
         SetTimer(this.tickCallback, 0)
         SetTimer(this.drawCallback, 0)
         SetTimer(this.faintCallback, 0)
@@ -181,8 +186,9 @@ class GR_Energy {
         if IsObject(this.bar)
             this.bar.Destroy()
         this.bar := 0
-        if this.lastSeen != ""
-            this.SaveState()
+        if reason != "Shutdown" && reason != "Logoff"
+            this.lastSeen := "", this.away := false
+        this.SaveState()
     }
 
     ; PBT_POWERSETTINGCHANGE for the display state: 0 off, 1 on, 2 dimmed.
