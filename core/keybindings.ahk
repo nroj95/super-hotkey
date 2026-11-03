@@ -2,7 +2,8 @@
 
 ; The suite's single hotkey manager: action catalog, binding grammar, saved
 ; assignments and native dispatch. Availability and contexts never rewrite
-; saved assignments.
+; saved assignments. Windows keys an action replaces stay claimed, doing
+; nothing, after the user moves or disables that action.
 
 class Keybindings {
     static Current := 0
@@ -69,6 +70,9 @@ class Keybindings {
             throw TypeError("An action callback must be callable.")
         category := Keybindings.Option(options, "category", "General")
         Keybindings.Text(category, 80)
+        replaces := []
+        for text in Keybindings.Option(options, "replaces", [])
+            replaces.Push(Keybindings.Parse(text))
         scope := Keybindings.Option(options, "scope", "")
         scopeName := SubStr(scope, 1, 1) = "!" ? SubStr(scope, 2) : scope
         if scope != "" && !this.scopes.Has(scopeName)
@@ -82,9 +86,11 @@ class Keybindings {
             ; Answers while the manager is paused with allowWhilePaused, such as
             ; a suspend toggle that must be able to resume.
             whilePaused: !!Keybindings.Option(options, "whilePaused", false),
-            ; Not listed in Keybindings and always on its default keys: an
-            ; improved native key that would only puzzle users as a row.
-            hidden: !!Keybindings.Option(options, "hidden", false),
+            ; Windows keys this action improves, such as Win + Up. Moved or
+            ; disabled, the action still claims them where it would answer,
+            ; while keepsReplaced allows, so Windows' own version never returns.
+            replaces: replaces,
+            keepsReplaced: Keybindings.Option(options, "keepsReplaced", true),
             defaults: this._NormalizeSlots(IsObject(defaults) ? defaults : [])
         }
         this.actionOrder.Push(this.actions[actionId])
@@ -201,7 +207,7 @@ class Keybindings {
         settings := IsSet(configuration) ? configuration : this.configuration
         for action in this.actionOrder {
             setting := settings[action.id]
-            if action.hidden || !setting.enabled || !this.IsAvailable(action)
+            if !setting.enabled || !this.IsAvailable(action)
                 || !this._ActionInSettingsModule(action.id, moduleId)
                 continue
             result.Push({id: action.id, label: action.label, category: action.category,
@@ -483,8 +489,7 @@ class Keybindings {
         for actionId, action in this.actions {
             if !configuration.Has(actionId)
                 throw ValueError("Missing action settings: " actionId)
-            setting := action.hidden ? {enabled: action.defaultEnabled, bindings: action.defaults}
-                : configuration[actionId]
+            setting := configuration[actionId]
             slots := this._NormalizeSlots(setting.bindings)
             normalized[actionId] := {enabled: !!setting.enabled, bindings: slots}
             if !setting.enabled || !this.IsAvailable(action)
@@ -492,8 +497,24 @@ class Keybindings {
             for slot, text in slots {
                 binding := Keybindings.Parse(text)
                 if IsObject(binding)
-                    routes.Push({action: action, slot: slot, binding: binding, enabled: false,
+                    routes.Push({action: action, slot: slot, binding: binding, claim: false, enabled: false,
                         state: "pending", token: 0, foreground: 0, oneShot: false})
+            }
+        }
+        ; A replaced Windows key that no route uses becomes a claim: a slot 0
+        ; route that answers where its action would, and queues nothing.
+        used := Map()
+        for route in routes
+            used[route.binding.signature] := true
+        for actionId, action in this.actions {
+            if !this.IsAvailable(action)
+                continue
+            for binding in action.replaces {
+                if used.Has(binding.signature)
+                    continue
+                used[binding.signature] := true
+                routes.Push({action: action, slot: 0, binding: binding, claim: true, enabled: false,
+                    state: "pending", token: 0, foreground: 0, oneShot: false})
             }
         }
         return {configuration: normalized, routes: routes}
@@ -876,6 +897,8 @@ class Keybindings {
     IsKeyClaimed(keyId) => this.pressed.Has(keyId) || this.blocked.Has(keyId)
 
     _QueueEvent(route, phase, foreground, oneShot) {
+        if route.claim
+            return
         previousCritical := A_IsCritical
         Critical "On"
         try {
@@ -1089,7 +1112,9 @@ class Keybindings {
         if !this.routeMap.Has(signature)
             return 0
         for route in this.routeMap[signature]
-            if route.enabled && this.ContextActive(route.action)
+            if route.enabled && this.ContextActive(route.action) && (!route.claim
+                || (HasMethod(route.action.keepsReplaced, "Call") ? route.action.keepsReplaced.Call()
+                    : route.action.keepsReplaced))
                 return route
         return 0
     }

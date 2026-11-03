@@ -1,8 +1,10 @@
 ; Wonder Windows: hotkeys, deferred window commands, logging, the FancyZones
 ; check, settings page and guide. Window commands live in the other files.
+; The Windows keys it improves stay claimed after their actions move, unless
+; Settings gives them back to Windows.
 class WonderWindowsModule extends SuiteModule {
     hasSettings := true
-    resetSections := ["Zones"]
+    resetSections := ["Zones", "Keys"]
     static ZoneUnits := [["fourths", "Fourths and halves"], ["thirds", "Thirds"]]
 
     __New(app) {
@@ -12,6 +14,7 @@ class WonderWindowsModule extends SuiteModule {
         this.settingsPath := app.Settings.directory "\wonder-windows\settings.ini"
         unit := IniRead(this.settingsPath, "Zones", "Cycle", "fourths")
         WW_zone_cycle_unit := unit = "thirds" ? "thirds" : "fourths"
+        this.givesBackWindowsKeys := IniRead(this.settingsPath, "Keys", "GiveBackToWindows", 0) = "1"
         this.manager := 0
         this.stopping := false
         this.generation := 0
@@ -26,20 +29,21 @@ class WonderWindowsModule extends SuiteModule {
     }
 
     ; Registration order is the Keybindings display order: Help, then by task,
-    ; from placing a window to minimizing many.
+    ; from placing a window to minimizing many. replaces names the Windows key
+    ; an action improves.
     Register(manager) {
         this.manager := manager
         manager.AddAction("wonder-windows.help", "show Wonder Windows help",
             ObjBindMethod(this.app, "HelpShortcutEvent", this.id), ["Ctrl + Alt + H", "Caps + Win + H"],
             {category: "Wonder Windows", available: ObjBindMethod(this, "Available")})
         this.Add("zones-from-left", "cycle zones from the left", WW_CycleZone,
-            ["Win + WheelDown", "Win + Left"], ["down"])
+            ["Win + WheelDown", "Win + Left"], ["down"], {replaces: ["Win + Left"]})
         this.Add("zones-from-right", "cycle zones from the right", WW_CycleZone,
-            ["Win + WheelUp", "Win + Right"], ["up"])
+            ["Win + WheelUp", "Win + Right"], ["up"], {replaces: ["Win + Right"]})
         this.Add("maximize", "maximize, then upper / lower half", WW_MaximizeWindowTarget, ["Win + Up"],
-            , {hidden: true})
+            , {replaces: ["Win + Up"]})
         this.Add("restore", "undo placement, then minimize", WW_RestoreOrMinimizeWindow, ["Win + Down"],
-            , {hidden: true})
+            , {replaces: ["Win + Down"]})
         this.Add("stretch", "stretch to neighbors: across / fill / back", WW_CycleNeighborStretch,
             ["Win + Shift + Enter"])
         for side in [["up", "above"], ["down", "below"], ["left", "to the left"], ["right", "to the right"]]
@@ -57,17 +61,17 @@ class WonderWindowsModule extends SuiteModule {
             ["Win + Shift + Backspace"])
         ; Improved Windows keys that act on whole displays, so from any window.
         this.Add("minimize-all", "minimize all windows on this display", WW_MinimizeAllWindows, ["Win + M"],
-            , {hidden: true, anyWindow: true})
+            , {replaces: ["Win + M"], anyWindow: true})
         this.Add("minimize-others", "minimize other windows on this display", WW_MinimizeOtherWindows,
-            ["Win + Home"], , {hidden: true, anyWindow: true})
+            ["Win + Home"], , {replaces: ["Win + Home"], anyWindow: true})
         this.Add("restore-others", "restore windows behind the active window", WW_RestoreOtherWindows,
-            ["Win + Shift + Home"], , {hidden: true, anyWindow: true})
+            ["Win + Shift + Home"], , {anyWindow: true})
         this.Add("restore-all", "restore windows minimized on this display", WW_RestoreAllWindows,
-            ["Win + Shift + M"], , {hidden: true, anyWindow: true})
+            ["Win + Shift + M"], , {replaces: ["Win + Shift + M"], anyWindow: true})
         this.Add("minimize-everywhere", "minimize all windows on every display", WW_MinimizeEveryDisplay,
-            ["Win + D"], , {hidden: true, anyWindow: true})
+            ["Win + D"], , {replaces: ["Win + D"], anyWindow: true})
         this.Add("restore-everywhere", "restore windows minimized on every display", WW_RestoreEveryDisplay,
-            ["Win + Shift + D"], , {hidden: true, anyWindow: true})
+            ["Win + Shift + D"], , {anyWindow: true})
     }
 
     ; anyWindow drops the check that the active window is one Wonder Windows
@@ -79,10 +83,13 @@ class WonderWindowsModule extends SuiteModule {
         this.manager.AddAction(actionId, label, ObjBindMethod(this, "Event"), bindings,
             {category: "Wonder Windows", available: ObjBindMethod(this, "Available"),
                 context: Keybindings.Option(options, "anyWindow", false) ? 0 : ObjBindMethod(this, "WindowContext"),
-                hidden: Keybindings.Option(options, "hidden", false)})
+                replaces: Keybindings.Option(options, "replaces", []),
+                keepsReplaced: ObjBindMethod(this, "KeepsWindowsKeys")})
     }
 
     Available(*) => this.app.ModuleActive(this.id)
+
+    KeepsWindowsKeys(*) => !this.givesBackWindowsKeys
 
     WindowContext(*) => SuiteWindowOwnership.AllowsWonderWindows(SuiteWorkingMonitor.UserWindow())
 
@@ -193,6 +200,10 @@ class WonderWindowsModule extends SuiteModule {
         }
         rows.Field("Zone cycle", "DropDownList", "w260 vzoneUnit", names).Choose(selected)
         rows.Caption("Full height first, then the upper and lower halves of the display. Thirds skips the halves.")
+        rows.Checkbox("Give Windows back its own keys when you move or clear their actions", "vgiveBack")
+            .Value := this.givesBackWindowsKeys
+        rows.Caption("Win + Left, Right, Up, Down, M, Shift + M, Home and D. Unchecked, they do nothing"
+            . " once moved or cleared, so Windows' own versions never surprise you.", true)
         status := WW_IsFancyZonesRunning() ? "running, not supported" : "not running, you're all set!"
         rows.Field("FancyZones:", "Text", "w540 vfancyZonesStatus c" WonderWindowsModule.StatusColor(status), status)
         rows.Text("FancyZones also moves windows and takes hotkeys, so it isn't supported;"
@@ -219,8 +230,11 @@ class WonderWindowsModule extends SuiteModule {
         key := "settings:wonder-windows"
         try {
             unit := WonderWindowsModule.ZoneUnits[ui.windows[key]["zoneUnit"].Value][1]
-            this.app.Settings.WritePreferences(this.id, Map("Zones", Map("Cycle", unit)))
+            giveBack := ui.windows[key]["giveBack"].Value != 0
+            this.app.Settings.WritePreferences(this.id, Map("Zones", Map("Cycle", unit),
+                "Keys", Map("GiveBackToWindows", giveBack ? 1 : 0)))
             WW_zone_cycle_unit := unit
+            this.givesBackWindowsKeys := giveBack
             WW_EndZoneCycle()
             ui.CloseWindow(key)
         }

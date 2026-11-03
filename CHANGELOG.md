@@ -8,6 +8,7 @@
 
 ### Changes
 
+- **Wonder Windows:** Keybindings now lists the improved Windows keys `Win + Up`, `Win + Down`, `Win + M`, `Win + Shift + M`, `Win + Home`, `Win + Shift + Home`, `Win + D` and `Win + Shift + D`, so you can move or clear them. Moved or cleared, an improved key, `Win + Left` and `Win + Right` included, does nothing instead of falling back to Windows' own version. A new Wonder Windows setting gives those keys back to Windows.
 - **Cascade Kingdom** shows no focus tabs on a cascade of one window, since there is nothing to switch to. They return as soon as a second window joins, and leave again when it is closed, minimized or maximized, hidden to the tray or moved to another virtual desktop. Each display's cascade decides for itself.
 
 ### Fixes

@@ -8,7 +8,7 @@ class KeybindingsChecks {
         this.LayerChordReleaseOrder()
         this.LayerDispatch()
         this.WhilePausedRoutes()
-        this.HiddenActions()
+        this.ReplacedKeys()
         this.LayerRecordingGestures()
         this.LayerIndicatorDelay()
         this.ScopesAndObservers()
@@ -321,27 +321,64 @@ class KeybindingsChecks {
         finally Critical(previousCritical)
     }
 
-    ; A hidden action stays out of the list and on its default keys.
-    static HiddenActions() {
-        manager := Keybindings("hidden-actions", "Hidden fixture",
-            {directory: SuiteChecks.directory "\hidden-actions"})
+    ; Routes for a configuration, mapped as _Activate would, without hotkeys.
+    static InstallRoutes(manager, configuration) {
+        candidate := manager._CandidateRoutes(configuration)
+        manager.configuration := candidate.configuration
+        manager.routes := candidate.routes
+        manager.routeMap := Map()
+        for route in manager.routes {
+            route.enabled := true
+            signature := route.binding.signature
+            if !manager.routeMap.Has(signature)
+                manager.routeMap[signature] := []
+            manager.routeMap[signature].Push(route)
+        }
+    }
+
+    ; A replaced Windows key stays claimed, doing nothing, once its action
+    ; moves or is disabled, unless keepsReplaced gives it back to Windows.
+    static ReplacedKeys() {
+        manager := Keybindings("replaced-keys", "Replaced fixture",
+            {directory: SuiteChecks.directory "\replaced-keys"})
+        keeps := {value: true}
         record := (*) => 0
-        manager.AddAction("fixture.listed", "listed key", record, ["Ctrl + Alt + F9"])
-        manager.AddAction("fixture.hidden", "improved native key", record, ["Win + Down"], {hidden: true})
+        manager.AddAction("fixture.improved", "improved native key", record, ["Win + Down"],
+            {replaces: ["Win + Down"], keepsReplaced: (*) => keeps.value})
+        manager.AddAction("fixture.other", "other key", record, ["Ctrl + Alt + F9"])
+        native := Keybindings.Parse("Win + Down").signature
         try {
-            configuration := manager._DefaultConfiguration()
-            configuration["fixture.hidden"].bindings[1] := "Ctrl + Alt + F8"
-            configuration["fixture.hidden"].enabled := false
-            candidate := manager._CandidateRoutes(configuration)
-            manager.configuration := candidate.configuration
-            hidden := candidate.configuration["fixture.hidden"]
-            this.Assert(hidden.enabled && hidden.bindings[1] = Keybindings.Parse("Win + Down").signature,
-                "a hidden action ignores saved changes and keeps its default keys")
+            this.InstallRoutes(manager, manager._DefaultConfiguration())
+            route := manager._SelectedRoute(native)
+            this.Assert(IsObject(route) && !route.claim, "an action on its Windows key needs no claim")
             listed := ""
             for row in Keybindings.DisplayRows(manager.Catalog())
                 listed .= row.id ","
-            this.Assert(InStr(listed, "fixture.listed,") && !InStr(listed, "fixture.hidden"),
-                "a hidden action never appears in Keybindings")
+            this.Assert(InStr(listed, "fixture.improved,"), "an improved Windows key is listed in Keybindings")
+
+            moved := manager._DefaultConfiguration()
+            moved["fixture.improved"].bindings[1] := "Ctrl + Alt + F8"
+            this.InstallRoutes(manager, moved)
+            route := manager._SelectedRoute(native)
+            this.Assert(IsObject(route) && route.claim && route.slot = 0,
+                "a moved action keeps claiming its Windows key")
+            manager._QueueEvent(route, "down", 0, false)
+            this.Assert(!manager.queue.Length && !route.token, "a claimed Windows key runs nothing")
+            keeps.value := false
+            this.Assert(!IsObject(manager._SelectedRoute(native)), "a Windows key given back reaches Windows")
+            keeps.value := true
+
+            disabled := manager._DefaultConfiguration()
+            disabled["fixture.improved"].enabled := false
+            this.InstallRoutes(manager, disabled)
+            this.Assert(manager._SelectedRoute(native).claim, "a disabled action keeps claiming its Windows key")
+
+            reused := moved.Clone()
+            reused["fixture.other"] := {enabled: true, bindings: ["Win + Down", ""]}
+            this.InstallRoutes(manager, reused)
+            route := manager._SelectedRoute(native)
+            this.Assert(route.action.id = "fixture.other" && !route.claim,
+                "another action may take a replaced Windows key")
         }
         finally manager.Stop()
     }
