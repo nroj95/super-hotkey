@@ -112,7 +112,10 @@ class SuiteInterface {
             controls.Push({button: control, width: buttonWidth})
             x += buttonWidth + 10
         }
-        footer := {band: band, divider: divider, buttons: controls, total: total}
+        ; The page's own scrollbar, beside the content and above the band, so
+        ; the size grip keeps its corner.
+        bar := window.Add("Custom", "ClassScrollBar x0 y0 w17 h100 Hidden -Tabstop +0x1") ; SBS_VERT
+        footer := {band: band, divider: divider, buttons: controls, total: total, bar: bar}
         this.pageFooters[window.Hwnd] := footer
         return footer
     }
@@ -133,7 +136,7 @@ class SuiteInterface {
     LayerFooter(window, footer) {
         for control in window
             control.Opt("+0x04000000") ; WS_CLIPSIBLINGS
-        layers := [footer.band, footer.divider]
+        layers := [footer.bar, footer.band, footer.divider]
         for item in footer.buttons
             layers.Push(item.button)
         if SuiteSizeGrip.grips.Has(window.Hwnd)
@@ -153,25 +156,27 @@ class SuiteInterface {
         this.scrollInstalled := true
     }
 
-    ; Shows the scrollbar while the content, measured by contentAt at a client
-    ; width, is taller than the space above the band, and keeps the offset in
-    ; range. The bar's width counts as client width when deciding, so showing
-    ; it never undoes itself; width becomes the client width left beside it.
-    FitScroll(window, layout, contentAt, &width, height) {
+    ; Shows the scrollbar while the content, measured by contentAt at a width,
+    ; is taller than the space above the band, and keeps the offset in range.
+    ; Decided at the full width, so showing the bar never undoes itself.
+    ; Returns the width left to the content beside the bar, and adds the
+    ; bar's place, from the top down to the band, to positions.
+    FitScroll(window, layout, contentAt, width, height, positions) {
         view := height - SuiteInterface.FooterBand
-        shown := !!(DllCall("GetWindowLongPtrW", "ptr", window.Hwnd, "int", -16, "ptr") & 0x00200000) ; WS_VSCROLL
-        bar := shown ? this.ScrollBarWidth(window) : 0
-        need := contentAt.Call(width + bar) > view
-        if need != shown {
-            DllCall("ShowScrollBar", "ptr", window.Hwnd, "int", 1, "int", need) ; SB_VERT
-            window.GetClientPos(, , &width)
-        }
-        content := contentAt.Call(width)
+        bar := layout.footer.bar
+        need := contentAt.Call(width) > view
+        barWidth := need ? this.ScrollBarWidth(window) : 0
+        content := contentAt.Call(width - barWidth)
         layout.offset := need ? Max(0, Min(layout.offset, content - view)) : 0
+        if bar.Visible != need
+            bar.Visible := need
+        if need
+            positions.Push({control: bar, x: width - barWidth, y: 0, w: barWidth, h: view})
         info := Buffer(28, 0) ; SCROLLINFO
         NumPut("uint", 28, "uint", 0x7, "int", 0, "int", Max(0, content - 1), "uint", Max(0, view),
             "int", layout.offset, info) ; SIF_RANGE | SIF_PAGE | SIF_POS
-        DllCall("SetScrollInfo", "ptr", window.Hwnd, "int", 1, "ptr", info, "int", true)
+        DllCall("SetScrollInfo", "ptr", bar.Hwnd, "int", 2, "ptr", info, "int", true) ; SB_CTL
+        return width - barWidth
     }
 
     ScrollBarWidth(window) {
@@ -210,7 +215,7 @@ class SuiteInterface {
     }
 
     ScrollBarMessage(wParam, lParam, message, hwnd) {
-        if !this.scrollPages.Has(hwnd) || lParam
+        if !this.scrollPages.Has(hwnd) || lParam != this.PageLayout(hwnd).footer.bar.Hwnd
             return
         offset := this.PageLayout(hwnd).offset
         view := this.ScrollView(hwnd)
@@ -222,7 +227,7 @@ class SuiteInterface {
             case 4, 5:                            ; SB_THUMBPOSITION, SB_THUMBTRACK
                 info := Buffer(28, 0)
                 NumPut("uint", 28, "uint", 0x10, info) ; SIF_TRACKPOS
-                DllCall("GetScrollInfo", "ptr", hwnd, "int", 1, "ptr", info, "int")
+                DllCall("GetScrollInfo", "ptr", lParam, "int", 2, "ptr", info, "int") ; SB_CTL
                 offset := NumGet(info, 24, "int")
             case 6: offset := 0                   ; SB_TOP
             case 7: offset := 0x7FFFFFFF          ; SB_BOTTOM
@@ -299,7 +304,7 @@ class SuiteInterface {
         minHeight := Min(minHeight, SuiteInterface.FooterBand + 160)
         window.Opt("+Resize +MinSize" minWidth "x" minHeight " +0x02000000")
         controls := []
-        footerHandles := Map(footer.band.Hwnd, true, footer.divider.Hwnd, true)
+        footerHandles := Map(footer.band.Hwnd, true, footer.divider.Hwnd, true, footer.bar.Hwnd, true)
         for item in footer.buttons
             footerHandles[item.button.Hwnd] := true
         for control in window {
@@ -329,9 +334,9 @@ class SuiteInterface {
         height := Max(layout.minHeight, height)
         if width = layout.renderedWidth && height = layout.renderedHeight
             return
-        this.FitScroll(window, layout, (*) => layout.content, &width, height)
-        dx := width - layout.width
         positions := []
+        contentWidth := this.FitScroll(window, layout, (*) => layout.content, width, height, positions)
+        dx := contentWidth - layout.width
         for item in layout.controls {
             positions.Push({control: item.control, x: item.x, y: item.y - layout.offset,
                 w: item.stretchWidth ? Max(45, item.w + dx) : item.w, h: item.h})
@@ -466,22 +471,22 @@ class SuiteInterface {
             layout.width := width
             layout.height := height
         }
-        this.FitScroll(window, layout, (clientWidth) => this.HelpContentHeight(id, clientWidth), &width, height)
-
+        positions := []
+        contentWidth := this.FitScroll(window, layout,
+            (clientWidth) => this.HelpContentHeight(id, clientWidth), width, height, positions)
         headerWidth := this.HelpHeadingWidth(window, layout.header)
         statusWidth := this.HelpHeadingWidth(window, layout.status)
-        headerX := Floor((width - headerWidth - statusWidth) / 2)
+        headerX := Floor((contentWidth - headerWidth - statusWidth) / 2)
         top := -layout.offset
-        positions := [
+        positions.Push(
             {control: layout.header, x: headerX, y: top + 18, w: headerWidth, h: 25},
             {control: layout.status, x: headerX + headerWidth, y: top + 18,
                 w: statusWidth, h: 25},
             {control: layout.footer.band, x: 0, y: height - SuiteInterface.FooterBand,
                 w: width, h: SuiteInterface.FooterBand},
-            {control: layout.footer.divider, x: 20, y: height - 64, w: width - 40, h: 2}
-        ]
-        for row in this.HelpGuideRows(id, width)
-            positions.Push({control: row.control, x: 20, y: top + 55 + row.y, w: width - 40, h: row.h})
+            {control: layout.footer.divider, x: 20, y: height - 64, w: width - 40, h: 2})
+        for row in this.HelpGuideRows(id, contentWidth)
+            positions.Push({control: row.control, x: 20, y: top + 55 + row.y, w: contentWidth - 40, h: row.h})
         x := width - 10 - layout.footer.total
         for item in layout.footer.buttons {
             positions.Push({control: item.button, x: x, y: height - 49,
