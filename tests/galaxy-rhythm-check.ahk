@@ -31,16 +31,18 @@ class GalaxyRhythmChecks {
     ; The morning bar after a night, as in Stardew Valley, with bedtime's
     ; default messages at 00:00 and 02:00 and the day starting at 06:00.
     static EnergyMorning() {
-        share := (bedtime, dry := false) => GR_Energy.MorningShare("20261104060000", bedtime, "0000", "0200", dry)
-        this.Assert(share("20261103233000") = 1 && share("20261104000000") = 1 && share("20261101120000") = 1,
-            "going to bed by the first bedtime message, or long before, starts the next day full")
-        this.Assert(Abs(share("20261104010000") - 0.75) < 0.001 && share("20261104020000") = 0.5
-            && share("20261104053000") = 0.5,
-            "a late night starts the day with less: three quarters at 01:00, half from the sleep at 02:00 on")
+        share := (lastUp, dry := false) => GR_Energy.MorningShare("20261104060000", lastUp, "0000", "0200", dry)
+        this.Assert(share("20261103233000") = 1 && share("20261104000000") = 1 && share("") = 1
+            && share("20261101120000") = 1,
+            "leaving the computer by the first bedtime message, or long before, starts the next day full")
+        this.Assert(Abs(share("20261104010000") - 0.75) < 0.001 && share("20261104020000") = 0.5,
+            "a late night starts the day with less: three quarters at 01:00, half if still there at the sleep at 02:00")
         this.Assert(share("20261103233000", true) = 0.5 && share("20261104020000", true) = 0.25,
             "a day that ran dry halves the next morning again")
-        this.Assert(share("") = 0.25 && share("", true) = 0.25,
-            "up all night counts as late and dry, once")
+        this.Assert(GR_Bedtime.InNight("20261104020000", "0200", "0600") && GR_Bedtime.InNight("20261104055959", "0200", "0600")
+            && !GR_Bedtime.InNight("20261104015959", "0200", "0600") && !GR_Bedtime.InNight("20261104060000", "0200", "0600")
+            && GR_Bedtime.InNight("20261103233000", "2300", "0700") && !GR_Bedtime.InNight("20261103120000", "2300", "0700"),
+            "lights-out runs from the sleep's time until the day starts, across midnight too")
         this.Assert(GR_Energy.LastAt("20261104060000", "2300") = "20261103230000"
             && GR_Energy.LastAt("20261104060000", "0600") = "20261104060000"
             && GR_Energy.LastAt("20261104055959", "0600") = "20261103060000",
@@ -119,16 +121,13 @@ class GalaxyRhythmChecks {
         energy.lastUp := "20261103115500"
         energy.dayStarted := "20261103060000"
         energy.dry := true
-        energy.sleepFrom := "20261102233000"
-        energy.sleepTo := "20261103070000"
         energy.module.dryRun := false  ; writes only to the check's own folder
         energy.SaveState()
         reloaded := GR_Energy(energy.module, energy.settingsPath, energy.statePath)
         this.Assert(reloaded.level = 123.45 && reloaded.lastSeen = "20261103120000"
             && reloaded.awaySince = "20261103115000" && reloaded.buffer = 12.5
-            && reloaded.lastUp = "20261103115500" && reloaded.dayStarted = "20261103060000" && reloaded.dry
-            && reloaded.sleepFrom = "20261102233000" && reloaded.sleepTo = "20261103070000",
-            "the level, the standstill left, the last tick and use, the day's start, a dry day and the last sleep survive a restart")
+            && reloaded.lastUp = "20261103115500" && reloaded.dayStarted = "20261103060000" && reloaded.dry,
+            "the level, the standstill left, the last tick and use, the day's start and a dry day survive a restart")
         energy.Stop("Exit")
         closed := GR_Energy(energy.module, energy.settingsPath, energy.statePath)
         energy.lastSeen := "20261103120000"
@@ -307,39 +306,38 @@ class GalaxyRhythmChecks {
                 "and again the next day")
             energy.windDay := ""
 
-            ; The next mornings: at 06:00 the bar starts over by when the
-            ; night's sleep began and whether the day ran dry.
-            energy.sleepFrom := energy.sleepTo := ""
+            ; The next mornings: at 06:00 the bar starts over by the last use
+            ; before lights-out and whether the day ran dry.
+            energy.lastUp := "20261103233000"
             energy.dry := false
             energy.buffer := 30
             energy.level := 50
-            energy.away := true
-            energy.awaySince := "20261103233000"
             app.sessionLocked := true
             energy.Tick("20261104060010", 0)
             this.Assert(energy.level = 600 && energy.buffer = 0 && energy.dayStarted = "20261104060000",
-                "at 06:00 the bar starts over, full for a sleep that began before midnight, even while still asleep")
-            energy.awaySince := "20261105010000"
+                "at 06:00 the bar starts over, full after leaving before midnight, even while away")
+            energy.lastUp := "20261105010000"
             energy.dry := true
             energy.Tick("20261105060010", 0)
             this.Assert(energy.level = 600 * 0.75 * 0.5 && !energy.dry,
-                "after a dry day and a sleep from 01:00, the day starts at three eighths")
+                "after a dry day and a night at the computer until 01:00, the day starts at three eighths")
             app.sessionLocked := false
-            energy.awaySince := "20261105220000"
+            energy.lastUp := "20261105220000"
             energy.Tick("20261106053000", 0)
-            energy.Tick("20261106055950", 0)
             energy.Tick("20261106060000", 0)
-            this.Assert(Abs(energy.level - (600 - tick)) < 0.001 && energy.sleepFrom = "20261105220000",
-                "an early riser, asleep from 22:00 and at the computer by 05:30, starts the day full")
-            energy.Tick("20261107055950", 0)
+            this.Assert(energy.lastUp = "20261106060000" && Abs(energy.level - (600 - tick)) < 0.001,
+                "an early riser at the computer by 05:30 starts the day full, as lights-out doesn't count")
+            energy.Tick("20261107015950", 0)
+            energy.Tick("20261107040000", 0)
             energy.Tick("20261107060000", 0)
-            this.Assert(Abs(energy.level - (150 - tick)) < 0.001 && energy.SecondWind("20261107060500")
-                && Abs(energy.level - (300 - tick)) < 0.001,
-                "an all-nighter starts the day at a quarter, late and dry, and still has its second wind")
-            energy.lastUp := "20261107225900"
-            energy.Tick("20261108080000", 0)
+            this.Assert(Abs(energy.level - (600 * GR_Energy.MorningShare("20261107060000", "20261107015950", "0000",
+                "0200", false) - tick)) < 0.001 && Abs(energy.level - 300) < 1,
+                "up all night, past the sleep, starts the day at about half")
+            energy.lastUp := "20261107230000"
+            energy.Tick("20261108033000", 0)
+            energy.Tick("20261108060000", 0)
             this.Assert(Abs(energy.level - (600 - tick)) < 0.001,
-                "a suite closed before midnight and started in the morning is no all-nighter")
+                "a quick look at 03:30 after going to bed at 23:00 costs nothing")
         }
         finally {
             SuiteStayAwake.active := false
@@ -475,8 +473,8 @@ class GalaxyRhythmChecks {
             SuiteStayAwake.active := true
             night("015955", "020005")
             this.Assert(this.ShownEverywhere("Stay awake prevented sleep") && !bedtime.fadeStarted
-                && bedtime.until = "20261103060000",
-                "stay awake at bedtime says so, and the night lasts until it ends at 06:00")
+                && bedtime.Night("20261103020005") && bedtime.Night("20261103055959") && !bedtime.Night("20261103060000"),
+                "stay awake at bedtime says so, and lights-out lasts until the day starts at 06:00")
             night("020005", "020010")
             this.Assert(!bedtime.fadeStarted, "nothing fades while stay awake lasts")
             SuiteStayAwake.active := false
@@ -509,17 +507,19 @@ class GalaxyRhythmChecks {
             SuiteNotice.Hide("status-1")
             app.sessionLocked := true
             bedtime.SleepAfterMessage()
-            this.Assert(module.reports[-1] = "dry run: bedtime sleep" && bedtime.until = "" && grey.level = 0,
-                "then the computer sleeps, even if locked meanwhile, and that ends the night")
+            this.Assert(module.reports[-1] = "dry run: bedtime sleep" && grey.level = 0,
+                "then the computer sleeps, even if locked meanwhile")
             app.sessionLocked := false
-            night("024000", "024005")
-            this.Assert(!bedtime.fadeStarted, "one sleep per night")
-            SuiteStayAwake.active := true
-            night("015955", "020005")
-            SuiteStayAwake.active := false
+            night("033000", "033005")
+            this.Assert(bedtime.fadeStarted && this.ShownEverywhere("You feel sleepy"),
+                "waking the computer before the day starts begins the fade again")
             night("055955", "060005")
-            this.Assert(!bedtime.fadeStarted && bedtime.until = "",
-                "stay awake ending after the night has ended starts nothing")
+            this.Assert(!bedtime.fadeStarted && grey.level = 0, "the day starting ends a fade")
+            SuiteStayAwake.active := true
+            night("060005", "060010")
+            SuiteStayAwake.active := false
+            night("060010", "060015")
+            this.Assert(!bedtime.fadeStarted, "after the day starts nothing fades, stay awake or not")
         }
         finally {
             bedtime.Stop()

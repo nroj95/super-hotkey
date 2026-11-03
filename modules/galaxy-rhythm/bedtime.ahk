@@ -7,16 +7,18 @@
 ; sleeps or is locked is simply gone: nothing catches up later, so the rows
 ; never depend on each other or on their order.
 ;
-; The last row is the sleep: its message starts the night, which lasts until
-; the day starts (wakeTime, Your day starts at): the displays fade to grey over the fade time, the
-; last word shows, and once it has gone the computer sleeps; locking meanwhile
-; changes nothing. Stay awake prevents only the sleep. On at bedtime, or
-; switched on during the fade or the last word, it shows its own message and
-; clears the grey; ending later in the night, it starts the fade again from
-; the beginning. One sleep ends the night early, as do suspending Super Hotkey
-; and the computer sleeping some other way. A night off shows nothing and
-; fades nothing until the day starts. The module itself starts disabled,
-; so every row starts on: enabling Galaxy Rhythm is the opt-in.
+; The last row is the sleep, and from its time until the day starts
+; (wakeTime, Your day starts at) it is lights-out: whenever the user is at
+; the unlocked computer, its message shows, the displays fade to grey over
+; the fade time, the last word shows, and once it has gone the computer
+; sleeps; locking meanwhile changes nothing. Waking the computer before the
+; day starts begins it all again, so a quick look is fine but the night
+; stays a night, and the day starting ends a fade. Stay awake prevents only
+; the sleep. On at bedtime, or switched on during the fade or the last word,
+; it shows its own message and clears the grey; ending before the day
+; starts, it lets the fade begin again. A night off, or Super Hotkey
+; suspended, shows nothing and fades nothing. The module itself starts
+; disabled, so every row starts on: enabling Galaxy Rhythm is the opt-in.
 ; settings.ini [Bedtime] holds them.
 ; =============================================================================
 
@@ -45,7 +47,6 @@ class GR_Bedtime {
         this.sleepText := GR_Bedtime.SleepDefault
         this.awakeText := GR_Bedtime.AwakeDefault
         this.last := ""        ; A_Now at the previous tick
-        this.until := ""       ; while a night lasts, when it ends (A_Now format)
         this.fadeStarted := 0  ; A_TickCount while fading
         this.saying := false   ; the last word shows, the sleep is armed
         this.tickCallback := ObjBindMethod(this, "Tick")
@@ -64,6 +65,13 @@ class GR_Bedtime {
 
     static CleanMinutes(text) => IsInteger(text) && text >= 1 && text <= GR_Bedtime.FadeLimit
         ? Integer(text) : GR_Bedtime.FadeDefault
+
+    ; Lights-out: since the day last started, the clock has passed the sleep's
+    ; time (HHmm).
+    static InNight(now, sleepTime, wakeTime) => DateDiff(GR_Energy.LastAt(now, sleepTime),
+        GR_Energy.LastAt(now, wakeTime), "Seconds") > 0
+
+    Night(now) => this.rows[-1].show && GR_Bedtime.InNight(now, this.rows[-1].time, this.wakeTime)
 
     ; The first moment after now at the HHmm time.
     static NextMoment(now, time) {
@@ -87,7 +95,7 @@ class GR_Bedtime {
         this.awakeText := GR_Bedtime.CleanText(IniRead(this.path, "Bedtime", "AwakeText", ""),
             GR_Bedtime.AwakeDefault)
         if !this.rows[-1].show
-            this.EndNight()
+            this.CancelFade()
     }
 
     Start() {
@@ -97,14 +105,14 @@ class GR_Bedtime {
 
     Stop() {
         SetTimer(this.tickCallback, 0)
-        this.EndNight()
+        this.CancelFade()
     }
 
     Tick(*) => this.Check(A_Now)
 
     ; Shows each row whose minute lies after the previous tick and at or before
-    ; now, then lets a night whose stay awake has ended fade. Returns the
-    ; indexes shown.
+    ; now, then fades whenever the user is there during lights-out, and stops
+    ; a fade the day's start has overtaken. Returns the indexes shown.
     Check(now) {
         last := this.last
         this.last := now
@@ -126,12 +134,12 @@ class GR_Bedtime {
                     }
                 }
         }
-        if this.until != "" && !this.fadeStarted {
-            if DateDiff(now, this.until, "Seconds") >= 0
-                this.until := ""
-            else if !SuiteStayAwake.active && this.Present(now)
+        if this.Night(now) {
+            if !this.fadeStarted && !SuiteStayAwake.active && this.Present(now)
                 this.StartFade()
         }
+        else if this.fadeStarted
+            this.CancelFade()
         return shown
     }
 
@@ -147,7 +155,6 @@ class GR_Bedtime {
             this.module.Report("bedtime message " index)
             return
         }
-        this.until := GR_Bedtime.NextMoment(now, this.wakeTime)
         if SuiteStayAwake.active
             this.Prevented()
         else
@@ -181,7 +188,7 @@ class GR_Bedtime {
         SetTimer(this.sleepCallback, -SuiteNotice.NewsMs)
     }
 
-    ; The night goes on: its sleep waits for stay awake to end.
+    ; Lights-out goes on: its sleep waits for stay awake to end.
     Prevented() {
         this.CancelFade()
         SuiteNotice.ShowEverywhere("status", this.awakeText)
@@ -195,11 +202,6 @@ class GR_Bedtime {
             this.module.grey.Set("bedtime", 0)
         this.fadeStarted := 0
         this.saying := false
-    }
-
-    EndNight() {
-        this.until := ""
-        this.CancelFade()
     }
 
     ; Locking meanwhile still sleeps. Held keys could stay stuck after waking,
@@ -219,7 +221,6 @@ class GR_Bedtime {
                 return
             }
         SetTimer(this.fadeCallback, 0)
-        this.until := ""
         if this.module.dryRun {
             this.module.Report("dry run: bedtime sleep")
             this.CancelFade()
@@ -232,8 +233,8 @@ class GR_Bedtime {
             TrayTip(failure.Message, this.module.Name, 2)
             return
         }
-        ; Waking normally ends the night (EndNight); this clears the grey even
-        ; if Windows accepted the sleep without sleeping.
+        ; This clears the grey even if Windows accepted the sleep without
+        ; sleeping; woken before the day starts, Check fades again.
         SetTimer(ObjBindMethod(this, "CancelFade"), -5000)
     }
 }

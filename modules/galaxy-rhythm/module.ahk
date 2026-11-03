@@ -87,7 +87,7 @@ class GalaxyRhythmModule extends SuiteModule {
             catch Error as failure
                 SuiteState.Log.Error("Galaxy Rhythm / night off", failure)
         if off
-            this.bedtime.EndNight()
+            this.bedtime.CancelFade()
         this.energy.Shade()
         SuiteNotice.Show("status", off ? Format("Galaxy Rhythm is off until {1}", FormatTime(this.offUntil, "HH:mm"))
             : "Galaxy Rhythm is back on", 1400)
@@ -119,7 +119,7 @@ class GalaxyRhythmModule extends SuiteModule {
     ; starts the user's rest; a suspended suite only pauses the energy bar.
     Suspend() {
         if this.app.suspended || this.app.systemSuspended
-            this.bedtime.EndNight()
+            this.bedtime.CancelFade()
         if this.app.sessionLocked || this.app.systemSuspended
             this.energy.Left()
     }
@@ -309,14 +309,14 @@ class GalaxyRhythmModule extends SuiteModule {
         FADE TO SLEEP
         The last message starts the night: the screen fades to grey over 10 minutes, Good night shows, and the computer sleeps, even if you lock it meanwhile.
         Stay awake (Pause + End in Power-Up Utilities) keeps it up, even during the fade, and says so; if it ends before your day starts, 06:00 by default, the fade starts over.
-        One sleep ends the night early.
+        Until your day starts it stays lights-out: waking the computer begins the fade again, so a quick look is fine but the night stays a night.
 
         ENERGY BAR
         A small upright bar marked E, bottom right on the primary display unless Settings moves it, is your energy for the day: every minute you use the computer, game controller included, costs a minute, and 10 hours of activity empty it.
         Watching or reading without touching anything costs half, though it never greys the screen.
         It never refills during the day: when your day starts, 06:00 by default, it starts over.
-        As in Stardew Valley, a late night costs you: go to bed before the first bedtime message, 00:00 by default, and the next day starts full; stay up and it starts with less, down to half from the sleep at 02:00 on, and half of that again if the bar ran dry.
-        An all-nighter counts as both, so the day starts at a quarter.
+        As in Stardew Valley, a late night costs you: leave the computer before the first bedtime message, 00:00 by default, and the next day starts full; stay later and it starts with less, down to half if you're still there at the sleep, 02:00, and half of that again if the bar ran dry.
+        What happens after the sleep doesn't count, since lights-out sends you back to bed.
         Breaks make it last instead: one of 5 minutes or more holds the bar still for twice as long once you're back, up to an hour.
         A break starts when the computer sees you go, as it locks, turns its screens off or sleeps; quiet time before that might have been reading or a film, so it doesn't count.
         So when you step away, lock the computer or put it to sleep, any way you like; Win + L and Pause + Escape in Power-Up Utilities do it in one press.
