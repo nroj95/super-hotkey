@@ -1,33 +1,52 @@
 ; =============================================================================
 ; bedtime.ahk - up to three messages at times the user chooses, the last of
-; which can also put the computer to sleep
+; which can also fade the displays to grey and put the computer to sleep
 ; =============================================================================
 ; Each message shows on every display when the clock reaches its time while the
 ; user is at the unlocked computer. A minute that passes while the computer
 ; sleeps or is locked is simply gone: nothing catches up later, so the rows
-; never depend on each other or on their order. The sleep waits until its
-; message has gone, so it is read first; stay awake prevents only the sleep,
-; and the last row then shows its own stay awake message instead. Every row
-; and the sleep start off; settings.ini [Bedtime] holds them.
+; never depend on each other or on their order.
+;
+; With its sleep on, the last message starts the night, which lasts until the
+; wake-up time: the displays fade to grey over the fade time, the last word
+; shows, and once it has gone the computer sleeps; locking meanwhile changes
+; nothing. Stay awake prevents only the sleep. On at bedtime, or switched on
+; during the fade or the last word, it shows its own message and clears the
+; grey; ending later in the night, it starts the fade again from the beginning.
+; One sleep ends the night, as do suspending Super Hotkey, the computer
+; sleeping some other way and the wake-up time. Every row and the sleep start
+; off; settings.ini [Bedtime] holds them.
 ; =============================================================================
 
 class PU_Bedtime {
-    static Defaults := [["0000", "It's getting late"], ["0100", "zzz…"], ["0200", "Good night"]]
+    static Defaults := [["0000", "It's getting late"], ["0100", "zzz…"], ["0200", "You feel sleepy"]]
+    static SleepDefault := "Good night"
     static AwakeDefault := "Stay awake prevented sleep"
+    static WakeDefault := "0700"
+    static FadeDefault := 10  ; minutes
+    static FadeLimit := 120
     static TextLimit := 60
     ; Ticks further apart follow sleep or a clock change: the minutes in
     ; between were not spent at the computer.
     static GapSeconds := 120
     static TickMs := 5000
+    static FadeStepMs := 1000
 
     __New(module, path) {
         this.module := module
         this.path := path
         this.rows := []
         this.sleeps := false
+        this.fadeMinutes := PU_Bedtime.FadeDefault
+        this.wakeTime := PU_Bedtime.WakeDefault
+        this.sleepText := PU_Bedtime.SleepDefault
         this.awakeText := PU_Bedtime.AwakeDefault
-        this.last := ""  ; A_Now at the previous tick
+        this.last := ""        ; A_Now at the previous tick
+        this.until := ""       ; while a night lasts, when it ends (A_Now format)
+        this.fadeStarted := 0  ; A_TickCount while fading
+        this.saying := false   ; the last word shows, the sleep is armed
         this.tickCallback := ObjBindMethod(this, "Tick")
+        this.fadeCallback := ObjBindMethod(this, "FadeStep")
         this.sleepCallback := ObjBindMethod(this, "SleepAfterMessage")
         this.Load()
     }
@@ -40,6 +59,15 @@ class PU_Bedtime {
         return text = "" ? fallback : SubStr(text, 1, PU_Bedtime.TextLimit)
     }
 
+    static CleanMinutes(text) => IsInteger(text) && text >= 1 && text <= PU_Bedtime.FadeLimit
+        ? Integer(text) : PU_Bedtime.FadeDefault
+
+    ; The first moment after now at the HHmm time.
+    static NextMoment(now, time) {
+        moment := SubStr(now, 1, 8) time "00"
+        return DateDiff(moment, now, "Seconds") > 0 ? moment : DateAdd(moment, 1, "Days")
+    }
+
     Load() {
         this.rows := []
         for index, defaults in PU_Bedtime.Defaults {
@@ -49,8 +77,15 @@ class PU_Bedtime {
                 text: PU_Bedtime.CleanText(IniRead(this.path, "Bedtime", "Text" index, ""), defaults[2])})
         }
         this.sleeps := IniRead(this.path, "Bedtime", "Sleep", 0) = "1"
+        this.fadeMinutes := PU_Bedtime.CleanMinutes(IniRead(this.path, "Bedtime", "FadeMinutes", ""))
+        wake := IniRead(this.path, "Bedtime", "WakeTime", PU_Bedtime.WakeDefault)
+        this.wakeTime := PU_Bedtime.ValidTime(wake) ? wake : PU_Bedtime.WakeDefault
+        this.sleepText := PU_Bedtime.CleanText(IniRead(this.path, "Bedtime", "SleepText", ""),
+            PU_Bedtime.SleepDefault)
         this.awakeText := PU_Bedtime.CleanText(IniRead(this.path, "Bedtime", "AwakeText", ""),
             PU_Bedtime.AwakeDefault)
+        if !this.sleeps || !this.rows[-1].show
+            this.EndNight()
     }
 
     Start() {
@@ -60,34 +95,40 @@ class PU_Bedtime {
 
     Stop() {
         SetTimer(this.tickCallback, 0)
-        SetTimer(this.sleepCallback, 0)
+        this.EndNight()
     }
 
     Tick(*) => this.Check(A_Now)
 
     ; Shows each row whose minute lies after the previous tick and at or before
-    ; now. Returns the indexes shown.
+    ; now, then lets a night whose stay awake has ended fade. Returns the
+    ; indexes shown.
     Check(now) {
         last := this.last
         this.last := now
         shown := []
-        if last = ""
-            return shown
-        gap := DateDiff(now, last, "Seconds")
-        if gap <= 0 || gap > PU_Bedtime.GapSeconds || !this.Present()
-            return shown
-        for index, row in this.rows {
-            if !row.show
-                continue
-            ; Around midnight the two ticks fall on different days.
-            for day in [SubStr(last, 1, 8), SubStr(now, 1, 8)] {
-                moment := day row.time "00"
-                if DateDiff(moment, last, "Seconds") > 0 && DateDiff(moment, now, "Seconds") <= 0 {
-                    shown.Push(index)
-                    this.Show(index)
-                    break
+        if last != "" {
+            gap := DateDiff(now, last, "Seconds")
+            if gap > 0 && gap <= PU_Bedtime.GapSeconds && this.Present()
+                for index, row in this.rows {
+                    if !row.show
+                        continue
+                    ; Around midnight the two ticks fall on different days.
+                    for day in [SubStr(last, 1, 8), SubStr(now, 1, 8)] {
+                        moment := day row.time "00"
+                        if DateDiff(moment, last, "Seconds") > 0 && DateDiff(moment, now, "Seconds") <= 0 {
+                            shown.Push(index)
+                            this.Show(index, now)
+                            break
+                        }
+                    }
                 }
-            }
+        }
+        if this.until != "" && !this.fadeStarted {
+            if DateDiff(now, this.until, "Seconds") >= 0
+                this.until := ""
+            else if !this.module.stayAwake.index && this.Present()
+                this.StartFade()
         }
         return shown
     }
@@ -98,36 +139,99 @@ class PU_Bedtime {
             && !app.systemSuspended && !app.sessionLocked
     }
 
-    Show(index) {
-        sleeping := index = this.rows.Length && this.sleeps
-        prevented := sleeping && this.module.stayAwake.index
-        SuiteNotice.ShowEverywhere("status", prevented ? this.awakeText : this.rows[index].text)
-        this.module.Report("bedtime message " index
-            . (prevented ? ", sleep prevented by stay awake" : sleeping ? ", then sleep" : ""))
-        if sleeping && !prevented
-            SetTimer(this.sleepCallback, -SuiteNotice.NewsMs)
+    Show(index, now) {
+        if index != this.rows.Length || !this.sleeps {
+            SuiteNotice.ShowEverywhere("status", this.rows[index].text)
+            this.module.Report("bedtime message " index)
+            return
+        }
+        this.until := PU_Bedtime.NextMoment(now, this.wakeTime)
+        if this.module.stayAwake.index
+            this.Prevented()
+        else
+            this.StartFade()
     }
 
-    ; Locking meanwhile still sleeps; suspending, staying awake or turning the
-    ; sleep off does not. Held keys could stay stuck after waking, so it waits.
+    StartFade() {
+        SuiteNotice.ShowEverywhere("status", this.rows[-1].text)
+        this.module.Report("bedtime message " this.rows.Length ", fading to sleep over " this.fadeMinutes " min")
+        this.fadeStarted := A_TickCount
+        this.saying := false
+        SetTimer(this.fadeCallback, PU_Bedtime.FadeStepMs)
+    }
+
+    ; Greys a little more each second; fully grey, the last word shows and
+    ; arms the sleep. Stay awake switched on meanwhile ends the fade.
+    FadeStep(tick := "") {
+        if !this.fadeStarted
+            return
+        if this.module.stayAwake.index {
+            this.Prevented()
+            return
+        }
+        elapsed := ((tick = "" ? A_TickCount : tick) - this.fadeStarted) & 0xFFFFFFFF
+        level := elapsed / (this.fadeMinutes * 60000)
+        this.module.grey.Set("bedtime", level)
+        if level < 1 || this.saying
+            return
+        this.saying := true
+        SuiteNotice.ShowEverywhere("status", this.sleepText)
+        SetTimer(this.sleepCallback, -SuiteNotice.NewsMs)
+    }
+
+    ; The night goes on: its sleep waits for stay awake to end.
+    Prevented() {
+        this.CancelFade()
+        SuiteNotice.ShowEverywhere("status", this.awakeText)
+        this.module.Report("bedtime sleep prevented by stay awake")
+    }
+
+    CancelFade() {
+        SetTimer(this.fadeCallback, 0)
+        SetTimer(this.sleepCallback, 0)
+        if this.fadeStarted
+            this.module.grey.Set("bedtime", 0)
+        this.fadeStarted := 0
+        this.saying := false
+    }
+
+    EndNight() {
+        this.until := ""
+        this.CancelFade()
+    }
+
+    ; Locking meanwhile still sleeps. Held keys could stay stuck after waking,
+    ; so it waits; the grey stays until the computer is asleep.
     SleepAfterMessage(*) {
         app := this.module.app
-        if !this.sleeps || this.module.stopping || !app.ModuleActive(this.module.id)
-            || app.suspended || app.systemSuspended || this.module.stayAwake.index
+        if !this.saying || this.module.stopping || !app.ModuleActive(this.module.id)
+            || app.suspended || app.systemSuspended
             return
+        if this.module.stayAwake.index {
+            this.Prevented()
+            return
+        }
         for key in PowerUpUtilities.BlockingKeys("sleep")
             if GetKeyState(key, "P") {
                 SetTimer(this.sleepCallback, -250)
                 return
             }
+        SetTimer(this.fadeCallback, 0)
+        this.until := ""
         if this.module.dryRun {
             this.module.Report("dry run: bedtime sleep")
+            this.CancelFade()
             return
         }
         try this.module.utilities.Sleep()
         catch Error as failure {
+            this.CancelFade()
             SuiteState.Log.Error("Power-Up Utilities / bedtime sleep", failure)
             TrayTip(failure.Message, this.module.Name, 2)
+            return
         }
+        ; Waking normally ends the night (EndNight); this clears the grey even
+        ; if Windows accepted the sleep without sleeping.
+        SetTimer(ObjBindMethod(this, "CancelFade"), -5000)
     }
 }

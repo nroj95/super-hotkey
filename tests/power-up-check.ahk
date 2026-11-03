@@ -1,14 +1,48 @@
 ; Power-Up Utilities: sleep policy recovery, the stay-awake steps, the keys
-; that hold macros back and a night of bedtime messages on a fake clock.
+; that hold macros back, the grey screen's levels and a night of bedtime
+; messages and fading on a fake clock.
 ; Disposable preferences, dry-run inputs and test-owned windows only; staying
-; awake is never requested from Windows here, and bedtime never sleeps.
+; awake is never requested from Windows here, bedtime never sleeps and the
+; displays never turn grey.
 class PowerUpChecks {
     static Run() {
         this.SleepPolicyRecovery()
         this.StayAwakeCycles()
         this.BlockingKeys()
+        this.GreyLevels()
         this.BedtimeSettings()
         this.BedtimeNight()
+        this.BedtimeFade()
+    }
+
+    static GreyLevels() {
+        grey := PU_GreyScreen(true)
+        grey.Set("bedtime", 0.3)
+        grey.Set("energy", 0.7)
+        this.Assert(grey.level = 0.7, "the greyest request wins")
+        grey.Set("energy", 0)
+        this.Assert(grey.level = 0.3, "a request withdrawn leaves the others")
+        grey.Set("bedtime", 2)
+        this.Assert(grey.level = 1, "grey never goes past fully grey")
+        grey.Clear()
+        this.Assert(grey.level = 0 && !grey.levels.Count, "clearing restores the colors")
+    }
+
+    ; A dry-run module on a fake clock: nothing sleeps or turns grey.
+    static BedtimeFixture(name) {
+        reports := []
+        app := {suspended: false, systemSuspended: false, sessionLocked: false,
+            ModuleActive: (app, id) => true}
+        module := {app: app, id: "power-up-utilities", stopping: false, dryRun: true,
+            Name: "Power-Up Utilities", stayAwake: {index: 0}, grey: PU_GreyScreen(true),
+            reports: reports, Report: (module, text) => reports.Push(text)}
+        return PU_Bedtime(module, SuiteChecks.directory "\" name "\settings.ini")
+    }
+
+    ; Steps a fixture's clock from last to now, both HHmmss on one night.
+    static Night(bedtime, last, now) {
+        bedtime.last := "20261103" last
+        return bedtime.Check((now < last ? "20261104" : "20261103") now)
     }
 
     ; Saved rows load with their defaults filling in anything unusable.
@@ -23,42 +57,42 @@ class PowerUpChecks {
         folder := SuiteChecks.directory "\bedtime-settings"
         DirCreate(folder)
         path := folder "\settings.ini"
-        bedtime := PU_Bedtime({}, path)
+        bedtime := this.BedtimeFixture("bedtime-settings")
         allOff := !bedtime.sleeps
         for row in bedtime.rows
             allOff := allOff && !row.show
-        this.Assert(allOff && bedtime.rows[1].time = "0000" && bedtime.rows[3].text = "Good night"
-            && bedtime.awakeText = "Stay awake prevented sleep",
+        this.Assert(allOff && bedtime.rows[1].time = "0000" && bedtime.rows[3].text = "You feel sleepy",
             "every bedtime message and the sleep start off, at 00:00, 01:00 and 02:00")
+        this.Assert(bedtime.fadeMinutes = 10 && bedtime.wakeTime = "0700"
+            && bedtime.sleepText = "Good night" && bedtime.awakeText = "Stay awake prevented sleep",
+            "the sleep fades over 10 min, says Good night and lasts the night until 07:00")
         IniWrite(1, path, "Bedtime", "Show2")
         IniWrite("0130", path, "Bedtime", "Time2")
         IniWrite("9999", path, "Bedtime", "Time3")
         IniWrite("Off to bed", path, "Bedtime", "Text1")
         IniWrite("Up late again", path, "Bedtime", "AwakeText")
+        IniWrite("25", path, "Bedtime", "FadeMinutes")
+        IniWrite("0615", path, "Bedtime", "WakeTime")
         bedtime.Load()
         this.Assert(bedtime.rows[2].show && bedtime.rows[2].time = "0130" && bedtime.rows[2].text = "zzz…"
             && bedtime.rows[3].time = "0200" && bedtime.rows[1].text = "Off to bed"
-            && bedtime.awakeText = "Up late again",
+            && bedtime.awakeText = "Up late again" && bedtime.fadeMinutes = 25 && bedtime.wakeTime = "0615",
             "saved bedtime rows load, and an unusable time falls back to its default")
+        this.Assert(PU_Bedtime.CleanMinutes("0") = 10 && PU_Bedtime.CleanMinutes("121") = 10
+            && PU_Bedtime.CleanMinutes("x") = 10 && PU_Bedtime.CleanMinutes("120") = 120,
+            "a fade lasts 1 to 120 minutes")
     }
 
-    ; One night on a fake clock. A row shows only if its minute passes between
-    ; two close ticks while the user is at the unlocked computer.
+    ; The messages on a fake clock. A row shows only if its minute passes
+    ; between two close ticks while the user is at the unlocked computer.
     static BedtimeNight() {
-        reports := []
-        app := {suspended: false, systemSuspended: false, sessionLocked: false,
-            ModuleActive: (app, id) => true}
-        module := {app: app, id: "power-up-utilities", stopping: false, dryRun: true,
-            Name: "Power-Up Utilities", stayAwake: {index: 0},
-            Report: (module, text) => reports.Push(text)}
-        bedtime := PU_Bedtime(module, SuiteChecks.directory "\bedtime-night\settings.ini")
-        night := (last, now) => (bedtime.last := "20261103" last, bedtime.Check(
-            (now < last ? "20261104" : "20261103") now))
+        bedtime := this.BedtimeFixture("bedtime-night")
+        module := bedtime.module, app := module.app
+        night := (last, now) => this.Night(bedtime, last, now)
         shown := (list) => list.Length ? list[1] : 0
         this.Assert(!night("235955", "000005").Length, "turned-off messages never show")
         for row in bedtime.rows
             row.show := true
-        bedtime.sleeps := true
         this.Assert(shown(night("235955", "000005")) = 1 && this.ShownEverywhere("It's getting late"),
             "a message shows on every display when its time passes, across midnight too")
         this.Assert(!night("000005", "000010").Length, "a message shows once")
@@ -73,30 +107,77 @@ class PowerUpChecks {
         module.stayAwake.index := 1
         this.Assert(shown(night("005955", "010005")) = 2 && this.ShownEverywhere("zzz…"),
             "messages still show while staying awake")
-        this.Assert(shown(night("015955", "020005")) = 3 && this.ShownEverywhere("Stay awake prevented sleep")
-            && InStr(reports[-1], "prevented"),
-            "stay awake prevents only the sleep, and says so instead of Good night")
-        SetTimer(bedtime.sleepCallback, 0)
         module.stayAwake.index := 0
-        this.Assert(shown(night("015955", "020005")) = 3 && this.ShownEverywhere("Good night"),
-            "the last message shows its Good night")
-        ; Checks run uninterruptible, so the sleep's timer is called by hand.
-        SetTimer(bedtime.sleepCallback, 0)
-        module.stayAwake.index := 1
-        bedtime.SleepAfterMessage()
-        this.Assert(reports[-1] != "dry run: bedtime sleep",
-            "stay awake started during Good night keeps the computer up")
-        module.stayAwake.index := 0
-        app.sessionLocked := true
-        bedtime.SleepAfterMessage()
-        this.Assert(reports[-1] = "dry run: bedtime sleep",
-            "then the computer sleeps, even if locked meanwhile")
-        app.sessionLocked := false
-        bedtime.sleeps := false
-        night("015955", "020005")
-        SetTimer(bedtime.sleepCallback, 0)
-        this.Assert(reports[-1] = "bedtime message 3" && this.ShownEverywhere("Good night"),
-            "without its sleep, Good night is only a message")
+        this.Assert(shown(night("015955", "020005")) = 3 && this.ShownEverywhere("You feel sleepy")
+            && module.reports[-1] = "bedtime message 3" && !bedtime.fadeStarted,
+            "without its sleep, the last row is only a message")
+        bedtime.Stop()
+    }
+
+    ; One night of the sleep: the fade, stay awake on and off, the last word,
+    ; and the wake-up time. FadeStep takes the tick it pretends it is.
+    static BedtimeFade() {
+        bedtime := this.BedtimeFixture("bedtime-fade")
+        module := bedtime.module, app := module.app, grey := module.grey
+        night := (last, now) => this.Night(bedtime, last, now)
+        minutes := (count) => bedtime.fadeStarted + count * 60000
+        bedtime.rows[3].show := true
+        bedtime.sleeps := true
+        try {
+            module.stayAwake.index := 1
+            night("015955", "020005")
+            this.Assert(this.ShownEverywhere("Stay awake prevented sleep") && !bedtime.fadeStarted
+                && bedtime.until = "20261103070000",
+                "stay awake at bedtime says so, and the night lasts until the wake-up time")
+            night("020005", "020010")
+            this.Assert(!bedtime.fadeStarted, "nothing fades while stay awake lasts")
+            module.stayAwake.index := 0
+            night("020010", "020015")
+            this.Assert(bedtime.fadeStarted && this.ShownEverywhere("You feel sleepy"),
+                "stay awake ending in the night starts the fade with the last message")
+            bedtime.FadeStep(minutes(5))
+            this.Assert(grey.level = 0.5 && !bedtime.saying, "halfway through the fade, half grey")
+            module.stayAwake.index := 1
+            bedtime.FadeStep(minutes(6))
+            this.Assert(!bedtime.fadeStarted && grey.level = 0
+                && this.ShownEverywhere("Stay awake prevented sleep"),
+                "stay awake switched on mid-fade clears the grey and says so")
+            module.stayAwake.index := 0
+            night("021000", "021005")
+            this.Assert(bedtime.fadeStarted && this.ShownEverywhere("You feel sleepy"),
+                "the fade starts over when stay awake ends again")
+            bedtime.FadeStep(minutes(10))
+            this.Assert(grey.level = 1 && bedtime.saying && this.ShownEverywhere("Good night"),
+                "fully grey, the last word shows")
+            ; Checks run uninterruptible, so the sleep's timer is called by hand.
+            module.stayAwake.index := 1
+            bedtime.SleepAfterMessage()
+            this.Assert(!bedtime.fadeStarted && grey.level = 0 && module.reports[-1] != "dry run: bedtime sleep"
+                && this.ShownEverywhere("Stay awake prevented sleep"),
+                "Pause + End during the last word keeps the computer up")
+            module.stayAwake.index := 0
+            night("023000", "023005")
+            bedtime.FadeStep(minutes(10))
+            SuiteNotice.Hide("status-1")
+            app.sessionLocked := true
+            bedtime.SleepAfterMessage()
+            this.Assert(module.reports[-1] = "dry run: bedtime sleep" && bedtime.until = "" && grey.level = 0,
+                "then the computer sleeps, even if locked meanwhile, and that ends the night")
+            app.sessionLocked := false
+            night("024000", "024005")
+            this.Assert(!bedtime.fadeStarted, "one sleep per night")
+            module.stayAwake.index := 1
+            night("015955", "020005")
+            module.stayAwake.index := 0
+            night("065955", "070005")
+            this.Assert(!bedtime.fadeStarted && bedtime.until = "",
+                "stay awake ending after the wake-up time starts nothing")
+        }
+        finally {
+            bedtime.Stop()
+            loop MonitorGetCount()
+                SuiteNotice.Hide("status-" A_Index)
+        }
     }
 
     static Assert(condition, label) => SuiteChecks.Assert(condition, label)
