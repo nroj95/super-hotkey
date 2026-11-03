@@ -132,7 +132,11 @@ class GalaxyRhythmChecks {
             this.Assert(Abs(energy.level - (720 - tick)) < 0.001, "an active tick costs its ten seconds")
             before := energy.level
             energy.Tick(at("090010"), 120000)
-            this.Assert(energy.level = before, "idle time costs nothing")
+            this.Assert(Abs(energy.level - (before - tick / 2)) < 0.001, "watching or reading costs half")
+            energy.level := 0.05
+            energy.Tick(at("090011"), 120000)
+            this.Assert(energy.level = 0 && grey.level = 0, "and stops at zero, never greying the screen")
+            energy.level := before
             energy.level := 72.1
             energy.Tick(at("090020"), 0)
             this.Assert(this.ShownEverywhere(GR_Energy.Low), "10 % left says so")

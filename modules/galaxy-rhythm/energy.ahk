@@ -2,9 +2,11 @@
 ; energy.ahk - an energy bar that drains while the user works and refills
 ; while they rest away from the computer
 ; =============================================================================
-; A minute with physical keyboard or mouse input costs a minute; idle time and
-; anything programs do on their own cost nothing. A full bar holds FullHours
-; of active minutes.
+; A minute with physical keyboard or mouse input costs a minute. A minute at
+; the unlocked computer with its screens on but no input, watching or
+; reading, costs half, down to zero but never onto the road; anything
+; programs do on their own is no input. A full bar holds FullHours of active
+; minutes.
 ;
 ; Rest is the time from the moment the computer first saw the user gone, when
 ; it locked, turned its displays off, slept or was off, until they come back.
@@ -37,6 +39,7 @@
 class GR_Energy {
     static TickMs := 10000
     static ActiveMs := 60000      ; input this recent makes a tick active
+    static PassiveShare := 0.5    ; of a tick's cost while the user only watches or reads
     static FadeDefault := 30      ; minutes of activity from zero to the faint
     static LowShare := 0.1
     static RestedShare := 0.05    ; the least a break gives back to say so
@@ -237,8 +240,11 @@ class GR_Energy {
             this.Save(now)
             return
         }
+        cost := GR_Energy.TickMs / 60000
         if idleMs < GR_Energy.ActiveMs
-            this.level := Max(this.level - GR_Energy.TickMs / 60000, Min(this.level, -this.roadMinutes))
+            this.level := Max(this.level - cost, Min(this.level, -this.roadMinutes))
+        else ; watching or reading: half the cost, and never onto the road
+            this.level := Max(this.level - cost * GR_Energy.PassiveShare, Min(this.level, 0))
         if this.level > this.full * GR_Energy.LowShare
             this.lowShown := false
         else if this.level > 0 && !this.lowShown {
