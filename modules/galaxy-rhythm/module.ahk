@@ -2,10 +2,18 @@
 ; their settings page and guide; bedtime.ahk runs the night, energy.ahk the
 ; bar and grey-screen.ahk the grey both share. Stay awake and sleeping come
 ; from core (SuiteStayAwake, SuiteSleep), so Power-Up Utilities' Pause + End
-; keeps the computer up here too.
+; keeps the computer up through bedtime too; the energy bar ignores it.
+;
+; One time, Your day starts at (the bedtime wakeTime), ends both bedtime's
+; night and a night off. Help's Tonight off button starts a night off:
+; until the day starts, no bedtime messages or sleep, and no drain, energy
+; notices, grey or faint, while rest still counts. night.ini keeps it across
+; restarts.
 class GalaxyRhythmModule extends SuiteModule {
     hasSettings := true
     resetSections := ["Bedtime", "Energy"]
+    static OffLabel := "Tonight off"
+    static OnLabel := "Back on"
 
     __New(app) {
         super.__New(app, "galaxy-rhythm")
@@ -13,11 +21,70 @@ class GalaxyRhythmModule extends SuiteModule {
         this.displayChoices := []  ; the settings page's Display values
         this.grey := GR_GreyScreen(app.dryRun)
         folder := app.Settings.directory "\" this.id
+        this.nightPath := folder "\night.ini"
+        saved := IniRead(this.nightPath, "Night", "OffUntil", "")
+        this.offUntil := IsTime(saved) ? saved : ""  ; A_Now when a night off ends
+        this.nightOffShown := false  ; what Settings' checkbox last showed
         this.bedtime := GR_Bedtime(this, folder "\settings.ini")
         this.energy := GR_Energy(this, folder "\settings.ini", folder "\energy.ini")
     }
 
     dryRun => this.app.dryRun
+
+    ; A night off lasts until the day starts.
+    Off(now := "") => this.offUntil != "" && DateDiff(now = "" ? A_Now : now, this.offUntil, "Seconds") < 0
+
+    HelpButtons() => this.app.ModuleActive(this.id)
+        ? [[this.Off() ? GalaxyRhythmModule.OnLabel : GalaxyRhythmModule.OffLabel,
+            ObjBindMethod(this, "ToggleNightOff"), 120]] : []
+
+    ; Does what the button says, even if the night off ended while Help
+    ; stayed open.
+    ToggleNightOff(*) {
+        button := this.NightButton()
+        this.SetNightOff(IsObject(button) ? button.Text = GalaxyRhythmModule.OffLabel : !this.Off())
+    }
+
+    ; Help's Tonight off or Back on button, if Help is open.
+    NightButton() {
+        if this.app.ui.windows.Has("help:" this.id)
+            for hwnd, control in this.app.ui.windows["help:" this.id]
+                if control.Type = "Button" && (control.Text = GalaxyRhythmModule.OffLabel
+                    || control.Text = GalaxyRhythmModule.OnLabel)
+                    return control
+        return 0
+    }
+
+    ; Help's button and Settings' checkbox both show whether tonight is off;
+    ; Apply changes the night off only if the checkbox was changed since.
+    SyncNightOff() {
+        off := this.Off()
+        if button := this.NightButton()
+            button.Text := off ? GalaxyRhythmModule.OnLabel : GalaxyRhythmModule.OffLabel
+        if this.app.ui.windows.Has("settings:" this.id)
+            this.app.ui.windows["settings:" this.id]["nightOff"].Value := off
+        this.nightOffShown := off
+    }
+
+    SetNightOff(off, now := "") {
+        now := now = "" ? A_Now : now
+        this.offUntil := off ? GR_Bedtime.NextMoment(now, this.bedtime.wakeTime) : ""
+        if !this.dryRun
+            try {
+                SplitPath(this.nightPath, , &directory)
+                DirCreate(directory)
+                IniWrite(this.offUntil, this.nightPath, "Night", "OffUntil")
+            }
+            catch Error as failure
+                SuiteState.Log.Error("Galaxy Rhythm / night off", failure)
+        if off
+            this.bedtime.EndNight()
+        this.energy.Shade()
+        SuiteNotice.Show("status", off ? Format("Galaxy Rhythm is off until {1}", FormatTime(this.offUntil, "HH:mm"))
+            : "Galaxy Rhythm is back on", 1400)
+        this.Report(off ? "night off until " this.offUntil : "night off ended")
+        this.SyncNightOff()
+    }
 
     ; Help starts unassigned; the guide is also in the tray menu.
     Register(manager) {
@@ -59,6 +126,16 @@ class GalaxyRhythmModule extends SuiteModule {
             return
         window := ui.NewWindow(key, this.Name " - Settings", true)
         rows := SuitePageRows(window, 640)
+        rows.Heading("YOUR DAY")
+        rows.Text("One time for every morning: it ends bedtime's night, and a night off, taken here or with"
+            . " the button in Help.")
+        y := rows.y
+        window.AddText("x20 y" (y + 4) " w170", "Your day starts at")
+        wake := window.AddDateTime("x200 y" y " w75 +0x1 vwake", "HH:mm")
+        wake.Value := "20000101" this.bedtime.wakeTime "00"
+        this.nightOffShown := this.Off()
+        window.AddCheckbox("x330 y" (y + 4) " w200 vnightOff", GalaxyRhythmModule.OffLabel).Value := this.nightOffShown
+        rows.Advance(wake)
         rows.Heading("BEDTIME")
         rows.Text("Two reminders, then the sleep: each message shows on every display at its time"
             . " while you use the unlocked computer. The last one fades the screen to grey and puts"
@@ -85,11 +162,7 @@ class GalaxyRhythmModule extends SuiteModule {
         sleepControls.Push(window.AddText("x44 y" (y + 4) " w150", "Fade to grey over"))
         fade := window.AddEdit("x200 y" y " w60 Number vfade")
         sleepControls.Push(fade, window.AddUpDown("Range1-" GR_Bedtime.FadeLimit, this.bedtime.fadeMinutes),
-            window.AddText("x268 y" (y + 4) " w40", "min"),
-            window.AddText("x330 y" (y + 4) " w120", "Night ends at"))
-        wake := window.AddDateTime("x455 y" y " w75 +0x1 vwake", "HH:mm")
-        wake.Value := "20000101" this.bedtime.wakeTime "00"
-        sleepControls.Push(wake)
+            window.AddText("x268 y" (y + 4) " w40", "min"))
         rows.Advance(fade)
         y := rows.y
         sleepControls.Push(window.AddText("x44 y" (y + 4) " w150", "At sleep:"))
@@ -202,9 +275,15 @@ class GalaxyRhythmModule extends SuiteModule {
                 "FaintText", GR_Bedtime.CleanText(window["faintText"].Value, GR_Energy.Faint),
                 "Position", GR_EnergyBar.Corners[window["position"].Value][1],
                 "Display", this.displayChoices[window["display"].Value])
+            nightOff := window["nightOff"].Value
+            wakeBefore := this.bedtime.wakeTime
             this.app.Settings.WritePreferences(this.id, Map("Bedtime", values, "Energy", energy))
             this.bedtime.Load()
             this.energy.LoadSettings()
+            ; A changed checkbox takes or ends the night off; a night off
+            ; already taken follows a new start of the day.
+            if nightOff != this.nightOffShown || nightOff && this.Off() && this.bedtime.wakeTime != wakeBefore
+                this.SetNightOff(nightOff)
             ui.CloseWindow(key)
         }
         catch Error as failure
@@ -223,20 +302,22 @@ class GalaxyRhythmModule extends SuiteModule {
 
         FADE TO SLEEP
         The last message starts the night: the screen fades to grey over 10 minutes, Good night shows, and the computer sleeps, even if you lock it meanwhile.
-        Stay awake (Pause + End in Power-Up Utilities) keeps it up, even during the fade, and says so; if it ends before the night ends, 06:00 by default, the fade starts over.
+        Stay awake (Pause + End in Power-Up Utilities) keeps it up, even during the fade, and says so; if it ends before your day starts, 06:00 by default, the fade starts over.
         One sleep ends the night early.
 
         ENERGY BAR
         A small upright bar marked E, bottom right on the primary display unless Settings moves it, drains with every minute you use the computer: 12 hours of activity empty it.
-        It refills while you rest away from it, locked, with the screens off, asleep or off: every break counts, but a 10-minute one pays best and gives back about 50 minutes, and a full night of 8 hours fills it.
+        It refills while you rest away from it: every break counts, but a 10-minute one pays best and gives back about 50 minutes, and a full night of 8 hours fills it.
         A break starts when the computer sees you go, as it locks, turns its screens off or sleeps; quiet time before that might have been reading or a film, so it doesn't count.
         So when you step away, lock the computer or put it to sleep, any way you like; Win + L and Pause + Escape in Power-Up Utilities do it in one press.
         If you often just walk off, set the screens to turn off after a few minutes in Windows' power settings.
-        Coming back from a break of about 8 minutes or more, Rested says how much it gave back, unless Settings turns that off.
+        Coming back from a break of about 8 minutes or more, Rested says how much it gave back.
         Near empty it says so; at zero you're running on fumes, the screen greys over half an hour of activity by default, and then Lights out puts the computer to sleep.
-        Stay awake holds the bar quietly at zero instead.
-        A break while the screen greys pays off what you overspent first, so a moment away doesn't clear the grey.
+        You wake halfway back into the grey, with time to save your work, and only rest clears the rest.
+        Rest while the screen greys pays at a night's pace, without the 10-minute bonus, until it has paid off what you overspent.
+        Stay awake doesn't touch the bar.
 
         Turn Galaxy Rhythm on in Modules and all of this is on; every time, length and message can be changed in Settings.
+        For a game night, Tonight off below pauses all of it until your day starts, while rest still counts; Back on ends it early.
     )"
 }

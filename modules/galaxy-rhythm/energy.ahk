@@ -16,18 +16,20 @@
 ; closed suite is not rest unless the computer was off. Every break counts,
 ; but its first minutes pay almost nothing, so a break pays most per minute at
 ; about 10 minutes (Refill); a full night (NightHours) refills the whole bar.
-; Rest pays off the road before it fills the bar, and a break that gives back
-; 5 % or more says so, unless Rested is off.
+; Rest pays off the road before it fills the bar, at the night's rate without
+; the bonus (Recover), and a break that gives back 5 % or more says so,
+; unless Rested is off.
 ;
-; 10 % left says so. At zero the road to fainting starts with its notice:
-; when the bar first empties, when stay awake ends, always from zero, and
-; once the rest after a faint is spent. With Faint on, the
-; displays turn grey over FadeMinutes of activity, then Lights out shows and
-; the computer sleeps; the grey never comes without the faint, so without it
-; the bar just stays empty. Stay awake holds the bar at zero quietly: no
-; notice at zero, no grey and no faint, since the notice belongs to the grey
-; and comes once stay awake ends. The level, the last tick and when the user
-; left survive restarts in energy.ini. The bar, outlined so it shows on dark backgrounds,
+; 10 % left says so. At zero the road to fainting starts with its notice.
+; With Faint on, the displays turn grey over FadeMinutes of activity, then
+; Lights out shows and the computer sleeps; the user wakes halfway along the
+; road, with time to save their work. The grey never comes without the faint,
+; so without it the bar just stays empty. Stay awake never touches the bar:
+; it keeps the computer up while the user is away, when the bar neither
+; drains nor greys. A night off (the module's Off) pauses the drain, its
+; notices, the grey and the faint until the day starts; rest still counts.
+; The level, the last tick and when the user left survive restarts in
+; energy.ini. The bar, outlined so it shows on dark backgrounds,
 ; sits in the corner Position names, bottom right by default, on the display
 ; Display names, the primary one by default, or on all; a dry run draws no bar.
 ; =============================================================================
@@ -38,6 +40,7 @@ class GR_Energy {
     static FadeDefault := 30      ; minutes of activity from zero to the faint
     static LowShare := 0.1
     static RestedShare := 0.05    ; the least a break gives back to say so
+    static WakeShare := 0.5       ; of the road still owed after a faint
     ; A break's rest plus BonusMinutes, ramped in over its first minutes:
     ; RampMinutes puts the most energy per minute away at 10 minutes.
     static BonusMinutes := 35
@@ -60,7 +63,6 @@ class GR_Energy {
         this.away := false       ; locked, displays off or asleep since awaySince
         this.awaySince := ""     ; A_Now when the computer first saw the user gone
         this.displayOff := false
-        this.staying := false    ; stay awake at the previous tick
         this.lowShown := false
         this.roadShown := false
         this.fainting := false
@@ -82,6 +84,18 @@ class GR_Energy {
         x := restMinutes / GR_Energy.RampMinutes
         ramp := 1 - Exp(-x) * (1 + x + x * x / 2)
         return (restMinutes + GR_Energy.BonusMinutes) * ramp * fullMinutes / nightMinutes
+    }
+
+    ; The level after minutes of rest from level: on the road a break pays
+    ; only what a night would, without the bonus, until the debt is paid;
+    ; the rest of the break goes on along Refill.
+    static Recover(level, minutes, fullMinutes, nightMinutes) {
+        rate := fullMinutes / nightMinutes
+        payoff := Max(0, -level) / rate
+        if minutes <= payoff
+            return level + minutes * rate
+        return Min(Max(level, 0) + GR_Energy.Refill(minutes, fullMinutes, nightMinutes)
+            - GR_Energy.Refill(payoff, fullMinutes, nightMinutes), fullMinutes)
     }
 
     static Whole(text, low, high, fallback) => IsNumber(text) && text >= low && text <= high
@@ -216,32 +230,29 @@ class GR_Energy {
             if rest > 0
                 this.Rest(rest)
         }
-        staying := SuiteStayAwake.active
-        if this.staying && !staying
-            this.roadShown := false
-        this.staying := staying
-        if staying && this.level < 0
-            this.level := 0
-        if idleMs < GR_Energy.ActiveMs {
-            lowest := staying ? 0 : -this.roadMinutes
-            this.level := Max(this.level - GR_Energy.TickMs / 60000, Min(this.level, lowest))
+        ; A night off pauses the drain, its notices, the grey and the faint;
+        ; rest still counts.
+        if this.module.Off(now) {
+            this.Shade()
+            this.Save(now)
+            return
         }
+        if idleMs < GR_Energy.ActiveMs
+            this.level := Max(this.level - GR_Energy.TickMs / 60000, Min(this.level, -this.roadMinutes))
         if this.level > this.full * GR_Energy.LowShare
             this.lowShown := false
         else if this.level > 0 && !this.lowShown {
             this.lowShown := true
             this.Notice(GR_Energy.Low)
         }
-        ; The notice at zero announces the grey, so stay awake holds it back
-        ; until it ends.
         if this.level > 0
             this.roadShown := false
-        else if !this.roadShown && !staying {
+        else if !this.roadShown {
             this.roadShown := true
             this.Notice(this.roadText)
         }
         this.Shade()
-        if this.faint && !staying && !this.fainting && this.level <= -this.roadMinutes {
+        if this.faint && !this.fainting && this.level <= -this.roadMinutes {
             this.fainting := true
             this.Notice(this.faintText)
             SetTimer(this.faintCallback, -SuiteNotice.NewsMs)
@@ -257,14 +268,14 @@ class GR_Energy {
         this.SaveState()
     }
 
-    ; A break on the road pays off its debt first, so a moment away never
-    ; clears the grey.
+    ; A break on the road pays off its debt first, slowly, so only a real
+    ; break clears the grey.
     Rest(minutes) {
         before := this.level
-        this.level := Min(before + GR_Energy.Refill(minutes, this.full, this.nightHours * 60), this.full)
+        this.level := GR_Energy.Recover(before, minutes, this.full, this.nightHours * 60)
         share := (this.level - before) / this.full
         this.module.Report("rested " Round(minutes, 1) " min, +" Round(share * 100, 1) " %")
-        if this.rested && share >= GR_Energy.RestedShare
+        if this.rested && share >= GR_Energy.RestedShare && !this.module.Off()
             this.Notice("Rested: +" Round(share * 100) " %")
     }
 
@@ -273,13 +284,14 @@ class GR_Energy {
         this.module.Report("energy: " text)
     }
 
-    ; Once Lights out has gone: stay awake switched on meanwhile keeps the
-    ; computer up. Back after the faint, the road starts again at zero.
+    ; Once Lights out has gone: taking the night off meanwhile keeps the
+    ; computer up. The faint keeps half the debt, so waking straight away
+    ; leaves time to save work, and only rest clears the rest.
     FaintNow(*) {
         app := this.module.app
         if !this.fainting
             return
-        if SuiteStayAwake.active || this.module.stopping || !app.ModuleActive(this.module.id)
+        if this.module.Off() || this.module.stopping || !app.ModuleActive(this.module.id)
             || app.suspended || app.systemSuspended {
             this.fainting := false
             return
@@ -290,27 +302,29 @@ class GR_Energy {
                 return
             }
         this.fainting := false
-        this.level := 0
         this.roadShown := false
-        if this.module.dryRun {
+        ; The faint sends the user away, so the nap counts from the tick
+        ; that brought it.
+        this.Left(this.lastSeen)
+        if this.module.dryRun
             this.module.Report("dry run: energy faint")
-            this.module.grey.Set("energy", 0)
-            return
+        else {
+            try SuiteSleep.Now()
+            catch Error as failure {
+                SuiteState.Log.Error("Galaxy Rhythm / faint", failure)
+                TrayTip(failure.Message, this.module.Name, 2)
+            }
         }
-        try SuiteSleep.Now()
-        catch Error as failure {
-            SuiteState.Log.Error("Galaxy Rhythm / faint", failure)
-            TrayTip(failure.Message, this.module.Name, 2)
-        }
-        ; Back from sleep, or if Windows accepted it without sleeping.
-        SetTimer(() => this.module.grey.Set("energy", 0), -5000)
+        ; Back from sleep, or Windows would not sleep: half the debt is owed.
+        this.level := -this.roadMinutes * GR_Energy.WakeShare
+        this.Shade()
     }
 
-    ; The grey of the road, cleared at once by stay awake or a suspended
+    ; The grey of the road, cleared at once by a night off or a suspended
     ; suite; Draw runs it every second, so it never waits for a tick.
     Shade() {
         app := this.module.app
-        this.module.grey.Set("energy", this.show && this.faint && this.level < 0 && !SuiteStayAwake.active
+        this.module.grey.Set("energy", this.show && this.faint && this.level < 0 && !this.module.Off()
             && !app.suspended && app.ModuleActive(this.module.id) ? -this.level / this.roadMinutes : 0)
     }
 

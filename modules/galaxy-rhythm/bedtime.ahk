@@ -8,13 +8,14 @@
 ; never depend on each other or on their order.
 ;
 ; The last row is the sleep: its message starts the night, which lasts until
-; Night ends at (wakeTime): the displays fade to grey over the fade time, the
+; the day starts (wakeTime, Your day starts at): the displays fade to grey over the fade time, the
 ; last word shows, and once it has gone the computer sleeps; locking meanwhile
 ; changes nothing. Stay awake prevents only the sleep. On at bedtime, or
 ; switched on during the fade or the last word, it shows its own message and
 ; clears the grey; ending later in the night, it starts the fade again from
 ; the beginning. One sleep ends the night early, as do suspending Super Hotkey
-; and the computer sleeping some other way. The module itself starts disabled,
+; and the computer sleeping some other way. A night off shows nothing and
+; fades nothing until the day starts. The module itself starts disabled,
 ; so every row starts on: enabling Galaxy Rhythm is the opt-in.
 ; settings.ini [Bedtime] holds them.
 ; =============================================================================
@@ -110,7 +111,7 @@ class GR_Bedtime {
         shown := []
         if last != "" {
             gap := DateDiff(now, last, "Seconds")
-            if gap > 0 && gap <= GR_Bedtime.GapSeconds && this.Present()
+            if gap > 0 && gap <= GR_Bedtime.GapSeconds && this.Present(now)
                 for index, row in this.rows {
                     if !row.show
                         continue
@@ -128,16 +129,16 @@ class GR_Bedtime {
         if this.until != "" && !this.fadeStarted {
             if DateDiff(now, this.until, "Seconds") >= 0
                 this.until := ""
-            else if !SuiteStayAwake.active && this.Present()
+            else if !SuiteStayAwake.active && this.Present(now)
                 this.StartFade()
         }
         return shown
     }
 
-    Present() {
+    Present(now) {
         app := this.module.app
         return app.ModuleActive(this.module.id) && !this.module.stopping && !app.suspended
-            && !app.systemSuspended && !app.sessionLocked
+            && !app.systemSuspended && !app.sessionLocked && !this.module.Off(now)
     }
 
     Show(index, now) {

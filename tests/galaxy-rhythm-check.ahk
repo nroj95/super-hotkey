@@ -20,7 +20,7 @@ class GalaxyRhythmChecks {
         app := {suspended: false, systemSuspended: false, sessionLocked: false,
             ModuleActive: (app, id) => true}
         module := {app: app, id: "galaxy-rhythm", stopping: false, dryRun: true,
-            Name: "Galaxy Rhythm", grey: GR_GreyScreen(true),
+            Name: "Galaxy Rhythm", grey: GR_GreyScreen(true), nightOff: false, Off: (module, now := "") => module.nightOff,
             reports: reports, Report: (module, text) => reports.Push(text)}
         folder := SuiteChecks.directory "\" name
         DirCreate(folder)
@@ -38,6 +38,13 @@ class GalaxyRhythmChecks {
         this.Assert(GR_Energy.Refill(1, full, night) < 1 && perMinute(5) < perMinute(10)
             && perMinute(9) < perMinute(10) && perMinute(11) < perMinute(10) && perMinute(20) < perMinute(10),
             "a minute away is almost nothing, and breaks pay most per minute at 10 minutes")
+        this.Assert(Abs(GR_Energy.Recover(-20, 10, full, night) + 5) < 0.001
+            && Abs(GR_Energy.Recover(-20, 40 / 3, full, night)) < 0.001
+            && Abs(GR_Energy.Recover(-20, 30, full, night)
+                - (GR_Energy.Refill(30, full, night) - GR_Energy.Refill(40 / 3, full, night))) < 0.001
+            && GR_Energy.Recover(-20, 480, full, night) > full * 0.9
+            && Abs(GR_Energy.Recover(100, 10, full, night) - (100 + GR_Energy.Refill(10, full, night))) < 0.001,
+            "rest in the grey pays at a night's pace without the bonus, then goes on along the curve")
         this.Assert(GR_Energy.Restarted("20261103120000", "20261103130000", 1800000)
             && !GR_Energy.Restarted("20261103120000", "20261103130000", 7200000)
             && !GR_Energy.Restarted("", "20261103130000", 1800000),
@@ -140,27 +147,28 @@ class GalaxyRhythmChecks {
             this.Assert(Abs(grey.level - (15 + tick) / 30) < 0.001,
                 "the grey deepens with every active minute on the road")
             SuiteStayAwake.active := true
-            energy.Draw()
-            this.Assert(grey.level = 0, "stay awake clears the grey within a second, without waiting for a tick")
+            held := energy.level
             energy.Tick(at("090100"), 0)
-            this.Assert(energy.level = 0 && grey.level = 0, "stay awake holds the bar at zero, without grey")
+            SuiteStayAwake.active := false
+            this.Assert(Abs(energy.level - (held - tick)) < 0.001 && grey.level > 0,
+                "stay awake doesn't touch the bar: it drains and greys as ever")
+            module.nightOff := true
+            energy.Draw()
+            this.Assert(grey.level = 0, "a night off clears the grey within a second, without waiting for a tick")
+            held := energy.level
             energy.Tick(at("090110"), 0)
-            this.Assert(energy.level = 0 && !this.ShownEverywhere(GR_Energy.Road), "and keeps quiet there")
-            SuiteStayAwake.active := false
-            energy.Tick(at("090120"), 0)
-            this.Assert(energy.level < 0 && this.ShownEverywhere(GR_Energy.Road),
-                "when stay awake ends, the road starts over from zero with its notice")
-            SuiteStayAwake.active := true
-            energy.level := 5
-            energy.Tick(at("090121"), 0)
-            energy.level := 0.1
-            energy.Tick(at("090122"), 0)
-            this.Assert(energy.level = 0 && grey.level = 0 && !this.ShownEverywhere(GR_Energy.Road),
-                "emptying while staying awake is quiet: the notice belongs to the grey")
-            SuiteStayAwake.active := false
-            energy.Tick(at("090123"), 0)
-            this.Assert(energy.level < 0 && this.ShownEverywhere(GR_Energy.Road),
-                "and comes once stay awake ends")
+            this.Assert(energy.level = held && grey.level = 0, "a night off holds the bar where it is, without grey")
+            app.sessionLocked := true
+            energy.Left(at("090110"))
+            energy.Tick(at("091000"), 0)
+            app.sessionLocked := false
+            energy.Tick(at("094110"), 0)
+            this.Assert(energy.level > 0 && !InStr(module.reports[-1], "energy:"),
+                "rest still counts on a night off, quietly")
+            energy.level := -29.9
+            energy.Tick(at("094120"), 0)
+            this.Assert(!energy.fainting && grey.level = 0, "and nobody faints on a night off")
+            module.nightOff := false
             energy.level := -29.9
             energy.Tick(at("090130"), 0)
             this.Assert(energy.fainting && grey.level = 1 && this.ShownEverywhere(GR_Energy.Faint),
@@ -168,14 +176,15 @@ class GalaxyRhythmChecks {
             ; Checks run uninterruptible, so the faint's timer is called by hand.
             SetTimer(energy.faintCallback, 0)
             energy.FaintNow()
-            this.Assert(module.reports[-1] = "dry run: energy faint" && energy.level = 0 && grey.level = 0,
-                "then the computer sleeps")
+            this.Assert(module.reports[-1] = "dry run: energy faint" && energy.level = -15
+                && Abs(grey.level - 0.5) < 0.001,
+                "then the computer sleeps, and you wake halfway back into the grey")
             app.systemSuspended := true
             energy.Tick(at("090135"), 0)
             app.systemSuspended := false
             energy.Tick(at("090140"), 0)
-            this.Assert(energy.level < 0 && this.ShownEverywhere(GR_Energy.Road),
-                "back from a faint after a moment, the road starts over")
+            this.Assert(Abs(energy.level - (-15 + 1.5 / 6 - tick)) < 0.001 && this.ShownEverywhere(GR_Energy.Road),
+                "back straight after a faint, the nap since Lights out pays a little, and the notice says so")
 
             energy.level := 100
             energy.Tick(at("100000"), 0)
@@ -239,7 +248,7 @@ class GalaxyRhythmChecks {
             energy.Tick(at("134100"), 60000)
             app.sessionLocked := false
             energy.Tick(at("134200"), 0)
-            this.Assert(Abs(energy.level - (-20 + GR_Energy.Refill(2, 720, 480) - tick)) < 0.001 && grey.level > 0,
+            this.Assert(Abs(energy.level - (-20 + 2 * 1.5 - tick)) < 0.001 && grey.level > 0,
                 "a moment away on the road pays off a little of the debt and keeps the grey")
 
             energy.faint := false
@@ -288,7 +297,7 @@ class GalaxyRhythmChecks {
         app := {suspended: false, systemSuspended: false, sessionLocked: false,
             ModuleActive: (app, id) => true}
         module := {app: app, id: "galaxy-rhythm", stopping: false, dryRun: true,
-            Name: "Galaxy Rhythm", grey: GR_GreyScreen(true),
+            Name: "Galaxy Rhythm", grey: GR_GreyScreen(true), nightOff: false, Off: (module, now := "") => module.nightOff,
             reports: reports, Report: (module, text) => reports.Push(text)}
         return GR_Bedtime(module, SuiteChecks.directory "\" name "\settings.ini")
     }
@@ -363,6 +372,9 @@ class GalaxyRhythmChecks {
         this.Assert(shown(night("005955", "010005")) = 2 && this.ShownEverywhere("zzz…"),
             "messages still show while staying awake")
         SuiteStayAwake.active := false
+        module.nightOff := true
+        this.Assert(!night("235955", "000005").Length, "a night off shows no messages")
+        module.nightOff := false
         this.Assert(!night("015955", "020005").Length && !bedtime.fadeStarted,
             "with the sleep row off, nothing happens at bedtime")
         bedtime.Stop()

@@ -89,7 +89,7 @@ FADE TO SLEEP
 The last message starts the night: the screen fades to grey over 10 minutes, Good night shows, and the computer sleeps, even if you lock it meanwhile.
 =
 
-Stay awake (Pause + End in Power-Up Utilities) keeps it up, even during the fade, and says so; if it ends before the night ends, 06:00 by default, the fade starts over.
+Stay awake (Pause + End in Power-Up Utilities) keeps it up, even during the fade, and says so; if it ends before your day starts, 06:00 by default, the fade starts over.
 =
 
 One sleep ends the night early.
@@ -101,7 +101,7 @@ ENERGY BAR
 A small upright bar marked E, bottom right on the primary display unless Settings moves it, drains with every minute you use the computer: 12 hours of activity empty it.
 =
 
-It refills while you rest away from it, locked, with the screens off, asleep or off: every break counts, but a 10-minute one pays best and gives back about 50 minutes, and a full night of 8 hours fills it.
+It refills while you rest away from it: every break counts, but a 10-minute one pays best and gives back about 50 minutes, and a full night of 8 hours fills it.
 =
 
 A break starts when the computer sees you go, as it locks, turns its screens off or sleeps; quiet time before that might have been reading or a film, so it doesn't count.
@@ -113,19 +113,25 @@ So when you step away, lock the computer or put it to sleep, any way you like; W
 If you often just walk off, set the screens to turn off after a few minutes in Windows' power settings.
 =
 
-Coming back from a break of about 8 minutes or more, Rested says how much it gave back, unless Settings turns that off.
+Coming back from a break of about 8 minutes or more, Rested says how much it gave back.
 =
 
 Near empty it says so; at zero you're running on fumes, the screen greys over half an hour of activity by default, and then Lights out puts the computer to sleep.
 =
 
-Stay awake holds the bar quietly at zero instead.
+You wake halfway back into the grey, with time to save your work, and only rest clears the rest.
 =
 
-A break while the screen greys pays off what you overspent first, so a moment away doesn't clear the grey.
+Rest while the screen greys pays at a night's pace, without the 10-minute bonus, until it has paid off what you overspent.
+=
+
+Stay awake doesn't touch the bar.
 =
 
 Turn Galaxy Rhythm on in Modules and all of this is on; every time, length and message can be changed in Settings.
+=
+
+For a game night, Tonight off below pauses all of it until your day starts, while rest still counts; Back on ends it early.
 =
 
 ; modules/paper-pad/module.ahk

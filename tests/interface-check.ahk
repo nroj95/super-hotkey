@@ -370,6 +370,29 @@ class InterfaceChecks {
                 if id = "cascade-kingdom"
                     this.Assert(InStr(guide, "Caps + Shift + Insert to take it out again") > 0,
                         "Cascade Kingdom explains how to take a window out again")
+                if id = "galaxy-rhythm" {
+                    rhythm := app.modules[id]
+                    button := 0
+                    for hwnd, control in window
+                        if control.Type = "Button" && control.Text = "Tonight off"
+                            button := control
+                    rhythm.ToggleNightOff()
+                    tonight := IsObject(button) && button.Text = "Back on" && rhythm.Off()
+                        && DateDiff(rhythm.offUntil, A_Now, "Hours") < 24
+                        && SubStr(rhythm.offUntil, 9) = rhythm.bedtime.wakeTime "00"
+                    rhythm.ToggleNightOff()
+                    this.Assert(tonight && button.Text = "Tonight off" && !rhythm.Off(),
+                        "Galaxy Rhythm's Help takes tonight off until the day starts, and Back on ends it")
+                    rhythm.ShowSettings(app.ui)
+                    settings := app.ui.windows["settings:" id]
+                    rhythm.ToggleNightOff()
+                    synced := settings["nightOff"].Value = 1 && button.Text = "Back on"
+                    settings["nightOff"].Value := 0
+                    rhythm.SaveSettings(app.ui)
+                    this.Assert(synced && !rhythm.Off() && button.Text = "Tonight off"
+                        && !app.ui.windows.Has("settings:" id),
+                        "Settings' Tonight off checkbox follows Help's button, and Apply turns it back")
+                }
                 window.GetClientPos(, , &helpWidth, &helpHeight)
                 expectedHelpHeight := Max(480, 145 + app.ui.HelpTextHeight(id, 820) + 12)
                 this.Assert(helpWidth = 820 && helpHeight = expectedHelpHeight,
