@@ -312,7 +312,6 @@ class GR_EnergyBar {
     static LabelHeight := 20
     static Margin := 12
     static Opacity := 140      ; of 255: see-through enough to read what lies behind
-    ; Only corners: an upright bar has no sensible middle of an edge.
     static Corners := [["bottom-right", "Bottom right"], ["bottom-left", "Bottom left"],
         ["top-right", "Top right"], ["top-left", "Top left"]]
 

@@ -74,11 +74,11 @@ class GalaxyRhythmChecks {
         this.Assert(energy.fullHours = 12 && energy.nightHours = 6 && !energy.faint
             && energy.position = "top-left" && energy.display = "\\.\DISPLAY2",
             "saved energy settings load, and one out of range falls back to its default")
-        IniWrite("top-center", energy.settingsPath, "Energy", "Position")
+        IniWrite("sideways", energy.settingsPath, "Energy", "Position")
         IniWrite("DISPLAY2", energy.settingsPath, "Energy", "Display")
         energy.LoadSettings()
         this.Assert(energy.position = "bottom-right" && energy.display = "Primary",
-            "a retired middle position, or an unknown display, falls back to bottom right on the primary display")
+            "an unknown position or display falls back to bottom right on the primary display")
         placed := ""
         for corner in GR_EnergyBar.Corners {
             GR_EnergyBar.Place(corner[1], 100, 0, 1100, 800, 18, 180, &x, &y)
