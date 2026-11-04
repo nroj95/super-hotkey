@@ -187,8 +187,8 @@ class GalaxyRhythmModule extends SuiteModule {
         show.OnEvent("Click", refresh)
         rows.Heading("ENERGY BAR")
         rows.Text("The energy bar is your energy for the day: it drains while you use the computer,"
-            . " breaks of 5 minutes or more hold it still for a while, and it starts over when your day"
-            . " starts, with less after a late night.")
+            . " breaks of 5 minutes or more give a little back, and it starts over when your day starts,"
+            . " with less after a late night.")
         energy := this.energy
         y := rows.y
         showEnergy := window.AddCheckbox("x20 y" (y + 4) " w240 vshowEnergy", "Show energy bar")
@@ -314,15 +314,15 @@ class GalaxyRhythmModule extends SuiteModule {
         ENERGY BAR
         A small upright bar marked E, bottom right on the primary display unless Settings moves it, is your energy for the day: every minute you use the computer, game controller included, costs a minute, and 10 hours of activity empty it.
         Watching or reading without touching anything costs half, though it never greys the screen.
-        It never refills during the day: when your day starts, 06:00 by default, it starts over.
+        Only your day starting fills it: when your day starts, 06:00 by default, it starts over.
         As in Stardew Valley, a late night costs you: leave the computer before the first bedtime message, 00:00 by default, and the next day starts full; stay later and it starts with less, down to half if you're still there at the sleep, 02:00, and half of that again if the bar ran dry.
         What happens after the sleep doesn't count, since lights-out sends you back to bed.
-        Breaks make it last instead: one of 5 minutes or more holds the bar still for twice as long once you're back, up to an hour.
+        Breaks give a little back: one of 5 minutes or more refills twice its length once you're back, up to an hour, even out of the grey.
         A break starts when the computer sees you go, as it locks, turns its screens off, sleeps or you sign out; quiet time before that might have been reading or a film, so it doesn't count.
         So when you step away, lock the computer or put it to sleep, any way you like; Win + L and Pause + Escape in Power-Up Utilities do it in one press.
         If you often just walk off, set the screens to turn off after a few minutes in Windows' power settings.
         Near empty it says so; at zero you're running on fumes, the screen greys over half an hour of activity by default, and then Lights out puts the computer to sleep.
-        You wake halfway back into the grey, with time to save your work, and the grey stays until your day starts over.
+        You wake halfway back into the grey, with time to save your work, until a break or Second wind lifts you out; the day still counts as having run dry.
         Stay awake doesn't touch the bar.
 
         Turn Galaxy Rhythm on in Modules and all of this is on; every time, length and message can be changed in Settings.

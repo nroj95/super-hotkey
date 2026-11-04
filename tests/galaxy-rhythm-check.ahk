@@ -57,7 +57,7 @@ class GalaxyRhythmChecks {
     static EnergySettings() {
         energy := this.EnergyFixture("energy-settings")
         this.Assert(energy.show && energy.faint && energy.level = 600 && energy.fullHours = 10
-            && energy.buffer = 0 && !energy.dry,
+            && !energy.dry,
             "once the module is on, a full 10-hour bar shows with the grey and the faint")
         this.Assert(energy.position = "bottom-right" && energy.display = "Primary",
             "the bar sits bottom right on the primary display")
@@ -117,7 +117,6 @@ class GalaxyRhythmChecks {
         energy.level := 123.45
         energy.lastSeen := "20261103120000"
         energy.Left("20261103115000")
-        energy.buffer := 12.5
         energy.lastUp := "20261103115500"
         energy.dayStarted := "20261103060000"
         energy.dry := true
@@ -125,9 +124,9 @@ class GalaxyRhythmChecks {
         energy.SaveState()
         reloaded := GR_Energy(energy.module, energy.settingsPath, energy.statePath)
         this.Assert(reloaded.level = 123.45 && reloaded.lastSeen = "20261103120000"
-            && reloaded.awaySince = "20261103115000" && reloaded.buffer = 12.5
+            && reloaded.awaySince = "20261103115000"
             && reloaded.lastUp = "20261103115500" && reloaded.dayStarted = "20261103060000" && reloaded.dry,
-            "the level, the standstill left, the last tick and use, the day's start and a dry day survive a restart")
+            "the level, the last tick and use, the day's start and a dry day survive a restart")
         energy.Stop("Exit")
         closed := GR_Energy(energy.module, energy.settingsPath, energy.statePath)
         energy.lastSeen := "20261103120000"
@@ -206,13 +205,12 @@ class GalaxyRhythmChecks {
             energy.Tick(at("091000"), 0)
             app.sessionLocked := false
             energy.Tick(at("094110"), 0)
-            this.Assert(energy.level = held && energy.buffer = 60 && !InStr(module.reports[-1], "energy:"),
-                "a break on a night off still earns standstill, quietly, and refills nothing")
+            this.Assert(Abs(energy.level - (held + 60)) < 0.001 && !InStr(module.reports[-1], "energy:"),
+                "a break on a night off still refills, quietly")
             energy.level := -29.9
             energy.Tick(at("094120"), 0)
             this.Assert(!energy.fainting && grey.level = 0, "and nobody faints on a night off")
             module.nightOff := false
-            energy.buffer := 0
             energy.level := -29.9
             energy.Tick(at("090130"), 0)
             this.Assert(energy.fainting && grey.level = 1 && this.ShownEverywhere(GR_Energy.Faint),
@@ -231,40 +229,35 @@ class GalaxyRhythmChecks {
                 "back straight after a faint, still in the grey, and the notice says so")
 
             energy.level := 100
-            energy.buffer := 0
             energy.Tick(at("100000"), 0)
             app.sessionLocked := true
             energy.Left(at("100000"))
             energy.Tick(at("101500"), 900000)
             app.sessionLocked := false
             energy.Tick(at("103000"), 0)
-            this.Assert(Abs(energy.level - (100 - tick)) < 0.001 && Abs(energy.buffer - (60 - tick)) < 0.001
-                && !InStr(module.reports[-1], "energy:"),
-                "a locked 30-minute walk holds the bar still for an hour, silently, and refills nothing")
-            energy.buffer := 0
+            this.Assert(Abs(energy.level - (160 - 2 * tick)) < 0.001 && !InStr(module.reports[-1], "energy:"),
+                "a locked 30-minute walk gives back an hour, silently")
             before := energy.level
             app.sessionLocked := true
             energy.Left(at("103000"))
             energy.Tick(at("103300"), 180000)
             app.sessionLocked := false
             energy.Tick(at("103400"), 0)
-            this.Assert(Abs(energy.level - (before - tick)) < 0.001 && energy.buffer = 0,
-                "a break under five minutes earns nothing")
+            this.Assert(Abs(energy.level - (before - tick)) < 0.001, "a break under five minutes gives nothing back")
+            before := energy.level
             app.sessionLocked := true
             energy.Left(at("103400"))
             energy.Tick(at("103600"), 120000)
             app.sessionLocked := false
             energy.Tick(at("103900"), 0)
-            this.Assert(Abs(energy.level - (before - tick)) < 0.001 && Abs(energy.buffer - (10 - tick)) < 0.001,
-                "five minutes away holds the bar still for ten")
-            energy.buffer := 0
+            this.Assert(Abs(energy.level - (before + 10 - tick)) < 0.001, "five minutes away gives back ten")
+            before := energy.level
             energy.displayOff := true
             energy.Tick(at("110000"), 1500000)
             energy.displayOff := false
             energy.Tick(at("112000"), 0)
-            this.Assert(Abs(energy.buffer - (40 - tick)) < 0.001,
+            this.Assert(Abs(energy.level - (before + 40 - tick)) < 0.001,
                 "screens turned off by Windows count as a break from then, not from the reading before")
-            energy.buffer := 0
             before := energy.level
             app.suspended := true
             energy.Tick(at("120000"), 0)
@@ -274,8 +267,8 @@ class GalaxyRhythmChecks {
             app.sessionLocked := false
             app.suspended := false
             energy.Tick(at("130000"), 0)
-            this.Assert(Abs(energy.level - (before - tick)) < 0.001 && energy.buffer = 0,
-                "a suspended suite is no break, even locked meanwhile")
+            this.Assert(Abs(energy.level - (before - tick)) < 0.001, "a suspended suite is no break, even locked meanwhile")
+            before := energy.level
             app.suspended := true
             energy.Tick(at("130010"), 0)
             app.suspended := false
@@ -284,19 +277,25 @@ class GalaxyRhythmChecks {
             energy.Tick(at("133000"), 1200000)
             app.sessionLocked := false
             energy.Tick(at("134000"), 0)
-            this.Assert(Abs(energy.buffer - (60 - tick)) < 0.001, "a break straight after a suspension counts from its end")
-            energy.buffer := 0
-            energy.level := -20
+            this.Assert(Abs(energy.level - (before + 60 - tick)) < 0.001,
+                "a break straight after a suspension counts from its end, and gives back at most an hour")
+            energy.level := 590
             app.sessionLocked := true
             energy.Left(at("134000"))
             energy.Tick(at("134500"), 300000)
             app.sessionLocked := false
             energy.Tick(at("135000"), 0)
-            this.Assert(energy.level = -20 && grey.level > 0,
-                "a break in the grey holds it still, but never clears it")
+            this.Assert(Abs(energy.level - (600 - tick)) < 0.001, "a break never fills the bar past full")
+            energy.level := -20
+            app.sessionLocked := true
+            energy.Left(at("135000"))
+            energy.Tick(at("135500"), 300000)
+            app.sessionLocked := false
+            energy.Tick(at("140500"), 0)
+            this.Assert(Abs(energy.level - (10 - tick)) < 0.001 && grey.level = 0 && energy.dry,
+                "a 15-minute break lifts you out of the grey, though the day has still run dry")
 
             energy.faint := false
-            energy.buffer := 0
             energy.level := -29.95
             energy.Tick(at("130010"), 0)
             energy.Tick(at("130020"), 0)
@@ -318,11 +317,10 @@ class GalaxyRhythmChecks {
             ; before lights-out and whether the day ran dry.
             energy.lastUp := "20261103233000"
             energy.dry := false
-            energy.buffer := 30
             energy.level := 50
             app.sessionLocked := true
             energy.Tick("20261104060010", 0)
-            this.Assert(energy.level = 600 && energy.buffer = 0 && energy.dayStarted = "20261104060000",
+            this.Assert(energy.level = 600 && energy.dayStarted = "20261104060000",
                 "at 06:00 the bar starts over, full after leaving before midnight, even while away")
             energy.lastUp := "20261105010000"
             energy.dry := true

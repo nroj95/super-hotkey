@@ -1,6 +1,6 @@
 ; =============================================================================
 ; energy.ahk - an energy bar that is a daily budget: it drains while the
-; user works, breaks hold it still, and it starts over each morning
+; user works, breaks give a little back, and it starts over each morning
 ; =============================================================================
 ; A minute with physical keyboard, mouse or XInput game controller input
 ; costs a minute; Windows does not count controllers as input, so connected
@@ -11,7 +11,7 @@
 ; never onto the road; anything programs do on their own is no input. A full
 ; bar holds FullHours of active minutes.
 ;
-; The bar never refills during the day. At Your day starts at (bedtime's
+; Only the start of a day fills the bar. At Your day starts at (bedtime's
 ; wakeTime) it starts over, as a day does in Stardew Valley: full if the
 ; computer was last used before bedtime's first message, half if still at it
 ; at bedtime's sleep, sliding between the two in between, and halved again
@@ -19,10 +19,10 @@
 ; sleep to the day start, does not count: bedtime sends the user back to
 ; bed, so a quick look costs nothing and an early riser is not up late.
 ;
-; Breaks hold the bar still instead: one of BreakMinutes or more, the least
-; screen-work guidance asks for, lets the next use cost nothing for twice its
-; length, up to BufferLimit, silently. A break across the start of a day
-; earns nothing; the new day is its reward. A break is the time from the
+; Breaks give a little back: one of BreakMinutes or more, the least
+; screen-work guidance asks for, refills RefillShare times its length, up to
+; RefillLimit and never above a full bar, silently, even out of the grey. A
+; break across the start of a day earns nothing; the new day is its reward. A break is the time from the
 ; moment the computer first saw the user gone, when it locked, turned its
 ; displays off, slept or was off, until they come back. Idle time before that
 ; may have been reading or a film: walking off without locking loses the
@@ -36,17 +36,17 @@
 ; 10 % left says so. At zero the road to fainting starts with its notice.
 ; With Faint on, the displays turn grey over FadeMinutes of activity, then
 ; Lights out shows and the computer sleeps; the user wakes halfway along the
-; road, with time to save their work, and the grey stays until the day
-; starts over. The grey never comes without the faint, so without it the bar
-; just stays empty. Stay awake never touches the bar: it keeps the computer
-; up while the user is away, when the bar neither drains nor greys. A night
-; off (the module's Off) pauses the drain, its notices, the grey and the
-; faint until the day starts; how late the computer was used still counts.
-; The level, the standstill left, when the computer was last used and when
-; the day last started survive restarts in energy.ini. The bar, outlined so
-; it shows on dark backgrounds, sits in the corner Position names, bottom
-; right by default, on the display Display names, the primary one by
-; default, or on all; a dry run draws no bar.
+; road, with time to save their work, until a break or a second wind lifts
+; them out; the day has run dry either way. The grey never comes without
+; the faint, so without it the bar just stays empty. Stay awake never
+; touches the bar: it keeps the computer up while the user is away, when the
+; bar neither drains nor greys. A night off (the module's Off) pauses the
+; drain, its notices, the grey and the faint until the day starts; how late
+; the computer was used still counts. The level, when the computer was last
+; used and when the day last started survive restarts in energy.ini. The
+; bar, outlined so it shows on dark backgrounds, sits in the corner
+; Position names, bottom right by default, on the display Display names, the
+; primary one by default, or on all; a dry run draws no bar.
 ; =============================================================================
 
 class GR_Energy {
@@ -62,11 +62,11 @@ class GR_Energy {
     static FadeDefault := 30      ; minutes of activity from zero to the faint
     static LowShare := 0.1
     static WakeShare := 0.5       ; of the road still owed after a faint
-    ; A break of BreakMinutes or more holds the bar still for BufferShare
-    ; times its length, up to BufferLimit minutes in all.
+    ; A break of BreakMinutes or more refills RefillShare times its length,
+    ; up to RefillLimit minutes.
     static BreakMinutes := 5
-    static BufferShare := 2
-    static BufferLimit := 60
+    static RefillShare := 2
+    static RefillLimit := 60
     ; The morning bar after using the computer from bedtime's sleep on, and
     ; the share left of it after a day that ran dry.
     static LateShare := 0.5
@@ -89,7 +89,6 @@ class GR_Energy {
         this.savedMinute := ""
         this.away := false       ; locked, displays off or asleep since awaySince
         this.awaySince := ""     ; A_Now when the computer first saw the user gone
-        this.buffer := 0         ; minutes of use that cost nothing, earned by breaks
         this.lastUp := ""        ; A_Now of the last tick at the computer
         this.dayStarted := ""    ; A_Now of the day start the bar last started over at
         this.dry := false        ; the bar ran empty since the day started
@@ -172,12 +171,10 @@ class GR_Energy {
         this.level := IsNumber(level) ? Max(-this.roadMinutes, Min(Number(level), this.full)) : this.full
         seen := IniRead(this.statePath, "Energy", "LastSeen", "")
         since := IniRead(this.statePath, "Energy", "AwaySince", "")
-        standstill := IniRead(this.statePath, "Energy", "Buffer", "")
         up := IniRead(this.statePath, "Energy", "LastUp", "")
         started := IniRead(this.statePath, "Energy", "DayStarted", "")
         this.lastSeen := IsTime(seen) ? seen : ""
         this.awaySince := IsTime(since) ? since : ""
-        this.buffer := IsNumber(standstill) ? Max(0, Min(Number(standstill), GR_Energy.BufferLimit)) : 0
         this.lastUp := IsTime(up) ? up : ""
         this.dayStarted := IsTime(started) ? started : ""
         this.dry := IniRead(this.statePath, "Energy", "Dry", 0) = "1"
@@ -194,7 +191,6 @@ class GR_Energy {
             IniWrite(Round(this.level, 2), this.statePath, "Energy", "Level")
             IniWrite(this.lastSeen, this.statePath, "Energy", "LastSeen")
             IniWrite(this.away ? this.awaySince : "", this.statePath, "Energy", "AwaySince")
-            IniWrite(Round(this.buffer, 2), this.statePath, "Energy", "Buffer")
             IniWrite(this.lastUp, this.statePath, "Energy", "LastUp")
             IniWrite(this.dayStarted, this.statePath, "Energy", "DayStarted")
             IniWrite(this.dry ? 1 : 0, this.statePath, "Energy", "Dry")
@@ -302,13 +298,10 @@ class GR_Energy {
             this.Save(now)
             return
         }
-        ; Watching or reading costs half, and never onto the road; a break's
-        ; standstill pays first.
+        ; Watching or reading costs half, and never onto the road.
         active := idleMs < GR_Energy.ActiveMs
         cost := GR_Energy.TickMs / 60000 * (active ? 1 : GR_Energy.PassiveShare)
-        covered := Min(this.buffer, cost)
-        this.buffer -= covered
-        this.level := Max(this.level - (cost - covered), Min(this.level, active ? -this.roadMinutes : 0))
+        this.level := Max(this.level - cost, Min(this.level, active ? -this.roadMinutes : 0))
         if this.level <= 0
             this.dry := true
         if this.level > this.full * GR_Energy.LowShare
@@ -384,7 +377,6 @@ class GR_Energy {
             rows := this.module.bedtime.rows
             share := GR_Energy.MorningShare(start, this.lastUp, rows[1].time, rows[-1].time, this.dry)
             this.level := this.full * share
-            this.buffer := 0
             this.dry := false
             this.lowShown := false
             this.roadShown := false
@@ -395,15 +387,16 @@ class GR_Energy {
             this.dayStarted := start
     }
 
-    ; A break of BreakMinutes or more holds the bar still for BufferShare
-    ; times its length, silently. One across the start of a day earns
-    ; nothing: the new day is its reward.
+    ; A break of BreakMinutes or more refills RefillShare times its length,
+    ; up to RefillLimit, silently, even out of the grey. One across the start
+    ; of a day earns nothing: the new day is its reward.
     TakeBreak(minutes) {
         if minutes < GR_Energy.BreakMinutes
             || this.dayStarted != "" && DateDiff(this.awaySince, this.dayStarted, "Seconds") < 0
             return
-        this.buffer := Min(GR_Energy.BufferLimit, this.buffer + minutes * GR_Energy.BufferShare)
-        this.module.Report("break of " Round(minutes) " min: the bar stands still for " Round(this.buffer) " min")
+        gained := Min(GR_Energy.RefillLimit, minutes * GR_Energy.RefillShare)
+        this.level := Min(this.full, this.level + gained)
+        this.module.Report("break of " Round(minutes) " min: +" Round(gained) " min of energy")
     }
 
     ; Once a day, from one day start to the next, a second wind gives back
