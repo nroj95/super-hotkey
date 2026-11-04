@@ -80,6 +80,7 @@ class CoreChecks {
         app.InitializeCatalog()
         manager := app.manager
         power := app.modules["power-up-utilities"]
+        this.Assert(power.realSleep, "the sleep hotkey sleeps for real by default, even where Away Mode is allowed")
         try {
             manager.SetPaused(true)
             manager.Start()

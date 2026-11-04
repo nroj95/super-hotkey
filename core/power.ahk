@@ -3,7 +3,10 @@
 ; =============================================================================
 ; Power-Up Utilities' hotkeys turn stay awake on and off, and any module may
 ; ask whether it is on. SuiteSleep puts the computer to sleep for whichever
-; module asks: the sleep hotkey and bedtime's sleep.
+; module asks: the sleep hotkey and bedtime's sleep. Where the power plan lets
+; Away Mode replace sleep, keeping the computer running with its screens dark,
+; it sleeps for real unless the caller allows Away Mode, as the sleep hotkey
+; may; bedtime's sleep and the faint never do, since their night needs it.
 ; The application starts and stops it, so an interrupted sleep transaction is
 ; restored at the next start or on exit; a dry run never starts it.
 ; =============================================================================
@@ -51,7 +54,7 @@ class SuiteSleep {
             this.policy.OnPowerEvent(event)
     }
 
-    static Now() {
+    static Now(allowAwayMode := false) {
         if !IsObject(this.policy)
             throw Error("Sleep is unavailable before the suite starts or in a dry run.")
         ; Expire queued work and release held output first.
@@ -85,8 +88,10 @@ class SuiteSleep {
             adjusted := true
             ; An active Away Mode request can turn off displays without sleeping.
             ; Restore on resume or a bounded timeout, not immediately on API return.
-            this.policy.Begin()
-            this.policy.Arm()
+            if !allowAwayMode {
+                this.policy.Begin()
+                this.policy.Arm()
+            }
             ; BOOLEAN is one byte. FALSE for the last argument preserves wake events.
             if !DllCall("PowrProf\SetSuspendState", "uchar", 0, "uchar", 0,
                 "uchar", 0, "uchar")

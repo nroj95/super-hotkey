@@ -1,12 +1,14 @@
 ; Power-Up Utilities: extra keys, text and Terminal macros, system actions and
-; the settings page for keeping speakers awake. Macros run once their trigger
+; the settings page for real sleep and keeping speakers awake. Real sleep,
+; on by default, keeps Away Mode from replacing the sleep hotkey's sleep;
+; unticked, it sleeps as Start's Sleep does. Macros run once their trigger
 ; key and modifiers are released, outside input callbacks, with Caps or Pause
 ; still allowed down; staying awake and keeping speakers awake type nothing
 ; and answer each press at once.
 
 class PowerUpUtilities extends SuiteModule {
     hasSettings := true
-    resetSections := ["Speakers"]
+    resetSections := ["Sleep", "Speakers"]
 
     __New(app) {
         super.__New(app, "power-up-utilities")
@@ -23,7 +25,9 @@ class PowerUpUtilities extends SuiteModule {
         this.terminal := PU_Terminal(this)
         this.utilities := PU_Utilities(this)
         this.stayAwake := PU_StayAwake(this)
-        this.speakers := PU_Speakers(this, app.Settings.directory "\" this.id "\settings.ini")
+        this.settingsPath := app.Settings.directory "\" this.id "\settings.ini"
+        this.realSleep := IniRead(this.settingsPath, "Sleep", "Real", 1) != "0"
+        this.speakers := PU_Speakers(this, this.settingsPath)
     }
 
     dryRun => this.app.dryRun
@@ -115,6 +119,11 @@ class PowerUpUtilities extends SuiteModule {
         if ui.Existing(key)
             return
         rows := SuitePageRows(ui.NewWindow(key, "Power-Up Utilities - Settings", true), 640)
+        rows.Heading("Sleep")
+        rows.Checkbox("Sleep for real, even where Away Mode is allowed", "vrealSleep").Value := this.realSleep
+        rows.Caption("Some computers let Away Mode replace sleep, keeping them running with their screens dark."
+            . " Unticked, Pause + Escape sleeps as Start's Sleep does.", true)
+        rows.Heading("Keep speakers awake")
         rows.Text("Keep speakers awake, an action you can give a hotkey in Keybindings, nudges speakers"
             . " that fall asleep in silence while you're at the computer.")
         y := rows.y
@@ -134,8 +143,10 @@ class PowerUpUtilities extends SuiteModule {
         try {
             minutes := PU_Speakers.CleanMinutes(window["minutes"].Value)
             chime := window["chime"].Value != 0
-            this.app.Settings.WritePreferences(this.id,
-                Map("Speakers", Map("Minutes", minutes, "Chime", chime ? 1 : 0)))
+            realSleep := window["realSleep"].Value != 0
+            this.app.Settings.WritePreferences(this.id, Map("Sleep", Map("Real", realSleep ? 1 : 0),
+                "Speakers", Map("Minutes", minutes, "Chime", chime ? 1 : 0)))
+            this.realSleep := realSleep
             this.speakers.minutes := minutes
             this.speakers.chime := chime
             ui.Applied(key)
@@ -355,7 +366,8 @@ class PowerUpUtilities extends SuiteModule {
         Text waits while Shift, Ctrl, Alt or Win is held, and Terminal actions run once you let go.
 
         SYSTEM UTILITIES
-        Pause + Escape puts your computer to sleep.
+        Pause + Escape puts your computer to sleep once you let go of every key, so none stays stuck after waking.
+        It sleeps for real even where Away Mode is allowed to replace sleep; Settings can leave that to Windows.
         Pause + Pause turns the displays off, as Windows' screen timeout does, for a break or to save power, and any touch wakes them; off is also the kindest to an OLED screen.
 
         STAY AWAKE

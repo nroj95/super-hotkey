@@ -15,7 +15,7 @@ class PU_Utilities {
     SleepComputer(job) {
         if !this.app.JobValid(job) || !this.app.InputsReleased(job.event)
             return
-        SuiteSleep.Now()
+        SuiteSleep.Now(!this.app.realSleep)
     }
 
     ; Turns the displays off as Windows' own screen timeout does; any touch,

@@ -240,7 +240,10 @@ Text waits while Shift, Ctrl, Alt or Win is held, and Terminal actions run once 
 SYSTEM UTILITIES
 =
 
-Pause + Escape puts your computer to sleep.
+Pause + Escape puts your computer to sleep once you let go of every key, so none stays stuck after waking.
+=
+
+It sleeps for real even where Away Mode is allowed to replace sleep; Settings can leave that to Windows.
 =
 
 Pause + Pause turns the displays off, as Windows' screen timeout does, for a break or to save power, and any touch wakes them; off is also the kindest to an OLED screen.
