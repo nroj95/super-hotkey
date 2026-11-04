@@ -360,22 +360,23 @@ class GalaxyRhythmChecks {
                 "a quick look at 03:30 after going to bed at 23:00 costs nothing")
             energy.level := 10
             energy.Tick("20261109023000", 0)
-            this.Assert(energy.level = 10 && !energy.dry && !InStr(module.reports[-1], "energy:"),
-                "during lights-out the bar freezes: no drain and no notices")
-            energy.level := -30
+            this.Assert(Abs(energy.level - (10 - tick)) < 0.001 && !energy.dry && !InStr(module.reports[-1], "energy:"),
+                "during bedtime's night the bar still drains, without notices")
+            energy.level := -29.9
             energy.Tick("20261109024000", 0)
-            this.Assert(energy.level = -30 && !energy.fainting && grey.level = 1,
-                "its grey stays as it is, and nobody faints from it: bedtime's fade owns the night")
+            this.Assert(energy.level = -30 && energy.dry && !energy.fainting && grey.level = 0
+                && !InStr(module.reports[-1], "energy:"),
+                "running dry in the night counts for tomorrow, silently: no faint, and no grey deeper than as the night began")
             energy.module.bedtime.rows[3].show := false
-            energy.level := 10
+            energy.level := -20
             energy.Tick("20261109024010", 0)
             energy.module.bedtime.rows[3].show := true
-            this.Assert(Abs(energy.level - (10 - tick)) < 0.001, "with bedtime's sleep off there is no lights-out to freeze the bar")
+            this.Assert(Abs(grey.level - (20 + tick) / 30) < 0.001, "with bedtime's sleep off the night is no different: the grey deepens")
             energy.level := -28
             energy.away := true
             energy.awaySince := "20261109003000"
             energy.Tick("20261109031000", 0)
-            this.Assert(Abs(energy.level - (-28 + GR_Energy.Refill(160))) < 0.001 && grey.level = 0,
+            this.Assert(Abs(energy.level - (-28 + GR_Energy.Refill(160) - tick)) < 0.001 && grey.level = 0,
                 "back during lights-out after a long break, the refill comes first and lifts the grey before bedtime fades")
             app.suspended := true
             energy.lastUp := "20261109180000"

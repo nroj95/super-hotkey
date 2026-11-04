@@ -46,14 +46,18 @@
 ; starts, but taking one counts as the day running dry (TakeNightOff), so it
 ; never beats going without, and how late the computer was used still
 ; counts. A suspended suite pauses the bar too, without the dry day, while
-; being at the unlocked computer still counts toward how late it was. Bedtime's lights-out freezes the bar
-; the same way: no drain, notices, dry day or faint, while its grey stays as
-; it is for bedtime's fade to darken from, so the night speaks with one voice;
-; a break that ends during it still gives back first, lifting that grey. The level, when the computer was last
-; used and when the day last started survive restarts in energy.ini. The
-; bar, outlined so it shows on dark backgrounds, sits in the corner
-; Position names, bottom right by default, on the display Display names, the
-; primary one by default, or on all; a dry run draws no bar.
+; being at the unlocked computer still counts toward how late it was. During
+; bedtime's night, from its sleep to the day start, the bar still drains
+; while the user is there, but silently: no notices, no faint and a grey
+; that only lightens from where the night began, for bedtime's fade to darken
+; from, so the night speaks with one voice. Reaching zero then still counts
+; as the day running dry, and a break that ends in the night still gives back
+; first, lifting that grey.
+; The level, when the computer was last used and when the day last started
+; survive restarts in energy.ini. The bar, outlined so it shows on dark
+; backgrounds, sits in the corner Position names, bottom right by default, on
+; the display Display names, the primary one by default, or on all; a dry run
+; draws no bar.
 ; =============================================================================
 
 class GR_Energy {
@@ -100,6 +104,8 @@ class GR_Energy {
         this.dayStarted := ""    ; A_Now of the day start the bar last started over at
         this.dry := false        ; the bar ran empty since the day started
         this.windDay := ""       ; A_Now of the day start of the day a second wind was taken
+        this.night := false      ; bedtime's night, as of the last tick
+        this.nightLevel := 0     ; the highest level since that night began, which the grey holds
         this.displayOff := false
         this.lowShown := false
         this.roadShown := false
@@ -291,6 +297,11 @@ class GR_Energy {
         app := this.module.app
         this.lastSeen := now
         this.StartDay(now)
+        ; The grey holds where it was as bedtime's night begins.
+        night := this.LightsOut(now)
+        if night && !this.night
+            this.nightLevel := this.level
+        this.night := night
         if !this.show || !this.Present() {
             ; A suspended suite or a hidden bar is neither use nor rest, even
             ; locked meanwhile: a break starts no earlier than its end.
@@ -309,14 +320,15 @@ class GR_Energy {
         rows := this.module.bedtime.rows
         if !GR_Bedtime.InNight(now, rows[-1].time, this.module.bedtime.wakeTime)
             this.lastUp := now
-        night := this.LightsOut(now)
         if this.away {
             this.away := false
             this.TakeBreak(DateDiff(now, this.awaySince, "Seconds") / 60)
         }
-        ; A night off pauses the drain, its notices, the grey and the faint;
-        ; lights-out freezes the bar, its grey included.
-        if this.module.Off(now) || night {
+        ; A break in the night lifts the grey it holds.
+        if night
+            this.nightLevel := Max(this.nightLevel, this.level)
+        ; A night off pauses the drain, its notices, the grey and the faint.
+        if this.module.Off(now) {
             this.Shade()
             this.Save(now)
             return
@@ -327,6 +339,12 @@ class GR_Energy {
         this.level := Max(this.level - cost, Min(this.level, active ? -this.roadMinutes : 0))
         if this.level <= 0
             this.dry := true
+        ; Bedtime's night drains quietly: no notices and no faint.
+        if night {
+            this.Shade()
+            this.Save(now)
+            return
+        }
         if this.level > this.full * GR_Energy.LowShare
             this.lowShown := false
         else if this.level > 0 && !this.lowShown {
@@ -455,7 +473,7 @@ class GR_Energy {
         app := this.module.app
         if !this.fainting
             return
-        if this.module.Off() || this.LightsOut(A_Now) || this.module.stopping || !app.ModuleActive(this.module.id)
+        if this.module.Off() || this.night || this.module.stopping || !app.ModuleActive(this.module.id)
             || app.suspended || app.systemSuspended {
             this.fainting := false
             return
@@ -488,8 +506,10 @@ class GR_Energy {
     ; suite; Draw runs it every second, so it never waits for a tick.
     Shade() {
         app := this.module.app
-        this.module.grey.Set("energy", this.show && this.faint && this.level < 0 && !this.module.Off()
-            && !app.suspended && app.ModuleActive(this.module.id) ? -this.level / this.roadMinutes : 0)
+        ; In bedtime's night the grey grows no deeper than when it began.
+        level := this.night ? Max(this.level, this.nightLevel) : this.level
+        this.module.grey.Set("energy", this.show && this.faint && level < 0 && !this.module.Off()
+            && !app.suspended && app.ModuleActive(this.module.id) ? -level / this.roadMinutes : 0)
     }
 
     ; Taking a night off counts as the day running dry; Back on does not undo it.
