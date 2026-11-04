@@ -395,6 +395,17 @@ class InterfaceChecks {
                     rhythm.SyncNightOff()
                     this.Assert(!rhythm.Off() && button.Text = "Tonight off" && button.Enabled,
                         "as the day starts, Tonight off is back")
+                    ; Modules start before the interface exists.
+                    interface := app.ui
+                    app.ui := 0
+                    try {
+                        rhythm.SyncNightOff()
+                        synced := true
+                    }
+                    catch
+                        synced := false
+                    app.ui := interface
+                    this.Assert(synced, "Galaxy Rhythm starts before the interface exists, a night off running or not")
                     wind := 0
                     for hwnd, control in window
                         if control.Type = "Button" && control.Text = "Second wind"

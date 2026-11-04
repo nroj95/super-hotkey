@@ -66,9 +66,10 @@ class GalaxyRhythmModule extends SuiteModule {
             this.SetNightOff()
     }
 
-    ; Help's Tonight off button, if Help is open.
+    ; Help's Tonight off button, if Help is open; modules start before the
+    ; interface exists.
     NightButton() {
-        if this.app.ui.windows.Has("help:" this.id)
+        if IsObject(this.app.ui) && this.app.ui.windows.Has("help:" this.id)
             for hwnd, control in this.app.ui.windows["help:" this.id]
                 if control.Type = "Button" && (control.Text = GalaxyRhythmModule.OffLabel
                     || InStr(control.Text, "🔒") = 1)
