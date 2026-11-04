@@ -306,15 +306,15 @@ class GalaxyRhythmModule extends SuiteModule {
         FADE TO SLEEP
         The last message starts the night: the screen fades to grey over 10 minutes, Good night shows, and the computer sleeps, even if you lock it meanwhile.
         Stay awake (Pause + End in Power-Up Utilities) keeps it up, even during the fade, and says so; if it ends before your day starts, 06:00 by default, the fade starts over.
-        Until your day starts it stays lights-out: waking the computer begins the fade again, so a quick look is fine but the night stays a night.
+        Until your day starts it's night: waking the computer begins the fade again, so a quick look is fine but the night stays a night.
 
         ENERGY BAR
         A small upright bar marked E, bottom right on the primary display unless Settings moves it, is your energy for the day: every minute you use the computer, game controller included, costs a minute, and 10 hours of activity empty it.
         Watching or reading without touching anything costs half, though it never greys the screen.
         Only your day starting fills it: when your day starts, 06:00 by default, it starts over.
         As in Stardew Valley, a late night costs you: leave the computer before the first bedtime message, 00:00 by default, and the next day starts full; stay later and it starts with less, down to half if you're still there at the sleep, 02:00, and half of that again if the bar ran dry.
-        What happens after the sleep doesn't count, since lights-out sends you back to bed.
-        During lights-out the bar drains quietly while you're there: it doesn't warn, grey further or faint, but running dry then still counts for tomorrow, and bedtime's fade takes over from any grey already showing.
+        What happens after the sleep doesn't count, since the night sends you back to bed.
+        During the night the bar drains quietly while you're there: it doesn't warn, grey further or faint, but running dry then still counts for tomorrow, and bedtime's fade takes over from any grey already showing.
         Breaks give some back, short ones the most: 5 minutes away gives back 15, 10 gives 25 and 30 gives 45, up to an hour, even out of the grey.
         A break starts when the computer sees you go, as it locks, turns its screens off, sleeps or you sign out; quiet time before that might have been reading or a film, so it doesn't count.
         So when you step away, lock the computer, turn its screens off or put it to sleep, any way you like; Win + L, and Pause + Pause and Pause + Escape in Power-Up Utilities, do it in one press.

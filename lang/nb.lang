@@ -92,7 +92,7 @@ The last message starts the night: the screen fades to grey over 10 minutes, Goo
 Stay awake (Pause + End in Power-Up Utilities) keeps it up, even during the fade, and says so; if it ends before your day starts, 06:00 by default, the fade starts over.
 =
 
-Until your day starts it stays lights-out: waking the computer begins the fade again, so a quick look is fine but the night stays a night.
+Until your day starts it's night: waking the computer begins the fade again, so a quick look is fine but the night stays a night.
 =
 
 ENERGY BAR
@@ -110,10 +110,10 @@ Only your day starting fills it: when your day starts, 06:00 by default, it star
 As in Stardew Valley, a late night costs you: leave the computer before the first bedtime message, 00:00 by default, and the next day starts full; stay later and it starts with less, down to half if you're still there at the sleep, 02:00, and half of that again if the bar ran dry.
 =
 
-What happens after the sleep doesn't count, since lights-out sends you back to bed.
+What happens after the sleep doesn't count, since the night sends you back to bed.
 =
 
-During lights-out the bar drains quietly while you're there: it doesn't warn, grey further or faint, but running dry then still counts for tomorrow, and bedtime's fade takes over from any grey already showing.
+During the night the bar drains quietly while you're there: it doesn't warn, grey further or faint, but running dry then still counts for tomorrow, and bedtime's fade takes over from any grey already showing.
 =
 
 Breaks give some back, short ones the most: 5 minutes away gives back 15, 10 gives 25 and 30 gives 45, up to an hour, even out of the grey.

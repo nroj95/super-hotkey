@@ -50,7 +50,7 @@ class GalaxyRhythmChecks {
         this.Assert(GR_Bedtime.InNight("20261104020000", "0200", "0600") && GR_Bedtime.InNight("20261104055959", "0200", "0600")
             && !GR_Bedtime.InNight("20261104015959", "0200", "0600") && !GR_Bedtime.InNight("20261104060000", "0200", "0600")
             && GR_Bedtime.InNight("20261103233000", "2300", "0700") && !GR_Bedtime.InNight("20261103120000", "2300", "0700"),
-            "lights-out runs from the sleep's time until the day starts, across midnight too")
+            "the night runs from the sleep's time until the day starts, across midnight too")
         this.Assert(GR_Energy.LastAt("20261104060000", "2300") = "20261103230000"
             && GR_Energy.LastAt("20261104060000", "0600") = "20261104060000"
             && GR_Energy.LastAt("20261104055959", "0600") = "20261103060000",
@@ -328,7 +328,7 @@ class GalaxyRhythmChecks {
             energy.windDay := ""
 
             ; The next mornings: at 06:00 the bar starts over by the last use
-            ; before lights-out and whether the day ran dry.
+            ; before the night and whether the day ran dry.
             energy.lastUp := "20261103233000"
             energy.dry := false
             energy.level := 50
@@ -346,7 +346,7 @@ class GalaxyRhythmChecks {
             energy.Tick("20261106053000", 0)
             energy.Tick("20261106060000", 0)
             this.Assert(energy.lastUp = "20261106060000" && Abs(energy.level - (600 - tick)) < 0.001,
-                "an early riser at the computer by 05:30 starts the day full, as lights-out doesn't count")
+                "an early riser at the computer by 05:30 starts the day full, as the night doesn't count")
             energy.Tick("20261107015950", 0)
             energy.Tick("20261107040000", 0)
             energy.Tick("20261107060000", 0)
@@ -385,7 +385,7 @@ class GalaxyRhythmChecks {
             energy.awaySince := "20261109003000"
             energy.Tick("20261109031000", 0)
             this.Assert(Abs(energy.level - (-28 + GR_Energy.Refill(160) - tick)) < 0.001 && grey.level = 0,
-                "back during lights-out after a long break, the refill comes first and lifts the grey before bedtime fades")
+                "back during the night after a long break, the refill comes first and lifts the grey before bedtime fades")
             app.suspended := true
             energy.lastUp := "20261109180000"
             energy.Tick("20261109233000", 0)
@@ -536,7 +536,7 @@ class GalaxyRhythmChecks {
             night("015955", "020005")
             this.Assert(this.ShownEverywhere("Stay awake prevented sleep") && !bedtime.fadeStarted
                 && bedtime.Night("20261103020005") && bedtime.Night("20261103055959") && !bedtime.Night("20261103060000"),
-                "stay awake at bedtime says so, and lights-out lasts until the day starts at 06:00")
+                "stay awake at bedtime says so, and the night lasts until the day starts at 06:00")
             night("020005", "020010")
             this.Assert(!bedtime.fadeStarted, "nothing fades while stay awake lasts")
             SuiteStayAwake.active := false

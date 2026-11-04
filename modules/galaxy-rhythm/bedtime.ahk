@@ -8,7 +8,7 @@
 ; never depend on each other or on their order.
 ;
 ; The last row is the sleep, and from its time until the day starts
-; (wakeTime, Your day starts at) it is lights-out: whenever the user is at
+; (wakeTime, Your day starts at) it is the night: whenever the user is at
 ; the unlocked computer, its message shows, the displays fade to grey over
 ; the fade time, the last word shows, and once it has gone the computer
 ; sleeps; locking meanwhile changes nothing. Waking the computer before the
@@ -70,7 +70,7 @@ class GR_Bedtime {
     static CleanMinutes(text) => IsInteger(text) && text >= 1 && text <= GR_Bedtime.FadeLimit
         ? Integer(text) : GR_Bedtime.FadeDefault
 
-    ; Lights-out: since the day last started, the clock has passed the sleep's
+    ; The night: since the day last started, the clock has passed the sleep's
     ; time (HHmm).
     static InNight(now, sleepTime, wakeTime) => DateDiff(GR_Energy.LastAt(now, sleepTime),
         GR_Energy.LastAt(now, wakeTime), "Seconds") > 0
@@ -115,7 +115,7 @@ class GR_Bedtime {
     Tick(*) => this.Check(A_Now)
 
     ; Shows each row whose minute lies after the previous tick and at or before
-    ; now, then fades whenever the user is there during lights-out, and stops
+    ; now, then fades whenever the user is there during the night, and stops
     ; a fade the day's start has overtaken. Returns the indexes shown.
     Check(now) {
         last := this.last
@@ -196,7 +196,7 @@ class GR_Bedtime {
         SetTimer(this.sleepCallback, -SuiteNotice.NewsMs)
     }
 
-    ; Lights-out goes on: its sleep waits for stay awake to end.
+    ; The night goes on: its sleep waits for stay awake to end.
     Prevented() {
         this.CancelFade()
         SuiteNotice.ShowEverywhere("status", this.awakeText)

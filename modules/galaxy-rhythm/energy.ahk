@@ -15,7 +15,7 @@
 ; wakeTime) it starts over, as a day does in Stardew Valley: full if the
 ; computer was last used before bedtime's first message, half if still at it
 ; at bedtime's sleep, sliding between the two in between, and halved again
-; after a day that ran dry (MorningShare). Use during lights-out, from the
+; after a day that ran dry (MorningShare). Use during the night, from the
 ; sleep to the day start, does not count: bedtime sends the user back to
 ; bed, so a quick look costs nothing and an early riser is not up late.
 ;
@@ -142,7 +142,7 @@ class GR_Energy {
     }
 
     ; The share of a full bar a day starting at dayStart begins with, for a
-    ; computer last used before lights-out at lastUp, bedtime's first message
+    ; computer last used before the night at lastUp, bedtime's first message
     ; at lateTime and its sleep at sleepTime (HHmm): full before lateTime,
     ; LateShare from sleepTime on, sliding between, and DryShare of that
     ; after a dry day.
@@ -298,7 +298,7 @@ class GR_Energy {
         this.lastSeen := now
         this.StartDay(now)
         ; The grey holds where it was as bedtime's night begins.
-        night := this.LightsOut(now)
+        night := this.BedtimeNight(now)
         if night && !this.night
             this.nightLevel := this.level
         this.night := night
@@ -409,15 +409,15 @@ class GR_Energy {
         this.SaveState()
     }
 
-    ; Bedtime's lights-out, while its sleep is on.
-    LightsOut(now) {
+    ; Bedtime's night, while its sleep is on.
+    BedtimeNight(now) {
         bedtime := this.module.bedtime
         return bedtime.rows[-1].show && GR_Bedtime.InNight(now, bedtime.rows[-1].time, bedtime.wakeTime)
     }
 
     ; At the start of a day the bar starts over, once, whether the user is
     ; there or not: by MorningShare for how late the computer was used before
-    ; lights-out and whether the day ran dry. The first run only notes the day.
+    ; the night and whether the day ran dry. The first run only notes the day.
     StartDay(now) {
         start := GR_Energy.LastAt(now, this.module.bedtime.wakeTime)
         if this.dayStarted != "" && DateDiff(start, this.dayStarted, "Seconds") > 0 {
