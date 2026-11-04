@@ -858,10 +858,11 @@ class KeybindingsChecks {
                 && saved["paper-pad.help"].bindings[2] = "",
                 "Paper Pad Help defaults to Pause + F12")
             this.Assert(saved["secret-layers.help"].bindings[1] = ""
-                && saved["secret-layers.help"].bindings[2] = ""
-                && saved["galaxy-rhythm.help"].bindings[1] = ""
+                && saved["secret-layers.help"].bindings[2] = "",
+                "Secret Layers Help remains unassigned by default")
+            this.Assert(saved["galaxy-rhythm.help"].bindings[1] = Keybindings.Parse("Pause + G").signature
                 && saved["galaxy-rhythm.help"].bindings[2] = "",
-                "Secret Layers and Galaxy Rhythm Help remain unassigned by default")
+                "Galaxy Rhythm Help defaults to Pause + G")
             this.Assert(saved["cascade-kingdom.help"].bindings[1]
                 = Keybindings.Parse("Caps + H").signature
                 && saved["wonder-windows.help"].bindings[1]

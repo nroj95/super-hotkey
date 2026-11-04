@@ -105,10 +105,11 @@ class GalaxyRhythmModule extends SuiteModule {
         this.SyncNightOff()
     }
 
-    ; Help starts unassigned; the guide is also in the tray menu.
+    ; Help sits on the Pause layer with sleep, the displays and stay awake;
+    ; it answers only while the module is on.
     Register(manager) {
         manager.AddAction("galaxy-rhythm.help", "show Galaxy Rhythm help",
-            ObjBindMethod(this.app, "HelpShortcutEvent", this.id), [],
+            ObjBindMethod(this.app, "HelpShortcutEvent", this.id), ["Pause + G"],
             {category: "Galaxy Rhythm", available: (*) => this.app.ModuleActive(this.id)})
     }
 
