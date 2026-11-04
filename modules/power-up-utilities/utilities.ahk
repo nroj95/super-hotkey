@@ -4,6 +4,8 @@
 ; =============================================================================
 ; Preserve the original sound and 16% temporary volume floor. Retain the exact
 ; endpoint object and restore only a level that still matches our own change.
+; speaker-standby.md keeps what is known and measured about speakers that
+; fall asleep, for keeping them awake.
 ; Sleeping and the stay awake request itself live in core (SuiteSleep,
 ; SuiteStayAwake), shared with every module.
 ; =============================================================================
