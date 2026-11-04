@@ -11,6 +11,34 @@ class GalaxyRhythmChecks {
         this.EnergyMorning()
         this.EnergySettings()
         this.EnergyDay()
+        this.EnergyDayStartChange()
+    }
+
+    ; A changed start of the day applies from the next day, so a settings
+    ; change never cuts today short, refills it or clears its dry day.
+    static EnergyDayStartChange() {
+        for change in [["0800", "20261104130000", "20261105080000"], ["1400", "20261104130000", "20261105140000"],
+                ["0400", "20261104130000", "20261105040000"], ["0500", "20261105030000", "20261105050000"]] {
+            energy := this.EnergyFixture("energy-day-start-" A_Index)
+            energy.dayStarted := "20261104060000", energy.lastUp := "20261104125950"
+            energy.level := 480, energy.dry := true, energy.away := false
+            energy.module.bedtime.wakeTime := change[1]
+            energy.Tick(change[2], 0)
+            kept := energy.level > 479 && energy.level < 480 && energy.dry && energy.dayStarted = "20261104060000"
+            energy.Tick(DateAdd(change[3], -10, "Seconds"), 0)
+            waited := energy.dayStarted = "20261104060000"
+            energy.Tick(change[3], 0)
+            this.Assert(kept && waited && energy.dayStarted = change[3] && !energy.dry,
+                "moving the day's start to " change[1] " at " SubStr(change[2], 9, 4) " keeps today as it is,"
+                . " and the next day starts at " change[3])
+        }
+        energy := this.EnergyFixture("energy-day-start-wind")
+        energy.dayStarted := "20261104060000", energy.level := 100, energy.away := false
+        taken := energy.SecondWind("20261104120000")
+        energy.module.bedtime.wakeTime := "0800"
+        energy.Tick("20261104130000", 0)
+        this.Assert(taken && !energy.SecondWind("20261104130010") && energy.SecondWind("20261105080010"),
+            "a second wind stays taken when the day's start moves, until the next day")
     }
 
     static Assert(condition, label) => SuiteChecks.Assert(condition, label)

@@ -18,6 +18,9 @@
 ; after a day that ran dry (MorningShare). Use during the night, from the
 ; sleep to the day start, does not count: bedtime sends the user back to
 ; bed, so a quick look costs nothing and an early riser is not up late.
+; The next day starts on the date after the one the current day started on,
+; at the time set then (DayOf), so a changed Your day starts at applies from
+; the next day: today is never cut short, and never gets a second start.
 ;
 ; Breaks give some back, short ones the most: the refill rises steeply to
 ; its best value per minute at 5 minutes, the least screen-work guidance asks
@@ -410,12 +413,22 @@ class GR_Energy {
         return bedtime.rows[-1].show && GR_Bedtime.InNight(now, bedtime.rows[-1].time, bedtime.wakeTime)
     }
 
+    ; When the day now belongs to started: the stored start until the date
+    ; after it reaches the day start, then the latest day start.
+    DayOf(now) {
+        wake := this.module.bedtime.wakeTime
+        if this.dayStarted != ""
+            && DateDiff(now, DateAdd(SubStr(this.dayStarted, 1, 8) wake "00", 1, "Days"), "Seconds") < 0
+            return this.dayStarted
+        return GR_Energy.LastAt(now, wake)
+    }
+
     ; At the start of a day the bar starts over, once, whether the user is
     ; there or not: by MorningShare for how late the computer was used before
     ; the night and whether the day ran dry. The first run only notes the day.
     StartDay(now) {
-        start := GR_Energy.LastAt(now, this.module.bedtime.wakeTime)
-        if this.dayStarted != "" && DateDiff(start, this.dayStarted, "Seconds") > 0 {
+        start := this.DayOf(now)
+        if this.dayStarted != "" && start != this.dayStarted {
             rows := this.module.bedtime.rows
             share := GR_Energy.MorningShare(start, this.lastUp, rows[1].time, rows[-1].time, this.dry)
             this.level := this.full * share
@@ -425,8 +438,7 @@ class GR_Energy {
             this.module.Report("day starts at " Round(share * 100) " %")
             this.Shade()
         }
-        if this.dayStarted = "" || DateDiff(start, this.dayStarted, "Seconds") > 0
-            this.dayStarted := start
+        this.dayStarted := start
     }
 
     ; A break refills by Refill, silently, even out of the grey. One across
@@ -443,7 +455,7 @@ class GR_Energy {
     ; Once a day, from one day start to the next, a second wind gives back
     ; WindShare of a full bar, even out of the grey. False if already taken.
     SecondWind(now := "") {
-        day := GR_Energy.LastAt(now = "" ? A_Now : now, this.module.bedtime.wakeTime)
+        day := this.DayOf(now = "" ? A_Now : now)
         if this.windDay = day
             return false
         this.windDay := day
