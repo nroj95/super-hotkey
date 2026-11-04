@@ -240,7 +240,7 @@ Text waits while Shift, Ctrl, Alt or Win is held, and Terminal actions run once 
 SYSTEM UTILITIES
 =
 
-Put your computer to sleep, or wake speakers that automatically enter standby, an action you can give a hotkey in Keybindings.
+Pause + Escape puts your computer to sleep.
 =
 
 Pause + Pause turns the displays off, as Windows' screen timeout does, for a break or to save power, and any touch wakes them; off is also the kindest to an OLED screen.
@@ -265,6 +265,24 @@ The screen still turns off and locks as usual, and choosing Sleep or closing a l
 =
 
 Suspending or exiting Super Hotkey ends it.
+=
+
+KEEP SPEAKERS AWAKE
+=
+
+Some speakers fall asleep after minutes of silence and wake a few seconds late, so notifications and the starts of videos go missing.
+=
+
+Keep speakers awake, an action you can give a hotkey in Keybindings, switches on a nudge every 8 minutes while you're at the computer, and stays on until you switch it off.
+=
+
+It also nudges them as you come back, so they're awake before anything plays.
+=
+
+The nudge is a 25 Hz tone too low for most speakers to play, sized to reach them at any Windows volume; muted, nothing plays.
+=
+
+Settings can nudge more often for speakers that fall asleep sooner, or play a soft chime for speakers the tone doesn't keep awake.
 =
 
 ; modules/secret-layers/layers.ahk

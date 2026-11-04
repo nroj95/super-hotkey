@@ -21,6 +21,7 @@
 #Include "%A_ScriptDir%\modules\power-up-utilities\keyboard.ahk"
 #Include "%A_ScriptDir%\modules\power-up-utilities\terminal.ahk"
 #Include "%A_ScriptDir%\modules\power-up-utilities\utilities.ahk"
+#Include "%A_ScriptDir%\modules\power-up-utilities\speakers.ahk"
 #Include "%A_ScriptDir%\modules\galaxy-rhythm\grey-screen.ahk"
 #Include "%A_ScriptDir%\modules\galaxy-rhythm\bedtime.ahk"
 #Include "%A_ScriptDir%\modules\galaxy-rhythm\energy.ahk"

@@ -694,7 +694,7 @@ class KeybindingsChecks {
             "wonder-windows.cycle-expanded-next", "wonder-windows.cycle-expanded-previous"],
             "Wonder Windows lists zones, then arranging, Windows keys beside their Shift twins, and focus")
         this.AssertDisplaySequence(rows, [
-            "power-up-utilities.help", "power-up-utilities.system.wake-speakers",
+            "power-up-utilities.help", "power-up-utilities.system.keep-speakers-awake",
             "power-up-utilities.system.sleep", "power-up-utilities.system.stay-awake",
             "power-up-utilities.system.allow-sleep",
             "power-up-utilities.terminal.copy", "power-up-utilities.terminal.clear"],

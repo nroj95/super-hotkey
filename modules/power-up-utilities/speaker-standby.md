@@ -3,9 +3,8 @@
 Some active speakers switch themselves to standby when they hear nothing for a
 while, as European ErP energy rules require, and wake on the next sound a few
 seconds late, so notifications and the starts of videos go missing. Power-Up
-Utilities' *wake speakers* plays a sound to wake them; a planned setting is to
-nudge them regularly instead, so they never fall asleep while the user is at
-the computer. These notes keep what is known, what was measured and what is
+Utilities' *keep speakers awake* nudges them regularly instead, so they never
+fall asleep while the user is at the computer. These notes keep what is known, what was measured and what is
 still open, so the defaults can be chosen for most speakers, not one set.
 
 ## Known from the manufacturer
@@ -43,6 +42,7 @@ output.
 | 2026-11-04 | Power light's delay after that tone began | 1.2 s |
 | 2026-11-04 | 25 Hz at -42 and at -36 dBFS, 1.5 s, Windows volume 100 %, knob turned far up | Not heard |
 | 2026-11-04 | The same threshold test with the knob at full | -42 dBFS again, light after 1.8 s: the knob does not change detection |
+| 2026-11-04 | The wake chime, then 25 Hz at -36 dBFS for 1.5 s every 8 minutes, for 25 minutes | The light stayed on throughout: the tone that wakes them also keeps them awake |
 
 Methods: for the standby time, a script played the sound and timed the silence
 until a key press as the light went out, with other sound stopped and Do not
@@ -59,8 +59,6 @@ test sound, but every test sound also resets the speakers' timer.
 
 ## Still open
 
-- Whether a tone that wakes them also keeps them awake, so the timer and the
-  wake use the same threshold: a long run nudging every 8 minutes.
 - Other speakers: Windows' volume scales every signal before the jack, so a
   nudge must be sized for the current volume, measured in decibels, with a
   margin for detectors less sensitive than this one.
@@ -72,10 +70,12 @@ test sound, but every test sound also resets the speakers' timer.
   sleep sooner, such as the 5-minute report, or later.
 - **Only while the user is at the computer**: unlocked, screens on. Asleep
   away from it, the speakers may save their energy.
-- **A volume floor during the nudge**, as *wake speakers* already uses (16 %),
-  so a low Windows volume does not hide the signal; the user's level is
-  restored at once.
 - **The signal: a 25 Hz tone, 6 dB above the threshold found here**, so -36
-  dBFS at full Windows volume, scaled up for lower volumes. It woke these
-  speakers and stays unheard even turned up loud, below what small speakers
-  reproduce. An audible fallback stays for speakers whose detector ignores it.
+  dBFS at full Windows volume, made louder in the file as Windows' volume
+  goes down, so the same level reaches the jack. Past -6 dBFS in the file,
+  Windows' volume is raised for the nudge instead and the user's level
+  restored after it. It woke these speakers, kept them awake and stays
+  unheard even turned up loud, below what small speakers reproduce.
+- **An audible fallback**, the Windows Balloon chime with a 16 % volume
+  floor, for speakers whose detector ignores 25 Hz.
+- **Muted means muted**: nothing reaches the jack, so no nudge plays.

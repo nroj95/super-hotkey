@@ -1,11 +1,8 @@
 ; =============================================================================
-; utilities.ahk - speaker wake, the sleep hotkey, turning the displays off
-; and stay awake's steps; simple text actions live in dispatch
+; utilities.ahk - the sleep hotkey, turning the displays off and stay
+; awake's steps; simple text actions live in dispatch, keeping speakers awake
+; in speakers.ahk
 ; =============================================================================
-; Preserve the original sound and 16% temporary volume floor. Retain the exact
-; endpoint object and restore only a level that still matches our own change.
-; speaker-standby.md keeps what is known and measured about speakers that
-; fall asleep, for keeping them awake.
 ; Sleeping and the stay awake request itself live in core (SuiteSleep,
 ; SuiteStayAwake), shared with every module.
 ; =============================================================================
@@ -13,53 +10,7 @@
 class PU_Utilities {
     __New(app) {
         this.app := app
-        this.speakerRestore := 0
-        this.speakerSound := A_WinDir "\Media\Windows Balloon.wav"
-        this.wakeVolume := 0.16
     }
-
-    WakeSpeakers(job) {
-        if !this.app.JobValid(job)
-            return
-        if !FileExist(this.speakerSound)
-            throw Error("The speaker wake sound was not found:`n" this.speakerSound)
-        endpointPointer := SoundGetInterface("{5CDF2C82-841E-4546-9722-0CF74078229A}")
-        if !endpointPointer
-            throw Error("The playback device does not expose endpoint volume control.")
-        endpoint := ComValue(13, endpointPointer) ; owned IAudioEndpointVolume
-        ComCall(9, endpoint, "float*", &originalVolume := 0) ; GetMasterVolumeLevelScalar
-        try {
-            if originalVolume < this.wakeVolume {
-                previousCritical := A_IsCritical
-                Critical "On"
-                try {
-                    this.speakerRestore := {endpoint: endpoint, original: originalVolume,
-                        boosted: this.wakeVolume}
-                    ComCall(7, endpoint, "float", this.wakeVolume, "ptr", 0)
-                    ComCall(9, endpoint, "float*", &appliedVolume := 0)
-                    this.speakerRestore.boosted := appliedVolume
-                }
-                finally Critical previousCritical
-                Sleep(100)
-            }
-            if this.app.JobValid(job)
-                SoundPlay(this.speakerSound, true)
-        }
-        finally this.RestoreSpeakerVolume()
-    }
-
-    RestoreSpeakerVolume() {
-        restoration := this.speakerRestore
-        if !IsObject(restoration)
-            return
-        ComCall(9, restoration.endpoint, "float*", &currentVolume := 0)
-        if PU_Utilities.ShouldRestoreVolume(currentVolume, restoration.boosted)
-            ComCall(7, restoration.endpoint, "float", restoration.original, "ptr", 0)
-        ; Retain the record if COM failed, so exit cleanup can attempt it again.
-        this.speakerRestore := 0
-    }
-
-    static ShouldRestoreVolume(current, boosted) => Abs(current - boosted) < 0.0001
 
     SleepComputer(job) {
         if !this.app.JobValid(job) || !this.app.InputsReleased(job.event)

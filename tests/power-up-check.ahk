@@ -1,13 +1,69 @@
-; Power-Up Utilities: sleep policy recovery, the stay-awake steps and the keys
-; that hold macros back.
+; Power-Up Utilities: sleep policy recovery, the stay-awake steps, the keys
+; that hold macros back and keeping speakers awake.
 ; Disposable preferences, dry-run inputs and test-owned windows only; staying
-; awake is never requested from Windows here.
+; awake is never requested from Windows here, and no nudge plays.
 class PowerUpChecks {
     static Run() {
         this.SleepPolicyRecovery()
         this.StayAwakeCycles()
         this.BlockingKeys()
         this.DisplaysOff()
+        this.SpeakersAwake()
+    }
+
+    static SpeakersAwake() {
+        quiet := PU_Speakers.TonePlan(0), lower := PU_Speakers.TonePlan(-20), low := PU_Speakers.TonePlan(-40)
+        this.Assert(quiet.fileDb = -36 && quiet.raiseTo = "" && lower.fileDb = -16 && lower.raiseTo = ""
+            && low.fileDb = -6 && low.raiseTo = -30,
+            "the nudge reaches the jack at -36 dBFS at any Windows volume, raising it only when the file can't")
+        wav := PU_Speakers.Tone(-36)
+        peak := 0
+        loop PU_Speakers.Rate * PU_Speakers.ToneMs // 1000
+            peak := Max(peak, Abs(NumGet(wav, 42 + A_Index * 2, "short")))
+        this.Assert(wav.Size = 44 + 24000 && NumGet(wav, 0, "uint") = 0x46464952 && NumGet(wav, 24, "uint") = 8000
+            && NumGet(wav, 44, "short") = 0 && Abs(peak - 32767 * 10 ** (-36 / 20)) < 2,
+            "the tone is 1.5 s of 25 Hz at its level, faded in from silence")
+        this.Assert(PU_Speakers.CleanMinutes("5") = 5 && PU_Speakers.CleanMinutes("0") = 8
+            && PU_Speakers.CleanMinutes("61") = 8 && PU_Speakers.CleanMinutes("x") = 8,
+            "a nudge comes every 1 to 60 minutes, 8 by default")
+
+        reports := [], saved := []
+        app := {suspended: false, systemSuspended: false, sessionLocked: false,
+            ModuleActive: (app, id) => true,
+            Settings: {WritePreferences: (settings, id, changes) => saved.Push(changes["Speakers"]["KeepAwake"])}}
+        module := {app: app, id: "power-up-utilities", stopping: false, dryRun: true,
+            Report: (module, text) => reports.Push(text)}
+        speakers := PU_Speakers(module, SuiteChecks.directory "\speakers\settings.ini")
+        nudges := () => PowerUpChecks.CountOf(reports, "dry run: speakers nudged")
+        speakers.Check()
+        this.Assert(!speakers.on && !nudges(), "keeping speakers awake starts off and nudges nothing")
+        speakers.Toggle()
+        on := speakers.on && saved[-1] = 1 && SuiteNotice.notices["status"].text = "Keeping speakers awake"
+        SuiteNotice.Hide("status")
+        this.Assert(on && nudges() = 1, "switched on, it says so, is kept, and nudges at once")
+        speakers.Check()
+        this.Assert(nudges() = 1, "then it waits")
+        speakers.nudged -= 8 * 60000
+        speakers.Check()
+        this.Assert(nudges() = 2, "and nudges again after 8 minutes")
+        app.sessionLocked := true
+        speakers.nudged -= 8 * 60000
+        speakers.Check()
+        this.Assert(nudges() = 2, "locked, the speakers may sleep")
+        app.sessionLocked := false
+        speakers.Check()
+        this.Assert(nudges() = 3, "unlocked, it nudges at once, before anything plays")
+        speakers.displayOff := true
+        speakers.nudged -= 8 * 60000
+        speakers.Check()
+        speakers.displayOff := false
+        this.Assert(nudges() = 3, "with the displays off it nudges nothing")
+        speakers.Toggle()
+        off := !speakers.on && saved[-1] = 0 && SuiteNotice.notices["status"].text = "Letting speakers sleep"
+        SuiteNotice.Hide("status")
+        speakers.nudged -= 8 * 60000
+        speakers.Check()
+        this.Assert(off && nudges() = 3, "switched off, it says so, is kept, and nudges nothing")
     }
 
     static DisplaysOff() {
@@ -19,6 +75,13 @@ class PowerUpChecks {
     }
 
     static Assert(condition, label) => SuiteChecks.Assert(condition, label)
+
+    static CountOf(list, value) {
+        count := 0
+        for item in list
+            count += item = value
+        return count
+    }
 
     static BlockingKeys() {
         textKeys := ""

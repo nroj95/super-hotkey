@@ -1,9 +1,13 @@
-; Power-Up Utilities: extra keys, text and Terminal macros, and system actions.
-; Macros run once their trigger key and modifiers are released, outside input
-; callbacks, with Caps or Pause still allowed down; staying awake types nothing
-; and answers each press at once.
+; Power-Up Utilities: extra keys, text and Terminal macros, system actions and
+; the settings page for keeping speakers awake. Macros run once their trigger
+; key and modifiers are released, outside input callbacks, with Caps or Pause
+; still allowed down; staying awake and keeping speakers awake type nothing
+; and answer each press at once.
 
 class PowerUpUtilities extends SuiteModule {
+    hasSettings := true
+    resetSections := ["Speakers"]
+
     __New(app) {
         super.__New(app, "power-up-utilities")
         this.manager := 0
@@ -19,6 +23,7 @@ class PowerUpUtilities extends SuiteModule {
         this.terminal := PU_Terminal(this)
         this.utilities := PU_Utilities(this)
         this.stayAwake := PU_StayAwake(this)
+        this.speakers := PU_Speakers(this, app.Settings.directory "\" this.id "\settings.ini")
     }
 
     dryRun => this.app.dryRun
@@ -29,9 +34,9 @@ class PowerUpUtilities extends SuiteModule {
         manager.AddAction("power-up-utilities.help", "show Power-Up Utilities help",
             ObjBindMethod(this.app, "HelpShortcutEvent", this.id), ["Pause + H"],
             {category: "Power-Up Utilities", available: (*) => this.app.ModuleActive(this.id)})
-        ; Waking speakers has no default hotkey; a setting is to keep them awake.
-        this.AddAction("speaker-wake", "system.wake-speakers", "wake speakers",
-            "speaker-wake", "", "")
+        ; Few speakers need it, so it has no default hotkey.
+        this.AddAction("speakers", "system.keep-speakers-awake", "keep speakers awake: on / off",
+            "speakers", "", "")
         this.AddAction("sleep", "system.sleep", "put computer to sleep", "sleep", "", "Pause + Escape")
         this.AddAction("displays", "system.displays-off", "turn off the displays", "displays-off", "", "Pause + Pause")
         this.AddAction("awake", "system.stay-awake", "stay awake: 30 min, 1, 2, 4, 8 h, no limit",
@@ -76,6 +81,8 @@ class PowerUpUtilities extends SuiteModule {
                 available: (*) => this.app.ModuleActive(this.id)})
     }
 
+    Start() => this.speakers.Start()
+
     ; Core restores an interrupted sleep transaction.
     Stop(*) {
         if this.stopping
@@ -83,17 +90,59 @@ class PowerUpUtilities extends SuiteModule {
         this.stopping := true
         this.CancelWork()
         this.stayAwake.End()
+        try this.speakers.Stop()
     }
 
     ; Suspending Super Hotkey hands everything back to Windows, staying awake
-    ; included; a locked session or system sleep keeps it.
+    ; included, and stops nudging the speakers; a locked session or system
+    ; sleep keeps staying awake.
     Suspend() {
-        if this.app.suspended
+        if this.app.suspended {
             this.stayAwake.End()
+            try this.speakers.Silence()
+        }
     }
 
-    ; Back at the desktop: show a stay awake that ran out while away.
-    Resume() => this.stayAwake.Returned()
+    ; Back at the desktop: show a stay awake that ran out while away, and
+    ; wake the speakers.
+    Resume() {
+        this.stayAwake.Returned()
+        this.speakers.Check()
+    }
+
+    ShowSettings(ui) {
+        key := "settings:" this.id
+        if ui.Existing(key)
+            return
+        rows := SuitePageRows(ui.NewWindow(key, "Power-Up Utilities - Settings", true), 640)
+        rows.Text("Keep speakers awake, an action you can give a hotkey in Keybindings, nudges speakers"
+            . " that fall asleep in silence while you're at the computer.")
+        y := rows.y
+        rows.Field("Nudge every", "Edit", "w60 Number vminutes")
+        rows.window.AddUpDown("Range1-" PU_Speakers.MinutesLimit, this.speakers.minutes)
+        rows.window.AddText("x" (SuitePageRows.FieldX + 68) " y" (y + 4) " w60", "min")
+        rows.Caption("8 suits most speakers; choose fewer if yours fall asleep sooner.")
+        rows.Checkbox("Play a soft chime instead of the silent tone", "vchime").Value := this.speakers.chime
+        rows.Caption("For speakers that the silent tone doesn't keep awake.", true)
+        rows.Show(ui, key, [["Apply", ObjBindMethod(this, "SaveSettings", ui), 100],
+            ["Back", ObjBindMethod(ui, "BackToHelp", this.id), 90]])
+    }
+
+    SaveSettings(ui, *) {
+        key := "settings:" this.id
+        window := ui.windows[key]
+        try {
+            minutes := PU_Speakers.CleanMinutes(window["minutes"].Value)
+            chime := window["chime"].Value != 0
+            this.app.Settings.WritePreferences(this.id,
+                Map("Speakers", Map("Minutes", minutes, "Chime", chime ? 1 : 0)))
+            this.speakers.minutes := minutes
+            this.speakers.chime := chime
+            ui.Applied(key)
+        }
+        catch Error as failure
+            ui.Report(failure, "Power-Up Utilities / settings")
+    }
 
     SetTrayStatus(text) {
         if IsObject(this.app.ui)
@@ -118,7 +167,6 @@ class PowerUpUtilities extends SuiteModule {
         this.pressTokens.Clear()
         SetTimer(this.pollCallback, 0)
         this.keyboard.ReleaseAll()
-        try this.utilities.RestoreSpeakerVolume()
         try this.terminal.RestoreClipboard()
     }
 
@@ -148,21 +196,23 @@ class PowerUpUtilities extends SuiteModule {
         typing := action.kind = "text" || action.kind = "timestamp"
         if !(event.phase = "down" || event.phase = "repeat" && typing) || !this.CanDispatch(event.actionId)
             return
-        ; Staying awake types nothing, so each press answers at once, with Pause
-        ; still held for the next step.
-        if InStr(action.kind, "awake-") = 1 {
+        ; Staying awake and keeping speakers awake type nothing, so each press
+        ; answers at once, with Pause still held for the next step.
+        if InStr(action.kind, "awake-") = 1 || action.kind = "speakers" {
             if this.dryRun {
                 this.Report("dry run: " event.actionId " via " event.binding)
                 return
             }
             try {
-                if action.kind = "awake-end"
+                if action.kind = "speakers"
+                    this.speakers.Toggle()
+                else if action.kind = "awake-end"
                     this.stayAwake.AllowSleep()
                 else
                     this.stayAwake.Step()
             }
             catch Error as failure
-                SuiteState.Log.Error("Power-Up Utilities / stay awake", failure)
+                SuiteState.Log.Error("Power-Up Utilities / " (action.kind = "speakers" ? "speakers" : "stay awake"), failure)
             return
         }
         if this.pending.Count >= 16
@@ -240,7 +290,6 @@ class PowerUpUtilities extends SuiteModule {
                 case "timestamp": SendText(FormatTime(, "yyyyMMdd-HHmmss"))
                 case "terminal-copy": this.terminal.Copy(job)
                 case "terminal-clear": this.terminal.Clear(job)
-                case "speaker-wake": this.utilities.WakeSpeakers(job)
                 case "sleep": this.utilities.SleepComputer(job)
                 case "displays-off": this.utilities.DisplaysOff(job)
                 default: throw Error("Unknown action kind: " job.action.kind)
@@ -306,7 +355,7 @@ class PowerUpUtilities extends SuiteModule {
         Text waits while Shift, Ctrl, Alt or Win is held, and Terminal actions run once you let go.
 
         SYSTEM UTILITIES
-        Put your computer to sleep, or wake speakers that automatically enter standby, an action you can give a hotkey in Keybindings.
+        Pause + Escape puts your computer to sleep.
         Pause + Pause turns the displays off, as Windows' screen timeout does, for a break or to save power, and any touch wakes them; off is also the kindest to an OLED screen.
 
         STAY AWAKE
@@ -316,5 +365,12 @@ class PowerUpUtilities extends SuiteModule {
         The tray icon's tooltip shows how long.
         The screen still turns off and locks as usual, and choosing Sleep or closing a laptop lid still sleeps.
         Suspending or exiting Super Hotkey ends it.
+
+        KEEP SPEAKERS AWAKE
+        Some speakers fall asleep after minutes of silence and wake a few seconds late, so notifications and the starts of videos go missing.
+        Keep speakers awake, an action you can give a hotkey in Keybindings, switches on a nudge every 8 minutes while you're at the computer, and stays on until you switch it off.
+        It also nudges them as you come back, so they're awake before anything plays.
+        The nudge is a 25 Hz tone too low for most speakers to play, sized to reach them at any Windows volume; muted, nothing plays.
+        Settings can nudge more often for speakers that fall asleep sooner, or play a soft chime for speakers the tone doesn't keep awake.
     )"
 }
