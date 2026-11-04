@@ -43,7 +43,10 @@
 ; touches the bar: it keeps the computer up while the user is away, when the
 ; bar neither drains nor greys. A night off (the module's Off) pauses the
 ; drain, its notices, the grey and the faint until the day starts; how late
-; the computer was used still counts. The level, when the computer was last
+; the computer was used still counts. Bedtime's lights-out freezes the bar
+; the same way: no drain, notices, dry day or faint, while its grey stays as
+; it is for bedtime's fade to darken from, so the night speaks with one voice;
+; a break that ends during it still gives back first, lifting that grey. The level, when the computer was last
 ; used and when the day last started survive restarts in energy.ini. The
 ; bar, outlined so it shows on dark backgrounds, sits in the corner
 ; Position names, bottom right by default, on the display Display names, the
@@ -298,12 +301,14 @@ class GR_Energy {
         rows := this.module.bedtime.rows
         if !GR_Bedtime.InNight(now, rows[-1].time, this.module.bedtime.wakeTime)
             this.lastUp := now
+        night := this.LightsOut(now)
         if this.away {
             this.away := false
             this.TakeBreak(DateDiff(now, this.awaySince, "Seconds") / 60)
         }
-        ; A night off pauses the drain, its notices, the grey and the faint.
-        if this.module.Off(now) {
+        ; A night off pauses the drain, its notices, the grey and the faint;
+        ; lights-out freezes the bar, its grey included.
+        if this.module.Off(now) || night {
             this.Shade()
             this.Save(now)
             return
@@ -378,6 +383,12 @@ class GR_Energy {
         this.SaveState()
     }
 
+    ; Bedtime's lights-out, while its sleep is on.
+    LightsOut(now) {
+        bedtime := this.module.bedtime
+        return bedtime.rows[-1].show && GR_Bedtime.InNight(now, bedtime.rows[-1].time, bedtime.wakeTime)
+    }
+
     ; At the start of a day the bar starts over, once, whether the user is
     ; there or not: by MorningShare for how late the computer was used before
     ; lights-out and whether the day ran dry. The first run only notes the day.
@@ -436,7 +447,7 @@ class GR_Energy {
         app := this.module.app
         if !this.fainting
             return
-        if this.module.Off() || this.module.stopping || !app.ModuleActive(this.module.id)
+        if this.module.Off() || this.LightsOut(A_Now) || this.module.stopping || !app.ModuleActive(this.module.id)
             || app.suspended || app.systemSuspended {
             this.fainting := false
             return

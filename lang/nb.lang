@@ -113,6 +113,9 @@ As in Stardew Valley, a late night costs you: leave the computer before the firs
 What happens after the sleep doesn't count, since lights-out sends you back to bed.
 =
 
+During lights-out the bar rests too: it doesn't drain, warn or faint, and bedtime's fade takes over from any grey already showing.
+=
+
 Breaks give some back, short ones the most: 5 minutes away gives back 15, 10 gives 25 and 30 gives 45, up to an hour, even out of the grey.
 =
 

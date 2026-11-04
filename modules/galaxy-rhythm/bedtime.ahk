@@ -13,7 +13,9 @@
 ; the fade time, the last word shows, and once it has gone the computer
 ; sleeps; locking meanwhile changes nothing. Waking the computer before the
 ; day starts begins it all again, so a quick look is fine but the night
-; stays a night, and the day starting ends a fade. Stay awake prevents only
+; stays a night, and the day starting ends a fade. A fade starts from any
+; grey already showing, the energy bar's frozen grey, and darkens from there,
+; so the screen never clears before it greys. Stay awake prevents only
 ; the sleep. On at bedtime, or switched on during the fade or the last word,
 ; it shows its own message and clears the grey; ending before the day
 ; starts, it lets the fade begin again. A night off, or Super Hotkey
@@ -48,6 +50,7 @@ class GR_Bedtime {
         this.awakeText := GR_Bedtime.AwakeDefault
         this.last := ""        ; A_Now at the previous tick
         this.fadeStarted := 0  ; A_TickCount while fading
+        this.fadeFrom := 0     ; the grey other sources showed as the fade began
         this.saying := false   ; the last word shows, the sleep is armed
         this.tickCallback := ObjBindMethod(this, "Tick")
         this.fadeCallback := ObjBindMethod(this, "FadeStep")
@@ -165,6 +168,10 @@ class GR_Bedtime {
         SuiteNotice.ShowEverywhere("status", this.rows[-1].text)
         this.module.Report("bedtime message " this.rows.Length ", fading to sleep over " this.fadeMinutes " min")
         this.fadeStarted := A_TickCount
+        this.fadeFrom := 0
+        for source, level in this.module.grey.levels
+            if source != "bedtime"
+                this.fadeFrom := Max(this.fadeFrom, level)
         this.saying := false
         SetTimer(this.fadeCallback, GR_Bedtime.FadeStepMs)
     }
@@ -179,9 +186,9 @@ class GR_Bedtime {
             return
         }
         elapsed := ((tick = "" ? A_TickCount : tick) - this.fadeStarted) & 0xFFFFFFFF
-        level := elapsed / (this.fadeMinutes * 60000)
-        this.module.grey.Set("bedtime", level)
-        if level < 1 || this.saying
+        progress := elapsed / (this.fadeMinutes * 60000)
+        this.module.grey.Set("bedtime", this.fadeFrom + (1 - this.fadeFrom) * progress)
+        if progress < 1 || this.saying
             return
         this.saying := true
         SuiteNotice.ShowEverywhere("status", this.sleepText)

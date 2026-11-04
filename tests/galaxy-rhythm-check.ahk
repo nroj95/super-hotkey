@@ -21,7 +21,8 @@ class GalaxyRhythmChecks {
             ModuleActive: (app, id) => true}
         module := {app: app, id: "galaxy-rhythm", stopping: false, dryRun: true,
             Name: "Galaxy Rhythm", grey: GR_GreyScreen(true), nightOff: false, Off: (module, now := "") => module.nightOff,
-            bedtime: {wakeTime: "0600", rows: [{time: "0000"}, {time: "0100"}, {time: "0200"}]},
+            bedtime: {wakeTime: "0600", rows: [{time: "0000", show: true}, {time: "0100", show: true},
+                {time: "0200", show: true}]},
             reports: reports, Report: (module, text) => reports.Push(text)}
         folder := SuiteChecks.directory "\" name
         DirCreate(folder)
@@ -354,6 +355,25 @@ class GalaxyRhythmChecks {
             energy.Tick("20261108060000", 0)
             this.Assert(Abs(energy.level - (600 - tick)) < 0.001,
                 "a quick look at 03:30 after going to bed at 23:00 costs nothing")
+            energy.level := 10
+            energy.Tick("20261109023000", 0)
+            this.Assert(energy.level = 10 && !energy.dry && !InStr(module.reports[-1], "energy:"),
+                "during lights-out the bar freezes: no drain and no notices")
+            energy.level := -30
+            energy.Tick("20261109024000", 0)
+            this.Assert(energy.level = -30 && !energy.fainting && grey.level = 1,
+                "its grey stays as it is, and nobody faints from it: bedtime's fade owns the night")
+            energy.module.bedtime.rows[3].show := false
+            energy.level := 10
+            energy.Tick("20261109024010", 0)
+            energy.module.bedtime.rows[3].show := true
+            this.Assert(Abs(energy.level - (10 - tick)) < 0.001, "with bedtime's sleep off there is no lights-out to freeze the bar")
+            energy.level := -28
+            energy.away := true
+            energy.awaySince := "20261109003000"
+            energy.Tick("20261109031000", 0)
+            this.Assert(Abs(energy.level - (-28 + GR_Energy.Refill(160))) < 0.001 && grey.level = 0,
+                "back during lights-out after a long break, the refill comes first and lifts the grey before bedtime fades")
         }
         finally {
             SuiteStayAwake.active := false
@@ -536,6 +556,14 @@ class GalaxyRhythmChecks {
             SuiteStayAwake.active := false
             night("060010", "060015")
             this.Assert(!bedtime.fadeStarted, "after the day starts nothing fades, stay awake or not")
+            grey.Set("energy", 0.6)
+            night("030000", "030005")
+            bedtime.FadeStep(minutes(0))
+            from := grey.level
+            bedtime.FadeStep(minutes(5))
+            this.Assert(Abs(from - 0.6) < 0.001 && Abs(grey.level - 0.8) < 0.001,
+                "a fade starts from the grey already showing and darkens from there, never clearing first")
+            grey.Clear()
         }
         finally {
             bedtime.Stop()
