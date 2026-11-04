@@ -401,20 +401,28 @@ class GalaxyRhythmChecks {
             SuiteStayAwake.active := false
             SetTimer(energy.faintCallback, 0)
             grey.Clear()
-            loop MonitorGetCount()
-                SuiteNotice.Hide("status-" A_Index)
+            this.HideNotices()
         }
     }
 
-    ; Whether text shows on each display, hiding it afterwards.
+    ; Whether text shows on each display, in whichever slot, hiding it afterwards.
     static ShownEverywhere(text) {
         everywhere := true
         loop MonitorGetCount() {
-            notice := SuiteNotice.notices["status-" A_Index]
-            everywhere := everywhere && notice.shown && notice.monitor = A_Index && notice.text = text
-            SuiteNotice.Hide("status-" A_Index)
+            monitor := A_Index, found := false
+            for slot, notice in SuiteNotice.notices
+                if notice.shown && notice.monitor = monitor && notice.text = text {
+                    found := true
+                    SuiteNotice.Hide(slot)
+                }
+            everywhere := everywhere && found
         }
         return everywhere
+    }
+
+    static HideNotices() {
+        for slot in SuiteNotice.notices
+            SuiteNotice.Hide(slot)
     }
 
     static GreyLevels() {
@@ -566,7 +574,7 @@ class GalaxyRhythmChecks {
             SuiteStayAwake.active := false
             night("023000", "023005")
             bedtime.FadeStep(minutes(10))
-            SuiteNotice.Hide("status-1")
+            this.HideNotices()
             app.sessionLocked := true
             bedtime.SleepAfterMessage()
             this.Assert(module.reports[-1] = "dry run: bedtime sleep" && grey.level = 0,
@@ -593,8 +601,7 @@ class GalaxyRhythmChecks {
         }
         finally {
             bedtime.Stop()
-            loop MonitorGetCount()
-                SuiteNotice.Hide("status-" A_Index)
+            this.HideNotices()
         }
     }
 }

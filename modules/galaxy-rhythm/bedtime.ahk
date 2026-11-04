@@ -155,7 +155,7 @@ class GR_Bedtime {
 
     Show(index, now) {
         if index != this.rows.Length {
-            SuiteNotice.ShowEverywhere("status", this.rows[index].text)
+            SuiteNotice.ShowEverywhere("bedtime", this.rows[index].text)
             this.module.Report("bedtime message " index)
             return
         }
@@ -166,7 +166,7 @@ class GR_Bedtime {
     }
 
     StartFade() {
-        SuiteNotice.ShowEverywhere("status", this.rows[-1].text)
+        SuiteNotice.ShowEverywhere("bedtime", this.rows[-1].text)
         this.module.Report("bedtime message " this.rows.Length ", fading to sleep over " this.fadeMinutes " min")
         this.fadeStarted := A_TickCount
         this.fadeFrom := 0
@@ -192,14 +192,14 @@ class GR_Bedtime {
         if progress < 1 || this.saying
             return
         this.saying := true
-        SuiteNotice.ShowEverywhere("status", this.sleepText)
+        SuiteNotice.ShowEverywhere("bedtime", this.sleepText)
         SetTimer(this.sleepCallback, -SuiteNotice.NewsMs)
     }
 
     ; The night goes on: its sleep waits for stay awake to end.
     Prevented() {
         this.CancelFade()
-        SuiteNotice.ShowEverywhere("status", this.awakeText)
+        SuiteNotice.ShowEverywhere("bedtime", this.awakeText)
         this.module.Report("bedtime sleep prevented by stay awake")
     }
 

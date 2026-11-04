@@ -885,6 +885,20 @@ class CoreChecks {
             SuiteNotice.notices["status"].window.GetPos(, &statusY, , &statusHeight)
             this.Assert(Abs(statusY + statusHeight // 2 - (top + bottom) // 2) <= 2,
                 "a status notice returns to the center when the indicator hides")
+            ; News from two sources stacks; a source's newer news replaces its own.
+            SuiteNotice.ShowEverywhere("awake", "Sleep allowed again")
+            SuiteNotice.ShowEverywhere("bedtime", "You feel sleepy")
+            SuiteNotice.notices["awake-1"].window.GetPos(, &awakeY, , &awakeHeight)
+            SuiteNotice.notices["bedtime-1"].window.GetPos(, &bedtimeY)
+            stacked := bedtimeY >= awakeY + awakeHeight
+            SuiteNotice.ShowEverywhere("bedtime", "Good night")
+            this.Assert(stacked && SuiteNotice.notices["bedtime-1"].text = "Good night"
+                && SuiteNotice.notices["awake-1"].shown && SuiteNotice.notices["awake-1"].text = "Sleep allowed again",
+                "news from different sources stacks, and a source's newer news replaces its own")
+            loop MonitorGetCount() {
+                SuiteNotice.Hide("awake-" A_Index)
+                SuiteNotice.Hide("bedtime-" A_Index)
+            }
             this.Assert(SuiteNotice.CoveredMonitor() = 0, "no exclusive fullscreen game covers a display")
             ; An exclusive fullscreen game hides whatever shows on its display.
             if MonitorGetCount() >= 2 {

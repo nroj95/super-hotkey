@@ -140,13 +140,17 @@ class PowerUpChecks {
             "running out while the user is there shows on every display at once")
     }
 
-    ; Whether text shows on each display, hiding it afterwards.
+    ; Whether text shows on each display, in whichever slot, hiding it afterwards.
     static ShownEverywhere(text) {
         everywhere := true
         loop MonitorGetCount() {
-            notice := SuiteNotice.notices["status-" A_Index]
-            everywhere := everywhere && notice.shown && notice.monitor = A_Index && notice.text = text
-            SuiteNotice.Hide("status-" A_Index)
+            monitor := A_Index, found := false
+            for slot, notice in SuiteNotice.notices
+                if notice.shown && notice.monitor = monitor && notice.text = text {
+                    found := true
+                    SuiteNotice.Hide(slot)
+                }
+            everywhere := everywhere && found
         }
         return everywhere
     }

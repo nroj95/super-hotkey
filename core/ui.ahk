@@ -242,8 +242,12 @@ SuiteMoveControls(window, positions) {
 ; Large, click-through notices centered on the working display, so keyboard
 ; users see them wherever the pointer rests, even over fullscreen windows;
 ; news they did not just ask for shows on every display.
-; Each slot shows one message; a newer message replaces it. Shown notices
-; stack in order, laid out again whenever one shows or hides.
+; Each slot shows one message; a newer message replaces it. Answers to a
+; press share the status slot, since one press answers at a time, while news
+; takes a slot named for its source, such as bedtime or energy, so news from
+; different sources stacks and a source's newer news replaces its own. Shown
+; notices stack in order, layer, status, then news by slot name, laid out
+; again whenever one shows or hides.
 class SuiteNotice {
     static order := ["layer", "status"] ; top to bottom when both show
     static notices := Map()

@@ -462,7 +462,7 @@ class GR_Energy {
     }
 
     Notice(text) {
-        SuiteNotice.ShowEverywhere("status", text)
+        SuiteNotice.ShowEverywhere("energy", text)
         this.module.Report("energy: " text)
     }
 
