@@ -203,6 +203,7 @@ class GalaxyRhythmChecks {
             this.Assert(Abs(energy.level - (held - tick)) < 0.001 && grey.level > 0,
                 "stay awake doesn't touch the bar: it drains and greys as ever")
             module.nightOff := true
+            this.Assert(!energy.Visible(), "a night off hides the bar")
             energy.Draw()
             this.Assert(grey.level = 0, "a night off clears the grey within a second, without waiting for a tick")
             held := energy.level
@@ -374,6 +375,16 @@ class GalaxyRhythmChecks {
             energy.Tick("20261109031000", 0)
             this.Assert(Abs(energy.level - (-28 + GR_Energy.Refill(160))) < 0.001 && grey.level = 0,
                 "back during lights-out after a long break, the refill comes first and lifts the grey before bedtime fades")
+            app.suspended := true
+            energy.lastUp := "20261109180000"
+            energy.Tick("20261109233000", 0)
+            upWhileSuspended := energy.lastUp = "20261109233000"
+            app.sessionLocked := true
+            energy.Tick("20261109234000", 0)
+            app.sessionLocked := false
+            app.suspended := false
+            this.Assert(upWhileSuspended && energy.lastUp = "20261109233000",
+                "suspended at the unlocked computer still counts as being up late, and locked does not")
         }
         finally {
             SuiteStayAwake.active := false

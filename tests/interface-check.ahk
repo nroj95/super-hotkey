@@ -376,13 +376,14 @@ class InterfaceChecks {
                     for hwnd, control in window
                         if control.Type = "Button" && control.Text = "Tonight off"
                             button := control
+                    rhythm.energy.dry := false
                     rhythm.ToggleNightOff()
-                    tonight := IsObject(button) && button.Text = "Back on" && rhythm.Off()
+                    tonight := IsObject(button) && button.Text = "Back on" && rhythm.Off() && rhythm.energy.dry
                         && DateDiff(rhythm.offUntil, A_Now, "Hours") < 24
                         && SubStr(rhythm.offUntil, 9) = rhythm.bedtime.wakeTime "00"
                     rhythm.ToggleNightOff()
-                    this.Assert(tonight && button.Text = "Tonight off" && !rhythm.Off(),
-                        "Galaxy Rhythm's Help takes tonight off until the day starts, and Back on ends it")
+                    this.Assert(tonight && button.Text = "Tonight off" && !rhythm.Off() && rhythm.energy.dry,
+                        "Galaxy Rhythm's Help takes tonight off until the day starts, counted as running dry, and Back on ends it without undoing that")
                     wind := 0
                     for hwnd, control in window
                         if control.Type = "Button" && control.Text = "Second wind"

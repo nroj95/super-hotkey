@@ -6,9 +6,11 @@
 ;
 ; One time, Your day starts at (the bedtime wakeTime), ends both bedtime's
 ; night and a night off. Help's Tonight off button starts a night off:
-; until the day starts, no bedtime messages or sleep, and no drain, energy
-; notices, grey or faint, though how late the computer is used still shapes
-; the next morning's bar. night.ini keeps it across restarts.
+; until the day starts, no bedtime messages or sleep, and the energy bar
+; hidden without drain, notices, grey or faint. It counts as the day running
+; dry, and how late the computer is used still shapes the next morning's bar,
+; so it buys a quiet night, not a cheap one. night.ini keeps it across
+; restarts.
 class GalaxyRhythmModule extends SuiteModule {
     hasSettings := true
     resetSections := ["Bedtime", "Energy"]
@@ -86,8 +88,10 @@ class GalaxyRhythmModule extends SuiteModule {
             }
             catch Error as failure
                 SuiteState.Log.Error("Galaxy Rhythm / night off", failure)
-        if off
+        if off {
             this.bedtime.CancelFade()
+            this.energy.TakeNightOff()
+        }
         this.energy.Shade()
         SuiteNotice.Show("status", off ? Format("Galaxy Rhythm is off until {1}", FormatTime(this.offUntil, "HH:mm"))
             : "Galaxy Rhythm is back on", 1400)
@@ -324,10 +328,10 @@ class GalaxyRhythmModule extends SuiteModule {
         If you often just walk off, set the screens to turn off after a few minutes in Windows' power settings.
         Near empty it says so; at zero you're running on fumes, the screen greys over half an hour of activity by default, and then Lights out puts the computer to sleep.
         You wake halfway back into the grey, with time to save your work, until a break or Second wind lifts you out; the day still counts as having run dry.
-        Stay awake doesn't touch the bar.
+        Stay awake doesn't touch the bar, and suspending Super Hotkey pauses it, though how late you're at the computer still counts.
 
         Turn Galaxy Rhythm on in Modules and all of this is on; every time, length and message can be changed in Settings.
-        For a game night, Tonight off below pauses all of it until your day starts, though how late you stay up still shapes the next morning; Back on ends it early.
+        For a game night, Tonight off below hides the bar and silences all of it until your day starts, but the next morning pays: it counts as the bar running dry, and how late you stay up still counts; Back on ends it early.
         Once a day, Second wind below gives back a quarter of a full bar, even out of the grey.
     )"
 }

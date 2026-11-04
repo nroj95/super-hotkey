@@ -41,9 +41,12 @@
 ; them out; the day has run dry either way. The grey never comes without
 ; the faint, so without it the bar just stays empty. Stay awake never
 ; touches the bar: it keeps the computer up while the user is away, when the
-; bar neither drains nor greys. A night off (the module's Off) pauses the
-; drain, its notices, the grey and the faint until the day starts; how late
-; the computer was used still counts. Bedtime's lights-out freezes the bar
+; bar neither drains nor greys. A night off (the module's Off) hides the bar
+; and pauses the drain, its notices, the grey and the faint until the day
+; starts, but taking one counts as the day running dry (TakeNightOff), so it
+; never beats going without, and how late the computer was used still
+; counts. A suspended suite pauses the bar too, without the dry day, while
+; being at the unlocked computer still counts toward how late it was. Bedtime's lights-out freezes the bar
 ; the same way: no drain, notices, dry day or faint, while its grey stays as
 ; it is for bedtime's fade to darken from, so the night speaks with one voice;
 ; a break that ends during it still gives back first, lifting that grey. The level, when the computer was last
@@ -291,8 +294,13 @@ class GR_Energy {
         if !this.show || !this.Present() {
             ; A suspended suite or a hidden bar is neither use nor rest, even
             ; locked meanwhile: a break starts no earlier than its end.
-            if app.suspended || !this.show
+            if app.suspended || !this.show {
                 this.away := false
+                ; Suspended at the unlocked computer is still being up.
+                if app.suspended && this.show && !app.sessionLocked && !app.systemSuspended && !this.displayOff
+                    && !GR_Bedtime.InNight(now, this.module.bedtime.rows[-1].time, this.module.bedtime.wakeTime)
+                    this.lastUp := now
+            }
             else if app.sessionLocked || app.systemSuspended || this.displayOff
                 this.Left(now)
             this.Save(now)
@@ -484,10 +492,20 @@ class GR_Energy {
             && !app.suspended && app.ModuleActive(this.module.id) ? -this.level / this.roadMinutes : 0)
     }
 
+    ; Taking a night off counts as the day running dry; Back on does not undo it.
+    TakeNightOff() {
+        this.dry := true
+        this.SaveState()
+        this.module.Report("night off: the day counts as run dry")
+    }
+
+    ; Shown while the user is at the computer, and hidden on a night off.
+    Visible() => this.show && this.Present() && !this.module.Off()
+
     Draw(*) {
         this.Shade()
         if IsObject(this.bar)
-            this.bar.Draw(this.level / this.full, this.show && this.Present(), this.display, this.position)
+            this.bar.Draw(this.level / this.full, this.Visible(), this.display, this.position)
     }
 }
 
