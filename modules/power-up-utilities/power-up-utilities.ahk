@@ -32,6 +32,7 @@ class PowerUpUtilities extends SuiteModule {
         this.AddAction("speaker-wake", "system.wake-speakers", "wake speakers",
             "speaker-wake", "", "Pause + Pause")
         this.AddAction("sleep", "system.sleep", "put computer to sleep", "sleep", "", "Pause + Escape")
+        this.AddAction("displays", "system.displays-off", "turn off the displays", "displays-off", "", "Caps + L")
         this.AddAction("awake", "system.stay-awake", "stay awake: 30 min, 1, 2, 4, 8 h, no limit",
             "awake-step", "", "Pause + End")
         this.AddAction("awake", "system.allow-sleep", "allow sleep again",
@@ -240,6 +241,7 @@ class PowerUpUtilities extends SuiteModule {
                 case "terminal-clear": this.terminal.Clear(job)
                 case "speaker-wake": this.utilities.WakeSpeakers(job)
                 case "sleep": this.utilities.SleepComputer(job)
+                case "displays-off": this.utilities.DisplaysOff(job)
                 default: throw Error("Unknown action kind: " job.action.kind)
             }
         }
@@ -258,8 +260,9 @@ class PowerUpUtilities extends SuiteModule {
     ; Macros wait for every modifier, which would turn typed characters into
     ; shortcuts. A held Caps or Pause never holds them back, so a layer types
     ; like a real key. Text types while its own key is down, which the hotkey
-    ; keeps from the app; other macros wait for it to come up. Sleep also
-    ; waits for the layer keys, so none can stay stuck down after waking.
+    ; keeps from the app; other macros wait for it to come up. Sleep and
+    ; turning the displays off also wait for the layer keys, so none can stay
+    ; stuck down after waking, nor wake the displays by coming up.
     InputsReleased(event) {
         kind := this.catalog.Has(event.actionId) ? this.catalog[event.actionId].kind : ""
         if kind != "text" && kind != "timestamp" && !InStr(event.key, "Wheel")
@@ -273,7 +276,7 @@ class PowerUpUtilities extends SuiteModule {
 
     static BlockingKeys(kind) {
         keys := ["Ctrl", "Alt", "Shift", "LWin", "RWin"]
-        if kind = "sleep"
+        if kind = "sleep" || kind = "displays-off"
             keys.Push("CapsLock", "Pause", "CtrlBreak")
         return keys
     }
@@ -303,6 +306,7 @@ class PowerUpUtilities extends SuiteModule {
 
         SYSTEM UTILITIES
         Wake speakers that automatically enter standby, or put your computer to sleep.
+        Caps + L turns the displays off, as Windows' screen timeout does, for a break or to save power, and any touch wakes them; off is also the kindest to an OLED screen.
 
         STAY AWAKE
         Pause + End keeps the computer from sleeping for 30 minutes.

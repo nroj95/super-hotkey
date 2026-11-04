@@ -1,6 +1,6 @@
 ; =============================================================================
-; utilities.ahk - speaker wake, the sleep hotkey and stay awake's steps; simple
-; text actions live in dispatch
+; utilities.ahk - speaker wake, the sleep hotkey, turning the displays off
+; and stay awake's steps; simple text actions live in dispatch
 ; =============================================================================
 ; Preserve the original sound and 16% temporary volume floor. Retain the exact
 ; endpoint object and restore only a level that still matches our own change.
@@ -63,6 +63,17 @@ class PU_Utilities {
         if !this.app.JobValid(job) || !this.app.InputsReleased(job.event)
             return
         SuiteSleep.Now()
+    }
+
+    ; Turns the displays off as Windows' own screen timeout does; any touch,
+    ; a moved mouse included, wakes them, as Windows decides.
+    DisplaysOff(job) {
+        if !this.app.JobValid(job) || !this.app.InputsReleased(job.event)
+            return
+        try SendMessage(0x0112, 0xF170, 2, , "Program Manager") ; WM_SYSCOMMAND, SC_MONITORPOWER, off
+        catch
+            DllCall("PostMessage", "ptr", 0xFFFF, "uint", 0x0112, "ptr", 0xF170, "ptr", 2) ; HWND_BROADCAST
+        this.app.Report("displays off")
     }
 }
 

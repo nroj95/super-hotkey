@@ -319,7 +319,7 @@ class GalaxyRhythmModule extends SuiteModule {
         What happens after the sleep doesn't count, since lights-out sends you back to bed.
         Breaks give a little back: one of 5 minutes or more refills twice its length once you're back, up to an hour, even out of the grey.
         A break starts when the computer sees you go, as it locks, turns its screens off, sleeps or you sign out; quiet time before that might have been reading or a film, so it doesn't count.
-        So when you step away, lock the computer or put it to sleep, any way you like; Win + L and Pause + Escape in Power-Up Utilities do it in one press.
+        So when you step away, lock the computer, turn its screens off or put it to sleep, any way you like; Win + L, and Caps + L and Pause + Escape in Power-Up Utilities, do it in one press.
         If you often just walk off, set the screens to turn off after a few minutes in Windows' power settings.
         Near empty it says so; at zero you're running on fumes, the screen greys over half an hour of activity by default, and then Lights out puts the computer to sleep.
         You wake halfway back into the grey, with time to save your work, until a break or Second wind lifts you out; the day still counts as having run dry.

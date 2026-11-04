@@ -7,6 +7,15 @@ class PowerUpChecks {
         this.SleepPolicyRecovery()
         this.StayAwakeCycles()
         this.BlockingKeys()
+        this.DisplaysOff()
+    }
+
+    static DisplaysOff() {
+        offKeys := ""
+        for key in PowerUpUtilities.BlockingKeys("displays-off")
+            offKeys .= key " "
+        this.Assert(InStr(offKeys, "CapsLock") && InStr(offKeys, "Shift"),
+            "turning the displays off waits for every key, so Caps coming up doesn't wake them")
     }
 
     static Assert(condition, label) => SuiteChecks.Assert(condition, label)
