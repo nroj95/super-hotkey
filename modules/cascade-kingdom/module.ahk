@@ -100,6 +100,13 @@ class CascadeKingdomModule extends SuiteModule {
             ["Back", ObjBindMethod(ui, "BackToHelp", this.id), 100]])
     }
 
+    RestoreSettings(window) {
+        window["display"].Choose(SuiteInterface.DisplayIndex(this.displayChoices, "All"))
+        window["mirrored"].Value := 0
+        window["tabs"].Value := 1
+        window["inactiveColor"].Choose("White")
+    }
+
     ; Applies without a restart; routing changes first release in-flight work,
     ; and mirroring re-lays out every cascade as a display change does.
     SaveSettings(ui, *) {

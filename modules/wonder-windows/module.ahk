@@ -224,6 +224,11 @@ class WonderWindowsModule extends SuiteModule {
             ["Back", ObjBindMethod(ui, "BackToHelp", this.id), 90]])
     }
 
+    RestoreSettings(window) {
+        window["zoneUnit"].Choose(1)
+        window["giveBack"].Value := 0
+    }
+
     static ScreenGridUrl := "https://github.com/TtesseractT/ScreenGrid"
 
     OpenScreenGrid(ui, *) {

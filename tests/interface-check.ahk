@@ -668,6 +668,25 @@ class InterfaceChecks {
                             settingsDivider := control
                     this.Assert(IsObject(settingsDivider) && settingsDivider.Visible,
                         "module settings retains the same visible footer divider: " id)
+                    restoreButtons := 0
+                    for control in settings
+                        if control.Type = "Button" && control.Text = "Restore defaults"
+                            restoreButtons += 1
+                    pageApply := app.ui.pageLayouts["settings:" id].apply
+                    app.ui.FillDefaults(id)
+                    this.Assert(restoreButtons = 1 && (!pageApply || pageApply.Enabled),
+                        "module Settings restores its defaults on the page, for Apply to save: " id)
+                    if id = "galaxy-rhythm" {
+                        settings["text1"].Value := "Bed!"
+                        settings["showEnergy"].Value := 0
+                        app.ui.FillDefaults(id)
+                        this.Assert(settings["text1"].Value = "It's getting late" && settings["showEnergy"].Value = 1
+                            && settings["energyFade"].Enabled && settings["fade"].Value = GR_Bedtime.FadeDefault,
+                            "Galaxy Rhythm restores its words and switches, and the fields they enable")
+                    }
+                    if id = "power-up-utilities"
+                        this.Assert(settings["realSleep"].Value = 1 && settings["minutes"].Value = 8
+                            && settings["chime"].Value = 0, "Power-Up Utilities restores real sleep and an 8-minute nudge")
                     app.ui.BackToHelp(id)
                     this.Assert(!app.ui.windows.Has("settings:" id)
                         && app.ui.windows.Has(key),

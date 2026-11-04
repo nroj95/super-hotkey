@@ -117,6 +117,14 @@ class PaperPadModule extends SuiteModule {
             ["Back", ObjBindMethod(ui, "BackToHelp", this.id), 100]])
     }
 
+    ; The window's place and size only: the notes folder and the editor path
+    ; are never restored.
+    RestoreSettings(window) {
+        window["display"].Choose(SuiteInterface.DisplayIndex(this.displayChoices, "Primary"))
+        window["width"].Value := PaperPadController.WindowDefaults["WidthPercent"][1]
+        window["height"].Value := PaperPadController.WindowDefaults["HeightPercent"][1]
+    }
+
     SaveSettings(ui, *) {
         global paperPad
         key := "settings:paper-pad"

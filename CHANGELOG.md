@@ -21,6 +21,7 @@
 - Every module's Help page shows its section headings in bold, like the Galaxy Rhythm settings page.
 - **Cascade Kingdom** shows no focus tabs on a cascade of one window, since there is nothing to switch to. They return as soon as a second window joins, and leave again when it is closed, minimized or maximized, hidden to the tray or moved to another virtual desktop. Each display's cascade decides for itself.
 
+- Every Settings page has **Restore defaults**, like Keybindings: it asks first, then fills the page with the module's defaults, and nothing is saved until you apply. Paper Pad's notes folder and editor path, a night off and the energy bar's level are never restored.
 - Notices stay where they first appear until they go: a new one takes the center of its display when that is free, otherwise the first free spot below, and the rest no longer move when one goes. News from different sources, such as bedtime and the energy bar, now shows together instead of one replacing the other.
 
 ### Fixes

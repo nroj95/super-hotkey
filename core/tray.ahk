@@ -316,10 +316,13 @@ class SuiteInterface {
             try control.OnEvent("Focus", ObjBindMethod(this, "RevealControl", key))
         }
         this.LayerFooter(window, footer)
-        ; A first footer button named Apply saves without closing, like
+        ; A footer button named Apply saves without closing, like
         ; Keybindings': grey until something on the page changes, and grey
         ; again once the page calls Applied.
-        apply := footer.buttons.Length && footer.buttons[1].button.Text = "Apply" ? footer.buttons[1].button : 0
+        apply := 0
+        for item in footer.buttons
+            if item.button.Text = "Apply"
+                apply := item.button
         if apply {
             apply.Enabled := false
             for item in controls
@@ -336,6 +339,40 @@ class SuiteInterface {
         window.OnEvent("Size", ObjBindMethod(this, "ResizePage", key))
         SuiteShowCentered(window, width, height, ObjBindMethod(this, "ResizePage", key),
             SuiteInterface.OpenShare)
+    }
+
+    ; Restore defaults on a module's Settings page asks first, like
+    ; Keybindings', then fills the page with the module's defaults; nothing
+    ; is saved until Apply.
+    RestoreDefaults(id, *) {
+        if MsgBox(T("Restore the default settings for {1}?", this.app.modules[id].Name)
+            . "`n`n" T("Changes stay pending until Apply. Hotkeys, notes and their folder are untouched."),
+            SuiteApplication.Name, "YesNo Default2 Icon?") = "Yes"
+            this.FillDefaults(id)
+    }
+
+    FillDefaults(id) {
+        key := "settings:" id
+        if !this.windows.Has(key)
+            return
+        try this.app.modules[id].RestoreSettings(this.windows[key])
+        catch Error as failure {
+            this.Report(failure, SuiteSettings.ModuleNames[id] " / restore defaults")
+            return
+        }
+        if this.pageLayouts.Has(key) && this.pageLayouts[key].apply
+            this.pageLayouts[key].apply.Enabled := true
+    }
+
+    ; The index of a display among DisplayChoices' values, Primary meaning
+    ; the primary display; the first when it is not there.
+    static DisplayIndex(values, value) {
+        if value = "Primary"
+            value := MonitorGetName(MonitorGetPrimary())
+        for index, name in values
+            if name = value
+                return index
+        return 1
     }
 
     ; The page saved: it stays open with Apply grey until the next change,
@@ -992,8 +1029,11 @@ class SuitePageRows {
     }
 
     ; Adds the footer below the last row and shows the page, which may shrink
-    ; a little below its opening size.
+    ; a little below its opening size. A module's Settings page leads its
+    ; footer with Restore defaults.
     Show(ui, key, buttons) {
+        if InStr(key, "settings:") = 1
+            buttons.InsertAt(1, [T("Restore defaults"), ObjBindMethod(ui, "RestoreDefaults", SubStr(key, 10)), 150])
         y := this.y + 35
         ui.Footer(this.window, buttons, y, this.width)
         ui.ShowPage(key, this.width, y + 50, this.width - 40, y + 25)

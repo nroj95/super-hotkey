@@ -137,6 +137,12 @@ class PowerUpUtilities extends SuiteModule {
             ["Back", ObjBindMethod(ui, "BackToHelp", this.id), 90]])
     }
 
+    RestoreSettings(window) {
+        window["realSleep"].Value := 1
+        window["minutes"].Value := PU_Speakers.MinutesDefault
+        window["chime"].Value := 0
+    }
+
     SaveSettings(ui, *) {
         key := "settings:" this.id
         window := ui.windows[key]

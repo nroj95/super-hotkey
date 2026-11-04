@@ -7,6 +7,12 @@
 Language...
 =
 
+Restore the default settings for {1}?
+=
+
+Changes stay pending until Apply. Hotkeys, notes and their folder are untouched.
+=
+
 {1} - Language
 =
 
@@ -20,6 +26,9 @@ Apply and restart
 =
 
 Cancel
+=
+
+Restore defaults
 =
 
 ; modules/cascade-kingdom/module.ahk

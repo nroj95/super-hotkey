@@ -55,6 +55,11 @@ class SecretLayersModule extends SuiteModule {
             [T("Back"), ObjBindMethod(ui, "BackToHelp", this.id), 100]])
     }
 
+    RestoreSettings(window) {
+        window["pause"].Value := 1
+        window["caps"].Value := 1
+    }
+
     SaveSettings(ui, *) {
         key := "settings:secret-layers"
         window := ui.windows[key]

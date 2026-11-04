@@ -305,8 +305,8 @@ class CascadeChecks {
             settings["tabs"].Value := expectedVisible
             settings["inactiveColor"].Choose(inactiveName)
             existingHistorySize := CascadeState.history.Count
-            this.Assert(app.ui.pageFooters[settings.Hwnd].buttons[1].button.Text = "Apply",
-                "Cascade Kingdom Settings use Apply without restart")
+            this.Assert(app.ui.pageFooters[settings.Hwnd].buttons[2].button.Text = "Apply",
+                "Cascade Kingdom Settings use Apply without restart, after Restore defaults")
             app.modules["cascade-kingdom"].SaveSettings(app.ui)
             path := app.Settings.directory "\cascade-kingdom\settings.ini"
             this.Assert(app.ui.windows.Has("settings:cascade-kingdom")

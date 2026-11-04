@@ -253,8 +253,35 @@ class GalaxyRhythmModule extends SuiteModule {
         refreshEnergy()
         showEnergy.OnEvent("Click", refreshEnergy)
         faint.OnEvent("Click", refreshEnergy)
+        this.refreshSettings := () => (refresh(), refreshEnergy())
         rows.Show(ui, key, [["Apply", ObjBindMethod(this, "SaveSettings", ui), 100],
             ["Back", ObjBindMethod(ui, "BackToHelp", this.id), 90]])
+    }
+
+    ; Bedtime and the energy bar as they start; a night off, the bar's level
+    ; and a second wind are state, not settings, and stay as they are.
+    RestoreSettings(window) {
+        for index, defaults in GR_Bedtime.Defaults {
+            window["show" index].Value := 1
+            window["time" index].Value := "20000101" defaults[1] "00"
+            window["text" index].Value := defaults[2]
+        }
+        window["wake"].Value := "20000101" GR_Bedtime.WakeDefault "00"
+        window["awakeText"].Value := GR_Bedtime.AwakeDefault
+        window["fade"].Value := GR_Bedtime.FadeDefault
+        window["sleepText"].Value := GR_Bedtime.SleepDefault
+        window["showEnergy"].Value := 1
+        window["fullHours"].Value := 10
+        for index, corner in GR_EnergyBar.Corners
+            if corner[1] = "bottom-right"
+                window["position"].Choose(index)
+        window["display"].Choose(SuiteInterface.DisplayIndex(this.displayChoices, "Primary"))
+        window["lowText"].Value := GR_Energy.Low
+        window["roadText"].Value := GR_Energy.Road
+        window["faintEnergy"].Value := 1
+        window["energyFade"].Value := GR_Energy.FadeDefault
+        window["faintText"].Value := GR_Energy.Faint
+        this.refreshSettings.Call()
     }
 
     SaveSettings(ui, *) {
