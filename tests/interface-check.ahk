@@ -398,14 +398,14 @@ class InterfaceChecks {
                     settings := app.ui.windows["settings:" id]
                     pageApply := app.ui.pageLayouts["settings:" id].apply
                     greyAtOpen := IsObject(pageApply) && !pageApply.Enabled
-                    rhythm.ToggleNightOff()
-                    synced := settings["nightOff"].Value = 1 && button.Text = "Back on" && !pageApply.Enabled
-                    settings["nightOff"].Value := 0
-                    pageApply.Enabled := true ; as a click on the checkbox does
+                    noCheckbox := true
+                    for hwnd, control in settings
+                        if control.Text = "Tonight off"
+                            noCheckbox := false
+                    pageApply.Enabled := true ; as a change on the page does
                     rhythm.SaveSettings(app.ui)
-                    this.Assert(greyAtOpen && synced && !rhythm.Off() && button.Text = "Tonight off"
-                        && app.ui.windows.Has("settings:" id) && !pageApply.Enabled,
-                        "Settings' Tonight off follows Help's button; Apply, grey until a change, saves and stays open")
+                    this.Assert(greyAtOpen && noCheckbox && app.ui.windows.Has("settings:" id) && !pageApply.Enabled,
+                        "Galaxy Rhythm's Settings leave Tonight off to Help; Apply, grey until a change, saves and stays open")
                     app.ui.CloseWindow("settings:" id)
                 }
                 window.GetClientPos(, , &helpWidth, &helpHeight)

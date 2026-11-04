@@ -27,7 +27,6 @@ class GalaxyRhythmModule extends SuiteModule {
         this.nightPath := folder "\night.ini"
         saved := IniRead(this.nightPath, "Night", "OffUntil", "")
         this.offUntil := IsTime(saved) ? saved : ""  ; A_Now when a night off ends
-        this.nightOffShown := false  ; what Settings' checkbox last showed
         this.bedtime := GR_Bedtime(this, folder "\settings.ini")
         this.energy := GR_Energy(this, folder "\settings.ini", folder "\energy.ini")
     }
@@ -66,15 +65,10 @@ class GalaxyRhythmModule extends SuiteModule {
         return 0
     }
 
-    ; Help's button and Settings' checkbox both show whether tonight is off;
-    ; Apply changes the night off only if the checkbox was changed since.
+    ; Help's button shows what the next press will do.
     SyncNightOff() {
-        off := this.Off()
         if button := this.NightButton()
-            button.Text := off ? GalaxyRhythmModule.OnLabel : GalaxyRhythmModule.OffLabel
-        if this.app.ui.windows.Has("settings:" this.id)
-            this.app.ui.windows["settings:" this.id]["nightOff"].Value := off
-        this.nightOffShown := off
+            button.Text := this.Off() ? GalaxyRhythmModule.OnLabel : GalaxyRhythmModule.OffLabel
     }
 
     SetNightOff(off, now := "") {
@@ -141,13 +135,11 @@ class GalaxyRhythmModule extends SuiteModule {
         rows := SuitePageRows(window, 640)
         rows.Heading("YOUR DAY")
         rows.Text("One time for every morning: it ends bedtime's night and a night off, and starts the energy"
-            . " bar over. A night off can also be taken with the button in Help.")
+            . " bar over. Tonight off and Second wind are buttons in Help.")
         y := rows.y
         window.AddText("x20 y" (y + 4) " w170", "Your day starts at")
         wake := window.AddDateTime("x200 y" y " w75 +0x1 vwake", "HH:mm")
         wake.Value := "20000101" this.bedtime.wakeTime "00"
-        this.nightOffShown := this.Off()
-        window.AddCheckbox("x330 y" (y + 4) " w200 vnightOff", GalaxyRhythmModule.OffLabel).Value := this.nightOffShown
         rows.Advance(wake)
         rows.Heading("BEDTIME")
         rows.Text("Two reminders, then the sleep: each message shows on every display at its time"
@@ -285,15 +277,13 @@ class GalaxyRhythmModule extends SuiteModule {
                 "FaintText", GR_Bedtime.CleanText(window["faintText"].Value, GR_Energy.Faint),
                 "Position", GR_EnergyBar.Corners[window["position"].Value][1],
                 "Display", this.displayChoices[window["display"].Value])
-            nightOff := window["nightOff"].Value
             wakeBefore := this.bedtime.wakeTime
             this.app.Settings.WritePreferences(this.id, Map("Bedtime", values, "Energy", energy))
             this.bedtime.Load()
             this.energy.LoadSettings()
-            ; A changed checkbox takes or ends the night off; a night off
-            ; already taken follows a new start of the day.
-            if nightOff != this.nightOffShown || nightOff && this.Off() && this.bedtime.wakeTime != wakeBefore
-                this.SetNightOff(nightOff)
+            ; A night off already taken follows a new start of the day.
+            if this.Off() && this.bedtime.wakeTime != wakeBefore
+                this.SetNightOff(true)
             ui.Applied(key)
         }
         catch Error as failure
