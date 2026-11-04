@@ -219,9 +219,9 @@ class WonderWindowsModule extends SuiteModule {
         rows.Field("FancyZones:", "Text", "w540 vfancyZonesStatus c" WonderWindowsModule.StatusColor(status), status)
         rows.Text("FancyZones also moves windows and takes hotkeys, so it isn't supported;"
             . " disable it in PowerToys. For drag-and-drop zones that work alongside Super Hotkey, try ScreenGrid.")
-        rows.Show(ui, key, [["Apply", ObjBindMethod(this, "SaveSettings", ui), 100],
-            ["ScreenGrid...", ObjBindMethod(this, "OpenScreenGrid", ui), 130],
-            ["Back", ObjBindMethod(ui, "BackToHelp", this.id), 90]])
+        rows.Show(ui, key, [["Apply", ObjBindMethod(this, "SaveSettings", ui)],
+            ["ScreenGrid...", ObjBindMethod(this, "OpenScreenGrid", ui)],
+            ["Back", ObjBindMethod(ui, "BackToHelp", this.id)]])
     }
 
     RestoreSettings(window) {

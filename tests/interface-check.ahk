@@ -377,11 +377,20 @@ class InterfaceChecks {
                         if control.Type = "Button" && control.Text = "Tonight off"
                             button := control
                     rhythm.energy.dry := false
+                    footerButtons := app.ui.pageFooters[window.Hwnd].buttons
+                    button.GetPos(, , &usualWidth)
+                    footerButtons[-1].button.GetPos(&closeX)
                     rhythm.SetNightOff()
-                    tonight := IsObject(button) && button.Text = "🔒 Off until " FormatTime(rhythm.offUntil, "HH:mm")
+                    tonight := IsObject(button) && button.Text = "🔒 Until " FormatTime(rhythm.offUntil, "HH:mm")
                         && !button.Enabled && rhythm.Off() && !rhythm.energy.dry
                         && DateDiff(rhythm.offUntil, A_Now, "Hours") < 24
                         && SubStr(rhythm.offUntil, 9) = rhythm.bedtime.wakeTime "00"
+                    button.GetPos(&lockedX, , &lockedWidth)
+                    footerButtons[-1].button.GetPos(&closeAfterX)
+                    footerButtons[3].button.GetPos(&settingsX)
+                    this.Assert(usualWidth = SuiteInterface.ButtonMinWidth && lockedWidth > usualWidth
+                        && closeAfterX = closeX && lockedX + lockedWidth + 10 = settingsX,
+                        "footer buttons fit their text, at least the shared width, and the left side makes room as one grows")
                     rhythm.TakeNightOff() ; asks nothing and changes nothing while it runs
                     rhythm.ShowSettings(app.ui)
                     locked := !app.ui.windows["settings:" id]["wake"].Enabled

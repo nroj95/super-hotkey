@@ -95,25 +95,27 @@ class SuiteInterface {
     }
 
     ; Buttons along the bottom on an opaque band the page's content scrolls
-    ; under. y is where the buttons start.
+    ; under, each [label, callback], or [label, callback, false] to start
+    ; greyed out. y is where the buttons start. Each button fits its text.
     Footer(window, buttons, y, width := 800) {
-        total := 0
-        for item in buttons
-            total += (item.Length >= 3 ? item[3] : 130) + 10
-        x := width - 10 - total
         band := window.AddText("x0 y" (y + 49 - SuiteInterface.FooterBand) " w" width
             " h" SuiteInterface.FooterBand " Background" window.BackColor)
         divider := window.AddText("x20 y" (y - 15) " w" (width - 40) " h2 +0x10", "")
         controls := []
+        total := 0
         for item in buttons {
-            buttonWidth := item.Length >= 3 ? item[3] : 130
-            control := window.AddButton("x" x " y" y " w" buttonWidth " h30", item[1])
+            control := window.AddButton("x0 y" y " w" SuiteInterface.ButtonMinWidth " h30", item[1])
             control.OnEvent("Click", SuiteClickAction(item[2]))
-            ; A fourth item false greys the button out.
-            if item.Length >= 4 && !item[4]
+            if item.Length >= 3 && !item[3]
                 control.Enabled := false
+            buttonWidth := SuiteInterface.ButtonWidth(control)
             controls.Push({button: control, width: buttonWidth})
-            x += buttonWidth + 10
+            total += buttonWidth + 10
+        }
+        x := width - 10 - total
+        for item in controls {
+            item.button.Move(x, y, item.width)
+            x += item.width + 10
         }
         ; The page's own scrollbar, beside the content and above the band, so
         ; the size grip keeps its corner.
@@ -121,6 +123,43 @@ class SuiteInterface {
         footer := {band: band, divider: divider, buttons: controls, total: total, bar: bar}
         this.pageFooters[window.Hwnd] := footer
         return footer
+    }
+
+    ; Footer buttons fit their text with room on both sides, and are never
+    ; narrower than ButtonMinWidth, so most share one width and none clips.
+    static ButtonMinWidth := 120
+
+    static ButtonWidth(button) {
+        size := Buffer(8, 0)
+        SendMessage(0x1601, 0, size.Ptr, button) ; BCM_GETIDEALSIZE: the text and 8 pixels
+        return Max(SuiteInterface.ButtonMinWidth, Round(NumGet(size, 0, "int") * 96 / A_ScreenDPI) + 24)
+    }
+
+    ; New text for a footer button: it resizes to fit, the buttons to its left
+    ; make room, and Help never gets narrower than its footer.
+    SetFooterText(button, text) {
+        button.Text := text
+        window := button.Gui
+        if !this.pageFooters.Has(window.Hwnd)
+            return
+        footer := this.pageFooters[window.Hwnd]
+        footer.total := 0
+        for item in footer.buttons {
+            if item.button = button
+                item.width := SuiteInterface.ButtonWidth(button)
+            footer.total += item.width + 10
+        }
+        footer.buttons[-1].button.GetPos(&lastX, &y, &lastWidth)
+        x := lastX + lastWidth + 10 - footer.total
+        for item in footer.buttons {
+            item.button.Move(x, y, item.width)
+            x += item.width + 10
+        }
+        for id, layout in this.helpLayouts
+            if layout.footer = footer {
+                layout.minWidth := Max(560, footer.total + 20)
+                window.Opt("+MinSize" layout.minWidth "x300")
+            }
     }
 
     ; =========================================================================
@@ -515,9 +554,9 @@ class SuiteInterface {
         }
         buttons := module.HelpButtons()
         if module.hasSettings
-            buttons.Push(["Settings...", ObjBindMethod(this, "OpenSettingsFromHelp", id), 120])
-        buttons.Push(["Keybindings...", ObjBindMethod(this, "OpenKeybindingsFromHelp", id), 135])
-        buttons.Push(["Close", ObjBindMethod(this, "CloseWindow", key), 100])
+            buttons.Push(["Settings...", ObjBindMethod(this, "OpenSettingsFromHelp", id)])
+        buttons.Push(["Keybindings...", ObjBindMethod(this, "OpenKeybindingsFromHelp", id)])
+        buttons.Push(["Close", ObjBindMethod(this, "CloseWindow", key)])
         footer := this.Footer(window, buttons, 455, 900)
         this.LayerFooter(window, footer)
         width := 820
@@ -702,8 +741,8 @@ class SuiteInterface {
             this.moduleControls[id] := control
             rows.Caption(SuiteSettings.ModuleDescriptions[id], true)
         }
-        rows.Show(this, "modules", [["Apply and restart", ObjBindMethod(this, "SaveModules"), 160],
-            ["Cancel", ObjBindMethod(this, "CloseModules"), 100]])
+        rows.Show(this, "modules", [["Apply and restart", ObjBindMethod(this, "SaveModules")],
+            ["Cancel", ObjBindMethod(this, "CloseModules")]])
     }
 
     SaveModules(*) {
@@ -737,8 +776,8 @@ class SuiteInterface {
         for code in this.languageCodes
             if code = this.app.Settings.language
                 this.languageList.Choose(A_Index)
-        rows.Show(this, "language", [[T("Apply and restart"), ObjBindMethod(this, "SaveLanguage"), 160],
-            [T("Cancel"), ObjBindMethod(this, "CloseWindow", "language"), 100]])
+        rows.Show(this, "language", [[T("Apply and restart"), ObjBindMethod(this, "SaveLanguage")],
+            [T("Cancel"), ObjBindMethod(this, "CloseWindow", "language")]])
     }
 
     SaveLanguage(*) {
@@ -1053,7 +1092,7 @@ class SuitePageRows {
     ; footer with Restore defaults.
     Show(ui, key, buttons) {
         if InStr(key, "settings:") = 1
-            buttons.InsertAt(1, [T("Restore defaults"), ObjBindMethod(ui, "RestoreDefaults", SubStr(key, 10)), 150])
+            buttons.InsertAt(1, [T("Restore defaults"), ObjBindMethod(ui, "RestoreDefaults", SubStr(key, 10))])
         y := this.y + 35
         ui.Footer(this.window, buttons, y, this.width)
         ui.ShowPage(key, this.width, y + 50, this.width - 40, y + 25)

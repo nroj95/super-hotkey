@@ -51,8 +51,8 @@ class SecretLayersModule extends SuiteModule {
         rows.Checkbox(T("Enable Pause layer"), "vpause").Value := settings.layers["pause"]
         rows.Checkbox(T("Enable CapsLock layer"), "vcaps").Value := settings.layers["caps"]
         rows.Caption(T("Double-tap Shift to toggle Caps Lock while this layer is enabled."), true)
-        rows.Show(ui, key, [[T("Apply and restart"), ObjBindMethod(this, "SaveSettings", ui), 160],
-            [T("Back"), ObjBindMethod(ui, "BackToHelp", this.id), 100]])
+        rows.Show(ui, key, [[T("Apply and restart"), ObjBindMethod(this, "SaveSettings", ui)],
+            [T("Back"), ObjBindMethod(ui, "BackToHelp", this.id)]])
     }
 
     RestoreSettings(window) {

@@ -82,7 +82,7 @@ class PaperPadModule extends SuiteModule {
             paperPad.QueueCommand(command, this.app.inputGeneration)
     }
 
-    HelpButtons() => [["Open pad", ObjBindMethod(this, "OpenPad"), 110]]
+    HelpButtons() => [["Open pad", ObjBindMethod(this, "OpenPad")]]
 
     OpenPad(*) {
         global paperPad
@@ -112,9 +112,9 @@ class PaperPadModule extends SuiteModule {
         for item in [["width", "Width (%)", "WidthPercent"], ["height", "Height (%)", "HeightPercent"]]
             rows.Field(item[2], "Edit", "w140 v" item[1],
                 IniRead(path, "Window", item[3], PaperPadController.WindowDefaults[item[3]][1]))
-        rows.Show(ui, key, [["Open notes folder", ObjBindMethod(this, "OpenNotesFolder"), 165],
-            ["Apply and restart", ObjBindMethod(this, "SaveSettings", ui), 160],
-            ["Back", ObjBindMethod(ui, "BackToHelp", this.id), 100]])
+        rows.Show(ui, key, [["Open notes folder", ObjBindMethod(this, "OpenNotesFolder")],
+            ["Apply and restart", ObjBindMethod(this, "SaveSettings", ui)],
+            ["Back", ObjBindMethod(ui, "BackToHelp", this.id)]])
     }
 
     ; The window's place and size only: the notes folder and the editor path

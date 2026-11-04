@@ -96,8 +96,8 @@ class CascadeKingdomModule extends SuiteModule {
         rows.Text("Active tabs and drop guides use the Windows accent color."
             . "`nDisplay changes release other displays without moving windows."
             . "`nClick Apply to use these settings.")
-        rows.Show(ui, key, [["Apply", ObjBindMethod(this, "SaveSettings", ui), 120],
-            ["Back", ObjBindMethod(ui, "BackToHelp", this.id), 100]])
+        rows.Show(ui, key, [["Apply", ObjBindMethod(this, "SaveSettings", ui)],
+            ["Back", ObjBindMethod(ui, "BackToHelp", this.id)]])
     }
 
     RestoreSettings(window) {

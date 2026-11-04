@@ -133,8 +133,8 @@ class PowerUpUtilities extends SuiteModule {
         rows.Caption("8 suits most speakers; choose fewer if yours fall asleep sooner.")
         rows.Checkbox("Play a soft chime instead of the silent tone", "vchime").Value := this.speakers.chime
         rows.Caption("For speakers that the silent tone doesn't keep awake.", true)
-        rows.Show(ui, key, [["Apply", ObjBindMethod(this, "SaveSettings", ui), 100],
-            ["Back", ObjBindMethod(ui, "BackToHelp", this.id), 90]])
+        rows.Show(ui, key, [["Apply", ObjBindMethod(this, "SaveSettings", ui)],
+            ["Back", ObjBindMethod(ui, "BackToHelp", this.id)]])
     }
 
     RestoreSettings(window) {

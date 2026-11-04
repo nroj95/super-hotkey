@@ -41,12 +41,12 @@ class GalaxyRhythmModule extends SuiteModule {
     Fainting() => this.energy.fainting
 
     HelpButtons() => this.app.ModuleActive(this.id)
-        ? [[GalaxyRhythmModule.WindLabel, ObjBindMethod(this, "TakeSecondWind"), 120],
-            [this.NightLabel(), ObjBindMethod(this, "TakeNightOff"), 170, !this.Off()]] : []
+        ? [[GalaxyRhythmModule.WindLabel, ObjBindMethod(this, "TakeSecondWind")],
+            [this.NightLabel(), ObjBindMethod(this, "TakeNightOff"), !this.Off()]] : []
 
     ; Tonight off, or while a night off runs, a lock and when it ends.
     NightLabel() => this.Off()
-        ? Format("🔒 Off until {1}", FormatTime(this.offUntil, "HH:mm")) : GalaxyRhythmModule.OffLabel
+        ? Format("🔒 Until {1}", FormatTime(this.offUntil, "HH:mm")) : GalaxyRhythmModule.OffLabel
 
     ; Once a day, a quarter of a full bar back, from Help.
     TakeSecondWind(*) {
@@ -80,7 +80,7 @@ class GalaxyRhythmModule extends SuiteModule {
     ; Help's button follows the night off, also as it ends with Help open.
     SyncNightOff(*) {
         if button := this.NightButton() {
-            button.Text := this.NightLabel()
+            this.app.ui.SetFooterText(button, this.NightLabel())
             button.Enabled := !this.Off()
         }
         if this.Off()
@@ -271,8 +271,8 @@ class GalaxyRhythmModule extends SuiteModule {
         showEnergy.OnEvent("Click", refreshEnergy)
         faint.OnEvent("Click", refreshEnergy)
         this.refreshSettings := () => (refresh(), refreshEnergy())
-        rows.Show(ui, key, [["Apply", ObjBindMethod(this, "SaveSettings", ui), 100],
-            ["Back", ObjBindMethod(ui, "BackToHelp", this.id), 90]])
+        rows.Show(ui, key, [["Apply", ObjBindMethod(this, "SaveSettings", ui)],
+            ["Back", ObjBindMethod(ui, "BackToHelp", this.id)]])
     }
 
     ; Bedtime and the energy bar as they start; a night off, the bar's level
