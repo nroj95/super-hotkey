@@ -34,9 +34,6 @@ class PowerUpUtilities extends SuiteModule {
         manager.AddAction("power-up-utilities.help", "show Power-Up Utilities help",
             ObjBindMethod(this.app, "HelpShortcutEvent", this.id), ["Pause + H"],
             {category: "Power-Up Utilities", available: (*) => this.app.ModuleActive(this.id)})
-        ; Few speakers need it, so it has no default hotkey.
-        this.AddAction("speakers", "system.keep-speakers-awake", "keep speakers awake: on / off",
-            "speakers", "", "")
         this.AddAction("sleep", "system.sleep", "put computer to sleep", "sleep", "", "Pause + Escape")
         this.AddAction("displays", "system.displays-off", "turn off the displays", "displays-off", "", "Pause + Pause")
         this.AddAction("awake", "system.stay-awake", "stay awake: 30 min, 1, 2, 4, 8 h, no limit",
@@ -48,6 +45,9 @@ class PowerUpUtilities extends SuiteModule {
             "terminal-copy", "", "Caps + C", true)
         this.AddAction("terminal", "terminal.clear", "clear terminal buffer",
             "terminal-clear", "", "Caps + K", true)
+        ; Few speakers need it, so it comes last, without a default hotkey.
+        this.AddAction("speakers", "system.keep-speakers-awake", "keep speakers awake: on / off",
+            "speakers", "", "")
         ; The few text actions come before the long runs of virtual keys.
         this.AddAction("text", "text.apostrophe", "insert curly apostrophe (’)", "text", "’", "Pause + '", true)
         this.AddAction("text", "text.en-dash", "insert en dash (–)", "text", "–", "Pause + -", true)
