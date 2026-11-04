@@ -19,10 +19,11 @@
 ; sleep to the day start, does not count: bedtime sends the user back to
 ; bed, so a quick look costs nothing and an early riser is not up late.
 ;
-; Breaks give a little back: one of BreakMinutes or more, the least
-; screen-work guidance asks for, refills RefillShare times its length, up to
-; RefillLimit and never above a full bar, silently, even out of the grey. A
-; break across the start of a day earns nothing; the new day is its reward. A break is the time from the
+; Breaks give some back, short ones the most: the refill rises steeply to
+; its best value per minute at 5 minutes, the least screen-work guidance asks
+; for, then pays less per minute up to RefillLimit (Refill), never above a
+; full bar, silently, even out of the grey. A break across the start of a
+; day earns nothing; the new day is its reward. A break is the time from the
 ; moment the computer first saw the user gone, when it locked, turned its
 ; displays off, slept or was off, until they come back. Idle time before that
 ; may have been reading or a film: walking off without locking loses the
@@ -62,10 +63,10 @@ class GR_Energy {
     static FadeDefault := 30      ; minutes of activity from zero to the faint
     static LowShare := 0.1
     static WakeShare := 0.5       ; of the road still owed after a faint
-    ; A break of BreakMinutes or more refills RefillShare times its length,
-    ; up to RefillLimit minutes.
-    static BreakMinutes := 5
-    static RefillShare := 2
+    ; A break's minutes plus BonusMinutes, ramped in over its first minutes
+    ; so the best value per minute away comes at 5 minutes, up to RefillLimit.
+    static BonusMinutes := 15
+    static RampMinutes := 1.25
     static RefillLimit := 60
     ; The morning bar after using the computer from bedtime's sleep on, and
     ; the share left of it after a day that ran dry.
@@ -112,6 +113,15 @@ class GR_Energy {
     }
 
     full => this.fullHours * 60
+
+    ; Minutes of energy back for minutes away: 5 give 15, 10 give 25, 30 give
+    ; 45, and none more than RefillLimit; a minute away is worth almost
+    ; nothing.
+    static Refill(minutes) {
+        x := minutes / GR_Energy.RampMinutes
+        return Min(GR_Energy.RefillLimit,
+            (minutes + GR_Energy.BonusMinutes) * (1 - Exp(-x) * (1 + x + x * x / 2)))
+    }
 
     ; The latest moment at or before now when the clock showed time (HHmm).
     static LastAt(now, time) {
@@ -387,14 +397,13 @@ class GR_Energy {
             this.dayStarted := start
     }
 
-    ; A break of BreakMinutes or more refills RefillShare times its length,
-    ; up to RefillLimit, silently, even out of the grey. One across the start
-    ; of a day earns nothing: the new day is its reward.
+    ; A break refills by Refill, silently, even out of the grey. One across
+    ; the start of a day earns nothing: the new day is its reward.
     TakeBreak(minutes) {
-        if minutes < GR_Energy.BreakMinutes
+        if minutes <= 0
             || this.dayStarted != "" && DateDiff(this.awaySince, this.dayStarted, "Seconds") < 0
             return
-        gained := Min(GR_Energy.RefillLimit, minutes * GR_Energy.RefillShare)
+        gained := GR_Energy.Refill(minutes)
         this.level := Min(this.full, this.level + gained)
         this.module.Report("break of " Round(minutes) " min: +" Round(gained) " min of energy")
     }
