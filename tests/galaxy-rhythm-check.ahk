@@ -133,8 +133,16 @@ class GalaxyRhythmChecks {
         energy.lastSeen := "20261103120000"
         energy.Stop("Shutdown")
         afterShutdown := GR_Energy(energy.module, energy.settingsPath, energy.statePath)
-        this.Assert(closed.lastSeen = "" && afterShutdown.lastSeen = "20261103120000",
-            "closing the suite by hand counts no break until it starts again, while a Windows shutdown does")
+        energy.away := false
+        energy.Stop("Logoff")
+        afterSignOut := GR_Energy(energy.module, energy.settingsPath, energy.statePath)
+        this.Assert(closed.lastSeen = "" && closed.awaySince = ""
+            && !GR_Energy.AwayAtStart(closed.awaySince, closed.lastSeen, "20261103130000", 7200000)
+            && afterShutdown.awaySince != "" && afterSignOut.awaySince != ""
+            && GR_Energy.AwayAtStart(afterSignOut.awaySince, afterSignOut.lastSeen, "20261103130000", 7200000),
+            "closing the suite by hand counts no break, while signing out or shutting down counts one from that moment")
+        this.Assert(GR_Energy.AwayAtStart("", "20261103120000", "20261103130000", 1800000),
+            "a crash and a reboot count a break from the last tick")
     }
 
     ; One day on a fake clock: Tick takes the time and idle milliseconds.

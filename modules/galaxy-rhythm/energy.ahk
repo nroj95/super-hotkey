@@ -29,8 +29,9 @@
 ; minutes until the displays turn off, so the guide suggests Win + L, sleep
 ; or a short display timeout. Time while the suite is suspended or the bar
 ; hidden is no break, even locked, and a break starts no earlier than its
-; end. A suite closed by hand is no break, even across a reboot, while a
-; Windows shutdown or a crash leaves the time until the next start as one.
+; end. A suite closed by Windows signing out or shutting down counts the
+; time until the next start as a break from that moment, a crash from its
+; last tick, and a suite closed by hand none, even across a reboot.
 ;
 ; 10 % left says so. At zero the road to fainting starts with its notice.
 ; With Faint on, the displays turn grey over FadeMinutes of activity, then
@@ -141,6 +142,11 @@ class GR_Energy {
     static Restarted(lastSeen, now, uptimeMs) => lastSeen != ""
         && DateDiff(lastSeen, DateAdd(now, -(uptimeMs // 1000), "Seconds"), "Seconds") < 0
 
+    ; Away since the last run: it ended with the user gone, signed out or shut
+    ; down included, or the computer restarted since its last tick.
+    static AwayAtStart(awaySince, lastSeen, now, uptimeMs) => awaySince != ""
+        || GR_Energy.Restarted(lastSeen, now, uptimeMs)
+
     LoadSettings() {
         read := (key, fallback) => IniRead(this.settingsPath, "Energy", key, fallback)
         this.show := read("Show", 1) = "1"
@@ -199,8 +205,8 @@ class GR_Energy {
     }
 
     Start() {
-        ; Off since the last tick: rest from leaving, or from that tick.
-        this.away := GR_Energy.Restarted(this.lastSeen, A_Now, A_TickCount)
+        ; Away since the last run: a break from leaving, or from its last tick.
+        this.away := GR_Energy.AwayAtStart(this.awaySince, this.lastSeen, A_Now, A_TickCount)
         if this.away && this.awaySince = ""
             this.awaySince := this.lastSeen
         guid := Buffer(16, 0)
@@ -213,9 +219,10 @@ class GR_Energy {
         SetTimer(this.drawCallback, 1000)
     }
 
-    ; Closed for any reason but Windows shutting down or logging off, the time
-    ; until the next start is no rest, even across a reboot: the user may
-    ; have kept working meanwhile.
+    ; Closed by Windows signing out or shutting down, the user left now, and
+    ; the next start counts the time since as a break. Closed for any other
+    ; reason, it is no break, even across a reboot: the user may have kept
+    ; working meanwhile.
     Stop(reason := "Exit") {
         SetTimer(this.tickCallback, 0)
         SetTimer(this.drawCallback, 0)
@@ -228,7 +235,9 @@ class GR_Energy {
         if IsObject(this.bar)
             this.bar.Destroy()
         this.bar := 0
-        if reason != "Shutdown" && reason != "Logoff"
+        if reason = "Shutdown" || reason = "Logoff"
+            this.Left()
+        else
             this.lastSeen := "", this.away := false
         this.SaveState()
     }
