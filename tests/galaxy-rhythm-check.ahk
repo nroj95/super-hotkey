@@ -208,19 +208,23 @@ class GalaxyRhythmChecks {
             this.Assert(!energy.Visible(), "a night off hides the bar")
             energy.Draw()
             this.Assert(grey.level = 0, "a night off clears the grey within a second, without waiting for a tick")
-            held := energy.level
+            held := energy.level, reported := module.reports.Length
             energy.Tick(at("090110"), 0)
-            this.Assert(energy.level = held && grey.level = 0, "a night off holds the bar where it is, without grey")
+            this.Assert(Abs(energy.level - (held - tick)) < 0.001 && grey.level = 0 && module.reports.Length = reported,
+                "a night off keeps the bar running out of sight, without grey or notices")
+            held := energy.level
             app.sessionLocked := true
             energy.Left(at("090110"))
             energy.Tick(at("091000"), 0)
             app.sessionLocked := false
             energy.Tick(at("094110"), 0)
-            this.Assert(Abs(energy.level - (held + GR_Energy.Refill(40))) < 0.001 && !InStr(module.reports[-1], "energy:"),
+            this.Assert(Abs(energy.level - (held + GR_Energy.Refill(40) - tick)) < 0.001 && !InStr(module.reports[-1], "energy:"),
                 "a break on a night off still refills, quietly")
             energy.level := -29.9
+            energy.dry := false
             energy.Tick(at("094120"), 0)
-            this.Assert(!energy.fainting && grey.level = 0, "and nobody faints on a night off")
+            this.Assert(energy.level = -30 && energy.dry && !energy.fainting && grey.level = 0,
+                "running dry out of sight still counts, and nobody faints on a night off")
             module.nightOff := false
             energy.level := -29.9
             energy.Tick(at("090130"), 0)

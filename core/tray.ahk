@@ -109,6 +109,9 @@ class SuiteInterface {
             buttonWidth := item.Length >= 3 ? item[3] : 130
             control := window.AddButton("x" x " y" y " w" buttonWidth " h30", item[1])
             control.OnEvent("Click", SuiteClickAction(item[2]))
+            ; A fourth item false greys the button out.
+            if item.Length >= 4 && !item[4]
+                control.Enabled := false
             controls.Push({button: control, width: buttonWidth})
             x += buttonWidth + 10
         }

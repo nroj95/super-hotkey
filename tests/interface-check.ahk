@@ -377,13 +377,24 @@ class InterfaceChecks {
                         if control.Type = "Button" && control.Text = "Tonight off"
                             button := control
                     rhythm.energy.dry := false
-                    rhythm.ToggleNightOff()
-                    tonight := IsObject(button) && button.Text = "Back on" && rhythm.Off() && rhythm.energy.dry
+                    rhythm.SetNightOff()
+                    tonight := IsObject(button) && button.Text = "🔒 Off until " FormatTime(rhythm.offUntil, "HH:mm")
+                        && !button.Enabled && rhythm.Off() && !rhythm.energy.dry
                         && DateDiff(rhythm.offUntil, A_Now, "Hours") < 24
                         && SubStr(rhythm.offUntil, 9) = rhythm.bedtime.wakeTime "00"
-                    rhythm.ToggleNightOff()
-                    this.Assert(tonight && button.Text = "Tonight off" && !rhythm.Off() && rhythm.energy.dry,
-                        "Galaxy Rhythm's Help takes tonight off until the day starts, counted as running dry, and Back on ends it without undoing that")
+                    rhythm.TakeNightOff() ; asks nothing and changes nothing while it runs
+                    rhythm.ShowSettings(app.ui)
+                    locked := !app.ui.windows["settings:" id]["wake"].Enabled
+                    app.ui.FillDefaults(id)
+                    lockedAfterRestore := SubStr(app.ui.windows["settings:" id]["wake"].Value, 9, 4) = rhythm.bedtime.wakeTime
+                    app.ui.CloseWindow("settings:" id)
+                    this.Assert(tonight && rhythm.Off() && locked && lockedAfterRestore,
+                        "Galaxy Rhythm's Help takes tonight off until the day starts, with no way back, no dry day of its own, a locked button and a locked day start")
+                    ; The day starting ends it, and the button comes back.
+                    rhythm.offUntil := A_Now
+                    rhythm.SyncNightOff()
+                    this.Assert(!rhythm.Off() && button.Text = "Tonight off" && button.Enabled,
+                        "as the day starts, Tonight off is back")
                     wind := 0
                     for hwnd, control in window
                         if control.Type = "Button" && control.Text = "Second wind"
