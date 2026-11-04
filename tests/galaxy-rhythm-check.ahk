@@ -113,6 +113,8 @@ class GalaxyRhythmChecks {
             && GR_EnergyBar.Colors(0.001) = "D03030 Background303030"
             && GR_EnergyBar.Colors(-0.5) = "D03030 Background5A1414",
             "the bar blends from green through yellow to red, with a dark red track on the road")
+        this.Assert(GR_EnergyBar.LabelColor(true) = "D03030" && GR_EnergyBar.LabelColor(false) = "202020",
+            "the E turns red for a day that ran dry and grey again for a fresh one")
         this.Assert(GR_EnergyBar.Monitors("Primary").Length = 1
             && GR_EnergyBar.Monitors("Primary")[1] = MonitorGetPrimary()
             && GR_EnergyBar.Monitors("All").Length = MonitorGetCount()

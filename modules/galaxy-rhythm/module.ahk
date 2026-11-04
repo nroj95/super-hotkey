@@ -317,6 +317,7 @@ class GalaxyRhythmModule extends SuiteModule {
         So when you step away, lock the computer, turn its screens off or put it to sleep, any way you like; Win + L, and Pause + Pause and Pause + Escape in Power-Up Utilities, do it in one press.
         If you often just walk off, set the screens to turn off after a few minutes in Windows' power settings.
         Near empty it says so; at zero you're running on fumes, the screen greys over half an hour of activity by default, and then Lights out puts the computer to sleep.
+        Running dry also turns the bar's E red until your day starts over, a reminder that tomorrow starts tired, even after a break or Second wind refills it.
         You wake halfway back into the grey, with time to save your work, until a break or Second wind lifts you out; the day still counts as having run dry.
         Stay awake doesn't touch the bar, and suspending Super Hotkey pauses it, though how late you're at the computer still counts.
 

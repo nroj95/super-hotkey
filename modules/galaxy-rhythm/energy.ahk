@@ -505,7 +505,7 @@ class GR_Energy {
     Draw(*) {
         this.Shade()
         if IsObject(this.bar)
-            this.bar.Draw(this.level / this.full, this.Visible(), this.display, this.position)
+            this.bar.Draw(this.level / this.full, this.Visible(), this.display, this.position, this.dry)
     }
 }
 
@@ -513,7 +513,8 @@ class GR_Energy {
 ; that fills from the bottom, outlined in light grey so it shows on dark
 ; backgrounds too, in a corner of the work area, so just inside the
 ; taskbar, on the display chosen or on all, and hidden on a display a window
-; fills. One window per display.
+; fills. One window per display. The E turns red for the rest of a day that
+; ran dry, so the short morning after it never comes as a surprise.
 class GR_EnergyBar {
     static Width := 18
     static Height := 160       ; the gauge, below its E
@@ -526,7 +527,7 @@ class GR_EnergyBar {
         ["top-right", "Top right"], ["top-left", "Top left"]]
 
     __New() {
-        this.bars := Map()  ; monitor index -> {window, progress, colors, shown}
+        this.bars := Map()  ; monitor index -> {window, label, progress, colors, dry, shown}
     }
 
     static IsCorner(text) {
@@ -570,7 +571,10 @@ class GR_EnergyBar {
         y := InStr(corner, "top") ? top + GR_EnergyBar.MarginY : bottom - height - GR_EnergyBar.MarginY
     }
 
-    Draw(share, visible, display, corner) {
+    ; The E's background: grey, or red once the day has run dry.
+    static LabelColor(dry) => dry ? "D03030" : "202020"
+
+    Draw(share, visible, display, corner, dry := false) {
         wanted := Map()
         if visible
             for monitor in GR_EnergyBar.Monitors(display)
@@ -589,6 +593,11 @@ class GR_EnergyBar {
             if colors != bar.colors {
                 bar.progress.Opt("c" colors)
                 bar.colors := colors
+            }
+            if dry != bar.dry {
+                bar.label.Opt("Background" GR_EnergyBar.LabelColor(dry))
+                bar.label.Redraw()
+                bar.dry := dry
             }
             bar.progress.Value := Round(Max(0, Min(1, share)) * 1000)
             bar.window.GetPos(, , &width, &height)
@@ -620,13 +629,13 @@ class GR_EnergyBar {
         window.BackColor := "D0D0D0"
         window.SetFont("s9 bold cFFFFFF", "Segoe UI")
         edge := GR_EnergyBar.Outline
-        window.AddText("x" edge " y" edge " w" GR_EnergyBar.Width " h" GR_EnergyBar.LabelHeight
-            . " Center 0x200 Background202020", "E") ; SS_CENTERIMAGE
+        label := window.AddText("x" edge " y" edge " w" GR_EnergyBar.Width " h" GR_EnergyBar.LabelHeight
+            . " Center 0x200 Background" GR_EnergyBar.LabelColor(false), "E") ; SS_CENTERIMAGE
         progress := window.AddProgress("x" edge " y" edge + GR_EnergyBar.LabelHeight " w" GR_EnergyBar.Width
             . " h" GR_EnergyBar.Height " -Theme Vertical Range0-1000")
         DllCall("SetLayeredWindowAttributes", "ptr", window.Hwnd, "uint", 0, "uchar", GR_EnergyBar.Opacity, "uint", 2)
         window.Show("Hide w" GR_EnergyBar.Width + 2 * edge " h" GR_EnergyBar.LabelHeight + GR_EnergyBar.Height + 2 * edge)
-        return {window: window, progress: progress, colors: "", shown: false}
+        return {window: window, label: label, progress: progress, colors: "", dry: false, shown: false}
     }
 
     Destroy() {
