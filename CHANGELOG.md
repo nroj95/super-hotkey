@@ -21,6 +21,8 @@
 - Every module's Help page shows its section headings in bold, like the Galaxy Rhythm settings page.
 - **Cascade Kingdom** shows no focus tabs on a cascade of one window, since there is nothing to switch to. They return as soon as a second window joins, and leave again when it is closed, minimized or maximized, hidden to the tray or moved to another virtual desktop. Each display's cascade decides for itself.
 
+- Notices stay where they first appear until they go: a new one takes the center of its display when that is free, otherwise the first free spot below, and the rest no longer move when one goes. News from different sources, such as bedtime and the energy bar, now shows together instead of one replacing the other.
+
 ### Fixes
 
 - Help and Settings pages open at most 80 % of the display, like a cascade window, and scroll when their content is taller, by the scrollbar, the wheel, `PgUp`, `PgDn`, `Home` and `End`, or by tabbing to a field. On a small or scaled screen, such as 1366 × 768 or 1080p at 150 %, the longest guides and Galaxy Rhythm's Settings no longer run off the bottom.

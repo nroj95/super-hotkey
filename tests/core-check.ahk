@@ -875,16 +875,25 @@ class CoreChecks {
             SuiteNotice.notices["status"].window.GetPos(, &statusY, , &statusHeight)
             this.Assert(Abs(statusY + statusHeight // 2 - (top + bottom) // 2) <= 2,
                 "a status notice takes the center when no indicator shows")
-            ; Hold Caps again while it shows: the stack makes room, then closes up.
-            SuiteNotice.Show("layer", "Caps held")
-            SuiteNotice.notices["layer"].window.GetPos(, &layerY, , &layerHeight)
+            ; Hold Caps while it shows: the indicator goes below, and nothing moves.
             SuiteNotice.notices["status"].window.GetPos(, &statusY)
-            this.Assert(statusY >= layerY + layerHeight,
-                "a status notice moves below an indicator that appears after it")
-            SuiteNotice.Hide("layer")
-            SuiteNotice.notices["status"].window.GetPos(, &statusY, , &statusHeight)
+            SuiteNotice.Show("layer", "Caps held")
+            SuiteNotice.notices["layer"].window.GetPos(, &layerY)
+            SuiteNotice.notices["status"].window.GetPos(, &stillY)
+            this.Assert(layerY >= statusY + statusHeight && stillY = statusY,
+                "a notice that appears while another shows goes below it, never moving it")
+            SuiteNotice.Show("status", "Verbose logging on")
+            SuiteNotice.notices["status"].window.GetPos(, &newTextY)
+            SuiteNotice.Hide("status")
+            SuiteNotice.notices["layer"].window.GetPos(, &stillY)
+            this.Assert(newTextY = statusY && stillY = layerY,
+                "new text keeps its notice's place, and the rest stay put when one hides")
+            SuiteNotice.Show("status", "Debug log copied")
+            SuiteNotice.notices["status"].window.GetPos(, &statusY)
             this.Assert(Abs(statusY + statusHeight // 2 - (top + bottom) // 2) <= 2,
-                "a status notice returns to the center when the indicator hides")
+                "a notice takes the free center again, above one still showing below")
+            SuiteNotice.Hide("layer")
+            SuiteNotice.Hide("status")
             ; News from two sources stacks; a source's newer news replaces its own.
             SuiteNotice.ShowEverywhere("awake", "Sleep allowed again")
             SuiteNotice.ShowEverywhere("bedtime", "You feel sleepy")

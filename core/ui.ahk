@@ -245,12 +245,14 @@ SuiteMoveControls(window, positions) {
 ; Each slot shows one message; a newer message replaces it. Answers to a
 ; press share the status slot, since one press answers at a time, while news
 ; takes a slot named for its source, such as bedtime or energy, so news from
-; different sources stacks and a source's newer news replaces its own. Shown
-; notices stack in order, layer, status, then news by slot name, laid out
-; again whenever one shows or hides.
+; different sources stacks and a source's newer news replaces its own. A
+; notice stays where it first appeared until it hides, so nothing on screen
+; ever jumps: a new one takes the center of its display when that is free,
+; otherwise the first free spot below, and new text in a shown slot keeps
+; its place.
 class SuiteNotice {
-    static order := ["layer", "status"] ; top to bottom when both show
     static notices := Map()
+    static Gap := 12
     static NewsMs := 3000
 
     ; Shows text in slot until Hide, or for durationMs when given. A monitor
@@ -258,7 +260,7 @@ class SuiteNotice {
     ; exclusive fullscreen game covers passes the notice to the next one.
     static Show(slot, text, durationMs := 0, monitor := 0) {
         if !this.notices.Has(slot)
-            this.notices[slot] := {window: 0, text: "", monitor: 0, shown: false,
+            this.notices[slot] := {window: 0, text: "", monitor: 0, shown: false, y: 0, height: 0,
                 timer: ObjBindMethod(this, "Hide", slot)}
         notice := this.notices[slot]
         SetTimer(notice.timer, 0)
@@ -268,12 +270,14 @@ class SuiteNotice {
             notice.window := this._Build(text)
             notice.text := text
         }
-        notice.monitor := monitor || SuiteWorkingMonitor.Get()
+        target := monitor || SuiteWorkingMonitor.Get()
         ; Nothing draws over an exclusive fullscreen game, so step aside.
-        if notice.monitor = this.CoveredMonitor()
-            notice.monitor := Mod(notice.monitor, MonitorGetCount()) + 1
+        if target = this.CoveredMonitor()
+            target := Mod(target, MonitorGetCount()) + 1
+        keep := notice.shown && notice.monitor = target
+        notice.monitor := target
         notice.shown := true
-        this._Arrange()
+        this._Place(notice, keep)
         if durationMs
             SetTimer(notice.timer, -durationMs)
     }
@@ -308,36 +312,32 @@ class SuiteNotice {
         notice.shown := false
         if notice.window
             notice.window.Hide()
-        this._Arrange()
     }
 
-    ; The first shown notice on each display sits in its center, and each
-    ; later one, in order, directly below the one before.
-    static _Arrange() {
-        slots := []
-        listed := Map()
-        for slot in this.order {
-            slots.Push(slot)
-            listed[slot] := true
+    ; Centers a notice across its display. Unless it keeps its height there,
+    ; it goes to the display's center, or below each notice already showing
+    ; in the way, which never move.
+    static _Place(notice, keep) {
+        notice.window.GetPos(, , &width, &height)
+        MonitorGetWorkArea(notice.monitor, &left, &top, &right, &bottom)
+        if !keep {
+            y := top + (bottom - top - height) // 2
+            loop {
+                blocked := false
+                for slot, other in this.notices
+                    if other != notice && other.shown && other.monitor = notice.monitor
+                        && y < other.y + other.height + this.Gap && other.y < y + height + this.Gap {
+                        y := other.y + other.height + this.Gap
+                        blocked := true
+                    }
+            } until !blocked
+            notice.y := y
         }
-        for slot in this.notices
-            if !listed.Has(slot)
-                slots.Push(slot)
-        offsets := Map()
-        for slot in slots {
-            if !this.notices.Has(slot) || !this.notices[slot].shown
-                continue
-            notice := this.notices[slot]
-            notice.window.GetPos(, , &width, &height)
-            MonitorGetWorkArea(notice.monitor, &left, &top, &right, &bottom)
-            offset := offsets.Has(notice.monitor) ? offsets[notice.monitor] : 0
-            offsets[notice.monitor] := offset + height + 12
-            x := left + (right - left - width) // 2
-            y := top + (bottom - top - height) // 2 + offset
-            ; HWND_TOPMOST raises it above other topmost windows such as fullscreen video.
-            DllCall("SetWindowPos", "ptr", notice.window.Hwnd, "ptr", -1, "int", x, "int", y,
-                "int", 0, "int", 0, "uint", 0x51, "int") ; SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW
-        }
+        notice.height := height
+        x := left + (right - left - width) // 2
+        ; HWND_TOPMOST raises it above other topmost windows such as fullscreen video.
+        DllCall("SetWindowPos", "ptr", notice.window.Hwnd, "ptr", -1, "int", x, "int", notice.y,
+            "int", 0, "int", 0, "uint", 0x51, "int") ; SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW
     }
 
     static Destroy() {
