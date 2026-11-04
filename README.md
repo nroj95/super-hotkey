@@ -51,7 +51,7 @@ A quick-notes drawer: `Win + F12` or `Caps + F12` shows or hides a dedicated Not
 
 Send F13-F24 or use a virtual number pad, even if your keyboard doesn't have those keys. Insert punctuation, special characters or a timestamp without looking them up.
 
-In Windows Terminal, copy the buffer as Markdown or clear it; both use Terminal's default `Ctrl + Shift + A`, `C` and `K` shortcuts. Other shortcuts wake speakers that have gone into standby or put the computer to sleep, and `Caps + L` turns the displays off until you touch the mouse or keyboard. `Pause + End` keeps it awake for 30 minutes; press again while the notice shows for 1, 2, 4 or 8 hours or no limit, and `Pause + Shift + End` lets it sleep again.
+In Windows Terminal, copy the buffer as Markdown or clear it; both use Terminal's default `Ctrl + Shift + A`, `C` and `K` shortcuts. Other shortcuts put the computer to sleep, and `Pause + Pause` turns the displays off until you touch the mouse or keyboard; waking speakers that have gone into standby is an action you can give a hotkey in Keybindings. `Pause + End` keeps it awake for 30 minutes; press again while the notice shows for 1, 2, 4 or 8 hours or no limit, and `Pause + Shift + End` lets it sleep again.
 
 ### Secret Layers
 

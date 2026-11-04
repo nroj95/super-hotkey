@@ -95,7 +95,9 @@ class CoreChecks {
             this.Assert(configuration["core.restart"].bindings[1] = Keybindings.Parse("Pause + F3").signature
                 && manager.actions["core.restart"].category = "Global",
                 "a Global action restarts Super Hotkey with Pause + F3")
-            this.Assert(configuration["power-up-utilities.system.wake-speakers"].bindings[1] = Keybindings.Parse("Pause + Pause").signature, "speaker wake defaults to Pause double-tap")
+            this.Assert(configuration["power-up-utilities.system.displays-off"].bindings[1] = Keybindings.Parse("Pause + Pause").signature
+                && configuration["power-up-utilities.system.wake-speakers"].bindings[1] = "",
+                "turning the displays off defaults to Pause double-tap, and waking speakers to no hotkey")
             this.Assert(configuration["wonder-windows.focus-up"].bindings[1] = Keybindings.Parse("Win + PgUp").signature
                 && configuration["wonder-windows.focus-down"].bindings[1] = Keybindings.Parse("Win + PgDn").signature,
                 "focus moves up and down with Win + PgUp/PgDn")

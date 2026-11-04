@@ -237,7 +237,7 @@ class KeybindingsChecks {
             manager.SetPaused(true)
             manager.Start()
             config := manager.GetConfiguration()
-            config["power-up-utilities.system.wake-speakers"].bindings[1] := ""
+            config["power-up-utilities.system.displays-off"].bindings[1] := ""
             config["core.focus-outline"].bindings[1] := ""
             config["paper-pad.toggle"].bindings[1] := "Caps + Caps"
             config["paper-pad.help"].bindings[2] := "Pause + Pause"

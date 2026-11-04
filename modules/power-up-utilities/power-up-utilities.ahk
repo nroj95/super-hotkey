@@ -29,10 +29,11 @@ class PowerUpUtilities extends SuiteModule {
         manager.AddAction("power-up-utilities.help", "show Power-Up Utilities help",
             ObjBindMethod(this.app, "HelpShortcutEvent", this.id), ["Pause + H"],
             {category: "Power-Up Utilities", available: (*) => this.app.ModuleActive(this.id)})
+        ; Waking speakers has no default hotkey; a setting is to keep them awake.
         this.AddAction("speaker-wake", "system.wake-speakers", "wake speakers",
-            "speaker-wake", "", "Pause + Pause")
+            "speaker-wake", "", "")
         this.AddAction("sleep", "system.sleep", "put computer to sleep", "sleep", "", "Pause + Escape")
-        this.AddAction("displays", "system.displays-off", "turn off the displays", "displays-off", "", "Caps + L")
+        this.AddAction("displays", "system.displays-off", "turn off the displays", "displays-off", "", "Pause + Pause")
         this.AddAction("awake", "system.stay-awake", "stay awake: 30 min, 1, 2, 4, 8 h, no limit",
             "awake-step", "", "Pause + End")
         this.AddAction("awake", "system.allow-sleep", "allow sleep again",
@@ -305,8 +306,8 @@ class PowerUpUtilities extends SuiteModule {
         Text waits while Shift, Ctrl, Alt or Win is held, and Terminal actions run once you let go.
 
         SYSTEM UTILITIES
-        Wake speakers that automatically enter standby, or put your computer to sleep.
-        Caps + L turns the displays off, as Windows' screen timeout does, for a break or to save power, and any touch wakes them; off is also the kindest to an OLED screen.
+        Put your computer to sleep, or wake speakers that automatically enter standby, an action you can give a hotkey in Keybindings.
+        Pause + Pause turns the displays off, as Windows' screen timeout does, for a break or to save power, and any touch wakes them; off is also the kindest to an OLED screen.
 
         STAY AWAKE
         Pause + End keeps the computer from sleeping for 30 minutes.
