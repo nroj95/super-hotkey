@@ -54,6 +54,8 @@ class GalaxyRhythmChecks {
             reports: reports, Report: (module, text) => reports.Push(text)}
         folder := SuiteChecks.directory "\" name
         DirCreate(folder)
+        ; A 10-hour bar, so the checks' minutes read as round numbers.
+        IniWrite(10, folder "\settings.ini", "Energy", "FullHours")
         return GR_Energy(module, folder "\settings.ini", folder "\energy.ini")
     }
 
@@ -92,9 +94,11 @@ class GalaxyRhythmChecks {
     ; Settings load within their ranges, and the level survives a restart.
     static EnergySettings() {
         energy := this.EnergyFixture("energy-settings")
-        this.Assert(energy.show && energy.faint && energy.level = 600 && energy.fullHours = 10
+        IniDelete(energy.settingsPath, "Energy", "FullHours")
+        energy.LoadSettings()
+        this.Assert(energy.show && energy.faint && energy.level = 480 && energy.fullHours = 8
             && !energy.dry,
-            "once the module is on, a full 10-hour bar shows with the grey and the faint")
+            "once the module is on, a full 8-hour bar shows with the grey and the faint")
         this.Assert(energy.position = "bottom-right" && energy.display = "Primary",
             "the bar sits bottom right on the primary display")
         this.Assert(energy.roadMinutes = 30 && energy.lowText = "You're running low on energy"
@@ -120,7 +124,7 @@ class GalaxyRhythmChecks {
         IniWrite("top-left", energy.settingsPath, "Energy", "Position")
         IniWrite("\\.\DISPLAY2", energy.settingsPath, "Energy", "Display")
         energy.LoadSettings()
-        this.Assert(energy.fullHours = 10 && !energy.faint
+        this.Assert(energy.fullHours = 8 && !energy.faint
             && energy.position = "top-left" && energy.display = "\\.\DISPLAY2",
             "saved energy settings load, and one out of range falls back to its default")
         IniWrite("sideways", energy.settingsPath, "Energy", "Position")

@@ -290,7 +290,7 @@ class GalaxyRhythmModule extends SuiteModule {
         window["fade"].Value := GR_Bedtime.FadeDefault
         window["sleepText"].Value := GR_Bedtime.SleepDefault
         window["showEnergy"].Value := 1
-        window["fullHours"].Value := 10
+        window["fullHours"].Value := GR_Energy.FullDefault
         for index, corner in GR_EnergyBar.Corners
             if corner[1] = "bottom-right"
                 window["position"].Choose(index)
@@ -318,7 +318,7 @@ class GalaxyRhythmModule extends SuiteModule {
             values["SleepText"] := GR_Bedtime.CleanText(window["sleepText"].Value, GR_Bedtime.SleepDefault)
             values["AwakeText"] := GR_Bedtime.CleanText(window["awakeText"].Value, GR_Bedtime.AwakeDefault)
             energy := Map("Show", window["showEnergy"].Value ? 1 : 0,
-                "FullHours", GR_Energy.Whole(window["fullHours"].Value, 4, 24, 10),
+                "FullHours", GR_Energy.Whole(window["fullHours"].Value, 4, 24, GR_Energy.FullDefault),
                 "Faint", window["faintEnergy"].Value ? 1 : 0,
                 "FadeMinutes", GR_Energy.Whole(window["energyFade"].Value, 10, 180, GR_Energy.FadeDefault),
                 "LowText", GR_Bedtime.CleanText(window["lowText"].Value, GR_Energy.Low),
@@ -351,7 +351,7 @@ class GalaxyRhythmModule extends SuiteModule {
         Until your day starts it's night: waking the computer begins the fade again, so a quick look is fine but the night stays a night.
 
         ENERGY BAR
-        A small upright bar marked E, bottom right on the primary display unless Settings moves it, is your energy for the day: every minute you use the computer, game controller included, costs a minute, and 10 hours of activity empty it.
+        A small upright bar marked E, bottom right on the primary display unless Settings moves it, is your energy for the day: every minute you use the computer, game controller included, costs a minute, and 8 hours of activity empty it.
         Watching or reading without touching anything costs half, though it never greys the screen.
         Only your day starting fills it: when your day starts, 06:00 by default, it starts over.
         As in Stardew Valley, a late night costs you: leave the computer before the first bedtime message, 00:00 by default, and the next day starts full; stay later and it starts with less, down to half if you're still there at the sleep, 02:00, and half of that again if the bar ran dry.

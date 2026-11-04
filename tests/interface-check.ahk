@@ -420,10 +420,11 @@ class InterfaceChecks {
                         if control.Type = "Button" && control.Text = "Second wind"
                             wind := control
                     rhythm.energy.level := 100
+                    windLevel := 100 + rhythm.energy.full * GR_Energy.WindShare
                     rhythm.TakeSecondWind()
-                    once := rhythm.energy.level = 250
+                    once := rhythm.energy.level = windLevel
                     rhythm.TakeSecondWind()
-                    this.Assert(IsObject(wind) && once && rhythm.energy.level = 250,
+                    this.Assert(IsObject(wind) && once && rhythm.energy.level = windLevel,
                         "Galaxy Rhythm's Help gives a second wind of a quarter bar, once a day")
                     rhythm.ShowSettings(app.ui)
                     settings := app.ui.windows["settings:" id]
@@ -727,7 +728,7 @@ class InterfaceChecks {
                         rhythm := app.modules[id]
                         rhythm.SaveSettings(app.ui)
                         app.ui.FillDefaults(id)
-                        this.Assert(settings["fullHours"].Value = 10 && pageApply.Enabled,
+                        this.Assert(settings["fullHours"].Value = GR_Energy.FullDefault && pageApply.Enabled,
                             "after a saved change, restoring defaults lights Apply")
                         app.ui.FillDefaults(id)
                         rhythm.SaveSettings(app.ui)

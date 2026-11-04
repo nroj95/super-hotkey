@@ -65,6 +65,9 @@
 ; =============================================================================
 
 class GR_Energy {
+    ; Hours of activity a full bar holds: with a short break each hour it lasts
+    ; a workday and an evening, while hours on end without one run it dry.
+    static FullDefault := 8
     static TickMs := 10000
     static ActiveMs := 60000      ; input this recent makes a tick active
     static PassiveShare := 0.5    ; of a tick's cost while the user only watches or reads
@@ -175,7 +178,7 @@ class GR_Energy {
     LoadSettings() {
         read := (key, fallback) => IniRead(this.settingsPath, "Energy", key, fallback)
         this.show := read("Show", 1) = "1"
-        this.fullHours := GR_Energy.Whole(read("FullHours", ""), 4, 24, 10)
+        this.fullHours := GR_Energy.Whole(read("FullHours", ""), 4, 24, GR_Energy.FullDefault)
         this.faint := read("Faint", 1) = "1"
         this.roadMinutes := GR_Energy.Whole(read("FadeMinutes", ""), 10, 180, GR_Energy.FadeDefault)
         this.lowText := GR_Bedtime.CleanText(read("LowText", ""), GR_Energy.Low)
