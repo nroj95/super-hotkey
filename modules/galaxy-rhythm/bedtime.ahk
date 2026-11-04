@@ -18,8 +18,9 @@
 ; so the screen never clears before it greys. Stay awake prevents only
 ; the sleep. On at bedtime, or switched on during the fade or the last word,
 ; it shows its own message and clears the grey; ending before the day
-; starts, it lets the fade begin again. A night off, or Super Hotkey
-; suspended, shows nothing and fades nothing. The module itself starts
+; starts, it lets the fade begin again. A night off, Super Hotkey suspended
+; or the energy bar's faint under way shows nothing and fades nothing, so a
+; faint that began before the sleep finishes undisturbed. The module itself starts
 ; disabled, so every row starts on: enabling Galaxy Rhythm is the opt-in.
 ; settings.ini [Bedtime] holds them.
 ; =============================================================================
@@ -149,7 +150,7 @@ class GR_Bedtime {
     Present(now) {
         app := this.module.app
         return app.ModuleActive(this.module.id) && !this.module.stopping && !app.suspended
-            && !app.systemSuspended && !app.sessionLocked && !this.module.Off(now)
+            && !app.systemSuspended && !app.sessionLocked && !this.module.Off(now) && !this.module.Fainting()
     }
 
     Show(index, now) {

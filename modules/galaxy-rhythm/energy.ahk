@@ -467,13 +467,14 @@ class GR_Energy {
     }
 
     ; Once Lights out has gone: taking the night off meanwhile keeps the
-    ; computer up. The faint keeps half the debt, so waking straight away
+    ; computer up, but bedtime's night beginning does not, as a faint under
+    ; way holds bedtime back. The faint keeps half the debt, so waking straight away
     ; leaves time to save work, and the grey stays until the day starts over.
     FaintNow(*) {
         app := this.module.app
         if !this.fainting
             return
-        if this.module.Off() || this.night || this.module.stopping || !app.ModuleActive(this.module.id)
+        if this.module.Off() || this.module.stopping || !app.ModuleActive(this.module.id)
             || app.suspended || app.systemSuspended {
             this.fainting := false
             return

@@ -358,6 +358,14 @@ class GalaxyRhythmChecks {
             energy.Tick("20261108060000", 0)
             this.Assert(Abs(energy.level - (600 - tick)) < 0.001,
                 "a quick look at 03:30 after going to bed at 23:00 costs nothing")
+            energy.level := -29.9
+            energy.Tick("20261109015958", 0)
+            energy.Tick("20261109020003", 0)
+            SetTimer(energy.faintCallback, 0)
+            energy.FaintNow()
+            this.Assert(module.reports[-1] = "dry run: energy faint" && energy.level = -15,
+                "a faint begun just before bedtime's night still finishes in it")
+            energy.away := false, energy.dry := false
             energy.level := 10
             energy.Tick("20261109023000", 0)
             this.Assert(Abs(energy.level - (10 - tick)) < 0.001 && !energy.dry && !InStr(module.reports[-1], "energy:"),
@@ -429,6 +437,7 @@ class GalaxyRhythmChecks {
             ModuleActive: (app, id) => true}
         module := {app: app, id: "galaxy-rhythm", stopping: false, dryRun: true,
             Name: "Galaxy Rhythm", grey: GR_GreyScreen(true), nightOff: false, Off: (module, now := "") => module.nightOff,
+            faintUnderway: false, Fainting: (module) => module.faintUnderway,
             reports: reports, Report: (module, text) => reports.Push(text)}
         return GR_Bedtime(module, SuiteChecks.directory "\" name "\settings.ini")
     }
@@ -506,6 +515,9 @@ class GalaxyRhythmChecks {
         module.nightOff := true
         this.Assert(!night("235955", "000005").Length, "a night off shows no messages")
         module.nightOff := false
+        module.faintUnderway := true
+        this.Assert(!night("235955", "000005").Length, "the energy bar's faint under way holds bedtime's messages")
+        module.faintUnderway := false
         this.Assert(!night("015955", "020005").Length && !bedtime.fadeStarted,
             "with the sleep row off, nothing happens at bedtime")
         bedtime.Stop()

@@ -36,6 +36,9 @@ class GalaxyRhythmModule extends SuiteModule {
     ; A night off lasts until the day starts.
     Off(now := "") => this.offUntil != "" && DateDiff(now = "" ? A_Now : now, this.offUntil, "Seconds") < 0
 
+    ; The energy bar's Lights out has shown and its sleep is on the way.
+    Fainting() => this.energy.fainting
+
     HelpButtons() => this.app.ModuleActive(this.id)
         ? [[GalaxyRhythmModule.WindLabel, ObjBindMethod(this, "TakeSecondWind"), 120],
             [this.Off() ? GalaxyRhythmModule.OnLabel : GalaxyRhythmModule.OffLabel,
