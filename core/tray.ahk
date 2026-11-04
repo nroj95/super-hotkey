@@ -317,21 +317,23 @@ class SuiteInterface {
         }
         this.LayerFooter(window, footer)
         ; A footer button named Apply saves without closing, like
-        ; Keybindings': grey until something on the page changes, and grey
-        ; again once the page calls Applied.
+        ; Keybindings': lit only while the page differs from what it showed
+        ; when it opened or was last applied.
         apply := 0
         for item in footer.buttons
             if item.button.Text = "Apply"
                 apply := item.button
         if apply {
             apply.Enabled := false
+            changed := ObjBindMethod(this, "PageChanged", key)
             for item in controls
                 if item.control.Type != "Text" && item.control.Type != "Button" {
-                    try item.control.OnEvent("Change", (*) => apply.Enabled := true)
-                    try item.control.OnEvent("Click", (*) => apply.Enabled := true)
+                    try item.control.OnEvent("Change", changed)
+                    try item.control.OnEvent("Click", changed)
                 }
         }
         this.pageLayouts[key] := {footer: footer, controls: controls, apply: apply,
+            saved: SuiteInterface.PageValues(window),
             width: width, height: height, minWidth: minWidth, minHeight: minHeight,
             content: height - SuiteInterface.FooterBand, offset: 0,
             renderedWidth: 0, renderedHeight: 0}
@@ -360,8 +362,21 @@ class SuiteInterface {
             this.Report(failure, SuiteSettings.ModuleNames[id] " / restore defaults")
             return
         }
-        if this.pageLayouts.Has(key) && this.pageLayouts[key].apply
-            this.pageLayouts[key].apply.Enabled := true
+        this.PageChanged(key)
+    }
+
+    ; Every value a page's fields hold, in one string to compare.
+    static PageValues(window) {
+        values := ""
+        for hwnd, control in window
+            if control.Type != "Text" && control.Type != "Button" && control.Type != "Custom"
+                try values .= hwnd "=" control.Value "`n"
+        return values
+    }
+
+    PageChanged(key, *) {
+        if this.pageLayouts.Has(key) && (layout := this.pageLayouts[key]).apply && this.windows.Has(key)
+            layout.apply.Enabled := SuiteInterface.PageValues(this.windows[key]) != layout.saved
     }
 
     ; The index of a display among DisplayChoices' values, Primary meaning
@@ -384,6 +399,8 @@ class SuiteInterface {
         if DllCall("GetFocus", "ptr") = apply.Hwnd
             this.pageLayouts[key].footer.buttons[-1].button.Focus()
         apply.Enabled := false
+        if this.windows.Has(key)
+            this.pageLayouts[key].saved := SuiteInterface.PageValues(this.windows[key])
     }
 
     ResizePage(key, window, minMax, width, height) {

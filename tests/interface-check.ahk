@@ -674,15 +674,32 @@ class InterfaceChecks {
                             restoreButtons += 1
                     pageApply := app.ui.pageLayouts["settings:" id].apply
                     app.ui.FillDefaults(id)
-                    this.Assert(restoreButtons = 1 && (!pageApply || pageApply.Enabled),
-                        "module Settings restores its defaults on the page, for Apply to save: " id)
+                    this.Assert(restoreButtons = 1 && (!pageApply || !pageApply.Enabled),
+                        "Restore defaults leaves Apply grey when the page already shows them: " id)
                     if id = "galaxy-rhythm" {
+                        ; Checks call PageChanged, as the page's change events would.
+                        settings["text1"].Value := "Bed!"
+                        app.ui.PageChanged("settings:" id)
+                        litByChange := pageApply.Enabled
+                        settings["text1"].Value := "It's getting late"
+                        app.ui.PageChanged("settings:" id)
+                        this.Assert(litByChange && !pageApply.Enabled,
+                            "Apply lights up for a change and goes grey when it is changed back")
                         settings["text1"].Value := "Bed!"
                         settings["showEnergy"].Value := 0
                         app.ui.FillDefaults(id)
                         this.Assert(settings["text1"].Value = "It's getting late" && settings["showEnergy"].Value = 1
-                            && settings["energyFade"].Enabled && settings["fade"].Value = GR_Bedtime.FadeDefault,
-                            "Galaxy Rhythm restores its words and switches, and the fields they enable")
+                            && settings["energyFade"].Enabled && settings["fade"].Value = GR_Bedtime.FadeDefault
+                            && !pageApply.Enabled,
+                            "Galaxy Rhythm restores its words, switches and the fields they enable, with nothing left to apply")
+                        settings["fullHours"].Value := 12
+                        rhythm := app.modules[id]
+                        rhythm.SaveSettings(app.ui)
+                        app.ui.FillDefaults(id)
+                        this.Assert(settings["fullHours"].Value = 10 && pageApply.Enabled,
+                            "after a saved change, restoring defaults lights Apply")
+                        app.ui.FillDefaults(id)
+                        rhythm.SaveSettings(app.ui)
                     }
                     if id = "power-up-utilities"
                         this.Assert(settings["realSleep"].Value = 1 && settings["minutes"].Value = 8
