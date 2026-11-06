@@ -5,17 +5,20 @@
 ; keeps the computer up through bedtime too; the energy bar ignores it.
 ;
 ; One time, Your day starts at (the bedtime wakeTime), ends both bedtime's
-; night and a night off. Help's Tonight off button starts a night off, a move
-; that can't be taken back: it asks first, then until the day starts there
-; are no bedtime messages or sleep, and the energy bar keeps counting out of
-; sight, without notices, grey or faint, so the next morning pays for what
-; was spent and nothing more. Meanwhile the button shows a lock and the time
-; it ends, and Settings keeps Your day starts at locked, so no change ends
-; it early. night.ini keeps it across restarts.
+; night and a night off. Help's Tonight off button starts a night off: it
+; asks first, then until the day starts there are no bedtime messages or
+; sleep, and the energy bar keeps counting out of sight, without notices,
+; grey or faint, so the next morning pays for what was spent and nothing
+; more. Meanwhile the button reads Back on, which ends the night off early.
+; It asks first only on the energy bar's road before bedtime's night, where
+; the grey comes back at once and Lights out follows; in bedtime's night the
+; fade to sleep starts with bedtime's own message, and otherwise a notice
+; says it's back on. night.ini keeps a night off across restarts.
 class GalaxyRhythmModule extends SuiteModule {
     hasSettings := true
     resetSections := ["Bedtime", "Energy"]
     static OffLabel := "Tonight off"
+    static OnLabel := "Back on"
     static WindLabel := "Second wind"
 
     __New(app) {
@@ -42,62 +45,98 @@ class GalaxyRhythmModule extends SuiteModule {
 
     HelpButtons() => this.app.ModuleActive(this.id)
         ? [[GalaxyRhythmModule.WindLabel, ObjBindMethod(this, "TakeSecondWind")],
-            [this.NightLabel(), ObjBindMethod(this, "TakeNightOff"), !this.Off()]] : []
+            [this.NightLabel(), ObjBindMethod(this, "ToggleNightOff")]] : []
 
-    ; Tonight off, or while a night off runs, a lock and when it ends.
-    NightLabel() => this.Off()
-        ? Format("🔒 Until {1}", FormatTime(this.offUntil, "HH:mm")) : GalaxyRhythmModule.OffLabel
+    NightLabel() => this.Off() ? GalaxyRhythmModule.OnLabel : GalaxyRhythmModule.OffLabel
 
-    ; Once a day, a quarter of a full bar back, from Help.
+    ; Once a day, a quarter of a full bar back, from Help, once all of it fits.
     TakeSecondWind(*) {
-        SuiteNotice.Show("status", this.energy.SecondWind()
-            ? Format("Second wind: +{1} %", Round(GR_Energy.WindShare * 100))
+        result := this.energy.SecondWind()
+        SuiteNotice.Show("status", result = "given" ? Format("Second wind: +{1} %", Round(GR_Energy.WindShare * 100))
+            : result = "early" ? Format("Too early: second wind works at {1} % or less", Round((1 - GR_Energy.WindShare) * 100))
             : "Second wind already taken today", 1400)
     }
 
-    ; A move that can't be taken back, so it asks first.
-    TakeNightOff(*) {
-        if this.Off()
+    ; Tonight off asks first; Back on asks only before what it brings back at once.
+    ToggleNightOff(*) {
+        if this.Off() {
+            this.BackOn()
             return
+        }
         ends := FormatTime(GR_Bedtime.NextMoment(A_Now, this.bedtime.wakeTime), "HH:mm")
         if MsgBox(Format("Turn Galaxy Rhythm off until {1}?", ends)
             . "`n`nBedtime goes quiet and the energy bar hides until your day starts, though it keeps counting."
-            . " This can't be undone tonight.", this.Name, "YesNo Default2 Icon?") = "Yes"
+            . " Back on in Help turns it on again.", this.Name, "YesNo Default2 Icon?") = "Yes"
             this.SetNightOff()
     }
 
-    ; Help's Tonight off button, if Help is open; modules start before the
+    ; What Back on asks first: on the energy bar's road before bedtime's
+    ; night, the grey comes back at once and Lights out follows. "" otherwise.
+    BackOnQuestion(now) {
+        energy := this.energy
+        if !energy.show || !energy.faint || energy.level > 0 || this.bedtime.Night(now)
+            return ""
+        if energy.level <= -energy.roadMinutes
+            return "Your energy is empty: back on means Lights out, and the computer sleeps."
+                . " Anything online or still running stops.`n`nTurn Galaxy Rhythm back on?"
+        return Format("You're running on fumes: back on, the screen greys and Lights out comes after about"
+            . " {1} min of activity.`n`nTurn Galaxy Rhythm back on?", Ceil(energy.roadMinutes + energy.level))
+    }
+
+    ; Ends a night off early. In bedtime's night the fade starts at once with
+    ; bedtime's own message; the energy bar's notices and faint follow within
+    ; a second as its hold lifts.
+    BackOn(now := "") {
+        now := now = "" ? A_Now : now
+        if !this.Off(now)
+            return
+        question := this.BackOnQuestion(now)
+        if question != "" && MsgBox(question, this.Name, "YesNo Default2 Icon!") != "Yes"
+            return
+        this.offUntil := ""
+        this.SaveNight()
+        this.Report("night off ended early")
+        this.SyncNightOff()
+        if this.bedtime.Night(now)
+            this.bedtime.Check(now)
+        else if question = ""
+            SuiteNotice.Show("status", "Galaxy Rhythm is back on", 1400)
+    }
+
+    ; Help's night button, if Help is open; modules start before the
     ; interface exists.
     NightButton() {
         if IsObject(this.app.ui) && this.app.ui.windows.Has("help:" this.id)
             for hwnd, control in this.app.ui.windows["help:" this.id]
                 if control.Type = "Button" && (control.Text = GalaxyRhythmModule.OffLabel
-                    || InStr(control.Text, "🔒") = 1)
+                    || control.Text = GalaxyRhythmModule.OnLabel)
                     return control
         return 0
     }
 
     ; Help's button follows the night off, also as it ends with Help open.
     SyncNightOff(*) {
-        if button := this.NightButton() {
+        if button := this.NightButton()
             this.app.ui.SetFooterText(button, this.NightLabel())
-            button.Enabled := !this.Off()
+        SetTimer(this.syncCallback, this.Off() ? -(DateDiff(this.offUntil, A_Now, "Seconds") + 1) * 1000 : 0)
+    }
+
+    SaveNight() {
+        if this.dryRun
+            return
+        try {
+            SplitPath(this.nightPath, , &directory)
+            DirCreate(directory)
+            IniWrite(this.offUntil, this.nightPath, "Night", "OffUntil")
         }
-        if this.Off()
-            SetTimer(this.syncCallback, -(DateDiff(this.offUntil, A_Now, "Seconds") + 1) * 1000)
+        catch Error as failure
+            SuiteState.Log.Error("Galaxy Rhythm / night off", failure)
     }
 
     SetNightOff(now := "") {
         now := now = "" ? A_Now : now
         this.offUntil := GR_Bedtime.NextMoment(now, this.bedtime.wakeTime)
-        if !this.dryRun
-            try {
-                SplitPath(this.nightPath, , &directory)
-                DirCreate(directory)
-                IniWrite(this.offUntil, this.nightPath, "Night", "OffUntil")
-            }
-            catch Error as failure
-                SuiteState.Log.Error("Galaxy Rhythm / night off", failure)
+        this.SaveNight()
         this.bedtime.CancelFade()
         this.energy.Shade()
         SuiteNotice.Show("status", Format("Galaxy Rhythm is off until {1}", FormatTime(this.offUntil, "HH:mm")), 1400)
@@ -155,12 +194,6 @@ class GalaxyRhythmModule extends SuiteModule {
         window.AddText("x20 y" (y + 4) " w170", "Your day starts at")
         wake := window.AddDateTime("x200 y" y " w75 +0x1 vwake", "HH:mm")
         wake.Value := "20000101" this.bedtime.wakeTime "00"
-        ; A night off can't be ended early by moving the day's start.
-        if this.Off() {
-            wake.Enabled := false
-            window.AddText("x290 y" (y + 4) " w330", Format("🔒 Locked until the night off ends at {1}",
-                FormatTime(this.offUntil, "HH:mm")))
-        }
         rows.Advance(wake)
         rows.Heading("BEDTIME")
         rows.Text("Two reminders, then the sleep: each message shows on every display at its time"
@@ -284,8 +317,7 @@ class GalaxyRhythmModule extends SuiteModule {
             window["time" index].Value := "20000101" defaults[1] "00"
             window["text" index].Value := defaults[2]
         }
-        if !this.Off()
-            window["wake"].Value := "20000101" GR_Bedtime.WakeDefault "00"
+        window["wake"].Value := "20000101" GR_Bedtime.WakeDefault "00"
         window["awakeText"].Value := GR_Bedtime.AwakeDefault
         window["fade"].Value := GR_Bedtime.FadeDefault
         window["sleepText"].Value := GR_Bedtime.SleepDefault
@@ -314,7 +346,7 @@ class GalaxyRhythmModule extends SuiteModule {
                 values["Text" index] := GR_Bedtime.CleanText(window["text" index].Value, defaults[2])
             }
             values["FadeMinutes"] := GR_Bedtime.CleanMinutes(window["fade"].Value)
-            values["WakeTime"] := this.Off() ? this.bedtime.wakeTime : SubStr(window["wake"].Value, 9, 4)
+            values["WakeTime"] := SubStr(window["wake"].Value, 9, 4)
             values["SleepText"] := GR_Bedtime.CleanText(window["sleepText"].Value, GR_Bedtime.SleepDefault)
             values["AwakeText"] := GR_Bedtime.CleanText(window["awakeText"].Value, GR_Bedtime.AwakeDefault)
             energy := Map("Show", window["showEnergy"].Value ? 1 : 0,
@@ -361,6 +393,7 @@ class GalaxyRhythmModule extends SuiteModule {
         As you come back, what the break gave back shows in purple at the top of the bar for a moment.
         A break starts when the computer sees you go, as it locks, turns its screens off, sleeps or you sign out; quiet time before that might have been reading or a film, so it doesn't count.
         So when you step away, lock the computer, turn its screens off or put it to sleep, any way you like; Win + L, and Pause + Pause and Pause + Escape in Power-Up Utilities, do it in one press.
+        If your phone goes where you go, Windows' Dynamic Lock, in Sign-in options, can lock the computer within about a minute of you walking away with it.
         If you often just walk off, set the screens to turn off after a few minutes in Windows' power settings.
         Near empty it says so; at zero you're running on fumes, the screen greys over half an hour of activity by default, and then Lights out puts the computer to sleep.
         Running dry also turns the bar's E red until your day starts over, a reminder that tomorrow starts tired, even after a break or Second wind refills it.
@@ -370,7 +403,9 @@ class GalaxyRhythmModule extends SuiteModule {
         Turn Galaxy Rhythm on in Modules and all of this is on; every time, length and message can be changed in Settings.
         For a game night, Tonight off below silences bedtime and hides the bar until your day starts.
         The bar keeps counting out of sight, without warnings, grey or a faint, so the next morning pays for what you spend and how late you stay up, nothing more.
-        It's a move you can't take back: it asks first, then its button shows a lock and when it ends.
+        It asks first, then its button turns into Back on, which ends the night off early.
+        Back on asks first only if the bar is on the road before your bedtime, since the grey and Lights out come back with it; after your bedtime, the fade to sleep starts right away.
         Once a day, Second wind below gives back a quarter of a full bar, even out of the grey, and shows it in purple like a break.
+        It waits until the bar is at 75 % or less, so none of it is wasted.
     )"
 }

@@ -9,6 +9,10 @@
 ### Changes
 
 - **Galaxy Rhythm:** what a break or *Second wind* gives back now shows in purple at the top of the energy bar for 3 seconds, so you can see the reward. A break now counts as soon as you're back, instead of up to 10 seconds later.
+- **Galaxy Rhythm:** *Tonight off* can be undone. Its button turns into **Back on**, which ends the night off early, and *Your day starts at* in Settings is no longer locked meanwhile. Back on asks first only if the energy bar is on the road and it's before your bedtime sleep, since the grey and *Lights out* come back with it. After your bedtime sleep time, the fade to sleep starts right away with your last bedtime message.
+- **Galaxy Rhythm:** *Second wind* waits until the energy bar is at 75 % or less, so none of it is wasted. Pressed earlier, it says so and stays available.
+- **Galaxy Rhythm:** when a pause on the energy bar lifts, because you turn a night off back on, resume Super Hotkey or unlock the computer, its warnings and *Lights out* come within a second instead of at its next 10-second check.
+- **Galaxy Rhythm:** its guide mentions Windows' Dynamic Lock, which locks the computer when you walk away with your phone and so starts a break.
 - With three or more displays, a notice for a display that a game in exclusive fullscreen covers now shows on every other display instead of only the next one.
 - **Cascade Kingdom:** hold `Caps`, `Win` or `Pause` and double-click anywhere on a window to add it to its display's cascade, as `Caps + Insert` does; keep holding to add more. Double-clicking a window already in a cascade takes it out, back to where it was, as `Caps + Shift + Insert` does. While one of them is held, a click only focuses a window, and no click, drag, scroll or other mouse button reaches what is inside it. The taskbar, the desktop, Start and focus tabs work as usual. `Caps` and `Pause` need Secret Layers; `Win` works without it.
 

@@ -95,8 +95,8 @@ class SuiteInterface {
     }
 
     ; Buttons along the bottom on an opaque band the page's content scrolls
-    ; under, each [label, callback], or [label, callback, false] to start
-    ; greyed out. y is where the buttons start. Each button fits its text.
+    ; under, each [label, callback]. y is where the buttons start. Each button
+    ; fits its text.
     Footer(window, buttons, y, width := 800) {
         band := window.AddText("x0 y" (y + 49 - SuiteInterface.FooterBand) " w" width
             " h" SuiteInterface.FooterBand " Background" window.BackColor)
@@ -106,8 +106,6 @@ class SuiteInterface {
         for item in buttons {
             control := window.AddButton("x0 y" y " w" SuiteInterface.ButtonMinWidth " h30", item[1])
             control.OnEvent("Click", SuiteClickAction(item[2]))
-            if item.Length >= 3 && !item[3]
-                control.Enabled := false
             buttonWidth := SuiteInterface.ButtonWidth(control)
             controls.Push({button: control, width: buttonWidth})
             total += buttonWidth + 10

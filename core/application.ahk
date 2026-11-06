@@ -33,7 +33,7 @@ class SuiteModule {
     ShowSettings(ui) => 0
     RestoreSettings(window) => 0       ; fill the open Settings page with defaults; Apply saves them
     HelpText() => ""                   ; one sentence per line; see SuiteInterface.HelpParts
-    HelpButtons() => []                ; extra Help footer buttons: [label, callback, enabled?]
+    HelpButtons() => []                ; extra Help footer buttons: [label, callback]
 }
 
 class SuiteApplication {

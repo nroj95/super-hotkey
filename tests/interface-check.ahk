@@ -381,24 +381,48 @@ class InterfaceChecks {
                     button.GetPos(, , &usualWidth)
                     footerButtons[-1].button.GetPos(&closeX)
                     rhythm.SetNightOff()
-                    tonight := IsObject(button) && button.Text = "🔒 Until " FormatTime(rhythm.offUntil, "HH:mm")
-                        && !button.Enabled && rhythm.Off() && !rhythm.energy.dry
+                    tonight := IsObject(button) && button.Text = "Back on"
+                        && button.Enabled && rhythm.Off() && !rhythm.energy.dry
                         && DateDiff(rhythm.offUntil, A_Now, "Hours") < 24
                         && SubStr(rhythm.offUntil, 9) = rhythm.bedtime.wakeTime "00"
-                    button.GetPos(&lockedX, , &lockedWidth)
+                    button.GetPos(&backX, , &backWidth)
                     footerButtons[-1].button.GetPos(&closeAfterX)
                     footerButtons[3].button.GetPos(&settingsX)
-                    this.Assert(usualWidth = SuiteInterface.ButtonMinWidth && lockedWidth > usualWidth
-                        && closeAfterX = closeX && lockedX + lockedWidth + 10 = settingsX,
-                        "footer buttons fit their text, at least the shared width, and the left side makes room as one grows")
-                    rhythm.TakeNightOff() ; asks nothing and changes nothing while it runs
+                    this.Assert(usualWidth = SuiteInterface.ButtonMinWidth && backWidth >= SuiteInterface.ButtonMinWidth
+                        && closeAfterX = closeX && backX + backWidth + 10 = settingsX,
+                        "footer buttons fit their text, at least the shared width, and keep their places as one is renamed")
                     rhythm.ShowSettings(app.ui)
-                    locked := !app.ui.windows["settings:" id]["wake"].Enabled
-                    app.ui.FillDefaults(id)
-                    lockedAfterRestore := SubStr(app.ui.windows["settings:" id]["wake"].Value, 9, 4) = rhythm.bedtime.wakeTime
+                    wakeOpen := app.ui.windows["settings:" id]["wake"].Enabled
                     app.ui.CloseWindow("settings:" id)
-                    this.Assert(tonight && rhythm.Off() && locked && lockedAfterRestore,
-                        "Galaxy Rhythm's Help takes tonight off until the day starts, with no way back, no dry day of its own, a locked button and a locked day start")
+                    this.Assert(tonight && wakeOpen,
+                        "Galaxy Rhythm's Help takes tonight off until the day starts, with no dry day of its own, a Back on button and the day start still open in Settings")
+                    ; Back on asks first only on the energy bar's road before bedtime's night.
+                    evening := DateAdd(rhythm.offUntil, -6, "Hours")
+                    night := DateAdd(rhythm.offUntil, -2, "Hours")
+                    energy := rhythm.energy
+                    level := energy.level
+                    energy.level := 100
+                    above := rhythm.BackOnQuestion(evening)
+                    energy.level := -10
+                    road := rhythm.BackOnQuestion(evening)
+                    inNight := rhythm.BackOnQuestion(night)
+                    energy.level := -energy.roadMinutes
+                    bottom := rhythm.BackOnQuestion(evening)
+                    this.Assert(above = "" && InStr(road, "about " energy.roadMinutes - 10 " min of activity")
+                        && InStr(bottom, "Lights out") && !InStr(bottom, "min of activity") && inNight = "",
+                        "Back on asks first anywhere on the road before bedtime's night, with the minutes left or Lights out")
+                    energy.level := 100
+                    rhythm.BackOn(evening)
+                    this.Assert(!rhythm.Off() && button.Text = "Tonight off" && !rhythm.bedtime.fadeStarted,
+                        "above zero Back on ends the night off at once")
+                    rhythm.SetNightOff()
+                    night := DateAdd(rhythm.offUntil, -2, "Hours")
+                    rhythm.BackOn(night)
+                    this.Assert(!rhythm.Off() && rhythm.bedtime.fadeStarted,
+                        "in bedtime's night Back on starts the fade to sleep at once")
+                    rhythm.bedtime.CancelFade()
+                    energy.level := level
+                    rhythm.SetNightOff()
                     ; The day starting ends it, and the button comes back.
                     rhythm.offUntil := A_Now
                     rhythm.SyncNightOff()
@@ -419,6 +443,10 @@ class InterfaceChecks {
                     for hwnd, control in window
                         if control.Type = "Button" && control.Text = "Second wind"
                             wind := control
+                    rhythm.energy.level := rhythm.energy.full
+                    rhythm.TakeSecondWind()
+                    this.Assert(rhythm.energy.level = rhythm.energy.full && rhythm.energy.windDay = "",
+                        "pressed with a full bar, Second wind waits and stays available")
                     rhythm.energy.level := 100
                     windLevel := 100 + rhythm.energy.full * GR_Energy.WindShare
                     rhythm.TakeSecondWind()

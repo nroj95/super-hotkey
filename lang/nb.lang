@@ -158,6 +158,9 @@ A break starts when the computer sees you go, as it locks, turns its screens off
 So when you step away, lock the computer, turn its screens off or put it to sleep, any way you like; Win + L, and Pause + Pause and Pause + Escape in Power-Up Utilities, do it in one press.
 =
 
+If your phone goes where you go, Windows' Dynamic Lock, in Sign-in options, can lock the computer within about a minute of you walking away with it.
+=
+
 If you often just walk off, set the screens to turn off after a few minutes in Windows' power settings.
 =
 
@@ -182,10 +185,16 @@ For a game night, Tonight off below silences bedtime and hides the bar until you
 The bar keeps counting out of sight, without warnings, grey or a faint, so the next morning pays for what you spend and how late you stay up, nothing more.
 =
 
-It's a move you can't take back: it asks first, then its button shows a lock and when it ends.
+It asks first, then its button turns into Back on, which ends the night off early.
+=
+
+Back on asks first only if the bar is on the road before your bedtime, since the grey and Lights out come back with it; after your bedtime, the fade to sleep starts right away.
 =
 
 Once a day, Second wind below gives back a quarter of a full bar, even out of the grey, and shows it in purple like a break.
+=
+
+It waits until the bar is at 75 % or less, so none of it is wasted.
 =
 
 ; modules/paper-pad/module.ahk

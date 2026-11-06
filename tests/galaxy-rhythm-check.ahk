@@ -12,6 +12,28 @@ class GalaxyRhythmChecks {
         this.EnergySettings()
         this.EnergyDay()
         this.EnergyDayStartChange()
+        this.EnergyHoldLift()
+    }
+
+    ; A bar already at the bottom faints the moment its hold lifts, here a
+    ; night off turned back on, without waiting for the next tick. Draw reads
+    ; the real clock, so bedtime's sleep is off to keep its night out of it.
+    static EnergyHoldLift() {
+        energy := this.EnergyFixture("energy-hold-lift")
+        energy.module.bedtime.rows[-1].show := false
+        energy.level := -30, energy.away := false
+        energy.module.nightOff := true
+        energy.Draw()
+        held := !energy.fainting && !energy.freed
+        energy.module.nightOff := false
+        energy.Draw()
+        this.Assert(held && energy.fainting && this.ShownEverywhere(GR_Energy.Faint),
+            "a night off turned back on at the bottom of the road brings Lights out at once")
+        SetTimer(energy.faintCallback, 0)
+        energy.fainting := false
+        energy.Draw()
+        this.Assert(!energy.fainting, "only as the hold lifts: the next redraw brings nothing new")
+        this.HideNotices()
     }
 
     ; A changed start of the day applies from the next day, so a settings
@@ -37,7 +59,9 @@ class GalaxyRhythmChecks {
         taken := energy.SecondWind("20261104120000")
         energy.module.bedtime.wakeTime := "0800"
         energy.Tick("20261104130000", 0)
-        this.Assert(taken && !energy.SecondWind("20261104130010") && energy.SecondWind("20261105080010"),
+        stillTaken := energy.SecondWind("20261104130010")
+        energy.level := 100
+        this.Assert(taken = "given" && stillTaken = "taken" && energy.SecondWind("20261105080010") = "given",
             "a second wind stays taken when the day's start moves, until the next day")
     }
 
@@ -363,15 +387,23 @@ class GalaxyRhythmChecks {
                 "without the faint there is no grey either: the bar just stays empty")
             energy.faint := true
 
-            energy.level := -20
             energy.windDay := ""
+            energy.level := 451
+            early := energy.SecondWind(at("135900"))
+            this.Assert(early = "early" && energy.level = 451 && energy.windDay = "",
+                "above 75 % a second wind would be partly wasted, so it waits and stays available")
+            energy.level := 450
+            this.Assert(energy.SecondWind(at("135930")) = "given" && energy.level = 600,
+                "at 75 % all of it fits")
+            energy.windDay := ""
+            energy.level := -20
             first := energy.SecondWind(at("140000"))
             second := energy.SecondWind(at("150000"))
-            this.Assert(first && !second && energy.level = 130 && grey.level = 0,
+            this.Assert(first = "given" && second = "taken" && energy.level = 130 && grey.level = 0,
                 "a second wind gives back a quarter of a full bar, even out of the grey, once a day")
             this.Assert(energy.gain.from = 0 && Abs(energy.gain.to - 130 / energy.full) < 0.001,
                 "and shows it in purple like a break")
-            this.Assert(energy.SecondWind("20261104070000") && energy.level = 280,
+            this.Assert(energy.SecondWind("20261104070000") = "given" && energy.level = 280,
                 "and again the next day")
             energy.windDay := ""
 

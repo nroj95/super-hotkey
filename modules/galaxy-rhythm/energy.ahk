@@ -40,6 +40,9 @@
 ; time until the next start as a break from that moment, a crash from its
 ; last tick, and a suite closed by hand none, even across a reboot.
 ;
+; Once a day a second wind gives back WindShare of a full bar, but only once
+; all of it fits, at 75 % or less, so pressing it early never wastes it.
+;
 ; 10 % left says so. At zero the road to fainting starts with its notice.
 ; With Faint on, the displays turn grey over FadeMinutes of activity, then
 ; Lights out shows and the computer sleeps; the user wakes halfway along the
@@ -48,12 +51,15 @@
 ; the faint, so without it the bar just stays empty. Stay awake never
 ; touches the bar: it keeps the computer up while the user is away, when the
 ; bar neither drains nor greys. A night off (the module's Off) hides the bar
-; until the day starts, while it keeps running out of sight, its drain,
+; until the day starts or the user turns it back on, while it keeps running
+; out of sight, its drain,
 ; breaks and how late the computer was used included, but silently: no
 ; notices, grey or faint, as in bedtime's night. Reaching zero then still
 ; counts as the day running dry, so a night off costs what the user spends,
 ; no more. A suspended suite pauses the bar, without a dry day, while
-; being at the unlocked computer still counts toward how late it was. During
+; being at the unlocked computer still counts toward how late it was. As any
+; of these holds lifts, the notices and the faint answer within a second, not
+; at the next tick, so a bar already at the bottom faints at once. During
 ; bedtime's night, from its sleep to the day start, the bar still drains
 ; while the user is there, but silently: no notices, no faint and a grey
 ; that only lightens from where the night began, for bedtime's fade to darken
@@ -120,7 +126,8 @@ class GR_Energy {
         this.lowShown := false
         this.roadShown := false
         this.fainting := false
-        this.gain := 0            ; {from, to, until}: the shares a break or second wind raised the bar between, shown until A_TickCount reaches until
+        this.freed := false       ; Free() as Draw last found it
+        this.gain := 0           ; {from, to, until}: the shares a break or second wind raised the bar between, shown until A_TickCount reaches until
         this.padSlots := []       ; XInput slots connected at the last tick
         this.padButtons := Map()  ; slot -> its buttons at the last reading
         this.padUsed := 0         ; A_TickCount when a controller was last used, or 0
@@ -244,6 +251,7 @@ class GR_Energy {
         this.notification := DllCall("RegisterPowerSettingNotification", "ptr", A_ScriptHwnd,
             "ptr", guid, "uint", 0, "ptr")
         this.bar := GR_EnergyBar()
+        this.freed := false
         SetTimer(this.tickCallback, GR_Energy.TickMs)
         SetTimer(this.drawCallback, 1000)
     }
@@ -347,6 +355,13 @@ class GR_Energy {
             this.Save(now)
             return
         }
+        this.Enforce()
+        this.Save(now)
+    }
+
+    ; The notices, the grey and the faint: at each tick, and as soon as a
+    ; hold lifts (Draw), so a bar already at the bottom faints straight away.
+    Enforce() {
         if this.level > this.full * GR_Energy.LowShare
             this.lowShown := false
         else if this.level > 0 && !this.lowShown {
@@ -365,8 +380,11 @@ class GR_Energy {
             this.Notice(this.faintText)
             SetTimer(this.faintCallback, -SuiteNotice.NewsMs)
         }
-        this.Save(now)
     }
+
+    ; Notices, grey and the faint apply: the bar is shown, the user is at the
+    ; unlocked computer and neither a night off nor bedtime's night holds them.
+    Free(now) => this.show && this.Present() && !this.module.Off(now) && !this.BedtimeNight(now)
 
     ; Windows' idle time never sees game controllers, so each tick looks for
     ; XInput ones, and while one is connected PollPads reads it ten times a
@@ -476,11 +494,14 @@ class GR_Energy {
     }
 
     ; Once a day, from one day start to the next, a second wind gives back
-    ; WindShare of a full bar, even out of the grey. False if already taken.
+    ; WindShare of a full bar, even out of the grey, once all of it fits, so
+    ; none is wasted. "given", or why not: "taken" today already or too "early".
     SecondWind(now := "") {
         day := this.DayOf(now = "" ? A_Now : now)
         if this.windDay = day
-            return false
+            return "taken"
+        if this.level > this.full * (1 - GR_Energy.WindShare)
+            return "early"
         this.windDay := day
         before := this.level
         this.level := Min(this.full, this.level + this.full * GR_Energy.WindShare)
@@ -490,7 +511,7 @@ class GR_Energy {
         this.Shade()
         this.SaveState()
         this.module.Report("second wind")
-        return true
+        return "given"
     }
 
     Notice(text) {
@@ -549,13 +570,22 @@ class GR_Energy {
     Visible() => this.show && this.Present() && !this.module.Off()
 
     ; Back from a break, the refill comes as the bar shows again rather than
-    ; at the next tick, so its purple is there when the user looks.
+    ; at the next tick, so its purple is there when the user looks. As a hold
+    ; lifts, a night off turned back on, the suite resumed or the computer
+    ; unlocked, the notices and the faint answer at once, after that refill
+    ; and any day start the first tick would have brought.
     Draw(*) {
+        now := A_Now
         if this.away && this.show && this.Present() {
-            now := A_Now
             this.StartDay(now)
             this.Back(now)
         }
+        free := this.Free(now)
+        if free && !this.freed {
+            this.StartDay(now)
+            this.Enforce()
+        }
+        this.freed := free
         if this.gain && A_TickCount >= this.gain.until
             this.gain := 0
         this.Shade()
