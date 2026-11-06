@@ -45,6 +45,7 @@ class CascadeKingdomModule extends SuiteModule {
         if HasCascadeWindowDrag()
             StopCascadeWindowDrag()
         CascadeState.mousePress := 0
+        StopCapsDrag()
         for hwnd in CascadeState.placementStabilizationGenerations.Clone()
             CancelPlacementStabilization(hwnd)
         for hwnd in CascadeState.focusCornerOverlays
@@ -58,6 +59,7 @@ class CascadeKingdomModule extends SuiteModule {
         CascadeState.commandQueue := []
         StopFocusTabClick()
         CascadeState.capsClickLast := 0
+        StopCapsDrag()
     }
 
     ; SuiteManagedWindows: other modules leave these windows to Cascade Kingdom.
@@ -74,6 +76,7 @@ class CascadeKingdomModule extends SuiteModule {
         CascadeState.commandQueue := []
         SetTimer(DrainCascadeCommandQueue, 0)
         StopFocusTabClick()
+        StopCapsDrag()
         StopWindowHooks()
         StopCascadeDisplays()
         RestoreMinimizedCascadeWindowsOnExit()
@@ -89,7 +92,7 @@ class CascadeKingdomModule extends SuiteModule {
         this.displayChoices := choices.values
         rows.Field("Cascade on", "DropDownList", "w300 vdisplay", choices.names).Choose(choices.selected)
         rows.Checkbox("Mirror: cascade toward the left", "vmirrored").Value := CascadeState.mirrored
-        rows.Checkbox("Hold Win instead of Caps to click and double-click windows", "vuseWin").Value := CascadeState.useWin
+        rows.Checkbox("Hold Win instead of Caps to click, drag and double-click windows", "vuseWin").Value := CascadeState.useWin
         rows.Checkbox("Show focus tabs", "vtabs").Value := CascadeState.focusCornerVisible
         colors := []
         for name in CascadeState.focusTabColorPresets
@@ -162,9 +165,9 @@ class CascadeKingdomModule extends SuiteModule {
         ADD A WINDOW
         Press Caps + Insert to add the active window, and Caps + Shift + Insert to take it out again: it returns to where it was before it joined.
         Or hold Caps and double-click anywhere on a window to add it.
-        While Caps is held, clicks only focus windows and never reach what is inside them.
+        Or drag a window, by its title bar or anywhere while holding Caps: corner guides mark the slots, and releasing with its top-left corner on one adds it.
+        While Caps is held, the mouse only focuses, drags and adds windows and never reaches what is inside them.
         Tick Win in Settings to hold Win instead, which also works without Secret Layers.
-        Or drag a window: corner guides mark the slots, and releasing with its top-left corner on one adds it.
         Resizing never adds a window, and dragging a member away from its slot releases it.
         With one display selected in Settings, added windows move there and dragging to another display leaves a window outside the cascade.
         A disconnected selected display pauses adding until it returns or you change Settings.

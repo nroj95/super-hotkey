@@ -7,6 +7,11 @@
 ; - a left press on an application window focuses it; the app never sees it;
 ; - a second left press on the same window within the Windows double-click
 ;   time adds it to its display's cascade, exactly as Caps + Insert does;
+; - a left press that moves past the Windows drag distance drags the window
+;   live, restoring a maximized one first; Windows' own move loop needs the
+;   button down, which the app would see as a click, so this small loop moves
+;   it instead and hands the drop to window-drag.ahk: guides, snapping,
+;   releasing from a slot and Escape work as in a title-bar drag;
 ; - right, middle and side buttons and the wheel are swallowed;
 ; - every claimed press keeps its release, even after Caps comes up;
 ; - the taskbar, the desktop, Start, focus tabs and suite windows keep their
@@ -62,6 +67,16 @@ BeginCapsClick(manager, button)
         && ((now - last.tick) & 0xFFFFFFFF) <= DllCall("GetDoubleClickTime", "uint")
     CascadeState.capsClickLast := double ? 0 : {hwnd: hwnd, tick: now}
     SuiteState.App.QueueInput(RunCapsClick, hwnd, double)
+
+    ; Snapshot on press, as title-bar drags do; a press near an edge still
+    ; moves the window rather than resizing it.
+    StopCapsDrag()
+    MouseGetPosPixels(&x, &y)
+    press := GetCascadeMousePressSnapshot(hwnd)
+    if IsObject(press)
+        press.resize := false
+    CascadeState.capsDrag := {hwnd: hwnd, x: x, y: y, press: press, moving: false, cancelled: false}
+    SetTimer(CapsDragTick, CascadeState.capsDragMs)
 }
 
 RunCapsClick(hwnd, double)
@@ -77,6 +92,95 @@ FinishCapsClick(button)
 {
     if CascadeState.capsClickButtons.Has(button)
         CascadeState.capsClickButtons.Delete(button)
+    if button = "LButton"
+        FinishCapsDrag()
+}
+
+; =============================================================================
+; dragging
+; =============================================================================
+
+; Runs only while a claimed left press is held: AutoHotkey has no pointer-move
+; event, and the move loop it replaces follows the pointer the same way.
+CapsDragTick()
+{
+    drag := CascadeState.capsDrag
+    if !IsObject(drag) || !GetKeyState("LButton", "P") {
+        FinishCapsDrag() ; recovers a missed release
+        return
+    }
+    if drag.cancelled
+        return
+    MouseGetPosPixels(&x, &y)
+    if !drag.moving {
+        if Abs(x - drag.x) <= SysGet(68) && Abs(y - drag.y) <= SysGet(69) ; SM_CXDRAG, SM_CYDRAG
+            return
+        if !StartCapsDrag(drag, x, y) {
+            StopCapsDrag()
+            return
+        }
+    }
+    try {
+        ; Escape cancels a cascade drag; like Windows, put the window back.
+        if IsObject(drag.press) && drag.press.cancelled {
+            drag.cancelled := true
+            if drag.press.minmax = 1
+                WinMaximize(drag.hwnd)
+            else
+                PhysicalDllCall("SetWindowPos", "ptr", drag.hwnd, "ptr", 0, "int", drag.start_x,
+                    "int", drag.start_y, "int", 0, "int", 0, "uint", 0x15)
+            return
+        }
+        ; SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE
+        PhysicalDllCall("SetWindowPos", "ptr", drag.hwnd, "ptr", 0, "int", drag.window_x + x - drag.x,
+            "int", drag.window_y + y - drag.y, "int", 0, "int", 0, "uint", 0x15)
+    }
+    catch
+        StopCapsDrag()
+}
+
+StartCapsDrag(drag, x, y)
+{
+    ; A drag is no first click of a double-click.
+    CascadeState.capsClickLast := 0
+    try {
+        WinGetPosPixels(&window_x, &window_y, &width, , drag.hwnd)
+        drag.start_x := window_x, drag.start_y := window_y
+        if WinGetMinMax(drag.hwnd) = 1 {
+            ; Restored under the pointer, at the same share of its width, as
+            ; Windows does for a maximized title-bar drag.
+            share := (x - window_x) / width, offset_y := y - window_y
+            WinRestore(drag.hwnd)
+            WinGetPosPixels(, , &width, &height, drag.hwnd)
+            window_x := Round(x - share * width), window_y := y - Min(offset_y, height // 2)
+            drag.x := x, drag.y := y
+        }
+        drag.window_x := window_x, drag.window_y := window_y
+    }
+    catch
+        return false
+    drag.moving := true
+    ; Windows that cascades can take get guides, snapping and releasing.
+    if IsObject(drag.press) {
+        CascadeState.mousePress := drag.press
+        BeginCascadeWindowDrag(drag.hwnd, A_TickCount)
+    }
+    return true
+}
+
+; The button came up: a moved window drops as at the end of a title-bar drag.
+FinishCapsDrag()
+{
+    drag := CascadeState.capsDrag
+    StopCapsDrag()
+    if IsObject(drag) && drag.moving
+        CaptureCascadeMouseRelease()
+}
+
+StopCapsDrag()
+{
+    SetTimer(CapsDragTick, 0)
+    CascadeState.capsDrag := 0
 }
 
 ObserveCapsClicks(manager)

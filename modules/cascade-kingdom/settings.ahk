@@ -76,6 +76,8 @@ CascadeState.focusCornerActiveSlotAlpha := 255
 
 ; Only watch for a missed mouse-up while a focus-tab click owns the button.
 CascadeState.focusTabReleasePollMs := 50
+; How often a Caps drag moves its window after the pointer.
+CascadeState.capsDragMs := 10
 
 CascadeState.settingsPath := SuiteState.App.Settings.directory "\cascade-kingdom\settings.ini"
 ; Cascade members, saved on exit and restored on start; see SaveCascades().
@@ -142,6 +144,7 @@ CascadeState.focusTabClick := 0
 CascadeState.focusTabClickGeneration := 0
 CascadeState.capsClickButtons := Map()  ; buttons whose claimed press still owns its release
 CascadeState.capsClickLast := 0         ; the last Caps left press, for double-clicks
+CascadeState.capsDrag := 0              ; the held Caps left press and its drag
 
 CascadeState.winEventCallback := 0
 CascadeState.winEventHooks := []
