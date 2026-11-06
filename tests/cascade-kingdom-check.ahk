@@ -251,10 +251,10 @@ class CascadeChecks {
                 && CascadeState.focusCornerInactiveSlotAlpha = 128,
                 "cascade settings default to White inactive tabs at 50% opacity")
             this.Assert(!window["mirrored"].Value, "cascades step to the right by default")
-            this.Assert(!window["useWin"].Value, "Caps, not Win, handles windows with the mouse by default")
+            this.Assert(window["mouseKey"].Text = "Caps", "Caps is the mouse key by default")
             window["inactiveColor"].Choose("Cyan")
             window["mirrored"].Value := true
-            window["useWin"].Value := true
+            window["mouseKey"].Choose("Pause")
             ; Use a real device, not the dropdown index, in the saved preference.
             window["display"].Choose(2)
             expectedDisplay := cascade.displayChoices[2]
@@ -268,18 +268,18 @@ class CascadeChecks {
                 && !app.ui.pageLayouts["settings:cascade-kingdom"].apply.Enabled
                 && IniRead(path, "Controls", "Display") = expectedDisplay
                 && IniRead(path, "Controls", "Mirrored") = "1"
-                && IniRead(path, "Controls", "UseWin") = "1" && CascadeState.useWin
+                && IniRead(path, "Controls", "MouseKey") = "Pause" && CascadeState.mouseKey = "Pause"
                 && IniRead(path, "FocusTabs", "InactiveSlotColor") = "Cyan",
-                "Apply persists the destination device, mirroring, Win and inactive tab color, and keeps Settings open")
+                "Apply persists the destination device, mirroring, mouse key and inactive tab color, and keeps Settings open")
             InitializeCascadeState()
             this.Assert(CascadeState.targetDisplay = expectedDisplay && CascadeState.mirrored
-                && CascadeState.useWin && CascadeState.focusCornerInactiveSlotColorName = "Cyan",
+                && CascadeState.mouseKey = "Pause" && CascadeState.focusCornerInactiveSlotColorName = "Cyan",
                 "cascade choices survive state initialization")
             app.Settings.ResetModulePreferences(Map("cascade-kingdom", cascade.resetSections))
             this.Assert(IniRead(path, "FocusTabs", "InactiveSlotColor", "missing") = "missing"
                 && IniRead(path, "Controls", "Mirrored", "missing") = "missing"
-                && IniRead(path, "Controls", "UseWin", "missing") = "missing",
-                "factory reset includes mirroring, Win and the inactive tab color")
+                && IniRead(path, "Controls", "MouseKey", "missing") = "missing",
+                "factory reset includes mirroring, the mouse key and the inactive tab color")
             InitializeCascadeState()
             app.ui.ShowModuleSettings("paper-pad")
             window := app.ui.windows["settings:paper-pad"]

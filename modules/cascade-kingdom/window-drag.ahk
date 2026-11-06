@@ -1,17 +1,16 @@
 ; Cascade Kingdom window drags: move-loop tracking and one release-time
-; snap, adopt or detach decision.
+; move or detach decision for cascade members.
 ;
 ; Drop contract:
 ; - preserve the original membership/slot throughout a native mouse drag;
 ; - resolve the visible top-left corner, top-right when mirrored, only after
 ;   the move loop and mouse-up;
-; - a member is sticky: wherever it lands, it takes the nearest slot of that
-;   display, or of its own when that display is not allowed; only Caps or
-;   Win + double-click and Caps + Shift + Insert take one out, and resizing
-;   it by any edge, which leaves it where and as large as the user made it;
-; - another window joins the nearest slot within tolerance only with the
-;   cascade key held at release (Caps, or Win when chosen);
-; - a real drop can adopt an existing window; ordinary clicks/resizes cannot.
+; - a member dropped within tolerance of an eligible slot takes it, on any
+;   display; dropped anywhere else, it leaves the cascade where it was
+;   dropped, at the size or maximized state it had before joining;
+; - a member resized by any edge leaves where and as large as the user made it;
+; - a drop never adds a window: Caps + Insert and the mouse key's double-click
+;   do (see mouse-key.ahk).
 
 ; =============================================================================
 ; native mouse interaction and move-loop tracking
@@ -36,7 +35,7 @@ CaptureCascadeMousePress(*)
 
 GetCascadeMousePressSnapshot(hwnd)
 {
-    ; Track windows positioned by hand too: a drop on a guide adopts them.
+    ; Any window: commands wait while one is dragged, even outside a cascade.
     if !IsPlausibleTopLevelWindow(hwnd, true)
         return 0
 
@@ -85,12 +84,8 @@ CaptureCascadeMouseRelease(*)
     CascadeDropGuides.Hide()
     if IsObject(CascadeState.mousePress)
         CascadeState.mousePress.up_tick := A_TickCount
-    if IsObject(CascadeState.windowDrag) {
+    if IsObject(CascadeState.windowDrag)
         CascadeState.windowDrag.up_tick := A_TickCount
-        ; The drop is decided later, once the window settles: keep the key's
-        ; state from the moment the button came up.
-        CascadeState.windowDrag.key_held := CascadeKeyHeld()
-    }
 
     ; Let the native move loop commit its final rectangle before examining it.
     if HasCascadeWindowDrag()
@@ -318,7 +313,7 @@ CompleteCascadeWindowDrop(drag)
         return
 
     hwnd := drag.hwnd
-    if drag.cancelled
+    if drag.cancelled || !drag.source_monitor
         return
 
     WinGetPosPixels(&x, &y, &width, &height, hwnd)
@@ -330,62 +325,39 @@ CompleteCascadeWindowDrop(drag)
     resized := CascadeDragIsResize(drag, width, height)
     if resized || !IsCascadeWindow(hwnd, true) {
         ; A size the cascade did not choose: the window is the user's now.
-        if drag.source_monitor && (resized || !IsWindowInCascadeLayout(hwnd))
+        if resized || !IsWindowInCascadeLayout(hwnd)
             ReleaseCascadeWindow(hwnd)
         return
     }
-    member := !!drag.source_monitor
-    if !member && !(drag.HasOwnProp("key_held") ? drag.key_held : CascadeKeyHeld())
-        return
 
-    if !GetVisibleWindowBounds(hwnd, &frame_x, &frame_y, &frame_width, &frame_height)
-        return
-    corner_y := frame_y
-    target := CascadeDropTarget(frame_x, frame_y, frame_width)
-    if member && (!target || !CascadeDisplayAllowed(target.monitor)) {
-        ; Off-screen or on an excluded display: back to where it started.
-        target := CascadeDropTarget(drag.frame_x, drag.frame_y, frame_width)
-        corner_y := drag.frame_y
-    }
-    if !target
-        return
-    monitor_index := target.monitor
-    geometry := target.geometry
-    slot_index := FindNearestCascadeSlot(target.x, corner_y, geometry.slots,
-        member ? 0x7FFFFFFF : CascadeState.slotTolerance)
-
-    if slot_index && CascadeDisplayAllowed(monitor_index) {
-        ; A drop on a guide adopts a window positioned by hand, as Caps + Insert
-        ; does. Dropped anywhere else, it stays positioned by hand.
-        was_manual := SuiteWindowOwnership.IsManual(hwnd)
-        if was_manual && !SuiteWindowOwnership.Release(hwnd) {
-            DebugLog("Cascade drop kept a window positioned by hand. | hwnd=" hwnd)
-            return
-        }
-        if PlaceCascadeWindowOnMonitor(hwnd, monitor_index, geometry.slots[slot_index]) {
-            RemoveWindowFromMinimizeState(hwnd)
-            if drag.source_monitor
+    if GetVisibleWindowBounds(hwnd, &frame_x, &frame_y, &frame_width, &frame_height)
+        && (target := CascadeDropTarget(frame_x, frame_y, frame_width)) {
+        monitor_index := target.monitor
+        geometry := target.geometry
+        slot_index := FindNearestCascadeSlot(target.x, frame_y, geometry.slots, CascadeState.slotTolerance)
+        if slot_index && CascadeDisplayAllowed(monitor_index) {
+            if PlaceCascadeWindowOnMonitor(hwnd, monitor_index, geometry.slots[slot_index]) {
+                RemoveWindowFromMinimizeState(hwnd)
                 QueueCascadeCompaction(drag.source_monitor)
-            else
-                RememberCascadeJoinPosition(hwnd, {pid: drag.pid, x: drag.x, y: drag.y,
-                    width: drag.width, height: drag.height, placement: drag.placement}, was_manual)
-            ; Keep the dropped window in its slot while others fill gaps. The
-            ; cascade stays gap-free, so a drop past its end lands at its end.
-            QueueCascadeCompaction(monitor_index, hwnd)
-            DebugLog("Cascade drop snapped. | hwnd=" hwnd
-                " | monitor=" monitor_index " | slot=" slot_index)
-            return
+                ; Keep the dropped window in its slot while others fill gaps. The
+                ; cascade stays gap-free, so a drop past its end lands at its end.
+                QueueCascadeCompaction(monitor_index, hwnd)
+                DebugLog("Cascade drop snapped. | hwnd=" hwnd
+                    " | monitor=" monitor_index " | slot=" slot_index)
+                return
+            }
+            ; A scale change that interrupts the move is not an intentional detach.
+            if IsCascadeDisplayTransition()
+                return
+            ; Do not keep a failed snap half-placed or silently choose another slot.
+            DebugLog("Cascade drop snap failed. | hwnd=" hwnd)
         }
-        if was_manual
-            SuiteWindowOwnership.Claim(hwnd)
-        ; A scale change that interrupts the move is not an intentional detach.
-        if IsCascadeDisplayTransition()
-            return
-        ; Do not keep a failed snap half-adopted or silently choose another slot.
-        DebugLog("Cascade drop snap failed. | hwnd=" hwnd)
     }
 
+    ; Dragged out: it stays where it was dropped, without the cascade's size.
+    position := CascadeState.joinPositions.Has(hwnd) ? CascadeState.joinPositions.Delete(hwnd) : 0
     ReleaseCascadeWindow(hwnd)
+    RestoreCascadeJoinSize(hwnd, position)
 }
 
 ReleaseCascadeWindow(hwnd)

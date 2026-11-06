@@ -105,6 +105,33 @@ ReturnToCascadeJoinPosition(hwnd, position)
     }
 }
 
+; A window dragged out of its cascade keeps the spot it was dropped on and gets
+; back the size, or the maximized state, it had before joining.
+RestoreCascadeJoinSize(hwnd, position)
+{
+    try {
+        if !IsObject(position) || WinGetPID(hwnd) != position.pid
+            return false
+        width := position.width, height := position.height
+        if position.placement {
+            ; rcNormalPosition: its size under the maximized state.
+            width := NumGet(position.placement, 36, "int") - NumGet(position.placement, 28, "int")
+            height := NumGet(position.placement, 40, "int") - NumGet(position.placement, 32, "int")
+        }
+        WinGetPosPixels(&x, &y, , , "ahk_id " hwnd)
+        WinMovePixels(x, y, width, height, "ahk_id " hwnd)
+        if position.placement
+            WinMaximize("ahk_id " hwnd)
+        if position.was_manual
+            SuiteWindowOwnership.Claim(hwnd)
+        return true
+    }
+    catch Error as err {
+        DebugError("Restore a dragged-out window's size", err)
+        return false
+    }
+}
+
 GatherCascadesToCommandMonitor()
 {
     if !IsCascadeEnabled()

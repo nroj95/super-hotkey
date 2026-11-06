@@ -48,25 +48,34 @@ Press Caps + Insert to add the active window, and Caps + Shift + Insert to take 
 Or hold Caps and double-click anywhere on a window to add it, and double-click it again to take it out, back to where it was.
 =
 
-Or hold Caps and drag a window from anywhere on it: corner guides mark the slots, and releasing with its top-left corner on one adds it.
+While Caps is held, clicks only focus windows and never reach what is inside them.
 =
 
-While Caps is held, the mouse only focuses, drags and adds windows and never reaches what is inside them.
+Settings can make Win or Pause the mouse key instead of Caps; Win also works without Secret Layers.
 =
 
-Tick Win in Settings to hold Win instead, which also works without Secret Layers.
-=
-
-Windows in a cascade are sticky: dragged anywhere, with or without Caps, they snap to the nearest slot, so you can rearrange a cascade with the mouse.
-=
-
-Resizing never adds a window, and resizing one in a cascade by any edge takes it out, as large and where you left it.
-=
-
-With one display selected in Settings, added windows move there and dragging to another display leaves a window outside the cascade.
+With one display selected in Settings, added windows move there.
 =
 
 A disconnected selected display pauses adding until it returns or you change Settings.
+=
+
+MOVE A WINDOW
+=
+
+Dragging a window in a cascade shows corner guides on the slots.
+=
+
+Releasing with its top-left corner on one moves it to that slot, on this display or another.
+=
+
+Released anywhere else, it leaves the cascade where you dropped it, at the size it had before it joined.
+=
+
+With one display selected in Settings, dragging a window to another display takes it out too.
+=
+
+Resizing it by any edge also takes it out, as large and where you left it.
 =
 
 FOCUS TABS

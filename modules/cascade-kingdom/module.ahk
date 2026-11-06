@@ -26,7 +26,7 @@ class CascadeKingdomModule extends SuiteModule {
         StartCascadeActivity()
         manager.Observe("*LButton", CanStartFocusTabClick, (*) => BeginFocusTabClick())
         manager.Observe("*LButton Up", HasFocusTabClick, (*) => FinishFocusTabClick(), true)
-        ObserveCapsClicks(manager)
+        ObserveMouseKeyClicks(manager)
         manager.Observe("~*LButton", IsCascadeEnabled, (*) => CaptureCascadeMousePress())
         manager.Observe("~*LButton Up", IsCascadeEnabled, (*) => CaptureCascadeMouseRelease())
         manager.Observe("~*Escape", HasCascadeWindowDrag, (*) => CancelCascadeWindowDrop())
@@ -45,7 +45,6 @@ class CascadeKingdomModule extends SuiteModule {
         if HasCascadeWindowDrag()
             StopCascadeWindowDrag()
         CascadeState.mousePress := 0
-        StopCapsDrag()
         for hwnd in CascadeState.placementStabilizationGenerations.Clone()
             CancelPlacementStabilization(hwnd)
         for hwnd in CascadeState.focusCornerOverlays
@@ -58,8 +57,7 @@ class CascadeKingdomModule extends SuiteModule {
         CancelCascadeWindowDrop()
         CascadeState.commandQueue := []
         StopFocusTabClick()
-        CascadeState.capsClickLast := 0
-        StopCapsDrag()
+        CascadeState.mouseKeyLast := 0
     }
 
     ; SuiteManagedWindows: other modules leave these windows to Cascade Kingdom.
@@ -76,7 +74,6 @@ class CascadeKingdomModule extends SuiteModule {
         CascadeState.commandQueue := []
         SetTimer(DrainCascadeCommandQueue, 0)
         StopFocusTabClick()
-        StopCapsDrag()
         StopWindowHooks()
         StopCascadeDisplays()
         RestoreMinimizedCascadeWindowsOnExit()
@@ -87,12 +84,12 @@ class CascadeKingdomModule extends SuiteModule {
         if ui.Existing(key)
             return
         rows := SuitePageRows(ui.NewWindow(key, "Cascade Kingdom - Settings", true), 600)
-        rows.Text("Add windows with Caps + Insert, or hold Caps and double-click one or drag it onto a slot.")
+        rows.Text("Add windows with Caps + Insert, or hold the mouse key and double-click one.")
         choices := ui.DisplayChoices(CascadeState.targetDisplay, true)
         this.displayChoices := choices.values
         rows.Field("Cascade on", "DropDownList", "w300 vdisplay", choices.names).Choose(choices.selected)
         rows.Checkbox("Mirror: cascade toward the left", "vmirrored").Value := CascadeState.mirrored
-        rows.Checkbox("Hold Win instead of Caps to click, drag and double-click windows", "vuseWin").Value := CascadeState.useWin
+        rows.Field("Mouse key", "DropDownList", "w120 vmouseKey", CascadeState.mouseKeyChoices).Choose(CascadeState.mouseKey)
         rows.Checkbox("Show focus tabs", "vtabs").Value := CascadeState.focusCornerVisible
         colors := []
         for name in CascadeState.focusTabColorPresets
@@ -109,7 +106,7 @@ class CascadeKingdomModule extends SuiteModule {
     RestoreSettings(window) {
         window["display"].Choose(SuiteInterface.DisplayIndex(this.displayChoices, "All"))
         window["mirrored"].Value := 0
-        window["useWin"].Value := 0
+        window["mouseKey"].Choose("Caps")
         window["tabs"].Value := 1
         window["inactiveColor"].Choose("White")
     }
@@ -122,16 +119,16 @@ class CascadeKingdomModule extends SuiteModule {
         try {
             display := this.displayChoices[window["display"].Value]
             mirrored := window["mirrored"].Value != 0
-            useWin := window["useWin"].Value != 0
+            mouseKey := window["mouseKey"].Text
             visible := window["tabs"].Value != 0
             inactiveName := window["inactiveColor"].Text
             if !CascadeState.focusTabColorPresets.Has(inactiveName)
                 throw ValueError("Select a valid inactive tab color.")
             this.app.Settings.WritePreferences(this.id, Map(
-                "Controls", Map("Display", display, "Mirrored", mirrored ? 1 : 0, "UseWin", useWin ? 1 : 0),
+                "Controls", Map("Display", display, "Mirrored", mirrored ? 1 : 0, "MouseKey", mouseKey),
                 "FocusTabs", Map("Visible", visible ? 1 : 0, "InactiveSlotColor", inactiveName)))
-            CascadeState.useWin := useWin
-            CascadeState.capsClickLast := 0
+            CascadeState.mouseKey := mouseKey
+            CascadeState.mouseKeyLast := 0
             if CascadeState.mirrored != mirrored {
                 CascadeState.mirrored := mirrored
                 QueueCascadeDisplayRefresh()
@@ -165,13 +162,17 @@ class CascadeKingdomModule extends SuiteModule {
         ADD A WINDOW
         Press Caps + Insert to add the active window, and Caps + Shift + Insert to take it out again: it returns to where it was before it joined.
         Or hold Caps and double-click anywhere on a window to add it, and double-click it again to take it out, back to where it was.
-        Or hold Caps and drag a window from anywhere on it: corner guides mark the slots, and releasing with its top-left corner on one adds it.
-        While Caps is held, the mouse only focuses, drags and adds windows and never reaches what is inside them.
-        Tick Win in Settings to hold Win instead, which also works without Secret Layers.
-        Windows in a cascade are sticky: dragged anywhere, with or without Caps, they snap to the nearest slot, so you can rearrange a cascade with the mouse.
-        Resizing never adds a window, and resizing one in a cascade by any edge takes it out, as large and where you left it.
-        With one display selected in Settings, added windows move there and dragging to another display leaves a window outside the cascade.
+        While Caps is held, clicks only focus windows and never reach what is inside them.
+        Settings can make Win or Pause the mouse key instead of Caps; Win also works without Secret Layers.
+        With one display selected in Settings, added windows move there.
         A disconnected selected display pauses adding until it returns or you change Settings.
+
+        MOVE A WINDOW
+        Dragging a window in a cascade shows corner guides on the slots.
+        Releasing with its top-left corner on one moves it to that slot, on this display or another.
+        Released anywhere else, it leaves the cascade where you dropped it, at the size it had before it joined.
+        With one display selected in Settings, dragging a window to another display takes it out too.
+        Resizing it by any edge also takes it out, as large and where you left it.
 
         FOCUS TABS
         Each slot has a focus tab on both sides: at the lower left and the upper right.

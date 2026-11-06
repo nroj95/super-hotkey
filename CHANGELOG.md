@@ -4,11 +4,11 @@
 
 ### Breaking changes
 
-- **Cascade Kingdom:** a window outside a cascade shows drop guides, and joins a slot, only while dragged with `Caps` held, or `Win` with the new Settings checkbox; a plain drag just moves it. Windows in a cascade are sticky instead: dragged anywhere, they always show the guides and snap to the nearest slot, so a drag no longer takes one out. `Caps` + double-click or `Caps + Shift + Insert` does, and so does resizing it by any edge, which leaves it where and as large as you made it.
+- **Cascade Kingdom:** dropping a window onto a slot no longer adds it; `Caps + Insert` and the new double-click do. Dragging a window outside a cascade shows no guides. Dragging a window in a cascade shows them, as before: dropped on one, it takes that slot, on any display. Dropped anywhere else, it leaves the cascade where you dropped it, now at the size, or maximized, as it was before joining, instead of cascade-sized. Resizing it by any edge now always takes it out, where and as large as you made it.
 
 ### Changes
 
-- **Cascade Kingdom:** hold `Caps` and double-click anywhere on a window to add it to its display's cascade, as `Caps + Insert` does; keep holding to add more. Double-clicking a window already in a cascade takes it out, back to where it was, as `Caps + Shift + Insert` does. Holding `Caps`, you can also drag a window from anywhere on it, live, onto a slot; a maximized window is restored under the pointer first, and `Escape` puts it back. While `Caps` is held, a click only focuses a window, and no click, scroll or other mouse button reaches what is inside it. The taskbar, the desktop, Start and focus tabs work as usual. A new Settings checkbox, unticked by default, makes `Win` do this instead of `Caps`, so it also works without Secret Layers.
+- **Cascade Kingdom:** hold `Caps` and double-click anywhere on a window to add it to its display's cascade, as `Caps + Insert` does; keep holding to add more. Double-clicking a window already in a cascade takes it out, back to where it was, as `Caps + Shift + Insert` does. While `Caps` is held, a click only focuses a window, and no click, drag, scroll or other mouse button reaches what is inside it. The taskbar, the desktop, Start and focus tabs work as usual. A new *Mouse key* setting can choose `Win` or `Pause` instead; `Win` also works without Secret Layers.
 
 ## v1.0.0-beta.4
 

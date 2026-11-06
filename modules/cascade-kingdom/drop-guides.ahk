@@ -1,5 +1,4 @@
-; Visual hints only: always for a member, which a drop always snaps, and for
-; other windows while the cascade key is held (see caps-clicks.ahk).
+; Visual hints only, for cascade members, the only windows a drop can place.
 ; The existing native drag watcher owns their lifetime.
 class CascadeDropGuides {
     static windows := []
@@ -8,7 +7,7 @@ class CascadeDropGuides {
 
     static Update(drag) {
         if !IsCascadeEnabled() || IsCascadeDisplayTransition() || drag.cancelled
-            || drag.native_ended || !GetKeyState("LButton", "P") || !(drag.source_monitor || CascadeKeyHeld()) {
+            || drag.native_ended || !GetKeyState("LButton", "P") || !drag.source_monitor {
             this.Hide()
             return
         }

@@ -76,8 +76,6 @@ CascadeState.focusCornerActiveSlotAlpha := 255
 
 ; Only watch for a missed mouse-up while a focus-tab click owns the button.
 CascadeState.focusTabReleasePollMs := 50
-; How often a Caps drag moves its window after the pointer.
-CascadeState.capsDragMs := 10
 
 CascadeState.settingsPath := SuiteState.App.Settings.directory "\cascade-kingdom\settings.ini"
 ; Cascade members, saved on exit and restored on start; see SaveCascades().
@@ -131,8 +129,11 @@ CascadeState.restoreRequestDepth := 0
 CascadeState.closeBatches := Map()
 CascadeState.targetDisplay := IniRead(CascadeState.settingsPath, "Controls", "Display", "All")
 CascadeState.mirrored := IniRead(CascadeState.settingsPath, "Controls", "Mirrored", "0") = "1"
-; Win instead of the Caps layer for mouse window handling; see caps-clicks.ahk.
-CascadeState.useWin := IniRead(CascadeState.settingsPath, "Controls", "UseWin", "0") = "1"
+; The key that turns the mouse to window handling while held; see mouse-key.ahk.
+CascadeState.mouseKeyChoices := ["Caps", "Win", "Pause"]
+CascadeState.mouseKey := IniRead(CascadeState.settingsPath, "Controls", "MouseKey", "Caps")
+if CascadeState.mouseKey != "Win" && CascadeState.mouseKey != "Pause"
+    CascadeState.mouseKey := "Caps"
 CascadeState.minimizeInProgress := false
 CascadeState.minimizedWindows := []
 
@@ -142,9 +143,8 @@ CascadeState.focusCornerUpdatePending := false
 CascadeState.focusTabPendingPress := 0
 CascadeState.focusTabClick := 0
 CascadeState.focusTabClickGeneration := 0
-CascadeState.capsClickButtons := Map()  ; buttons whose claimed press still owns its release
-CascadeState.capsClickLast := 0         ; the last Caps left press, for double-clicks
-CascadeState.capsDrag := 0              ; the held Caps left press and its drag
+CascadeState.mouseKeyButtons := Map()  ; buttons whose claimed press still owns its release
+CascadeState.mouseKeyLast := 0         ; the last mouse-key left press, for double-clicks
 
 CascadeState.winEventCallback := 0
 CascadeState.winEventHooks := []
