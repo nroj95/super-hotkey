@@ -1,6 +1,7 @@
 ; Galaxy Rhythm: bedtime messages, the fade to sleep and the energy bar, with
 ; their settings page and guide; bedtime.ahk runs the night, energy.ahk the
-; bar and grey-screen.ahk the grey both share. Stay awake and sleeping come
+; bar and grey-screen.ahk the grey both share; GR_Sleep below is how both
+; bedtime's sleep and the energy bar's faint end. Stay awake and sleeping come
 ; from core (SuiteStayAwake, SuiteSleep), so Power-Up Utilities' Pause + End
 ; keeps the computer up through bedtime too; the energy bar ignores it.
 ;
@@ -42,6 +43,10 @@ class GalaxyRhythmModule extends SuiteModule {
 
     ; The energy bar's Lights out has shown and its sleep is on the way.
     Fainting() => this.energy.fainting
+
+    ; The displays are off, as Windows reports to the energy bar: nobody is
+    ; looking, as when Windows wakes the computer on its own for updates.
+    DisplaysOff() => this.energy.displayOff
 
     HelpButtons() => this.app.ModuleActive(this.id)
         ? [[GalaxyRhythmModule.WindLabel, ObjBindMethod(this, "TakeSecondWind")],
@@ -375,12 +380,13 @@ class GalaxyRhythmModule extends SuiteModule {
 
         BEDTIME MESSAGES
         Settings can show up to three messages at times you choose: by default It's getting late at 00:00, zzz… at 01:00 and You feel sleepy at 02:00.
-        Each shows on every display at its time while you use the unlocked computer; a time missed while the computer slept or was locked is skipped, never shown late.
+        Each shows on every display at its time while you use the unlocked computer; a time missed while the computer slept, was locked or had its screens off is skipped, never shown late.
 
         FADE TO SLEEP
         The last message starts the night: the screen fades to grey over 10 minutes, Good night shows, and the computer sleeps, even if you lock it meanwhile.
         Stay awake (Pause + End in Power-Up Utilities) keeps it up, even during the fade, and says so; if it ends before your day starts, 06:00 by default, the fade starts over.
         Until your day starts it's night: waking the computer begins the fade again, so a quick look is fine but the night stays a night.
+        A wake Windows makes on its own for updates, with the screens still off, is left alone.
 
         ENERGY BAR
         A small upright bar marked E, bottom right on the primary display unless Settings moves it, is your energy for the day: every minute you use the computer, game controller included, costs a minute, and 8 hours of activity empty it.
@@ -408,4 +414,33 @@ class GalaxyRhythmModule extends SuiteModule {
         Once a day, Second wind below gives back a quarter of a full bar, even out of the grey, and shows it in purple like a break.
         It waits until the bar is at 75 % or less, so none of it is wasted.
     )"
+}
+
+; How bedtime's sleep and the energy bar's faint both end: once no key is
+; held, since a key held into sleep could stay stuck after waking, the
+; computer sleeps, or in a dry run only says so.
+class GR_Sleep {
+    static HeldKeys := ["Ctrl", "Alt", "Shift", "LWin", "RWin", "CapsLock", "Pause", "CtrlBreak"]
+
+    static KeyHeld() {
+        for key in GR_Sleep.HeldKeys
+            if GetKeyState(key, "P")
+                return true
+        return false
+    }
+
+    ; False if Windows refused, which is logged and shown.
+    static Now(module, what) {
+        if module.dryRun {
+            module.Report("dry run: " what)
+            return true
+        }
+        try SuiteSleep.Now()
+        catch Error as failure {
+            SuiteState.Log.Error("Galaxy Rhythm / " what, failure)
+            TrayTip(failure.Message, module.Name, 2)
+            return false
+        }
+        return true
+    }
 }

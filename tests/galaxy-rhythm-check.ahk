@@ -526,6 +526,7 @@ class GalaxyRhythmChecks {
         module := {app: app, id: "galaxy-rhythm", stopping: false, dryRun: true,
             Name: "Galaxy Rhythm", grey: GR_GreyScreen(true), nightOff: false, Off: (module, now := "") => module.nightOff,
             faintUnderway: false, Fainting: (module) => module.faintUnderway,
+            screensDark: false, DisplaysOff: (module) => module.screensDark,
             reports: reports, Report: (module, text) => reports.Push(text)}
         return GR_Bedtime(module, SuiteChecks.directory "\" name "\settings.ini")
     }
@@ -596,6 +597,9 @@ class GalaxyRhythmChecks {
         this.Assert(!night("005955", "010005").Length, "a locked computer skips its message")
         app.sessionLocked := false
         this.Assert(!night("010005", "010010").Length, "unlocking afterwards shows nothing late")
+        module.screensDark := true
+        this.Assert(!night("235955", "000005").Length, "with the displays off, a message is skipped too")
+        module.screensDark := false
         SuiteStayAwake.active := true
         this.Assert(shown(night("005955", "010005")) = 2 && this.ShownEverywhere("zzz…"),
             "messages still show while staying awake")
@@ -656,10 +660,15 @@ class GalaxyRhythmChecks {
             bedtime.FadeStep(minutes(10))
             this.HideNotices()
             app.sessionLocked := true
+            module.screensDark := true
             bedtime.SleepAfterMessage()
             this.Assert(module.reports[-1] = "dry run: bedtime sleep" && grey.level = 0,
-                "then the computer sleeps, even if locked meanwhile")
+                "then the computer sleeps, even if locked or its displays turn off meanwhile")
             app.sessionLocked := false
+            night("032000", "032005")
+            this.Assert(!bedtime.fadeStarted,
+                "a wake Windows makes on its own in the night, displays still off, is left alone")
+            module.screensDark := false
             night("033000", "033005")
             this.Assert(bedtime.fadeStarted && this.ShownEverywhere("You feel sleepy"),
                 "waking the computer before the day starts begins the fade again")

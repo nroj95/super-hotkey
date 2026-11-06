@@ -3,17 +3,20 @@
 ; that fades the displays to grey and puts the computer to sleep
 ; =============================================================================
 ; Each message shows on every display when the clock reaches its time while the
-; user is at the unlocked computer. A minute that passes while the computer
-; sleeps or is locked is simply gone: nothing catches up later, so the rows
-; never depend on each other or on their order.
+; user is at the unlocked computer with its displays on. A minute that passes
+; while the computer sleeps, is locked or has its displays off is simply gone:
+; nothing catches up later, so the rows never depend on each other or on their
+; order.
 ;
 ; The last row is the sleep, and from its time until the day starts
 ; (wakeTime, Your day starts at) it is the night: whenever the user is at
-; the unlocked computer, its message shows, the displays fade to grey over
-; the fade time, the last word shows, and once it has gone the computer
-; sleeps; locking meanwhile changes nothing. Waking the computer before the
-; day starts begins it all again, so a quick look is fine but the night
-; stays a night, and the day starting ends a fade. A fade starts from any
+; the unlocked computer with its displays on, its message shows, the displays
+; fade to grey over the fade time, the last word shows, and once it has gone
+; the computer sleeps; locking or the displays turning off meanwhile changes
+; nothing. Waking the computer before the day starts begins it all again, so
+; a quick look is fine but the night stays a night, and the day starting ends
+; a fade. A wake Windows makes on its own, for updates or maintenance, keeps
+; the displays off and is left alone until someone touches the computer. A fade starts from any
 ; grey already showing, the energy bar's frozen grey, and darkens from there,
 ; so the screen never clears before it greys. Stay awake prevents only
 ; the sleep. On at bedtime, or switched on during the fade or the last word,
@@ -39,7 +42,6 @@ class GR_Bedtime {
     static TickMs := 5000
     static FadeStepMs := 1000
     ; Keys that could stay stuck down if held as the computer sleeps.
-    static HeldKeys := ["Ctrl", "Alt", "Shift", "LWin", "RWin", "CapsLock", "Pause", "CtrlBreak"]
 
     __New(module, path) {
         this.module := module
@@ -150,7 +152,8 @@ class GR_Bedtime {
     Present(now) {
         app := this.module.app
         return app.ModuleActive(this.module.id) && !this.module.stopping && !app.suspended
-            && !app.systemSuspended && !app.sessionLocked && !this.module.Off(now) && !this.module.Fainting()
+            && !app.systemSuspended && !app.sessionLocked && !this.module.DisplaysOff()
+            && !this.module.Off(now) && !this.module.Fainting()
     }
 
     Show(index, now) {
@@ -223,22 +226,13 @@ class GR_Bedtime {
             this.Prevented()
             return
         }
-        for key in GR_Bedtime.HeldKeys
-            if GetKeyState(key, "P") {
-                SetTimer(this.sleepCallback, -250)
-                return
-            }
-        SetTimer(this.fadeCallback, 0)
-        if this.module.dryRun {
-            this.module.Report("dry run: bedtime sleep")
-            this.CancelFade()
+        if GR_Sleep.KeyHeld() {
+            SetTimer(this.sleepCallback, -250)
             return
         }
-        try SuiteSleep.Now()
-        catch Error as failure {
+        SetTimer(this.fadeCallback, 0)
+        if !GR_Sleep.Now(this.module, "bedtime sleep") || this.module.dryRun {
             this.CancelFade()
-            SuiteState.Log.Error("Galaxy Rhythm / bedtime sleep", failure)
-            TrayTip(failure.Message, this.module.Name, 2)
             return
         }
         ; This clears the grey even if Windows accepted the sleep without

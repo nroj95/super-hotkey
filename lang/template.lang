@@ -110,7 +110,7 @@ BEDTIME MESSAGES
 Settings can show up to three messages at times you choose: by default It's getting late at 00:00, zzz… at 01:00 and You feel sleepy at 02:00.
 =
 
-Each shows on every display at its time while you use the unlocked computer; a time missed while the computer slept or was locked is skipped, never shown late.
+Each shows on every display at its time while you use the unlocked computer; a time missed while the computer slept, was locked or had its screens off is skipped, never shown late.
 =
 
 FADE TO SLEEP
@@ -123,6 +123,9 @@ Stay awake (Pause + End in Power-Up Utilities) keeps it up, even during the fade
 =
 
 Until your day starts it's night: waking the computer begins the fade again, so a quick look is fine but the night stays a night.
+=
+
+A wake Windows makes on its own for updates, with the screens still off, is left alone.
 =
 
 ENERGY BAR

@@ -13,6 +13,7 @@
 - **Galaxy Rhythm:** *Second wind* waits until the energy bar is at 75 % or less, so none of it is wasted. Pressed earlier, it says so and stays available.
 - **Galaxy Rhythm:** when a pause on the energy bar lifts, because you turn a night off back on, resume Super Hotkey or unlock the computer, its warnings and *Lights out* come within a second instead of at its next 10-second check.
 - **Galaxy Rhythm:** its guide mentions Windows' Dynamic Lock, which locks the computer when you walk away with your phone and so starts a break.
+- **Galaxy Rhythm:** bedtime's messages and fade wait until the screens are on. When Windows wakes the computer on its own at night for updates or maintenance, with the screens still off, bedtime no longer fades it back to sleep halfway through. A fade already under way still ends in sleep if the screens turn off.
 - With three or more displays, a notice for a display that a game in exclusive fullscreen covers now shows on every other display instead of only the next one.
 - **Cascade Kingdom:** hold `Caps`, `Win` or `Pause` and double-click anywhere on a window to add it to its display's cascade, as `Caps + Insert` does; keep holding to add more. Double-clicking a window already in a cascade takes it out, back to where it was, as `Caps + Shift + Insert` does. While one of them is held, a click only focuses a window, and no click, drag, scroll or other mouse button reaches what is inside it. The taskbar, the desktop, Start and focus tabs work as usual. `Caps` and `Pause` need Secret Layers; `Win` works without it.
 

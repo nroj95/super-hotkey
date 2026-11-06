@@ -105,7 +105,6 @@ class GR_Energy {
     static Faint := "Lights out"
     ; GUID_CONSOLE_DISPLAY_STATE: the displays went off, on or dimmed.
     static DisplayState := "{6FE69556-704A-47A0-8F24-C28D936FDA47}"
-    static HeldKeys := ["Ctrl", "Alt", "Shift", "LWin", "RWin", "CapsLock", "Pause", "CtrlBreak"]
 
     __New(module, settingsPath, statePath) {
         this.module := module
@@ -532,25 +531,16 @@ class GR_Energy {
             this.fainting := false
             return
         }
-        for key in GR_Energy.HeldKeys
-            if GetKeyState(key, "P") {
-                SetTimer(this.faintCallback, -250)
-                return
-            }
+        if GR_Sleep.KeyHeld() {
+            SetTimer(this.faintCallback, -250)
+            return
+        }
         this.fainting := false
         this.roadShown := false
         ; The faint sends the user away, so the nap counts from the tick
         ; that brought it.
         this.Left(this.lastSeen)
-        if this.module.dryRun
-            this.module.Report("dry run: energy faint")
-        else {
-            try SuiteSleep.Now()
-            catch Error as failure {
-                SuiteState.Log.Error("Galaxy Rhythm / faint", failure)
-                TrayTip(failure.Message, this.module.Name, 2)
-            }
-        }
+        GR_Sleep.Now(this.module, "energy faint")
         ; Back from sleep, or Windows would not sleep: half the debt is owed.
         this.level := -this.roadMinutes * GR_Energy.WakeShare
         this.Shade()
