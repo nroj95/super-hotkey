@@ -930,15 +930,15 @@ class SuiteInterface {
         }
     }
 
-    ; No confirmation: the clear and copy hotkeys bracket a reproduction, and
-    ; the previous log survives as debug.log.old.
-    ClearLog(*) {
+    ; No confirmation: the new-log and copy hotkeys bracket a reproduction, and
+    ; the previous log is kept zipped in logs\.
+    StartNewLog(*) {
         try {
-            SuiteState.Log.Clear()
+            SuiteState.Log.StartNew()
             return true
         }
         catch Error as failure {
-            this.Report(failure, "Core / clear log")
+            this.Report(failure, "Core / start new log")
             return false
         }
     }

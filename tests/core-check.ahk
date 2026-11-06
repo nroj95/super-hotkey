@@ -15,7 +15,7 @@ class CoreChecks {
         this.ApplicationSuspension()
         this.DisabledModuleWarning()
         this.PowerCancellation()
-        this.LogClearing()
+        this.LogArchiving()
         this.WorkingMonitor()
         this.PassingOverlay()
         this.CenteredNotices()
@@ -260,15 +260,15 @@ class CoreChecks {
         diagnosticLog := SuiteLog(SuiteChecks.directory "\logging", 100)
         diagnosticLog.Write("Core", "first " StrReplace(Format("{:120}", "x"), " ", "x"))
         diagnosticLog.Write("Paper Pad", "second")
-        this.Assert(FileExist(diagnosticLog.path ".old"), "central log rotates at the size limit")
+        this.Assert(FileExist(diagnosticLog.archiveDirectory "\debug-*"), "central log rotates into logs\ at the size limit")
         diagnosticLog.Error("Power-Up Utilities", Error("diagnostic marker", "native checks"))
         this.Assert(InStr(FileRead(diagnosticLog.path, "UTF-8"), "diagnostic marker"), "errors retain their details and module attribution")
         viewer := FileOpen(diagnosticLog.path, "r -d") ; viewers usually share read and write, not delete
         diagnosticLog.Write("Core", "written while viewed")
         viewer.Close()
         this.Assert(InStr(FileRead(diagnosticLog.path, "UTF-8"), "written while viewed"), "an open log viewer cannot block log writes")
-        diagnosticLog.Clear()
-        this.Assert(InStr(FileRead(diagnosticLog.path, "UTF-8"), "previous log retained"), "clearing the log retains one previous segment")
+        diagnosticLog.StartNew()
+        this.Assert(InStr(FileRead(diagnosticLog.path, "UTF-8"), "previous log archived as logs\debug-"), "a new log names the previous log's archive")
     }
 
     ; Damaged files fall back to defaults with a kept copy; unchanged
@@ -719,16 +719,41 @@ class CoreChecks {
         }
     }
 
-    static LogClearing() {
-        app := SuiteApplication(true, SuiteChecks.directory "\log-clearing")
+    ; A new log zips the previous one into logs\ without asking; verbose
+    ; archives say so in their name, and a debug.log.old from earlier versions
+    ; joins the archives.
+    static LogArchiving() {
+        directory := SuiteChecks.directory "\log-archiving"
+        DirCreate directory
+        FileAppend("old-version-marker`n", directory "\debug.log.old", "UTF-8-RAW")
+        app := SuiteApplication(true, directory)
         app.ui := SuiteInterface(app)
         try {
-            SuiteState.Log.Write("Core", "before-clear-marker")
-            this.Assert(app.ui.ClearLog() && InStr(FileRead(SuiteState.Log.path ".old"), "before-clear-marker")
-                && InStr(SuiteState.Log.Read(), "log cleared; previous log retained"),
-                "clearing the log keeps the previous log as debug.log.old without asking")
+            diagnosticLog := SuiteState.Log
+            this.Assert(!FileExist(diagnosticLog.path ".old") && FileExist(diagnosticLog.archiveDirectory "\debug-*"),
+                "an earlier version's debug.log.old moves into logs\")
+            diagnosticLog.Write("Core", "before-new-log-marker")
+            started := app.ui.StartNewLog()
+            this.Assert(started && RegExMatch(diagnosticLog.Read(), "previous log archived as logs\\(debug-[\w-]+)\.zip", &match),
+                "a new log starts without asking and names the archive")
+            archive := diagnosticLog.archiveDirectory "\" (IsSet(match) && match ? match[1] : "missing")
+            deadline := A_TickCount + 10000
+            while (FileExist(archive ".log") || !FileExist(archive ".zip")) && A_TickCount < deadline
+                Sleep 50
+            extracted := directory "\extracted"
+            DirCreate extracted
+            RunWait(A_WinDir '\System32\tar.exe -xf "' archive '.zip" -C "' extracted '"', , "Hide")
+            SplitPath(archive, &name)
+            this.Assert(!FileExist(archive ".log") && InStr(FileRead(extracted "\" name ".log", "UTF-8"), "before-new-log-marker"),
+                "the previous log is zipped in logs\ and the plain copy removed")
+            diagnosticLog.verbose := true
+            diagnosticLog.Debug("Core", "verbose marker")
+            this.Assert(InStr(diagnosticLog.StartNew(), "-verbose.zip"), "an archive with verbose lines is named -verbose")
         }
-        finally app.ui.CloseAll()
+        finally {
+            SuiteState.Log.verbose := false
+            app.ui.CloseAll()
+        }
     }
 
     ; Keyboard-only users never see a parked pointer choose a display.

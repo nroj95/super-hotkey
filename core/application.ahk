@@ -173,10 +173,11 @@ class SuiteApplication {
                 context: (*) => SuiteWindowOwnership.AllowsWonderWindows(SuiteWorkingMonitor.UserWindow())})
         this.manager.AddAction("core.focus-outline", "show focus outline", ObjBindMethod(this, "FocusOutlineEvent"),
             ["Caps + Caps"], {category: "Global"})
-        ; Listed in default-key order: F1 clear, F2 copy, F3 restart, F4 suspend,
-        ; then the unassigned verbose logging switch.
-        this.manager.AddAction("core.clear-log", "clear debug log",
-            ObjBindMethod(this, "LogShortcutEvent", "clear"), ["Pause + F1"], {category: "Global"})
+        ; Listed in default-key order: F1 new log, F2 copy, F3 restart, F4 suspend,
+        ; then the unassigned verbose logging switch. The new-log action keeps
+        ; its old ID so assignments carry over.
+        this.manager.AddAction("core.clear-log", "start new debug log",
+            ObjBindMethod(this, "LogShortcutEvent", "new"), ["Pause + F1"], {category: "Global"})
         this.manager.AddAction("core.copy-log", "copy debug log",
             ObjBindMethod(this, "LogShortcutEvent", "copy"), ["Pause + F2"], {category: "Global"})
         this.manager.AddAction("core.restart", "restart Super Hotkey", ObjBindMethod(this, "RestartEvent"),
@@ -251,7 +252,7 @@ class SuiteApplication {
             SuiteNotice.Show("status", "Verbose logging " (SuiteState.Log.verbose ? "on" : "off"), 1400)
         }
         else
-            SuiteNotice.Show("status", this.ui.ClearLog() ? "Debug log cleared" : "Debug log clear failed", 1400)
+            SuiteNotice.Show("status", this.ui.StartNewLog() ? "New debug log started" : "New debug log failed", 1400)
     }
 
     ; Restart on release, so the new process never inherits held keys.
