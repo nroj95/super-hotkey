@@ -8,6 +8,7 @@
 
 ### Changes
 
+- **Galaxy Rhythm:** what a break or *Second wind* gives back now shows in purple at the top of the energy bar for 3 seconds, so you can see the reward. A break now counts as soon as you're back, instead of up to 10 seconds later.
 - With three or more displays, a notice for a display that a game in exclusive fullscreen covers now shows on every other display instead of only the next one.
 - **Cascade Kingdom:** hold `Caps`, `Win` or `Pause` and double-click anywhere on a window to add it to its display's cascade, as `Caps + Insert` does; keep holding to add more. Double-clicking a window already in a cascade takes it out, back to where it was, as `Caps + Shift + Insert` does. While one of them is held, a click only focuses a window, and no click, drag, scroll or other mouse button reaches what is inside it. The taskbar, the desktop, Start and focus tabs work as usual. `Caps` and `Pause` need Secret Layers; `Win` works without it.
 

@@ -149,6 +149,9 @@ During the night the bar drains quietly while you're there: it doesn't warn, gre
 Breaks give some back, short ones the most: 5 minutes away gives back 15, 10 gives 25 and 30 gives 45, up to an hour, even out of the grey.
 =
 
+As you come back, what the break gave back shows in purple at the top of the bar for a moment.
+=
+
 A break starts when the computer sees you go, as it locks, turns its screens off, sleeps or you sign out; quiet time before that might have been reading or a film, so it doesn't count.
 =
 
@@ -182,7 +185,7 @@ The bar keeps counting out of sight, without warnings, grey or a faint, so the n
 It's a move you can't take back: it asks first, then its button shows a lock and when it ends.
 =
 
-Once a day, Second wind below gives back a quarter of a full bar, even out of the grey.
+Once a day, Second wind below gives back a quarter of a full bar, even out of the grey, and shows it in purple like a break.
 =
 
 ; modules/paper-pad/module.ahk

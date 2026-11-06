@@ -358,6 +358,7 @@ class GalaxyRhythmModule extends SuiteModule {
         What happens after the sleep doesn't count, since the night sends you back to bed.
         During the night the bar drains quietly while you're there: it doesn't warn, grey further or faint, but running dry then still counts for tomorrow, and bedtime's fade takes over from any grey already showing.
         Breaks give some back, short ones the most: 5 minutes away gives back 15, 10 gives 25 and 30 gives 45, up to an hour, even out of the grey.
+        As you come back, what the break gave back shows in purple at the top of the bar for a moment.
         A break starts when the computer sees you go, as it locks, turns its screens off, sleeps or you sign out; quiet time before that might have been reading or a film, so it doesn't count.
         So when you step away, lock the computer, turn its screens off or put it to sleep, any way you like; Win + L, and Pause + Pause and Pause + Escape in Power-Up Utilities, do it in one press.
         If you often just walk off, set the screens to turn off after a few minutes in Windows' power settings.
@@ -370,6 +371,6 @@ class GalaxyRhythmModule extends SuiteModule {
         For a game night, Tonight off below silences bedtime and hides the bar until your day starts.
         The bar keeps counting out of sight, without warnings, grey or a faint, so the next morning pays for what you spend and how late you stay up, nothing more.
         It's a move you can't take back: it asks first, then its button shows a lock and when it ends.
-        Once a day, Second wind below gives back a quarter of a full bar, even out of the grey.
+        Once a day, Second wind below gives back a quarter of a full bar, even out of the grey, and shows it in purple like a break.
     )"
 }

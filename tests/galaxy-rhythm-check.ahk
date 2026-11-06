@@ -145,6 +145,10 @@ class GalaxyRhythmChecks {
             && GR_EnergyBar.Colors(0.001) = "D03030 Background303030"
             && GR_EnergyBar.Colors(-0.5) = "D03030 Background5A1414",
             "the bar blends from green through yellow to red, with a dark red track on the road")
+        slice := (from, to) => (s := GR_EnergyBar.Slice(from, to)) ? s.top "+" s.size : "none"
+        this.Assert(slice(0.4, 0.5) = "80+16" && slice(0.5, 0.5) = "none" && slice(0.5, 0.501) = "none"
+            && slice(-0.2, 0.1) = "143+16" && slice(0.9, 1.2) = "1+16",
+            "the purple covers the rows the fill gained, inside the gauge's edge, and nothing under a row")
         this.Assert(GR_EnergyBar.LabelColor(true) = "D03030" && GR_EnergyBar.LabelColor(false) = "202020",
             "the E turns red for a day that ran dry and grey again for a fresh one")
         this.Assert(GR_EnergyBar.Monitors("Primary").Length = 1
@@ -301,6 +305,10 @@ class GalaxyRhythmChecks {
             energy.Tick(at("103900"), 0)
             this.Assert(Abs(energy.level - (before + GR_Energy.Refill(5) - tick)) < 0.001,
                 "five minutes away gives back about 15")
+            this.Assert(energy.gain && Abs(energy.gain.from - before / energy.full) < 0.001
+                && Abs(energy.gain.to - (before + GR_Energy.Refill(5)) / energy.full) < 0.001
+                && energy.gain.until > A_TickCount,
+                "and the bar shows what it gave back in purple for a moment")
             before := energy.level
             energy.displayOff := true
             energy.Tick(at("110000"), 1500000)
@@ -344,6 +352,8 @@ class GalaxyRhythmChecks {
             energy.Tick(at("140500"), 0)
             this.Assert(Abs(energy.level - (-20 + GR_Energy.Refill(15) - tick)) < 0.001 && grey.level = 0 && energy.dry,
                 "a 15-minute break lifts you out of the grey, though the day has still run dry")
+            this.Assert(energy.gain.from = 0 && Abs(energy.gain.to - (-20 + GR_Energy.Refill(15)) / energy.full) < 0.001,
+                "only the part of a gain above zero shows in purple")
 
             energy.faint := false
             energy.level := -29.95
@@ -359,6 +369,8 @@ class GalaxyRhythmChecks {
             second := energy.SecondWind(at("150000"))
             this.Assert(first && !second && energy.level = 130 && grey.level = 0,
                 "a second wind gives back a quarter of a full bar, even out of the grey, once a day")
+            this.Assert(energy.gain.from = 0 && Abs(energy.gain.to - 130 / energy.full) < 0.001,
+                "and shows it in purple like a break")
             this.Assert(energy.SecondWind("20261104070000") && energy.level = 280,
                 "and again the next day")
             energy.windDay := ""

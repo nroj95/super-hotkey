@@ -25,8 +25,11 @@
 ; Breaks give some back, short ones the most: the refill rises steeply to
 ; its best value per minute at 5 minutes, the least screen-work guidance asks
 ; for, then pays less per minute up to RefillLimit (Refill), never above a
-; full bar, silently, even out of the grey. A break across the start of a
-; day earns nothing; the new day is its reward. A break is the time from the
+; full bar, even out of the grey. No notice says so: as the bar shows again,
+; within a second of the user's return, what the break gave back shows in
+; purple at the top of its fill for 3 s, as a second wind's does. A break
+; across the start of a day earns nothing; the new day is its reward. A
+; break is the time from the
 ; moment the computer first saw the user gone, when it locked, turned its
 ; displays off, slept or was off, until they come back. Idle time before that
 ; may have been reading or a film: walking off without locking loses the
@@ -117,6 +120,7 @@ class GR_Energy {
         this.lowShown := false
         this.roadShown := false
         this.fainting := false
+        this.gain := 0            ; {from, to, until}: the shares a break or second wind raised the bar between, shown until A_TickCount reaches until
         this.padSlots := []       ; XInput slots connected at the last tick
         this.padButtons := Map()  ; slot -> its buttons at the last reading
         this.padUsed := 0         ; A_TickCount when a controller was last used, or 0
@@ -327,10 +331,7 @@ class GR_Energy {
         rows := this.module.bedtime.rows
         if !GR_Bedtime.InNight(now, rows[-1].time, this.module.bedtime.wakeTime)
             this.lastUp := now
-        if this.away {
-            this.away := false
-            this.TakeBreak(DateDiff(now, this.awaySince, "Seconds") / 60)
-        }
+        this.Back(now)
         ; A break in the night lifts the grey it holds.
         if night
             this.nightLevel := Max(this.nightLevel, this.level)
@@ -451,8 +452,27 @@ class GR_Energy {
             || this.dayStarted != "" && DateDiff(this.awaySince, this.dayStarted, "Seconds") < 0
             return
         gained := GR_Energy.Refill(minutes)
+        before := this.level
         this.level := Min(this.full, this.level + gained)
+        this.Gained(before)
         this.module.Report("break of " Round(minutes) " min: +" Round(gained) " min of energy")
+    }
+
+    ; The user is back from a break, found by a tick or by Draw as the bar
+    ; shows again, whichever comes first.
+    Back(now) {
+        if !this.away
+            return
+        this.away := false
+        this.TakeBreak(DateDiff(now, this.awaySince, "Seconds") / 60)
+    }
+
+    ; What a break or second wind gave back shows in purple at the top of the
+    ; fill for as long as news shows; on the road, only the part above zero.
+    Gained(before) {
+        from := Max(0, before) / this.full
+        to := this.level / this.full
+        this.gain := to > from ? {from: from, to: to, until: A_TickCount + SuiteNotice.NewsMs} : 0
     }
 
     ; Once a day, from one day start to the next, a second wind gives back
@@ -462,7 +482,9 @@ class GR_Energy {
         if this.windDay = day
             return false
         this.windDay := day
+        before := this.level
         this.level := Min(this.full, this.level + this.full * GR_Energy.WindShare)
+        this.Gained(before)
         if this.level > 0
             this.roadShown := false
         this.Shade()
@@ -526,10 +548,19 @@ class GR_Energy {
     ; Shown while the user is at the computer, and hidden on a night off.
     Visible() => this.show && this.Present() && !this.module.Off()
 
+    ; Back from a break, the refill comes as the bar shows again rather than
+    ; at the next tick, so its purple is there when the user looks.
     Draw(*) {
+        if this.away && this.show && this.Present() {
+            now := A_Now
+            this.StartDay(now)
+            this.Back(now)
+        }
+        if this.gain && A_TickCount >= this.gain.until
+            this.gain := 0
         this.Shade()
         if IsObject(this.bar)
-            this.bar.Draw(this.level / this.full, this.Visible(), this.display, this.position, this.dry)
+            this.bar.Draw(this.level / this.full, this.Visible(), this.display, this.position, this.dry, this.gain)
     }
 }
 
@@ -538,7 +569,9 @@ class GR_Energy {
 ; backgrounds too, in a corner of the work area, so just inside the
 ; taskbar, on the display chosen or on all, and hidden on a display a window
 ; fills. One window per display. The E turns red for the rest of a day that
-; ran dry, so the short morning after it never comes as a surprise.
+; ran dry, so the short morning after it never comes as a surprise. A purple
+; strip over the top of the fill shows what a break or second wind just gave
+; back.
 class GR_EnergyBar {
     static Width := 18
     static Height := 160       ; the gauge, below its E
@@ -547,11 +580,13 @@ class GR_EnergyBar {
     static MarginX := 12       ; in from the side of its corner
     static MarginY := 16       ; in from the top or bottom
     static Opacity := 140      ; of 255: see-through enough to read what lies behind
+    static Inset := 1          ; the classic gauge paints its fill this far inside its edge
+    static GainColor := "9B59D0"  ; purple, apart from the green, yellow and red of the fill
     static Corners := [["bottom-right", "Bottom right"], ["bottom-left", "Bottom left"],
         ["top-right", "Top right"], ["top-left", "Top left"]]
 
     __New() {
-        this.bars := Map()  ; monitor index -> {window, label, progress, colors, dry, shown}
+        this.bars := Map()  ; monitor index -> {window, label, progress, gain, colors, dry, slice, shown}
     }
 
     static IsCorner(text) {
@@ -598,7 +633,16 @@ class GR_EnergyBar {
     ; The E's background: grey, or red once the day has run dry.
     static LabelColor(dry) => dry ? "D03030" : "202020"
 
-    Draw(share, visible, display, corner, dry := false) {
+    ; The rows of the gauge, counted from its top edge, that the fill gained
+    ; from one share to another, rounded as the fill is; 0 under a row.
+    static Slice(from, to) {
+        inner := GR_EnergyBar.Height - 2 * GR_EnergyBar.Inset
+        top := GR_EnergyBar.Inset + inner - Round(Max(0, Min(1, to)) * inner)
+        bottom := GR_EnergyBar.Inset + inner - Round(Max(0, Min(1, from)) * inner)
+        return bottom > top ? {top: top, size: bottom - top} : 0
+    }
+
+    Draw(share, visible, display, corner, dry := false, gain := 0) {
         wanted := Map()
         if visible
             for monitor in GR_EnergyBar.Monitors(display)
@@ -624,6 +668,15 @@ class GR_EnergyBar {
                 bar.dry := dry
             }
             bar.progress.Value := Round(Max(0, Min(1, share)) * 1000)
+            ; Moved only when it changes, so it never flickers.
+            slice := gain ? GR_EnergyBar.Slice(gain.from, gain.to) : 0
+            key := slice ? slice.top "," slice.size : ""
+            if key != bar.slice {
+                if slice
+                    bar.gain.Move(, GR_EnergyBar.Outline + GR_EnergyBar.LabelHeight + slice.top, , slice.size)
+                bar.gain.Visible := !!slice
+                bar.slice := key
+            }
             bar.window.GetPos(, , &width, &height)
             MonitorGetWorkArea(monitor, &left, &top, &right, &bottom)
             GR_EnergyBar.Place(corner, left, top, right, bottom, width, height, &x, &y)
@@ -655,11 +708,18 @@ class GR_EnergyBar {
         edge := GR_EnergyBar.Outline
         label := window.AddText("x" edge " y" edge " w" GR_EnergyBar.Width " h" GR_EnergyBar.LabelHeight
             . " Center 0x200 Background" GR_EnergyBar.LabelColor(false), "E") ; SS_CENTERIMAGE
+        ; WS_CLIPSIBLINGS: repainting the gauge every second leaves the purple
+        ; strip above it alone.
         progress := window.AddProgress("x" edge " y" edge + GR_EnergyBar.LabelHeight " w" GR_EnergyBar.Width
-            . " h" GR_EnergyBar.Height " -Theme Vertical Range0-1000")
+            . " h" GR_EnergyBar.Height " -Theme Vertical Range0-1000 +0x04000000")
+        inset := GR_EnergyBar.Inset
+        gain := window.AddText("x" edge + inset " y" edge + GR_EnergyBar.LabelHeight " w" GR_EnergyBar.Width - 2 * inset
+            . " h1 Hidden Background" GR_EnergyBar.GainColor)
+        DllCall("SetWindowPos", "ptr", gain.Hwnd, "ptr", 0, "int", 0, "int", 0, "int", 0, "int", 0,
+            "uint", 0x13, "int") ; HWND_TOP; SWP_NOSIZE | SWP_NOMOVE | SWP_NOACTIVATE
         DllCall("SetLayeredWindowAttributes", "ptr", window.Hwnd, "uint", 0, "uchar", GR_EnergyBar.Opacity, "uint", 2)
         window.Show("Hide w" GR_EnergyBar.Width + 2 * edge " h" GR_EnergyBar.LabelHeight + GR_EnergyBar.Height + 2 * edge)
-        return {window: window, label: label, progress: progress, colors: "", dry: false, shown: false}
+        return {window: window, label: label, progress: progress, gain: gain, colors: "", dry: false, slice: "", shown: false}
     }
 
     Destroy() {
