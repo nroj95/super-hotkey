@@ -37,6 +37,8 @@ Windows' own keys work as you know them, with fewer surprises. `Win + M`, `Win +
 
 Keep windows in an overlapping cascade, which helps most when many apps are open. Every window keeps 80% of the display's width and height, however many you add. It steps down to the right, or to the left with Mirror in Settings.
 
+Add the active window with `Caps + Insert`, or hold `Caps`, `Win` or `Pause` and double-click any window; double-click it again, or press `Caps + Shift + Insert`, to take it out and put it back where it was. While one of those keys is held, clicks only focus windows, so you can bring a window forward from anywhere on it without clicking what is inside. Drag a window in the cascade onto another slot to move it there, or anywhere else to take it out at its old size.
+
 Each slot in the cascade gets a small colored focus tab on both sides, at the lower left and the upper right, so every slot stays one click away from either side: click a tab to bring its window forward, and click it again to cycle through the windows sharing that slot. From the keyboard, `Caps + PgUp/PgDn` steps through them, and `Caps + Tab` jumps to the next cascade, on whichever display it is. `Caps + M` hides the cascade on your display and `Caps + Shift + M` brings it back together.
 
 With two displays, for example, keep focused work in narrow zones on one, wide apps like file managers, video players or Discord on the other, and secondary apps in a cascade on whichever display you choose in Settings.
