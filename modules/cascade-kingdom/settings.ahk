@@ -129,6 +129,8 @@ CascadeState.restoreRequestDepth := 0
 CascadeState.closeBatches := Map()
 CascadeState.targetDisplay := IniRead(CascadeState.settingsPath, "Controls", "Display", "All")
 CascadeState.mirrored := IniRead(CascadeState.settingsPath, "Controls", "Mirrored", "0") = "1"
+; Win instead of the Caps layer for mouse window handling; see caps-clicks.ahk.
+CascadeState.useWin := IniRead(CascadeState.settingsPath, "Controls", "UseWin", "0") = "1"
 CascadeState.minimizeInProgress := false
 CascadeState.minimizedWindows := []
 
@@ -138,6 +140,8 @@ CascadeState.focusCornerUpdatePending := false
 CascadeState.focusTabPendingPress := 0
 CascadeState.focusTabClick := 0
 CascadeState.focusTabClickGeneration := 0
+CascadeState.capsClickButtons := Map()  ; buttons whose claimed press still owns its release
+CascadeState.capsClickLast := 0         ; the last Caps left press, for double-clicks
 
 CascadeState.winEventCallback := 0
 CascadeState.winEventHooks := []

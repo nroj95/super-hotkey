@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Changes
+
+- **Cascade Kingdom:** hold `Caps` and double-click anywhere on a window to add it to its display's cascade, as `Caps + Insert` does; keep holding to add more. While `Caps` is held, a click only focuses a window, and no click, scroll or other mouse button reaches what is inside it. The taskbar, the desktop, Start and focus tabs work as usual. A new Settings checkbox, unticked by default, makes `Win` do this instead of `Caps`, so it also works without Secret Layers.
+
 ## v1.0.0-beta.4
 
 Meet Galaxy Rhythm: gentle bedtimes and an energy bar for the day that rewards breaks, not less time at the computer. `Pause + Pause` turns the displays off, sleepy speakers can be kept awake, and every Settings page can restore its defaults.

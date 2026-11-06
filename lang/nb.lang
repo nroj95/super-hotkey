@@ -45,6 +45,15 @@ ADD A WINDOW
 Press Caps + Insert to add the active window, and Caps + Shift + Insert to take it out again: it returns to where it was before it joined.
 =
 
+Or hold Caps and double-click anywhere on a window to add it.
+=
+
+While Caps is held, clicks only focus windows and never reach what is inside them.
+=
+
+Tick Win in Settings to hold Win instead, which also works without Secret Layers.
+=
+
 Or drag a window: corner guides mark the slots, and releasing with its top-left corner on one adds it.
 =
 

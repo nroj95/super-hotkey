@@ -1020,6 +1020,16 @@ class Keybindings {
 
     LayerEnabled(layer) => IsObject(this.client) && this.client.LayerEnabled(layer)
 
+    ; A layer prefix held right now. Modules that claim mouse input under a held
+    ; layer, such as Cascade Kingdom's Caps clicks, call UseLayer too, so the
+    ; prefix's release counts as a chord, not a tap.
+    LayerHeld(layer) => IsObject(this.client) && this.client.Active(layer) && this.client.IsHeld(layer)
+
+    UseLayer(layer) {
+        if this.LayerHeld(layer)
+            this.client.Use(layer)
+    }
+
     ; While the editor records a hotkey, every route stays gated.
     SetCapture(active) {
         this.externalCapture := !!active

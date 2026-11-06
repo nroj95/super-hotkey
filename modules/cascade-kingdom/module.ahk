@@ -26,6 +26,7 @@ class CascadeKingdomModule extends SuiteModule {
         StartCascadeActivity()
         manager.Observe("*LButton", CanStartFocusTabClick, (*) => BeginFocusTabClick())
         manager.Observe("*LButton Up", HasFocusTabClick, (*) => FinishFocusTabClick(), true)
+        ObserveCapsClicks(manager)
         manager.Observe("~*LButton", IsCascadeEnabled, (*) => CaptureCascadeMousePress())
         manager.Observe("~*LButton Up", IsCascadeEnabled, (*) => CaptureCascadeMouseRelease())
         manager.Observe("~*Escape", HasCascadeWindowDrag, (*) => CancelCascadeWindowDrop())
@@ -56,6 +57,7 @@ class CascadeKingdomModule extends SuiteModule {
         CancelCascadeWindowDrop()
         CascadeState.commandQueue := []
         StopFocusTabClick()
+        CascadeState.capsClickLast := 0
     }
 
     ; SuiteManagedWindows: other modules leave these windows to Cascade Kingdom.
@@ -87,6 +89,7 @@ class CascadeKingdomModule extends SuiteModule {
         this.displayChoices := choices.values
         rows.Field("Cascade on", "DropDownList", "w300 vdisplay", choices.names).Choose(choices.selected)
         rows.Checkbox("Mirror: cascade toward the left", "vmirrored").Value := CascadeState.mirrored
+        rows.Checkbox("Hold Win instead of Caps to click and double-click windows", "vuseWin").Value := CascadeState.useWin
         rows.Checkbox("Show focus tabs", "vtabs").Value := CascadeState.focusCornerVisible
         colors := []
         for name in CascadeState.focusTabColorPresets
@@ -103,6 +106,7 @@ class CascadeKingdomModule extends SuiteModule {
     RestoreSettings(window) {
         window["display"].Choose(SuiteInterface.DisplayIndex(this.displayChoices, "All"))
         window["mirrored"].Value := 0
+        window["useWin"].Value := 0
         window["tabs"].Value := 1
         window["inactiveColor"].Choose("White")
     }
@@ -115,13 +119,16 @@ class CascadeKingdomModule extends SuiteModule {
         try {
             display := this.displayChoices[window["display"].Value]
             mirrored := window["mirrored"].Value != 0
+            useWin := window["useWin"].Value != 0
             visible := window["tabs"].Value != 0
             inactiveName := window["inactiveColor"].Text
             if !CascadeState.focusTabColorPresets.Has(inactiveName)
                 throw ValueError("Select a valid inactive tab color.")
             this.app.Settings.WritePreferences(this.id, Map(
-                "Controls", Map("Display", display, "Mirrored", mirrored ? 1 : 0),
+                "Controls", Map("Display", display, "Mirrored", mirrored ? 1 : 0, "UseWin", useWin ? 1 : 0),
                 "FocusTabs", Map("Visible", visible ? 1 : 0, "InactiveSlotColor", inactiveName)))
+            CascadeState.useWin := useWin
+            CascadeState.capsClickLast := 0
             if CascadeState.mirrored != mirrored {
                 CascadeState.mirrored := mirrored
                 QueueCascadeDisplayRefresh()
@@ -154,6 +161,9 @@ class CascadeKingdomModule extends SuiteModule {
 
         ADD A WINDOW
         Press Caps + Insert to add the active window, and Caps + Shift + Insert to take it out again: it returns to where it was before it joined.
+        Or hold Caps and double-click anywhere on a window to add it.
+        While Caps is held, clicks only focus windows and never reach what is inside them.
+        Tick Win in Settings to hold Win instead, which also works without Secret Layers.
         Or drag a window: corner guides mark the slots, and releasing with its top-left corner on one adds it.
         Resizing never adds a window, and dragging a member away from its slot releases it.
         With one display selected in Settings, added windows move there and dragging to another display leaves a window outside the cascade.

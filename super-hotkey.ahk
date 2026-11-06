@@ -26,6 +26,7 @@
 #Include "%A_ScriptDir%\modules\galaxy-rhythm\bedtime.ahk"
 #Include "%A_ScriptDir%\modules\galaxy-rhythm\energy.ahk"
 #Include "%A_ScriptDir%\modules\galaxy-rhythm\module.ahk"
+#Include "%A_ScriptDir%\modules\cascade-kingdom\caps-clicks.ahk"
 #Include "%A_ScriptDir%\modules\cascade-kingdom\commands.ahk"
 #Include "%A_ScriptDir%\modules\cascade-kingdom\controls.ahk"
 #Include "%A_ScriptDir%\modules\cascade-kingdom\debug.ahk"
