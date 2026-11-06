@@ -8,7 +8,7 @@
 
 ### Changes
 
-- **Cascade Kingdom:** hold `Caps` and double-click anywhere on a window to add it to its display's cascade, as `Caps + Insert` does; keep holding to add more. Double-clicking a window already in a cascade takes it out, back to where it was, as `Caps + Shift + Insert` does. While `Caps` is held, a click only focuses a window, and no click, drag, scroll or other mouse button reaches what is inside it. The taskbar, the desktop, Start and focus tabs work as usual. A new *Mouse key* setting can choose `Win` or `Pause` instead; `Win` also works without Secret Layers.
+- **Cascade Kingdom:** hold `Caps`, `Win` or `Pause` and double-click anywhere on a window to add it to its display's cascade, as `Caps + Insert` does; keep holding to add more. Double-clicking a window already in a cascade takes it out, back to where it was, as `Caps + Shift + Insert` does. While one of them is held, a click only focuses a window, and no click, drag, scroll or other mouse button reaches what is inside it. The taskbar, the desktop, Start and focus tabs work as usual. `Caps` and `Pause` need Secret Layers; `Win` works without it.
 
 ## v1.0.0-beta.4
 

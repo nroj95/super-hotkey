@@ -129,11 +129,6 @@ CascadeState.restoreRequestDepth := 0
 CascadeState.closeBatches := Map()
 CascadeState.targetDisplay := IniRead(CascadeState.settingsPath, "Controls", "Display", "All")
 CascadeState.mirrored := IniRead(CascadeState.settingsPath, "Controls", "Mirrored", "0") = "1"
-; The key that turns the mouse to window handling while held; see mouse-key.ahk.
-CascadeState.mouseKeyChoices := ["Caps", "Win", "Pause"]
-CascadeState.mouseKey := IniRead(CascadeState.settingsPath, "Controls", "MouseKey", "Caps")
-if CascadeState.mouseKey != "Win" && CascadeState.mouseKey != "Pause"
-    CascadeState.mouseKey := "Caps"
 CascadeState.minimizeInProgress := false
 CascadeState.minimizedWindows := []
 

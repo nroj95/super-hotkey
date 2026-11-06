@@ -84,12 +84,11 @@ class CascadeKingdomModule extends SuiteModule {
         if ui.Existing(key)
             return
         rows := SuitePageRows(ui.NewWindow(key, "Cascade Kingdom - Settings", true), 600)
-        rows.Text("Add windows with Caps + Insert, or hold the mouse key and double-click one.")
+        rows.Text("Add windows with Caps + Insert, or hold Caps, Win or Pause and double-click one.")
         choices := ui.DisplayChoices(CascadeState.targetDisplay, true)
         this.displayChoices := choices.values
         rows.Field("Cascade on", "DropDownList", "w300 vdisplay", choices.names).Choose(choices.selected)
         rows.Checkbox("Mirror: cascade toward the left", "vmirrored").Value := CascadeState.mirrored
-        rows.Field("Mouse key", "DropDownList", "w120 vmouseKey", CascadeState.mouseKeyChoices).Choose(CascadeState.mouseKey)
         rows.Checkbox("Show focus tabs", "vtabs").Value := CascadeState.focusCornerVisible
         colors := []
         for name in CascadeState.focusTabColorPresets
@@ -106,7 +105,6 @@ class CascadeKingdomModule extends SuiteModule {
     RestoreSettings(window) {
         window["display"].Choose(SuiteInterface.DisplayIndex(this.displayChoices, "All"))
         window["mirrored"].Value := 0
-        window["mouseKey"].Choose("Caps")
         window["tabs"].Value := 1
         window["inactiveColor"].Choose("White")
     }
@@ -119,16 +117,13 @@ class CascadeKingdomModule extends SuiteModule {
         try {
             display := this.displayChoices[window["display"].Value]
             mirrored := window["mirrored"].Value != 0
-            mouseKey := window["mouseKey"].Text
             visible := window["tabs"].Value != 0
             inactiveName := window["inactiveColor"].Text
             if !CascadeState.focusTabColorPresets.Has(inactiveName)
                 throw ValueError("Select a valid inactive tab color.")
             this.app.Settings.WritePreferences(this.id, Map(
-                "Controls", Map("Display", display, "Mirrored", mirrored ? 1 : 0, "MouseKey", mouseKey),
+                "Controls", Map("Display", display, "Mirrored", mirrored ? 1 : 0),
                 "FocusTabs", Map("Visible", visible ? 1 : 0, "InactiveSlotColor", inactiveName)))
-            CascadeState.mouseKey := mouseKey
-            CascadeState.mouseKeyLast := 0
             if CascadeState.mirrored != mirrored {
                 CascadeState.mirrored := mirrored
                 QueueCascadeDisplayRefresh()
@@ -161,9 +156,9 @@ class CascadeKingdomModule extends SuiteModule {
 
         ADD A WINDOW
         Press Caps + Insert to add the active window, and Caps + Shift + Insert to take it out again: it returns to where it was before it joined.
-        Or hold Caps and double-click anywhere on a window to add it, and double-click it again to take it out, back to where it was.
-        While Caps is held, clicks only focus windows and never reach what is inside them.
-        Settings can make Win or Pause the mouse key instead of Caps; Win also works without Secret Layers.
+        Or hold Caps, Win or Pause and double-click anywhere on a window to add it, and double-click it again to take it out, back to where it was.
+        While one of them is held, clicks only focus windows and never reach what is inside them.
+        Caps and Pause need Secret Layers; Win works without it.
         With one display selected in Settings, added windows move there.
         A disconnected selected display pauses adding until it returns or you change Settings.
 
