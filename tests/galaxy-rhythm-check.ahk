@@ -229,7 +229,8 @@ class GalaxyRhythmChecks {
             this.Assert(Abs(energy.level - (before - tick / 2)) < 0.001, "watching or reading costs half")
             energy.level := 0.05
             energy.Tick(at("090011"), 120000)
-            this.Assert(energy.level = 0 && grey.level = 0, "and stops at zero, never greying the screen")
+            this.Assert(energy.level = 0 && grey.level = 0 && !energy.dry && !this.ShownEverywhere(GR_Energy.Road),
+                "and stops at zero, never greying the screen, running the day dry or saying you're on fumes")
             energy.level := before
             used := (buttons, leftTrigger, rightTrigger, leftX, leftY, rightX, rightY) => (
                 energy.padUsed := 0,
@@ -252,8 +253,11 @@ class GalaxyRhythmChecks {
             this.Assert(!this.ShownEverywhere(GR_Energy.Low), "only once")
             energy.level := 0.1
             energy.Tick(at("090040"), 0)
-            this.Assert(energy.level < 0 && energy.dry && this.ShownEverywhere(GR_Energy.Road) && grey.level > 0,
-                "at zero you run on fumes, the day has run dry, and the grey begins")
+            this.Assert(energy.level < 0 && !energy.dry && this.ShownEverywhere(GR_Energy.Road) && grey.level > 0,
+                "at zero you run on fumes and the grey begins, though one press runs no day dry")
+            energy.level := -2.9
+            energy.Tick(at("090045"), 0)
+            this.Assert(energy.dry, "a tenth of the way along the road, three minutes, the day has run dry")
             energy.level := -15
             energy.Tick(at("090050"), 0)
             this.Assert(Abs(grey.level - (15 + tick) / 30) < 0.001,

@@ -8,7 +8,8 @@
 ; button, a trigger past its threshold or a stick beyond its dead zone, never
 ; a thumb resting on a stick. A minute at the unlocked computer with its
 ; screens on but no input, watching or reading, costs half, down to zero but
-; never onto the road; anything programs do on their own is no input. A full
+; never onto the road, so a video left playing empties the bar without running
+; the day dry; anything programs do on their own is no input. A full
 ; bar holds FullHours of active minutes.
 ;
 ; Only the start of a day fills the bar. At Your day starts at (bedtime's
@@ -43,7 +44,10 @@
 ; Once a day a second wind gives back WindShare of a full bar, but only once
 ; all of it fits, at 75 % or less, so pressing it early never wastes it.
 ;
-; 10 % left says so. At zero the road to fainting starts with its notice.
+; 10 % left says so. Below zero, which only input reaches, the road to
+; fainting starts with its notice. DryRoad of the way along, the day has run
+; dry, silently, so the key that stops a forgotten video or the minute it
+; takes to save and lock costs no morning.
 ; With Faint on, the displays turn grey over FadeMinutes of activity, then
 ; Lights out shows and the computer sleeps; the user wakes halfway along the
 ; road, with time to save their work, until a break or a second wind lifts
@@ -98,6 +102,7 @@ class GR_Energy {
     ; the share left of it after a day that ran dry.
     static LateShare := 0.5
     static DryShare := 0.5
+    static DryRoad := 0.1         ; of the road walked before the day counts as dry
     static WindShare := 0.25      ; of a full bar a second wind gives back, once a day
     ; The default words of the notices, which Settings can change.
     static Low := "You're running low on energy"
@@ -346,7 +351,8 @@ class GR_Energy {
         active := idleMs < GR_Energy.ActiveMs
         cost := GR_Energy.TickMs / 60000 * (active ? 1 : GR_Energy.PassiveShare)
         this.level := Max(this.level - cost, Min(this.level, active ? -this.roadMinutes : 0))
-        if this.level <= 0
+        ; Only input walks the road: watching to empty is no dry day.
+        if this.level <= -this.roadMinutes * GR_Energy.DryRoad
             this.dry := true
         ; Bedtime's night and a night off drain quietly: no notices and no faint.
         if night || this.module.Off(now) {
@@ -367,7 +373,7 @@ class GR_Energy {
             this.lowShown := true
             this.Notice(this.lowText)
         }
-        if this.level > 0
+        if this.level >= 0
             this.roadShown := false
         else if !this.roadShown {
             this.roadShown := true
@@ -505,7 +511,7 @@ class GR_Energy {
         before := this.level
         this.level := Min(this.full, this.level + this.full * GR_Energy.WindShare)
         this.Gained(before)
-        if this.level > 0
+        if this.level >= 0
             this.roadShown := false
         this.Shade()
         this.SaveState()

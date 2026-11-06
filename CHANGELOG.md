@@ -18,6 +18,10 @@
 - With three or more displays, a notice for a display that a game in exclusive fullscreen covers now shows on every other display instead of only the next one.
 - **Cascade Kingdom:** hold `Caps`, `Win` or `Pause` and double-click anywhere on a window to add it to its display's cascade, as `Caps + Insert` does; keep holding to add more. Double-clicking a window already in a cascade takes it out, back to where it was, as `Caps + Shift + Insert` does. While one of them is held, a click only focuses a window, and no click, drag, scroll or other mouse button reaches what is inside it. The taskbar, the desktop, Start and focus tabs work as usual. `Caps` and `Pause` need Secret Layers; `Win` works without it.
 
+### Fixes
+
+- **Galaxy Rhythm:** a video left playing on an unlocked computer no longer runs the day dry. Watching still empties the energy bar, at half speed, and *You're running on fumes* waits until you use the keyboard, mouse or a controller with the bar empty. The day now counts as run dry, halving the next morning, only a tenth of the way along the road to *Lights out*, 3 minutes of use by default, so the key that stops a forgotten video or a minute to save and lock costs nothing.
+
 ## v1.0.0-beta.4
 
 Meet Galaxy Rhythm: gentle bedtimes and an energy bar for the day that rewards breaks, not less time at the computer. `Pause + Pause` turns the displays off, sleepy speakers can be kept awake, and every Settings page can restore its defaults.

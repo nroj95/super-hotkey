@@ -390,7 +390,7 @@ class GalaxyRhythmModule extends SuiteModule {
 
         ENERGY BAR
         A small upright bar marked E, bottom right on the primary display unless Settings moves it, is your energy for the day: every minute you use the computer, game controller included, costs a minute, and 8 hours of activity empty it.
-        Watching or reading without touching anything costs half, though it never greys the screen.
+        Watching or reading without touching anything costs half, though it never greys the screen or runs your day dry.
         Only your day starting fills it: when your day starts, 06:00 by default, it starts over.
         As in Stardew Valley, a late night costs you: leave the computer before the first bedtime message, 00:00 by default, and the next day starts full; stay later and it starts with less, down to half if you're still there at the sleep, 02:00, and half of that again if the bar ran dry.
         What happens after the sleep doesn't count, since the night sends you back to bed.
@@ -402,7 +402,7 @@ class GalaxyRhythmModule extends SuiteModule {
         If your phone goes where you go, Windows' Dynamic Lock, in Sign-in options, can lock the computer within about a minute of you walking away with it.
         If you often just walk off, set the screens to turn off after a few minutes in Windows' power settings.
         Near empty it says so; at zero you're running on fumes, the screen greys over half an hour of activity by default, and then Lights out puts the computer to sleep.
-        Running dry also turns the bar's E red until your day starts over, a reminder that tomorrow starts tired, even after a break or Second wind refills it.
+        A tenth of the way along, 3 minutes by default, your day has run dry: the bar's E turns red until your day starts over, a reminder that tomorrow starts tired, even after a break or Second wind refills it.
         You wake halfway back into the grey, with time to save your work, until a break or Second wind lifts you out; the day still counts as having run dry.
         Stay awake doesn't touch the bar, and suspending Super Hotkey pauses it, though how late you're at the computer still counts.
 
