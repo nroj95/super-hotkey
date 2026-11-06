@@ -5,7 +5,12 @@
 ; - preserve the original membership/slot throughout a native mouse drag;
 ; - resolve the visible top-left corner, top-right when mirrored, only after
 ;   the move loop and mouse-up;
-; - snap to the nearest eligible slot, or release an existing member;
+; - a member is sticky: wherever it lands, it takes the nearest slot of that
+;   display, or of its own when that display is not allowed; only Caps or
+;   Win + double-click and Caps + Shift + Insert take one out, and resizing
+;   it by any edge, which leaves it where and as large as the user made it;
+; - another window joins the nearest slot within tolerance only with the
+;   cascade key held at release (Caps, or Win when chosen);
 ; - a real drop can adopt an existing window; ordinary clicks/resizes cannot.
 
 ; =============================================================================
@@ -80,8 +85,12 @@ CaptureCascadeMouseRelease(*)
     CascadeDropGuides.Hide()
     if IsObject(CascadeState.mousePress)
         CascadeState.mousePress.up_tick := A_TickCount
-    if IsObject(CascadeState.windowDrag)
+    if IsObject(CascadeState.windowDrag) {
         CascadeState.windowDrag.up_tick := A_TickCount
+        ; The drop is decided later, once the window settles: keep the key's
+        ; state from the moment the button came up.
+        CascadeState.windowDrag.key_held := CascadeKeyHeld()
+    }
 
     ; Let the native move loop commit its final rectangle before examining it.
     if HasCascadeWindowDrag()
@@ -320,18 +329,30 @@ CompleteCascadeWindowDrop(drag)
     ; title-bar drag may change size without being an edge resize.
     resized := CascadeDragIsResize(drag, width, height)
     if resized || !IsCascadeWindow(hwnd, true) {
-        if drag.source_monitor && !IsWindowInCascadeLayout(hwnd)
+        ; A size the cascade did not choose: the window is the user's now.
+        if drag.source_monitor && (resized || !IsWindowInCascadeLayout(hwnd))
             ReleaseCascadeWindow(hwnd)
         return
     }
+    member := !!drag.source_monitor
+    if !member && !(drag.HasOwnProp("key_held") ? drag.key_held : CascadeKeyHeld())
+        return
 
     if !GetVisibleWindowBounds(hwnd, &frame_x, &frame_y, &frame_width, &frame_height)
         return
-    if !(target := CascadeDropTarget(frame_x, frame_y, frame_width))
+    corner_y := frame_y
+    target := CascadeDropTarget(frame_x, frame_y, frame_width)
+    if member && (!target || !CascadeDisplayAllowed(target.monitor)) {
+        ; Off-screen or on an excluded display: back to where it started.
+        target := CascadeDropTarget(drag.frame_x, drag.frame_y, frame_width)
+        corner_y := drag.frame_y
+    }
+    if !target
         return
     monitor_index := target.monitor
     geometry := target.geometry
-    slot_index := FindNearestCascadeSlot(target.x, frame_y, geometry.slots, CascadeState.slotTolerance)
+    slot_index := FindNearestCascadeSlot(target.x, corner_y, geometry.slots,
+        member ? 0x7FFFFFFF : CascadeState.slotTolerance)
 
     if slot_index && CascadeDisplayAllowed(monitor_index) {
         ; A drop on a guide adopts a window positioned by hand, as Caps + Insert

@@ -87,7 +87,7 @@ class CascadeKingdomModule extends SuiteModule {
         if ui.Existing(key)
             return
         rows := SuitePageRows(ui.NewWindow(key, "Cascade Kingdom - Settings", true), 600)
-        rows.Text("Add windows with Caps + Insert or by dragging one onto a slot.")
+        rows.Text("Add windows with Caps + Insert, or hold Caps and double-click one or drag it onto a slot.")
         choices := ui.DisplayChoices(CascadeState.targetDisplay, true)
         this.displayChoices := choices.values
         rows.Field("Cascade on", "DropDownList", "w300 vdisplay", choices.names).Choose(choices.selected)
@@ -164,11 +164,12 @@ class CascadeKingdomModule extends SuiteModule {
 
         ADD A WINDOW
         Press Caps + Insert to add the active window, and Caps + Shift + Insert to take it out again: it returns to where it was before it joined.
-        Or hold Caps and double-click anywhere on a window to add it.
-        Or drag a window, by its title bar or anywhere while holding Caps: corner guides mark the slots, and releasing with its top-left corner on one adds it.
+        Or hold Caps and double-click anywhere on a window to add it, and double-click it again to take it out, back to where it was.
+        Or hold Caps and drag a window from anywhere on it: corner guides mark the slots, and releasing with its top-left corner on one adds it.
         While Caps is held, the mouse only focuses, drags and adds windows and never reaches what is inside them.
         Tick Win in Settings to hold Win instead, which also works without Secret Layers.
-        Resizing never adds a window, and dragging a member away from its slot releases it.
+        Windows in a cascade are sticky: dragged anywhere, with or without Caps, they snap to the nearest slot, so you can rearrange a cascade with the mouse.
+        Resizing never adds a window, and resizing one in a cascade by any edge takes it out, as large and where you left it.
         With one display selected in Settings, added windows move there and dragging to another display leaves a window outside the cascade.
         A disconnected selected display pauses adding until it returns or you change Settings.
 

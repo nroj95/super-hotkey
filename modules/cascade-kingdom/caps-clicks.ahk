@@ -1,12 +1,14 @@
 ; Cascade Kingdom Caps clicks: while the Caps layer is held, the mouse handles
 ; windows instead of their contents. With Use Win ticked in Settings, a held
 ; Win key does this instead, and the Caps layer leaves the mouse alone; it needs
-; no Secret Layers.
+; no Secret Layers. This chosen key is the cascade key: drop guides show and
+; drops snap only while it is held, title-bar drags included.
 ;
 ; Click contract:
 ; - a left press on an application window focuses it; the app never sees it;
 ; - a second left press on the same window within the Windows double-click
-;   time adds it to its display's cascade, exactly as Caps + Insert does;
+;   time adds it to its display's cascade, exactly as Caps + Insert does, or
+;   takes a member out, back where it was, as Caps + Shift + Insert does;
 ; - a left press that moves past the Windows drag distance drags the window
 ;   live, restoring a maximized one first; Windows' own move loop needs the
 ;   button down, which the app would see as a click, so this small loop moves
@@ -16,17 +18,20 @@
 ; - every claimed press keeps its release, even after Caps comes up;
 ; - the taskbar, the desktop, Start, focus tabs and suite windows keep their
 ;   clicks;
+; - Win pressed midway through a title-bar drag claims that drag's release
+;   and ends the move loop with its own, so AutoHotkey masks Start for it too;
 ; - a claimed press uses the layer, so releasing Caps is never a tap; with
 ;   Win, the press goes to a Win hotkey (#), for which AutoHotkey sends the
 ;   menu mask key as Win comes up, after the key's auto-repeat, so releasing
 ;   Win never opens Start.
 
-; The chosen key is held: Win when Settings says so, otherwise the Caps layer.
-CapsClickKeyHeld(manager)
+; The cascade key is held: Win when Settings says so, otherwise the Caps layer.
+CascadeKeyHeld()
 {
     if CascadeState.useWin
         return GetKeyState("LWin", "P") || GetKeyState("RWin", "P")
-    return manager.LayerHeld("caps")
+    manager := SuiteState.App.manager
+    return IsObject(manager) && manager.LayerHeld("caps")
 }
 
 ; The application window under the pointer, or 0 over shell surfaces and
@@ -49,7 +54,7 @@ CanClaimCapsClick(manager, button, win)
     ; A new press means any claimed release of this button already happened.
     if button != "" && CascadeState.capsClickButtons.Has(button)
         CascadeState.capsClickButtons.Delete(button)
-    return win = CascadeState.useWin && IsCascadeEnabled() && CapsClickKeyHeld(manager) && CapsClickTarget()
+    return win = CascadeState.useWin && IsCascadeEnabled() && CascadeKeyHeld() && CapsClickTarget()
 }
 
 BeginCapsClick(manager, button)
@@ -81,9 +86,9 @@ BeginCapsClick(manager, button)
 
 RunCapsClick(hwnd, double)
 {
-    ; Adoption revalidates the foreground window, so focus comes first.
+    ; Both commands revalidate the foreground window, so focus comes first.
     if ActivateWindow(hwnd) && double
-        QueueCascadeCommand("adopt", hwnd)
+        QueueCascadeCommand(GetLiveCascadeMonitor(hwnd) ? "release" : "adopt", hwnd)
 }
 
 HasCapsClick(button) => CascadeState.capsClickButtons.Has(button)
@@ -183,8 +188,20 @@ StopCapsDrag()
     CascadeState.capsDrag := 0
 }
 
+; Win joined a title-bar drag midway, and no Win hotkey has fired to mask
+; Start. A suppressed one does: claim the release, then end the move loop.
+CanClaimWinDragRelease() => CascadeState.useWin && HasCascadeWindowDrag()
+    && !IsObject(CascadeState.capsDrag) && !HasCapsClick("LButton")
+
+FinishWinDragRelease()
+{
+    CaptureCascadeMouseRelease()
+    Send("{Blind}{LButton up}")
+}
+
 ObserveCapsClicks(manager)
 {
+    manager.Observe("*#LButton Up", CanClaimWinDragRelease, FinishWinDragRelease)
     ; The release has no Win: Win may come up before the button.
     for button in ["LButton", "RButton", "MButton", "XButton1", "XButton2"] {
         for win in [false, true]
