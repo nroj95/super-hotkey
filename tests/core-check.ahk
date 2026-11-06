@@ -917,8 +917,17 @@ class CoreChecks {
                 SuiteNotice.DefineProp("CoveredMonitor", {Call: (self) => covered})
                 try {
                     SuiteNotice.Show("status", "Debug log copied")
-                    this.Assert(SuiteNotice.notices["status"].monitor = next,
-                        "a notice moves to the next display when a game covers the working one")
+                    everywhere := SuiteNotice.notices["status"].monitor = next
+                    loop MonitorGetCount()
+                        if A_Index != covered && A_Index != next
+                            everywhere := everywhere && SuiteNotice.notices["status+" A_Index].shown
+                    this.Assert(everywhere && !SuiteNotice.notices.Has("status+" covered),
+                        "a notice moves to every other display when a game covers the working one")
+                    SuiteNotice.Hide("status")
+                    hidden := true
+                    for slot, notice in SuiteNotice.notices
+                        hidden := hidden && !notice.shown
+                    this.Assert(hidden, "hiding a notice hides its copies on other displays")
                     SuiteNotice.ShowEverywhere("news", "Sleep allowed again")
                     this.Assert(!SuiteNotice.notices.Has("news-" covered) && SuiteNotice.notices.Has("news-" next),
                         "news skips the display a game covers")

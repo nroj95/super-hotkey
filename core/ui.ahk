@@ -256,9 +256,23 @@ class SuiteNotice {
     static NewsMs := 3000
 
     ; Shows text in slot until Hide, or for durationMs when given. A monitor
-    ; index centers it there instead of on the working display. A display an
-    ; exclusive fullscreen game covers passes the notice to the next one.
+    ; index centers it there instead of on the working display. Nothing draws
+    ; over an exclusive fullscreen game, so a notice meant for the display it
+    ; covers shows on every other display instead: slot on the next one, and
+    ; copies on the rest in slot+N, named for display N, which hide with slot.
     static Show(slot, text, durationMs := 0, monitor := 0) {
+        target := monitor || SuiteWorkingMonitor.Get()
+        covered := this.CoveredMonitor()
+        this._Show(slot, text, durationMs, target = covered ? Mod(target, MonitorGetCount()) + 1 : target)
+        shown := this.notices[slot].monitor
+        loop MonitorGetCount()
+            if target = covered && A_Index != covered && A_Index != shown
+                this._Show(slot "+" A_Index, text, 0, A_Index)
+            else
+                this.Hide(slot "+" A_Index)
+    }
+
+    static _Show(slot, text, durationMs, target) {
         if !this.notices.Has(slot)
             this.notices[slot] := {window: 0, text: "", monitor: 0, shown: false, y: 0, height: 0,
                 timer: ObjBindMethod(this, "Hide", slot)}
@@ -270,10 +284,6 @@ class SuiteNotice {
             notice.window := this._Build(text)
             notice.text := text
         }
-        target := monitor || SuiteWorkingMonitor.Get()
-        ; Nothing draws over an exclusive fullscreen game, so step aside.
-        if target = this.CoveredMonitor()
-            target := Mod(target, MonitorGetCount()) + 1
         keep := notice.shown && notice.monitor = target
         notice.monitor := target
         notice.shown := true
@@ -304,14 +314,15 @@ class SuiteNotice {
         return WindowMonitorIndex(DllCall("GetForegroundWindow", "ptr"))
     }
 
+    ; Hides slot and its copies on other displays.
     static Hide(slot, *) {
-        if !this.notices.Has(slot)
-            return
-        notice := this.notices[slot]
-        SetTimer(notice.timer, 0)
-        notice.shown := false
-        if notice.window
-            notice.window.Hide()
+        for key, notice in this.notices
+            if key == slot || InStr(key, slot "+", true) = 1 {
+                SetTimer(notice.timer, 0)
+                notice.shown := false
+                if notice.window
+                    notice.window.Hide()
+            }
     }
 
     ; Centers a notice across its display. Unless it keeps its height there,
