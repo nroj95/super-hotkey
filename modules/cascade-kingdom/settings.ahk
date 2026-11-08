@@ -23,10 +23,11 @@ CascadeState.stepY := 24
 ; How far from a slot a window still counts as in it (screen-coordinate pixels).
 ; During a native drag, the original slot is retained.
 CascadeState.slotTolerance := 56
-; Drops reach twice as far, so slots catch a dragged window more easily. On
-; release, the visible top-left, or top-right when mirrored, must be within
-; this distance on both axes; the closest slot wins.
-CascadeState.dropTolerance := 112
+; Drops reach much farther, so the slots a drop can take catch a dragged
+; window easily; empty slots past the end show no guide and catch nothing.
+; On release, the visible top-left, or top-right when mirrored, must be
+; within this distance on both axes; the closest slot wins.
+CascadeState.dropTolerance := 200
 
 ; Restore requests can finish before their native/DWM rectangles settle.
 ; Poll only during restores; a failed restore must not lock compaction forever.

@@ -1,8 +1,11 @@
 ; Visual hints only, for cascade members, the only windows a drop can place.
-; The existing native drag watcher owns their lifetime. Like the focus tabs,
+; The existing native drag watcher owns their lifetime. Guides mark only the
+; slots a drop can take, those the cascade can fill, so every guide shown is
+; a target and the empty slots past its end show none. Like the focus tabs,
 ; the slot a drop would take shows in the accent color, opaque, and the
 ; others in the inactive tab color at its opacity; with none lit, releasing
-; takes the window out.
+; takes the window out. The lit guide is also twice as long and thick, so it
+; stands out among guides only a few pixels apart.
 class CascadeDropGuides {
     static windows := []
     static signature := ""
@@ -36,7 +39,7 @@ class CascadeDropGuides {
                     this.Hide()
                     return
                 }
-                this.Show(target.geometry.slots, GetCascadeMonitorDpi(target.monitor),
+                this.Show(CascadeDropSlots(drag, target), GetCascadeMonitorDpi(target.monitor),
                     CascadeDropLandingSlot(drag, target, frame_y),
                     CascadeState.mirrored ? target.geometry.width : 0)
             }
@@ -54,6 +57,7 @@ class CascadeDropGuides {
     static Show(slots, dpi, highlight, mirror_width := 0) {
         size := Max(12, ScaleForDpi(20, dpi))
         thickness := Max(2, ScaleForDpi(2, dpi))
+        lit_size := size * 2, lit_thickness := thickness * 2
         active := SuiteAccentColor()
         inactive := CascadeState.focusCornerInactiveSlotColor
         signature := size ":" thickness ":" active ":" inactive ":" highlight ":" mirror_width
@@ -75,17 +79,20 @@ class CascadeDropGuides {
                 window.BackColor := lit ? active : inactive
                 WinSetTransparent(lit ? CascadeState.focusCornerActiveSlotAlpha
                     : CascadeState.focusCornerInactiveSlotAlpha, window.Hwnd)
+                arm := lit ? lit_size : size, bar := lit ? lit_thickness : thickness
                 ; One L-shaped region avoids doubled opacity where two bars meet.
-                x := mirror_width ? position[1] + mirror_width - size : position[1]
-                ShowPhysicalGui(window, "Hide x" x " y" position[2] " w" size " h" size)
-                inner := size - thickness
+                x := mirror_width ? position[1] + mirror_width - arm : position[1]
+                ShowPhysicalGui(window, "Hide x" x " y" position[2] " w" arm " h" arm)
+                inner := arm - bar
                 region := mirror_width
-                    ? "0-0 " size "-0 " size "-" size " " inner "-" size " " inner "-" thickness " 0-" thickness
-                    : "0-0 " size "-0 " size "-" thickness " " thickness "-" thickness
-                        . " " thickness "-" size " 0-" size
+                    ? "0-0 " arm "-0 " arm "-" arm " " inner "-" arm " " inner "-" bar " 0-" bar
+                    : "0-0 " arm "-0 " arm "-" bar " " bar "-" bar " " bar "-" arm " 0-" arm
                 WinSetRegion(region, window.Hwnd)
                 ShowPhysicalGui(window, "NA")
             }
+            ; The bigger lit guide reaches under its neighbours; keep it on top.
+            if highlight && highlight <= slots.Length
+                try WinMoveTop("ahk_id " this.windows[highlight].Hwnd)
             loop Max(0, this.windows.Length - slots.Length)
                 this.windows[slots.Length + A_Index].Hide()
             this.signature := signature

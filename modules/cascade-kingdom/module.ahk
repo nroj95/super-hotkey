@@ -173,8 +173,9 @@ class CascadeKingdomModule extends SuiteModule {
         A disconnected selected display pauses adding until it returns or you change Settings.
 
         MOVE A WINDOW
-        Dragging a window in a cascade shows corner guides on the slots.
-        The guide in your accent color is the slot it will take, on this display or another, and releasing moves it there.
+        Dragging a window in a cascade shows corner guides on the slots it can take: those the cascade can fill.
+        The bigger guide in your accent color is the slot it will take, on this display or another, and releasing moves it there.
+        It swaps with the window there instead of sliding back into its own place.
         With no guide lit, releasing leaves the cascade where you dropped it, at the size it had before it joined.
         With one display selected in Settings, dragging a window to another display takes it out too.
         Resizing it by any edge also takes it out, as large and where you left it.

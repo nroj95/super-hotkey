@@ -535,8 +535,8 @@ class CascadeChecks {
         }
     }
 
-    ; The lit guide is the slot the drop takes after compaction, within the
-    ; wider drop reach.
+    ; Guides mark only the slots a drop can take, with N members the first N,
+    ; and the nearest of those within the wider drop reach is lit and taken.
     static DropLanding() {
         InitializeCascadeState()
         first := SuiteGui("+Resize", "Drop landing first")
@@ -547,26 +547,38 @@ class CascadeChecks {
             monitor := WindowMonitorIndex(first.Hwnd)
             geometry := GetCanonicalCascadeGeometry(monitor)
             slots := geometry.slots
-            if slots.Length < 6 {
-                this.Assert(true, "drop landing needs six slots; skipped on this display")
+            ; Slot 1 is the center, then slots step up-left, then down-right.
+            below := 0
+            for index, slot in slots
+                if !below && slot[1] > slots[1][1]
+                    below := index
+            if slots.Length < 6 || !below || below + 4 > slots.Length {
+                this.Assert(true, "drop landing needs slots on both sides of the center; skipped on this display")
                 return
             }
             second.Show("NA")
             for index, window in [first, second]
                 WinMovePixels(slots[index][1], slots[index][2], geometry.width, geometry.height, "ahk_id " window.Hwnd)
             CascadeState.history[monitor] := [first.Hwnd, second.Hwnd]
-            dragged := 0x7FFF0001  ; never read as a window: only placed in the plan
-            ; Slots step diagonally down-right, so offsets across that diagonal
-            ; keep every other slot out of reach.
+            dragged := 0x7FFF0001  ; never read as a window: only counted
+            ; Slots step diagonally, so offsets across that diagonal keep every
+            ; other slot out of reach.
             Landing(slot, dx, dy) {
-                drag := {hwnd: dragged, landing_stacks: Map()}
+                drag := {hwnd: dragged, landing_counts: Map()}
                 target := {monitor: monitor, geometry: geometry, x: slot[1] + dx}
                 return CascadeDropLandingSlot(drag, target, slot[2] + dy)
             }
+            ; Three members, the dragged window included, can use slots 1 to 3.
+            usable := CascadeDropSlots({hwnd: dragged, landing_counts: Map()},
+                {monitor: monitor, geometry: geometry})
+            this.Assert(usable.Length = 3 && usable[3][1] = slots[3][1] && usable[3][2] = slots[3][2],
+                "guides mark only the slots the cascade can fill")
             this.Assert(Landing(slots[2], 100, -100) = 2,
                 "a drop 100 px off an occupied slot takes it, and its window moves on")
+            this.Assert(Landing(slots[below], 0, 0) = 1,
+                "a drop on an empty slot below the center swaps with the center instead of sliding back")
             this.Assert(Landing(slots[6], 0, 0) = 3,
-                "a drop past the end of the cascade lands at its end")
+                "a drop past the upper end of the cascade takes its last slot")
             reach := CascadeState.dropTolerance + 1
             this.Assert(Landing(slots[1], reach, -reach) = 0,
                 "a drop beyond the drop reach takes the window out")
@@ -596,15 +608,30 @@ class CascadeChecks {
             this.Assert(WinGetTransparent(first) = 255
                 && WinGetTransparent(CascadeDropGuides.windows[2].Hwnd) = CascadeState.focusCornerInactiveSlotAlpha,
                 "the slot a drop would take is opaque and the others as faint as inactive focus tabs")
+            WinGetPosPixels(, , &litWidth, &litHeight, first)
+            WinGetPosPixels(, , &fadedWidth, &fadedHeight, CascadeDropGuides.windows[2].Hwnd)
+            this.Assert(litWidth = 40 && litHeight = 40 && fadedWidth = 20 && fadedHeight = 20,
+                "the lit guide is twice as long as the faint ones")
+            ; On screen: the lit stroke's fourth pixel column is accent, the fifth is not.
+            WinGetPosPixels(&litX, &litY, , , first)
+            previousCoordMode := A_CoordModePixel
+            CoordMode("Pixel", "Screen")
+            Sleep(100)  ; one composed frame, so the read sees what Windows drew
+            stroke := CallWithDpiContext(-3, PixelGetColor, litX + 3, litY + 30)
+            beside := CallWithDpiContext(-3, PixelGetColor, litX + 5, litY + 30)
+            CoordMode("Pixel", previousCoordMode)
+            this.Assert(stroke = "0x" SuiteAccentColor() && beside != stroke,
+                "the lit guide paints a 4 px accent stroke on screen: " stroke " " beside)
             this.Assert(DllCall("GetForegroundWindow", "ptr") = foreground,
                 "showing guides does not steal focus")
             region := DllCall("gdi32\CreateRectRgn", "int", 0, "int", 0, "int", 0, "int", 0, "ptr")
             try {
                 this.Assert(region && DllCall("GetWindowRgn", "ptr", first, "ptr", region, "int")
-                    && DllCall("gdi32\PtInRegion", "ptr", region, "int", 1, "int", 10, "int")
-                    && DllCall("gdi32\PtInRegion", "ptr", region, "int", 10, "int", 1, "int")
+                    && DllCall("gdi32\PtInRegion", "ptr", region, "int", 3, "int", 30, "int")
+                    && DllCall("gdi32\PtInRegion", "ptr", region, "int", 30, "int", 3, "int")
+                    && !DllCall("gdi32\PtInRegion", "ptr", region, "int", 4, "int", 30, "int")
                     && !DllCall("gdi32\PtInRegion", "ptr", region, "int", 10, "int", 10, "int"),
-                    "guide regions contain only the top and left strokes")
+                    "guide regions contain only the top and left strokes, 4 px thick when lit")
             }
             finally {
                 if region
@@ -620,14 +647,14 @@ class CascadeChecks {
             this.Assert(CascadeDropGuides.windows[1].Hwnd = first
                 && WinGetTransparent(first) = CascadeState.focusCornerInactiveSlotAlpha,
                 "DPI and highlight changes reuse the guide windows, and with no slot in reach none is lit")
-            ; Mirrored: a 20 px guide marks the top-right corner of a 300 px window.
+            ; Mirrored: the lit 40 px guide marks the top-right corner of a 300 px window.
             CascadeDropGuides.Show(slots, 96, 1, 300)
             WinGetPosPixels(&guideX, &guideY, , , first)
             region := DllCall("gdi32\CreateRectRgn", "int", 0, "int", 0, "int", 0, "int", 0, "ptr")
             try {
-                this.Assert(guideX = left + 30 + 300 - 20 && guideY = top + 30
+                this.Assert(guideX = left + 30 + 300 - 40 && guideY = top + 30
                     && region && DllCall("GetWindowRgn", "ptr", first, "ptr", region, "int")
-                    && DllCall("gdi32\PtInRegion", "ptr", region, "int", 18, "int", 10, "int")
+                    && DllCall("gdi32\PtInRegion", "ptr", region, "int", 38, "int", 10, "int")
                     && DllCall("gdi32\PtInRegion", "ptr", region, "int", 10, "int", 1, "int")
                     && !DllCall("gdi32\PtInRegion", "ptr", region, "int", 1, "int", 10, "int"),
                     "mirrored guides mark the top and right strokes of each slot's top-right corner")
