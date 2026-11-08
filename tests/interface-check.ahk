@@ -85,14 +85,21 @@ class InterfaceChecks {
             this.Assert(A_IconTip = "Super Hotkey v1.0.0-beta.4 - dry run",
                 "tray hover text includes its assigned version and dry-run suffix")
             count := DllCall("GetMenuItemCount", "ptr", A_TrayMenu.Handle, "int")
-            this.Assert(count = 20,
-                "tray includes Language..., application suspension and an explicit app restart")
-            loop count
-                this.Assert(!DllCall("GetSubMenu", "ptr", A_TrayMenu.Handle, "int", A_Index - 1, "ptr"),
-                    "tray entry has no submenu: " A_Index)
-            for item in [[2, "Language..."], [11, "Verbose logging"], [12, "Open settings folder"],
-                [14, "Run at startup"], [15, "Suspend"],
-                [16, "Restart Super Hotkey"], [17, "Reset to defaults..."]] {
+            this.Assert(count = 21,
+                "tray includes Click to focus, Language..., application suspension and an explicit app restart")
+            focusKeys := DllCall("GetMenuItemCount", "ptr", app.ui.clickFocusKeys.Handle, "int")
+            ; Fresh preferences choose Caps, the first item; 0x400 is MF_BYPOSITION, 0x8 MF_CHECKED.
+            capsChecked := DllCall("GetMenuState", "ptr", app.ui.clickFocusKeys.Handle, "uint", 0, "uint", 0x400, "uint") & 0x8
+            this.Assert(focusKeys = SuiteClickFocus.Keys.Length && capsChecked,
+                "Click to focus lists Caps, Pause, Win and Off, with the saved key checked")
+            loop count {
+                submenu := DllCall("GetSubMenu", "ptr", A_TrayMenu.Handle, "int", A_Index - 1, "ptr")
+                this.Assert(!submenu || submenu = app.ui.clickFocusKeys.Handle,
+                    "tray entry has no submenu other than Click to focus: " A_Index)
+            }
+            for item in [[2, "Click to focus"], [3, "Language..."], [12, "Verbose logging"],
+                [13, "Open settings folder"], [15, "Run at startup"], [16, "Suspend"],
+                [17, "Restart Super Hotkey"], [18, "Reset to defaults..."]] {
                 name := Buffer(256, 0)
                 DllCall("GetMenuStringW", "ptr", A_TrayMenu.Handle,
                     "uint", item[1], "ptr", name, "int", 128, "uint", 0x400, "int")
@@ -100,15 +107,15 @@ class InterfaceChecks {
                     "tray exposes " item[2] " directly")
             }
             verboseStatus := (*) => DllCall("GetMenuState", "ptr", A_TrayMenu.Handle,
-                "uint", 11, "uint", 0x400, "uint")
+                "uint", 12, "uint", 0x400, "uint")
             this.Assert(!(verboseStatus.Call() & 8),
                 "verbose logging starts unchecked in the tray")
             startupState := DllCall("GetMenuState", "ptr", A_TrayMenu.Handle,
-                "uint", 14, "uint", 0x400, "uint")
+                "uint", 15, "uint", 0x400, "uint")
             this.Assert(startupState & 3,
                 "Run at startup is disabled during safe dry-run testing")
             hotkeyState := (*) => DllCall("GetMenuState", "ptr", A_TrayMenu.Handle,
-                "uint", 15, "uint", 0x400, "uint")
+                "uint", 16, "uint", 0x400, "uint")
             this.Assert(!(hotkeyState.Call() & 8) && !app.suspended,
                 "Suspend starts unchecked")
             app.ui.ToggleSuspension()

@@ -26,12 +26,12 @@ class CascadeKingdomModule extends SuiteModule {
         StartCascadeActivity()
         manager.Observe("*LButton", CanStartFocusTabClick, (*) => BeginFocusTabClick())
         manager.Observe("*LButton Up", HasFocusTabClick, (*) => FinishFocusTabClick(), true)
-        ObserveMouseKeyClicks(manager)
         manager.Observe("~*LButton", IsCascadeEnabled, (*) => CaptureCascadeMousePress())
         manager.Observe("~*LButton Up", IsCascadeEnabled, (*) => CaptureCascadeMouseRelease())
         manager.Observe("~*Escape", HasCascadeWindowDrag, (*) => CancelCascadeWindowDrop())
         SuiteWindowOwnership.OnClaim(CascadeForgetManualWindow)
         SuiteWindowOwnership.OnReturn(CascadeTakeBackWindow)
+        SuiteClickFocus.OnDoubleClick(CascadeToggleClickedWindow)
     }
 
     Suspend() {
@@ -57,7 +57,6 @@ class CascadeKingdomModule extends SuiteModule {
         CancelCascadeWindowDrop()
         CascadeState.commandQueue := []
         StopFocusTabClick()
-        CascadeState.mouseKeyLast := 0
     }
 
     ; SuiteManagedWindows: other modules leave these windows to Cascade Kingdom.
@@ -70,6 +69,7 @@ class CascadeKingdomModule extends SuiteModule {
             SaveCascades()
         SuiteWindowOwnership.OffClaim(CascadeForgetManualWindow)
         SuiteWindowOwnership.OffReturn(CascadeTakeBackWindow)
+        SuiteClickFocus.OffDoubleClick(CascadeToggleClickedWindow)
         CascadeDropGuides.Destroy()
         CascadeState.commandQueue := []
         SetTimer(DrainCascadeCommandQueue, 0)
@@ -84,7 +84,7 @@ class CascadeKingdomModule extends SuiteModule {
         if ui.Existing(key)
             return
         rows := SuitePageRows(ui.NewWindow(key, "Cascade Kingdom - Settings", true), 600)
-        rows.Text("Add windows with Caps + Insert, or hold Caps, Win or Pause and double-click one.")
+        rows.Text("Add windows with Caps + Insert, or hold your click-to-focus key and double-click one.")
         choices := ui.DisplayChoices(CascadeState.targetDisplay, true)
         this.displayChoices := choices.values
         rows.Field("Cascade on", "DropDownList", "w300 vdisplay", choices.names).Choose(choices.selected)
@@ -156,9 +156,9 @@ class CascadeKingdomModule extends SuiteModule {
 
         ADD A WINDOW
         Press Caps + Insert to add the active window, and Caps + Shift + Insert to take it out again: it returns to where it was before it joined.
-        Or hold Caps, Win or Pause and double-click anywhere on a window to add it, and double-click it again to take it out, back to where it was.
-        While one of them is held, clicks only focus windows and never reach what is inside them.
-        Caps and Pause need Secret Layers; Win works without it.
+        Or hold your click-to-focus key and double-click anywhere on a window to add it, and double-click it again to take it out, back to where it was.
+        Click to focus in the tray menu picks that key: Caps, Pause or Win.
+        While it is held, clicks only focus windows and never reach what is inside them.
         With one display selected in Settings, added windows move there.
         A disconnected selected display pauses adding until it returns or you change Settings.
 
@@ -176,6 +176,14 @@ class CascadeKingdomModule extends SuiteModule {
         Active tabs and drop guides use your Windows accent color; choose the inactive tab color in Settings.
         A cascade of one window shows no tabs.
     )"
+}
+
+; A click-to-focus double-click adds the window to its display's cascade, as
+; Caps + Insert does, or takes a member out, as Caps + Shift + Insert does.
+CascadeToggleClickedWindow(hwnd)
+{
+    if IsCascadeEnabled() && !IsIgnoredByCascade(hwnd, true)
+        QueueCascadeCommand(GetLiveCascadeMonitor(hwnd) ? "release" : "adopt", hwnd)
 }
 
 ; A window that Wonder Windows positions by hand leaves its cascade at once,

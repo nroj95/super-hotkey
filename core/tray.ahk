@@ -1,7 +1,7 @@
 ; =============================================================================
-; One flat tray. Module entries open their guides; module settings, the log,
-; module selection and the language are pages built with the shared helpers
-; below. Help and pages open at most 80 % of the working display and scroll
+; One flat tray but for the Click to focus choice. Module entries open their
+; guides; module settings, the log, module selection and the language are
+; pages built with the shared helpers below. Help and pages open at most 80 % of the working display and scroll
 ; their content under a fixed footer.
 ; =============================================================================
 class SuiteInterface {
@@ -43,6 +43,7 @@ class SuiteInterface {
         A_TrayMenu.Delete()
         A_TrayMenu.Add("Modules...", ObjBindMethod(this, "ShowModules"))
         A_TrayMenu.Add("Keybindings...", ObjBindMethod(this.app, "ShowKeybindings"))
+        A_TrayMenu.Add(T("Click to focus"), this.ClickFocusMenu())
         A_TrayMenu.Add(T("Language..."), ObjBindMethod(this, "ShowLanguage"))
         A_TrayMenu.Add()
         for id in SuiteSettings.ModuleOrder
@@ -72,6 +73,40 @@ class SuiteInterface {
     }
 
     ToggleSuspension(*) => this.app.SetSuspended(!this.app.suspended)
+
+    ; Click to focus: one radio item per key, in SuiteClickFocus.Keys order.
+    ; A key whose Secret Layers layer is off can still be chosen; it waits.
+    ClickFocusMenu() {
+        manager := this.app.manager
+        names := Map("caps", manager.LayerEnabled("caps") ? T("Hold Caps") : T("Hold Caps (needs Secret Layers)"),
+            "pause", manager.LayerEnabled("pause") ? T("Hold Pause") : T("Hold Pause (needs Secret Layers)"),
+            "win", T("Hold Win"), "off", T("Off"))
+        this.clickFocusKeys := Menu()
+        for key in SuiteClickFocus.Keys
+            this.clickFocusKeys.Add(names[key], ObjBindMethod(this, "SetClickFocus", key), "Radio")
+        this.UpdateClickFocusTray()
+        return this.clickFocusKeys
+    }
+
+    UpdateClickFocusTray() {
+        for index, key in SuiteClickFocus.Keys
+            if key = this.app.Settings.clickFocus
+                this.clickFocusKeys.Check(index "&")
+            else
+                this.clickFocusKeys.Uncheck(index "&")
+    }
+
+    SetClickFocus(key, *) {
+        try {
+            this.app.Settings.SaveClickFocus(key)
+            SuiteClickFocus.key := key
+            SuiteClickFocus.Cancel()
+            SuiteState.Log.Write("Core", "click to focus: " key)
+        }
+        catch Error as failure
+            this.Report(failure, "Core / click to focus")
+        this.UpdateClickFocusTray()
+    }
 
     Existing(key) {
         if !this.windows.Has(key)
@@ -994,6 +1029,7 @@ class SuiteInterface {
             for id in SuiteSettings.ModuleOrder
                 choices[id] := true
             app.Settings.Save(choices, Map("caps", true, "pause", true), "")
+            app.Settings.SaveClickFocus(SuiteSettings.DefaultClickFocus)
             app.Settings.ResetModulePreferences(sections)
             SuiteState.Log.Write("Core", "defaults restored; backup: " backup)
             Reload()

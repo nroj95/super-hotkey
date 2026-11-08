@@ -1,6 +1,7 @@
 ; Saved suite preferences, per-module preference files and their backups.
 ; Saved choices are independent of the module/layer choices of this run.
 ; [interface] language holds a lang file's code, "en", or "" for automatic.
+; [input] click-focus holds the click-to-focus key: caps, pause, win or off.
 class SuiteSettings {
     static BackupsKept := 20
 
@@ -45,6 +46,33 @@ class SuiteSettings {
         this.language := KB_Manifest.Get(this.document, "interface", "language")
         if !SuiteSettings.ValidLanguage(this.language)
             throw Error("Invalid setting: interface/language.")
+        this.clickFocus := KB_Manifest.Get(this.document, "input", "click-focus", SuiteSettings.DefaultClickFocus)
+        if !SuiteSettings.ValidClickFocus(this.clickFocus)
+            throw Error("Invalid setting: input/click-focus.")
+    }
+
+    static DefaultClickFocus := "caps"
+
+    static ValidClickFocus(key) {
+        for valid in SuiteClickFocus.Keys
+            if key == valid
+                return true
+        return false
+    }
+
+    ; The click-to-focus key alone; Save keeps it as it is.
+    SaveClickFocus(key) {
+        if !SuiteSettings.ValidClickFocus(key)
+            throw ValueError("Invalid click-to-focus key: " key)
+        document := Map()
+        for section, values in this.document
+            document[section] := values.Clone()
+        document["meta"] := Map("schema", "1")
+        document["input"] := Map("click-focus", key)
+        DirCreate this.directory
+        KB_Manifest.WriteAtomic(this.path, document)
+        this.document := document
+        this.clickFocus := key
     }
 
     static ValidLanguage(code) => RegExMatch(code, "^([A-Za-z]{2,3}(-[A-Za-z0-9]{1,8})*)?$")

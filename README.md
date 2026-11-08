@@ -20,6 +20,8 @@ Use any module on its own or combine them.
 | [Power-Up Utilities](#power-up-utilities) | Extra keys, text shortcuts and system utilities |
 | [Secret Layers](#secret-layers) | Use CapsLock and Pause as extra keyboard layers |
 
+Whichever modules you use, hold `Caps` and click anywhere on a window to focus it without clicking what is inside. **Click to focus** in the tray menu picks `Pause` or `Win` instead, or turns it off. `Caps` and `Pause` need Secret Layers.
+
 ### Wonder Windows
 
 There are plenty of window managers for Windows, but the ones I tried tiled windows smaller than I liked, took a while to learn, or spread things across so many workspaces that I lost track of them. Small costs, but they added up. This is my take on window management that builds on the `Win` key shortcuts you already know and makes the ones I found frustrating or incomplete more predictable.
@@ -36,7 +38,7 @@ Windows' own keys work as you know them, with fewer surprises. `Win + M`, `Win +
 
 Keep windows in an overlapping cascade, which helps most when many apps are open. Every window keeps 80% of the display's width and height, however many you add. It steps down to the right, or to the left with Mirror in Settings.
 
-Add the active window with `Caps + Insert`, or hold `Caps`, `Win` or `Pause` and double-click any window; double-click it again, or press `Caps + Shift + Insert`, to take it out and put it back where it was. While one of those keys is held, clicks only focus windows, so you can bring a window forward from anywhere on it without clicking what is inside. Drag a window in the cascade onto another slot to move it there, or anywhere else to take it out at its old size.
+Add the active window with `Caps + Insert`, or hold your [click-to-focus](#modules) key and double-click any window; double-click it again, or press `Caps + Shift + Insert`, to take it out and put it back where it was. Drag a window in the cascade onto another slot to move it there, or anywhere else to take it out at its old size.
 
 Each slot in the cascade gets a small colored focus tab on both sides, at the lower left and the upper right, so every slot stays one click away from either side: click a tab to bring its window forward, and click it again to cycle through the windows sharing that slot. From the keyboard, `Caps + PgUp/PgDn` steps through them, and `Caps + Tab` jumps to the next cascade, on whichever display it is. When another window covers part of your cascade, `Caps + Tab` first brings it back to the front. `Caps + M` hides the cascade on your display and `Caps + Shift + M` brings it back together.
 
