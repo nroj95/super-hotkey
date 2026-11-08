@@ -9,8 +9,8 @@
 ;   display; dropped anywhere else, it leaves the cascade where it was
 ;   dropped, at the size or maximized state it had before joining;
 ; - a member resized by any edge leaves where and as large as the user made it;
-; - a drop never adds a window: Caps + Insert and the click-to-focus double-click
-;   do (see core/click-focus.ahk).
+; - a drop never adds a window: Caps + Insert and the mouse key's double-click
+;   do (see mouse-key.ahk).
 
 ; =============================================================================
 ; native mouse interaction and move-loop tracking

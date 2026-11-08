@@ -138,6 +138,8 @@ CascadeState.focusCornerUpdatePending := false
 CascadeState.focusTabPendingPress := 0
 CascadeState.focusTabClick := 0
 CascadeState.focusTabClickGeneration := 0
+CascadeState.mouseKeyButtons := Map()  ; buttons whose claimed press still owns its release
+CascadeState.mouseKeyLast := 0         ; the last mouse-key left press, for double-clicks
 
 CascadeState.winEventCallback := 0
 CascadeState.winEventHooks := []

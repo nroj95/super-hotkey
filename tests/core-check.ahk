@@ -12,7 +12,6 @@ class CoreChecks {
         this.CheckModuleStartFailure()
         this.Preferences()
         this.Language()
-        this.ClickFocus()
         this.ApplicationSuspension()
         this.DisabledModuleWarning()
         this.PowerCancellation()
@@ -485,28 +484,6 @@ class CoreChecks {
         settings.Save(settings.modules)
         this.Assert(SuiteSettings(settings.directory).language = "nb", "a language choice survives other saves")
         SuiteChecks.Rejects(() => settings.Save(settings.modules, , "..\x"), "an invalid language choice is refused")
-    }
-
-    static ClickFocus() {
-        settings := SuiteSettings(SuiteChecks.directory "\click-focus")
-        this.Assert(settings.clickFocus = "caps", "click to focus uses Caps by default")
-        settings.SaveClickFocus("win")
-        settings.Save(settings.modules, , "nb")
-        loaded := SuiteSettings(settings.directory)
-        this.Assert(loaded.clickFocus = "win" && loaded.language = "nb",
-            "the click-to-focus key and other suite preferences survive each other's saves")
-        SuiteChecks.Rejects(() => settings.SaveClickFocus("Shift"), "an unknown click-to-focus key is refused")
-
-        saved := SuiteClickFocus.key
-        try {
-            SuiteClickFocus.key := "off"
-            off := SuiteClickFocus.Held(false) || SuiteClickFocus.Held(true)
-            ; No layer is held during checks, and the Win variant never sees a layer key.
-            SuiteClickFocus.key := "caps"
-            caps := SuiteClickFocus.Held(true) || SuiteClickFocus.Held(false)
-            this.Assert(!off && !caps, "click to focus claims nothing when off or while its key is up")
-        }
-        finally SuiteClickFocus.key := saved
     }
 
     static ApplicationSuspension() {

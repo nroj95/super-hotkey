@@ -111,8 +111,6 @@ class SuiteApplication {
         if !this.dryRun {
             SuiteSleep.Start(this.Settings.directory)
             SuiteWorkingMonitor.Start(this.manager)
-            SuiteClickFocus.key := this.Settings.clickFocus
-            SuiteClickFocus.Start(this.manager)
             for id in SuiteSettings.ModuleOrder
                 if this.ModuleActive(id)
                     this.StartModule(this.modules[id])
@@ -322,7 +320,6 @@ class SuiteApplication {
         for id, module in this.modules
             module.CancelWork()
         SuiteCloseWindow.Cancel()
-        SuiteClickFocus.Cancel()
         SuiteFocusBorder.Hide()
     }
 

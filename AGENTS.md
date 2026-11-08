@@ -14,7 +14,6 @@ Super Hotkey is one AutoHotkey v2 64-bit process: a launcher, a small core and f
 | `core/language.ahk`, `lang/`, `tools/lang.py` | `T()`, the language files and the script that keeps them in step with the code |
 | `core/ui.ahk`, `core/tray.ahk` | every GUI, on-screen notices and the only tray |
 | `core/power.ahk` | staying awake and sleeping the computer, shared by every module |
-| `core/click-focus.ahk` | click to focus: clicks claimed while the chosen key is held, and the double-click hook |
 | `core/windows.ahk`, `core/focus-border.ahk` | window queries, activation, closing, DPI boundaries, the working display, and manual and managed window ownership |
 | `modules/<id>/module.ahk` | a module's lifecycle, actions, settings page and guide, written one sentence per line under capitals headings that Help shows in bold |
 
