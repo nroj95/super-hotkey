@@ -22,6 +22,7 @@ class CascadeChecks {
         this.Policy()
         this.Settings()
         this.Guides()
+        this.DropLanding()
     }
 
     static Assert(condition, label) => SuiteChecks.Assert(condition, label)
@@ -293,6 +294,9 @@ class CascadeChecks {
                 && CascadeState.focusCornerInactiveSlotAlpha = 128,
                 "cascade settings default to White inactive tabs at 50% opacity")
             this.Assert(!window["mirrored"].Value, "cascades step to the right by default")
+            this.Assert(window["clickKey"].Text = "Caps" && CascadeState.mouseKey = "Caps",
+                "click to focus uses Caps by default")
+            window["clickKey"].Choose("Win")
             window["inactiveColor"].Choose("Cyan")
             window["mirrored"].Value := true
             ; Use a real device, not the dropdown index, in the saved preference.
@@ -308,16 +312,28 @@ class CascadeChecks {
                 && !app.ui.pageLayouts["settings:cascade-kingdom"].apply.Enabled
                 && IniRead(path, "Controls", "Display") = expectedDisplay
                 && IniRead(path, "Controls", "Mirrored") = "1"
+                && IniRead(path, "Controls", "ClickKey") = "Win" && CascadeState.mouseKey = "Win"
                 && IniRead(path, "FocusTabs", "InactiveSlotColor") = "Cyan",
-                "Apply persists the destination device, mirroring and inactive tab color, and keeps Settings open")
+                "Apply persists the destination device, click key, mirroring and inactive tab color, and keeps Settings open")
+            ; No hold key is down during checks, and only the Win hotkey sees Win.
+            CascadeState.mouseKey := "Off"
+            off := MouseKeyHeld(false) || MouseKeyHeld(true)
+            CascadeState.mouseKey := "Caps"
+            this.Assert(!off && !MouseKeyHeld(true) && !MouseKeyHeld(false),
+                "mouse-key clicks claim nothing when off or while the chosen key is up")
+            IniWrite("Shift", path, "Controls", "ClickKey")
+            InitializeCascadeState()
+            this.Assert(CascadeState.mouseKey = "Caps", "an unknown saved click key falls back to Caps")
+            IniWrite("Win", path, "Controls", "ClickKey")
             InitializeCascadeState()
             this.Assert(CascadeState.targetDisplay = expectedDisplay && CascadeState.mirrored
                 && CascadeState.focusCornerInactiveSlotColorName = "Cyan",
                 "cascade choices survive state initialization")
             app.Settings.ResetModulePreferences(Map("cascade-kingdom", cascade.resetSections))
             this.Assert(IniRead(path, "FocusTabs", "InactiveSlotColor", "missing") = "missing"
-                && IniRead(path, "Controls", "Mirrored", "missing") = "missing",
-                "factory reset includes mirroring and the inactive tab color")
+                && IniRead(path, "Controls", "Mirrored", "missing") = "missing"
+                && IniRead(path, "Controls", "ClickKey", "missing") = "missing",
+                "factory reset includes the click key, mirroring and the inactive tab color")
             InitializeCascadeState()
             app.ui.ShowModuleSettings("paper-pad")
             window := app.ui.windows["settings:paper-pad"]
@@ -519,6 +535,49 @@ class CascadeChecks {
         }
     }
 
+    ; The lit guide is the slot the drop takes after compaction, within the
+    ; wider drop reach.
+    static DropLanding() {
+        InitializeCascadeState()
+        first := SuiteGui("+Resize", "Drop landing first")
+        second := SuiteGui("+Resize", "Drop landing second")
+        try {
+            CascadeState.displays := ReadCascadeDisplays().displays
+            first.Show("NA x60 y60 w320 h220")
+            monitor := WindowMonitorIndex(first.Hwnd)
+            geometry := GetCanonicalCascadeGeometry(monitor)
+            slots := geometry.slots
+            if slots.Length < 6 {
+                this.Assert(true, "drop landing needs six slots; skipped on this display")
+                return
+            }
+            second.Show("NA")
+            for index, window in [first, second]
+                WinMovePixels(slots[index][1], slots[index][2], geometry.width, geometry.height, "ahk_id " window.Hwnd)
+            CascadeState.history[monitor] := [first.Hwnd, second.Hwnd]
+            dragged := 0x7FFF0001  ; never read as a window: only placed in the plan
+            ; Slots step diagonally down-right, so offsets across that diagonal
+            ; keep every other slot out of reach.
+            Landing(slot, dx, dy) {
+                drag := {hwnd: dragged, landing_stacks: Map()}
+                target := {monitor: monitor, geometry: geometry, x: slot[1] + dx}
+                return CascadeDropLandingSlot(drag, target, slot[2] + dy)
+            }
+            this.Assert(Landing(slots[2], 100, -100) = 2,
+                "a drop 100 px off an occupied slot takes it, and its window moves on")
+            this.Assert(Landing(slots[6], 0, 0) = 3,
+                "a drop past the end of the cascade lands at its end")
+            reach := CascadeState.dropTolerance + 1
+            this.Assert(Landing(slots[1], reach, -reach) = 0,
+                "a drop beyond the drop reach takes the window out")
+        }
+        finally {
+            InitializeCascadeState()
+            first.Destroy()
+            second.Destroy()
+        }
+    }
+
     static Guides() {
         app := SuiteApplication(true, SuiteChecks.directory "\cascade-guide-tests")
         cascade := CascadeKingdomModule(app)
@@ -526,15 +585,17 @@ class CascadeChecks {
         slots := [[left + 30, top + 30], [left + 58, top + 54]]
         foreground := DllCall("GetForegroundWindow", "ptr")
         try {
-            CascadeDropGuides.Show(slots, 96, "808080")
+            CascadeDropGuides.Show(slots, 96, 1)
             this.Assert(CascadeDropGuides.windows.Length = 2, "one guide is created per visible slot")
             first := CascadeDropGuides.windows[1].Hwnd
             for window in CascadeDropGuides.windows {
                 style := WinGetExStyle(window.Hwnd)
-                this.Assert((style & 0x08000020) = 0x08000020
-                    && WinGetTransparent(window.Hwnd) = 255 && IsIgnoredByCascade(window.Hwnd),
-                    "drop guides are opaque, non-activating, click-through and excluded from adoption")
+                this.Assert((style & 0x08000020) = 0x08000020 && IsIgnoredByCascade(window.Hwnd),
+                    "drop guides are non-activating, click-through and excluded from adoption")
             }
+            this.Assert(WinGetTransparent(first) = 255
+                && WinGetTransparent(CascadeDropGuides.windows[2].Hwnd) = CascadeState.focusCornerInactiveSlotAlpha,
+                "the slot a drop would take is opaque and the others as faint as inactive focus tabs")
             this.Assert(DllCall("GetForegroundWindow", "ptr") = foreground,
                 "showing guides does not steal focus")
             region := DllCall("gdi32\CreateRectRgn", "int", 0, "int", 0, "int", 0, "int", 0, "ptr")
@@ -549,17 +610,18 @@ class CascadeChecks {
                 if region
                     DllCall("gdi32\DeleteObject", "ptr", region)
             }
-            CascadeDropGuides.Show(slots, 96, "808080")
+            CascadeDropGuides.Show(slots, 96, 1)
             this.Assert(CascadeDropGuides.windows[1].Hwnd = first,
                 "unchanged drag guides reuse their windows")
             CancelCascadeWindowDrop()
             this.Assert(!DllCall("IsWindowVisible", "ptr", first, "int"),
                 "cancelling a drag hides its guides immediately")
-            CascadeDropGuides.Show(slots, 144, "00BCD4")
-            this.Assert(CascadeDropGuides.windows[1].Hwnd = first,
-                "DPI and color changes reuse the guide windows")
+            CascadeDropGuides.Show(slots, 144, 0)
+            this.Assert(CascadeDropGuides.windows[1].Hwnd = first
+                && WinGetTransparent(first) = CascadeState.focusCornerInactiveSlotAlpha,
+                "DPI and highlight changes reuse the guide windows, and with no slot in reach none is lit")
             ; Mirrored: a 20 px guide marks the top-right corner of a 300 px window.
-            CascadeDropGuides.Show(slots, 96, "808080", 300)
+            CascadeDropGuides.Show(slots, 96, 1, 300)
             WinGetPosPixels(&guideX, &guideY, , , first)
             region := DllCall("gdi32\CreateRectRgn", "int", 0, "int", 0, "int", 0, "int", 0, "ptr")
             try {

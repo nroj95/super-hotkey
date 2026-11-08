@@ -84,10 +84,12 @@ class CascadeKingdomModule extends SuiteModule {
         if ui.Existing(key)
             return
         rows := SuitePageRows(ui.NewWindow(key, "Cascade Kingdom - Settings", true), 600)
-        rows.Text("Add windows with Caps + Insert, or hold Caps, Win or Pause and double-click one.")
+        rows.Text("Add windows with Caps + Insert, or hold the click-to-focus key and double-click one.")
         choices := ui.DisplayChoices(CascadeState.targetDisplay, true)
         this.displayChoices := choices.values
         rows.Field("Cascade on", "DropDownList", "w300 vdisplay", choices.names).Choose(choices.selected)
+        rows.Field("Click to focus while holding", "DropDownList", "w120 vclickKey", CascadeState.mouseKeyChoices)
+            .Choose(CascadeState.mouseKey)
         rows.Checkbox("Mirror: cascade toward the left", "vmirrored").Value := CascadeState.mirrored
         rows.Checkbox("Show focus tabs", "vtabs").Value := CascadeState.focusCornerVisible
         colors := []
@@ -95,7 +97,8 @@ class CascadeKingdomModule extends SuiteModule {
             colors.Push(name)
         rows.Field("Inactive-slot tab color", "DropDownList", "w210 vinactiveColor", colors)
             .Choose(CascadeState.focusCornerInactiveSlotColorName)
-        rows.Text("Active tabs and drop guides use the Windows accent color."
+        rows.Text("Caps and Pause need Secret Layers."
+            . "`nActive tabs and drop guides use the Windows accent color."
             . "`nDisplay changes release other displays without moving windows."
             . "`nClick Apply to use these settings.")
         rows.Show(ui, key, [["Apply", ObjBindMethod(this, "SaveSettings", ui)],
@@ -104,6 +107,7 @@ class CascadeKingdomModule extends SuiteModule {
 
     RestoreSettings(window) {
         window["display"].Choose(SuiteInterface.DisplayIndex(this.displayChoices, "All"))
+        window["clickKey"].Choose("Caps")
         window["mirrored"].Value := 0
         window["tabs"].Value := 1
         window["inactiveColor"].Choose("White")
@@ -116,14 +120,19 @@ class CascadeKingdomModule extends SuiteModule {
         window := ui.windows[key]
         try {
             display := this.displayChoices[window["display"].Value]
+            clickKey := window["clickKey"].Text
+            if !IsCascadeMouseKeyChoice(clickKey)
+                throw ValueError("Select a valid click-to-focus key.")
             mirrored := window["mirrored"].Value != 0
             visible := window["tabs"].Value != 0
             inactiveName := window["inactiveColor"].Text
             if !CascadeState.focusTabColorPresets.Has(inactiveName)
                 throw ValueError("Select a valid inactive tab color.")
             this.app.Settings.WritePreferences(this.id, Map(
-                "Controls", Map("Display", display, "Mirrored", mirrored ? 1 : 0),
+                "Controls", Map("Display", display, "ClickKey", clickKey, "Mirrored", mirrored ? 1 : 0),
                 "FocusTabs", Map("Visible", visible ? 1 : 0, "InactiveSlotColor", inactiveName)))
+            CascadeState.mouseKey := clickKey
+            CascadeState.mouseKeyLast := 0
             if CascadeState.mirrored != mirrored {
                 CascadeState.mirrored := mirrored
                 QueueCascadeDisplayRefresh()
@@ -156,16 +165,17 @@ class CascadeKingdomModule extends SuiteModule {
 
         ADD A WINDOW
         Press Caps + Insert to add the active window, and Caps + Shift + Insert to take it out again: it returns to where it was before it joined.
-        Or hold Caps, Win or Pause and double-click anywhere on a window to add it, and double-click it again to take it out, back to where it was.
-        While one of them is held, clicks only focus windows and never reach what is inside them.
+        Or hold Caps and double-click anywhere on a window to add it, and double-click it again to take it out, back to where it was.
+        While Caps is held, clicks only focus windows and never reach what is inside them.
+        Settings can use Pause or Win for this instead, or turn it off.
         Caps and Pause need Secret Layers; Win works without it.
         With one display selected in Settings, added windows move there.
         A disconnected selected display pauses adding until it returns or you change Settings.
 
         MOVE A WINDOW
         Dragging a window in a cascade shows corner guides on the slots.
-        Releasing with its top-left corner on one moves it to that slot, on this display or another.
-        Released anywhere else, it leaves the cascade where you dropped it, at the size it had before it joined.
+        The guide in your accent color is the slot it will take, on this display or another, and releasing moves it there.
+        With no guide lit, releasing leaves the cascade where you dropped it, at the size it had before it joined.
         With one display selected in Settings, dragging a window to another display takes it out too.
         Resizing it by any edge also takes it out, as large and where you left it.
 

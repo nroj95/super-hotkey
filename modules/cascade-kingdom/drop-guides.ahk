@@ -1,9 +1,11 @@
 ; Visual hints only, for cascade members, the only windows a drop can place.
-; The existing native drag watcher owns their lifetime.
+; The existing native drag watcher owns their lifetime. Like the focus tabs,
+; the slot a drop would take shows in the accent color, opaque, and the
+; others in the inactive tab color at its opacity; with none lit, releasing
+; takes the window out.
 class CascadeDropGuides {
     static windows := []
     static signature := ""
-    static alpha := 255 ; Fully opaque, matching active focus tabs.
 
     static Update(drag) {
         if !IsCascadeEnabled() || IsCascadeDisplayTransition() || drag.cancelled
@@ -34,7 +36,8 @@ class CascadeDropGuides {
                     this.Hide()
                     return
                 }
-                this.Show(target.geometry.slots, GetCascadeMonitorDpi(target.monitor), SuiteAccentColor(),
+                this.Show(target.geometry.slots, GetCascadeMonitorDpi(target.monitor),
+                    CascadeDropLandingSlot(drag, target, frame_y),
                     CascadeState.mirrored ? target.geometry.width : 0)
             }
             finally Critical(previous_critical)
@@ -46,11 +49,14 @@ class CascadeDropGuides {
     }
 
     ; Each guide marks a slot's top-left corner, or with mirror_width the
-    ; top-right corner of a window that wide there.
-    static Show(slots, dpi, color, mirror_width := 0) {
+    ; top-right corner of a window that wide there. highlight is the slot a
+    ; drop would take, or 0.
+    static Show(slots, dpi, highlight, mirror_width := 0) {
         size := Max(12, ScaleForDpi(20, dpi))
         thickness := Max(2, ScaleForDpi(2, dpi))
-        signature := size ":" thickness ":" color ":" mirror_width
+        active := SuiteAccentColor()
+        inactive := CascadeState.focusCornerInactiveSlotColor
+        signature := size ":" thickness ":" active ":" inactive ":" highlight ":" mirror_width
         for position in slots
             signature .= "|" position[1] "," position[2]
         if signature = this.signature
@@ -63,10 +69,12 @@ class CascadeDropGuides {
                         "-Caption -Border -DPIScale +ToolWindow +AlwaysOnTop +E0x08000020",
                         "Cascade Kingdom drop guide")
                     this.windows.Push(window)
-                    WinSetTransparent(this.alpha, window.Hwnd)
                 }
                 window := this.windows[index]
-                window.BackColor := color
+                lit := index = highlight
+                window.BackColor := lit ? active : inactive
+                WinSetTransparent(lit ? CascadeState.focusCornerActiveSlotAlpha
+                    : CascadeState.focusCornerInactiveSlotAlpha, window.Hwnd)
                 ; One L-shaped region avoids doubled opacity where two bars meet.
                 x := mirror_width ? position[1] + mirror_width - size : position[1]
                 ShowPhysicalGui(window, "Hide x" x " y" position[2] " w" size " h" size)

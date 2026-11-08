@@ -1,7 +1,7 @@
-; Cascade Kingdom's mouse keys: while one is held, the mouse handles windows
-; instead of their contents. Caps and Pause work through their Secret Layers
-; layers; Win needs no Secret Layers. None of them does anything else with the
-; mouse, so all three always work, without a setting.
+; Cascade Kingdom's mouse key: while the click-to-focus key chosen in Settings
+; is held, the mouse handles windows instead of their contents. Caps and Pause
+; work through their Secret Layers layers; Win needs no Secret Layers. Off
+; leaves every click alone.
 ;
 ; Click contract:
 ; - a left press on an application window focuses it; the app never sees it;
@@ -14,17 +14,23 @@
 ; - the taskbar, the desktop, Start, focus tabs and suite windows keep their
 ;   clicks;
 ; - with Caps or Pause, a claimed press uses the layer, so releasing the key
-;   is never a tap; with Win, even alongside a layer, only the Win hotkey (#)
-;   takes the press, for which AutoHotkey sends the menu mask key as Win comes
-;   up, after the key's auto-repeat, so releasing Win never opens Start.
+;   is never a tap; with Win, only the Win hotkey (#) takes the press, for
+;   which AutoHotkey sends the menu mask key as Win comes up, after the key's
+;   auto-repeat, so releasing Win never opens Start.
 
 MouseKeyWinHeld() => GetKeyState("LWin", "P") || GetKeyState("RWin", "P")
 
-; The Caps or Pause layer is held.
-MouseKeyLayerHeld()
+; The chosen key is held. win says whether this is the Win hotkey, which
+; alone sees presses while Win is held.
+MouseKeyHeld(win)
 {
+    key := CascadeState.mouseKey
+    if key = "Win"
+        return win && MouseKeyWinHeld()
+    if win || MouseKeyWinHeld() || (key != "Caps" && key != "Pause")
+        return false
     manager := SuiteState.App.manager
-    return IsObject(manager) && (manager.LayerHeld("caps") || manager.LayerHeld("pause"))
+    return IsObject(manager) && manager.LayerHeld(StrLower(key))
 }
 
 ; The application window under the pointer, or 0 over shell surfaces and
@@ -39,16 +45,15 @@ MouseKeyTarget()
     return 0
 }
 
-; A press is ours while a mouse key is held over an application window.
+; A press is ours while the chosen key is held over an application window.
 ; button is "" for the wheel, which has no release; win says whether this is
-; the Win hotkey, which alone claims presses while Win is held.
+; the Win hotkey.
 CanClaimMouseKeyClick(button, win)
 {
     ; A new press means any claimed release of this button already happened.
     if button != "" && CascadeState.mouseKeyButtons.Has(button)
         CascadeState.mouseKeyButtons.Delete(button)
-    held := win ? MouseKeyWinHeld() : !MouseKeyWinHeld() && MouseKeyLayerHeld()
-    claim := held && IsCascadeEnabled() && MouseKeyTarget()
+    claim := MouseKeyHeld(win) && IsCascadeEnabled() && MouseKeyTarget()
     ; Own the release from here, not from the press handler: a quick release
     ; is judged before that queued handler runs, and a bare release still
     ; clicks some buttons, such as File Explorer's minimize, maximize and close.

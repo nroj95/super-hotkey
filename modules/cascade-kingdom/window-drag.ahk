@@ -136,6 +136,7 @@ BeginCascadeWindowDrag(hwnd, event_time)
     drag.native_ended := false
     drag.native_state_unknown_since := 0
     drag.completing := false
+    drag.landing_stacks := Map()  ; display -> its other members' slot stacks
     CascadeState.windowDrag := drag
     CascadeState.dragGeneration += 1
 
@@ -307,6 +308,41 @@ CascadeDropTarget(frame_x, frame_y, frame_width)
         x: CascadeState.mirrored ? frame_x + frame_width - geometry.width : frame_x}
 }
 
+; The slot a drop takes there: the nearest slot within reach, then wherever
+; compaction keeps the window, as the drop and CompactCascadeLayout will
+; decide. 0 when the drop takes the window out. The other members do not move
+; during a drag, so their stacks are read once per display.
+CascadeDropLandingSlot(drag, target, frame_y)
+{
+    slots := target.geometry.slots
+    slot_index := FindNearestCascadeSlot(target.x, frame_y, slots, CascadeState.dropTolerance)
+    if !slot_index || !CascadeDisplayAllowed(target.monitor)
+        return 0
+    if !drag.landing_stacks.Has(target.monitor) {
+        others := []
+        for hwnd in GetLiveCascadeHistory(target.monitor)
+            if hwnd != drag.hwnd
+                others.Push(hwnd)
+        order := others.Length ? ReadCascadeSlotOrder(target.monitor, others) : 0
+        if !order || order.stacks.Length != slots.Length {
+            order := {stacks: []}
+            loop slots.Length
+                order.stacks.Push([])
+        }
+        drag.landing_stacks[target.monitor] := order.stacks
+    }
+    stacks := []
+    for stack in drag.landing_stacks[target.monitor]
+        stacks.Push(stack.Clone())
+    ; The dropped window is active, so it is the front of its slot.
+    stacks[slot_index].InsertAt(1, drag.hwnd)
+    for index, stack in BuildStableCascadeCompactionPlan(stacks, drag.hwnd)
+        for hwnd in stack
+            if hwnd = drag.hwnd
+                return index
+    return slot_index
+}
+
 CompleteCascadeWindowDrop(drag)
 {
     if !IsCascadeEnabled()
@@ -334,7 +370,7 @@ CompleteCascadeWindowDrop(drag)
         && (target := CascadeDropTarget(frame_x, frame_y, frame_width)) {
         monitor_index := target.monitor
         geometry := target.geometry
-        slot_index := FindNearestCascadeSlot(target.x, frame_y, geometry.slots, CascadeState.slotTolerance)
+        slot_index := FindNearestCascadeSlot(target.x, frame_y, geometry.slots, CascadeState.dropTolerance)
         if slot_index && CascadeDisplayAllowed(monitor_index) {
             if PlaceCascadeWindowOnMonitor(hwnd, monitor_index, geometry.slots[slot_index]) {
                 RemoveWindowFromMinimizeState(hwnd)

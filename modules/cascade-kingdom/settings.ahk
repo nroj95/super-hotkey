@@ -20,11 +20,13 @@ CascadeState.windowHeightRatio := 0.80
 CascadeState.stepX := 28
 CascadeState.stepY := 24
 
-; One tolerance for slot membership and mouse drops (screen-coordinate pixels).
-; During a native drag, the original slot is retained. On release, the visible
-; top-left, or top-right when mirrored, must be within this distance on both
-; axes; the closest slot wins.
+; How far from a slot a window still counts as in it (screen-coordinate pixels).
+; During a native drag, the original slot is retained.
 CascadeState.slotTolerance := 56
+; Drops reach twice as far, so slots catch a dragged window more easily. On
+; release, the visible top-left, or top-right when mirrored, must be within
+; this distance on both axes; the closest slot wins.
+CascadeState.dropTolerance := 112
 
 ; Restore requests can finish before their native/DWM rectangles settle.
 ; Poll only during restores; a failed restore must not lock compaction forever.
@@ -129,6 +131,11 @@ CascadeState.restoreRequestDepth := 0
 CascadeState.closeBatches := Map()
 CascadeState.targetDisplay := IniRead(CascadeState.settingsPath, "Controls", "Display", "All")
 CascadeState.mirrored := IniRead(CascadeState.settingsPath, "Controls", "Mirrored", "0") = "1"
+; The key held for mouse-key clicks (see mouse-key.ahk), or Off.
+CascadeState.mouseKeyChoices := ["Caps", "Pause", "Win", "Off"]
+CascadeState.mouseKey := IniRead(CascadeState.settingsPath, "Controls", "ClickKey", "Caps")
+if !IsCascadeMouseKeyChoice(CascadeState.mouseKey)
+    CascadeState.mouseKey := "Caps"
 CascadeState.minimizeInProgress := false
 CascadeState.minimizedWindows := []
 
@@ -143,4 +150,12 @@ CascadeState.mouseKeyLast := 0         ; the last mouse-key left press, for doub
 
 CascadeState.winEventCallback := 0
 CascadeState.winEventHooks := []
+}
+
+IsCascadeMouseKeyChoice(name)
+{
+    for choice in CascadeState.mouseKeyChoices
+        if name == choice
+            return true
+    return false
 }
