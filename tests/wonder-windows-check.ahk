@@ -35,9 +35,14 @@ class WonderWindowsChecks {
             this.Assert(WW_RectanglesMatch(WW_GetWindowLayoutRectangle(hwnd),
                 [work[1], original[2], work[3] - work[1], original[4]], 3),
                 "then to full width, keeping its height and top")
-            WW_CycleFullSpan()
-            this.Assert(WW_RectanglesMatch(WW_GetWindowLayoutRectangle(hwnd), original, 3),
-                "then puts the window back as it was")
+            returned := []
+            handler := (hwnd, shape) => returned.Push(hwnd)
+            SuiteWindowOwnership.OnReturn(handler)
+            try WW_CycleFullSpan()
+            finally SuiteWindowOwnership.OffReturn(handler)
+            this.Assert(WW_RectanglesMatch(WW_GetWindowLayoutRectangle(hwnd), original, 3)
+                && !SuiteWindowOwnership.IsManual(hwnd) && returned.Length = 1 && returned[1] = hwnd,
+                "then puts the window back as it was, handing a lent cascade window back like Win + Down")
             WW_CycleFullSpan()
             WW_RestoreToNormalSize()
             this.Assert(WW_RectanglesMatch(WW_GetWindowLayoutRectangle(hwnd), original, 3)
@@ -345,6 +350,20 @@ class WonderWindowsChecks {
                     "adoption discards a stretch that would otherwise undo the new cascade")
                 this.Assert(!WW_normal_window_placements.Has(window.Hwnd),
                     "adoption starts a fresh manual-restore history")
+                returned := []
+                handler := (hwnd, shape) => returned.Push({hwnd: hwnd, shape: shape})
+                SuiteWindowOwnership.OnReturn(handler)
+                try {
+                    this.Assert(!SuiteWindowOwnership.Return(window.Hwnd) && !returned.Length,
+                        "a window never placed by hand has nothing to return")
+                    SuiteWindowOwnership.Claim(window.Hwnd)
+                    shape := CaptureWindowShape(window.Hwnd)
+                    this.Assert(SuiteWindowOwnership.Return(window.Hwnd, shape)
+                        && !SuiteWindowOwnership.IsManual(window.Hwnd)
+                        && returned.Length = 1 && returned[1].hwnd = window.Hwnd && returned[1].shape = shape,
+                        "returning a window to its original shape ends manual ownership and tells the lender where it was")
+                }
+                finally SuiteWindowOwnership.OffReturn(handler)
                 SuiteWindowOwnership.Claim(window.Hwnd)
                 DllCall("RemovePropW", "ptr", window.Hwnd, "str", SuiteWindowOwnership.marker, "ptr")
                 this.Assert(!SuiteWindowOwnership.IsManual(window.Hwnd), "a lost per-window marker invalidates cached manual ownership")

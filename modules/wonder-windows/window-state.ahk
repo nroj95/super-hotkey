@@ -44,7 +44,7 @@ WW_MaximizeWindowTarget()
 
         if next_index = 0 {
             ; Maximizing places nothing by hand: like the maximize button, it
-            ; keeps a cascade window in its cascade, which lends its slot out
+            ; keeps a cascade window in its cascade, which keeps its slot
             ; until the window is restored.
             WW_ForgetStretches(hwnd)
             WW_ForgetWindowLayoutCycle(hwnd)
@@ -277,9 +277,10 @@ WW_RestoreMinimizedWindow()
 }
 
 ; Win + Down takes the active window back to normal size: a maximized or
-; fullscreen window, or one Wonder Windows placed in a zone, a half or a full
-; height or width, returns to its normal rectangle. It never minimizes, which
-; is Win + Backspace's job; a window already at normal size says so.
+; fullscreen window, or one Wonder Windows placed in a zone, a half or a
+; stretch, returns to its normal rectangle, and a cascade window lent out
+; returns to its slot. It never minimizes, which is Win + Backspace's job; a
+; window already at normal size says so.
 WW_RestoreToNormalSize()
 {
     global WW_normal_window_placements
@@ -311,6 +312,7 @@ WW_RestoreWindowTarget()
         return
 
     try {
+        placed := CaptureWindowShape(hwnd)
         if !WW_RestoreNormalWindowPlacement(hwnd) {
             WinRestore(hwnd)
             if WinGetMinMax(hwnd) = 1
@@ -319,10 +321,11 @@ WW_RestoreWindowTarget()
         WW_ForgetStretches(hwnd)
         WW_ForgetWindowLayoutCycle(hwnd)
         WinActivate(hwnd)
-        ; Back at its original shape, the window is no longer placed by hand.
+        ; Back at its original shape, the window is no longer placed by hand;
+        ; a cascade window lent out rejoins its slot, remembering where it was.
         ; A maximized cascade window was never claimed, so it simply takes its
         ; slot back, as after the maximize button.
-        SuiteWindowOwnership.Release(hwnd, false)
+        SuiteWindowOwnership.Return(hwnd, placed)
     }
     catch Error as err
         WW_DebugError("Restore normal window", err)

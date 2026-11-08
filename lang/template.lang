@@ -376,7 +376,7 @@ Win + Shift + Up stretches the window to the full height of the display, then to
 Win + Shift + Down stretches it into the free space around it, up to the windows you can see, and again puts it back; with nothing beside it, it maximizes.
 =
 
-A maximized or minimized cascade window keeps its place in its cascade; a zone, half or stretch takes it out.
+A cascade window keeps its place in its cascade while it's maximized, minimized, in a zone, a half or a stretch, and Win + Down puts it back there.
 =
 
 FOCUS, STACKS AND FULLSCREEN

@@ -30,7 +30,8 @@ class CascadeKingdomModule extends SuiteModule {
         manager.Observe("~*LButton", IsCascadeEnabled, (*) => CaptureCascadeMousePress())
         manager.Observe("~*LButton Up", IsCascadeEnabled, (*) => CaptureCascadeMouseRelease())
         manager.Observe("~*Escape", HasCascadeWindowDrag, (*) => CancelCascadeWindowDrop())
-        SuiteWindowOwnership.OnClaim(CascadeReleaseManualWindow)
+        SuiteWindowOwnership.OnClaim(CascadeForgetManualWindow)
+        SuiteWindowOwnership.OnReturn(CascadeTakeBackWindow)
     }
 
     Suspend() {
@@ -67,7 +68,8 @@ class CascadeKingdomModule extends SuiteModule {
         ; started leaves the saved ones alone.
         if this.started && !this.app.dryRun
             SaveCascades()
-        SuiteWindowOwnership.OffClaim(CascadeReleaseManualWindow)
+        SuiteWindowOwnership.OffClaim(CascadeForgetManualWindow)
+        SuiteWindowOwnership.OffReturn(CascadeTakeBackWindow)
         CascadeDropGuides.Destroy()
         CascadeState.commandQueue := []
         SetTimer(DrainCascadeCommandQueue, 0)
@@ -187,11 +189,43 @@ class CascadeKingdomModule extends SuiteModule {
     )"
 }
 
-; A window that Wonder Windows positions by hand, in a zone, a half or a full
-; height or width, leaves its cascade where Wonder Windows put it, as if
-; dragged out. Only minimized and maximized members keep their slot.
-CascadeReleaseManualWindow(hwnd)
+; A window that Wonder Windows positions by hand leaves its cascade at once,
+; lent rather than lost: its slot is kept until it returns, closes or joins anew.
+CascadeForgetManualWindow(hwnd)
 {
-    if GetManagedCascadeMonitor(hwnd)
-        ReleaseCascadeWindow(hwnd)
+    monitor := GetManagedCascadeMonitor(hwnd)
+    if monitor && !CascadeState.windowSlots.Has(hwnd)
+        RememberCascadeSlot(hwnd, monitor)
+    if monitor && CascadeState.windowSlots.Has(hwnd)
+        CascadeState.lentWindows[hwnd] := CascadeState.windowSlots[hwnd].Clone()
+    CancelPlacementStabilization(hwnd)
+    RemoveCascadeWindowFromHistory(hwnd)
+    RemoveWindowFromMinimizeState(hwnd)
+    if monitor
+        QueueCascadeCompaction(monitor)
+    QueueFocusCornerUpdate()
+}
+
+; Wonder Windows returned a lent window to its original shape: it rejoins its
+; slot, and Caps + Shift + Insert later returns it to the shape Wonder Windows
+; had given it, the last one the user saw outside the cascade.
+CascadeTakeBackWindow(hwnd, shape)
+{
+    if !CascadeState.lentWindows.Has(hwnd)
+        return
+    lent := CascadeState.lentWindows.Delete(hwnd)
+    try {
+        if WinGetPID(hwnd) != lent.pid
+            return
+    }
+    catch
+        return
+    monitor := FindCascadeMonitorDevice(lent.device)
+    if !CascadeDisplayAllowed(monitor)
+        return
+    slots := CascadeState.displays[monitor].geometry.slots
+    if !PlaceCascadeWindowOnMonitor(hwnd, monitor, slots[Min(lent.slot, slots.Length)])
+        return
+    RememberCascadeJoinPosition(hwnd, shape, true)
+    QueueCascadeCompaction(monitor, hwnd)
 }

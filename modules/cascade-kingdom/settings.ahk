@@ -105,6 +105,7 @@ CascadeState.placementReservations := Map()
 CascadeState.placementStabilizationGenerations := Map()
 CascadeState.placementStabilizationGenerationCounter := 0
 CascadeState.joinPositions := Map()
+CascadeState.lentWindows := Map()  ; members Wonder Windows placed: their slot until they return
 CascadeState.pollMs := 1000
 CascadeState.history := Map()
 ; A display snapshot is refreshed by notifications and the slow polling fallback.

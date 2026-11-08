@@ -744,11 +744,15 @@ class CascadeChecks {
         InitializeCascadeState()
         member := SuiteGui("+Resize", "Saved cascade member")
         closed := SuiteGui("+Resize", "Saved cascade closed window")
+        lent := SuiteGui("+Resize", "Saved cascade lent window")
+        returned := SuiteGui("+Resize", "Saved cascade returned window")
         previousCritical := Critical("On")
         try {
             CascadeState.displays := ReadCascadeDisplays().displays
             member.Show("NA x60 y60 w320 h220")
             closed.Show("NA x80 y80 w320 h220")
+            lent.Show("NA x100 y100 w320 h220")
+            returned.Show("NA x120 y120 w320 h220")
             WinMaximize(member.Hwnd)
             position := CaptureWindowShape(member.Hwnd)
             position.was_manual := true
@@ -758,6 +762,14 @@ class CascadeChecks {
             WinMovePixels(slot[1], slot[2], 400, 300, "ahk_id " member.Hwnd)
             CascadeState.history[monitor] := [member.Hwnd, closed.Hwnd]
             CascadeState.joinPositions[member.Hwnd] := position
+            ; One loan is still maximized by Wonder Windows; the other is back in slot 2.
+            WinMaximize(lent.Hwnd)
+            slot2 := GetCanonicalCascadeGeometry(monitor).slots[2]
+            WinMovePixels(slot2[1], slot2[2], 400, 300, "ahk_id " returned.Hwnd)
+            device := CascadeState.displays[monitor].device
+            for window in [lent, returned]
+                CascadeState.lentWindows[window.Hwnd] := {pid: WinGetPID(window.Hwnd), monitor: monitor,
+                    device: device, slot: 2}
             SaveCascades()
 
             ; A closed window and a handle now owned by another process stay out.
@@ -781,16 +793,20 @@ class CascadeChecks {
             this.Assert(samePlacement && restored.x = position.x && restored.width = position.width
                 && restored.was_manual,
                 "a restored member keeps its join position, maximized placement included")
-            ; A Wonder Windows zone or toggle takes a member out; nothing is lent.
-            CascadeReleaseManualWindow(member.Hwnd)
-            this.Assert(!GetManagedCascadeMonitor(member.Hwnd),
-                "a window Wonder Windows places by hand leaves its cascade")
+            this.Assert(CascadeState.lentWindows.Has(lent.Hwnd) && CascadeState.lentWindows[lent.Hwnd].slot = 2
+                && SuiteWindowOwnership.IsManual(lent.Hwnd) && !GetManagedCascadeMonitor(lent.Hwnd),
+                "a restart keeps a window lent to Wonder Windows, claimed so Win + Down can return it")
+            this.Assert(GetManagedCascadeMonitor(returned.Hwnd) = monitor
+                && !CascadeState.lentWindows.Has(returned.Hwnd),
+                "a lent window already back in a slot rejoins on restart")
         }
         finally {
             InitializeCascadeState()
             SetTimer(RunQueuedFocusCornerUpdate, 0)
-            SetTimer(FlushCascadeCompactions, 0)
+            SuiteWindowOwnership.Release(lent.Hwnd, false)
             member.Destroy()
+            lent.Destroy()
+            returned.Destroy()
             try closed.Destroy()
             Critical(previousCritical)
         }

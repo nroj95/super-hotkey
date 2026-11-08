@@ -383,7 +383,7 @@ class WonderWindowsModule extends SuiteModule {
         Win + Down takes it back to normal size, out of maximized or fullscreen, a zone, a half or a stretch; it never minimizes.
         Win + Shift + Up stretches the window to the full height of the display, then to the full width, then puts it back.
         Win + Shift + Down stretches it into the free space around it, up to the windows you can see, and again puts it back; with nothing beside it, it maximizes.
-        A maximized or minimized cascade window keeps its place in its cascade; a zone, half or stretch takes it out.
+        A cascade window keeps its place in its cascade while it's maximized, minimized, in a zone, a half or a stretch, and Win + Down puts it back there.
 
         FOCUS, STACKS AND FULLSCREEN
         Win + PgDn and PgUp step focus through every window on screen in reading order: displays left to right, columns left to right, top before bottom, and outline the window they reach; double-tap Caps to outline where you are.

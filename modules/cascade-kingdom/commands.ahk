@@ -48,9 +48,14 @@ GetLiveCascadeMonitor(hwnd)
 }
 
 ; Where a window was before it joined (a CaptureWindowShape). Each join
-; replaces it, so a position never outlives the membership it belongs to.
+; replaces it, so a position never outlives the membership it belongs to; a
+; window back from Wonder Windows joins anew from where Wonder Windows had it.
+; A fresh join also ends a loan.
 RememberCascadeJoinPosition(hwnd, position, was_manual)
 {
+    if CascadeState.lentWindows.Has(hwnd)
+        CascadeState.lentWindows.Delete(hwnd)
+
     if IsObject(position) {
         position.was_manual := was_manual
         CascadeState.joinPositions[hwnd] := position

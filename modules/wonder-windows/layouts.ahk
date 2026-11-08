@@ -19,6 +19,7 @@ WW_CycleFullSpan()
         return
 
     try {
+        fresh := WW_IsFreshPlacement(hwnd)
         WW_PrepareWindowForPlacement(hwnd, false)
         monitor := WindowMonitor(hwnd)
         work := WW_GetLayoutWorkArea(hwnd)
@@ -28,9 +29,9 @@ WW_CycleFullSpan()
             saved := WW_full_span_windows.Delete(hwnd)
             if WW_IsPlacementStateCurrent(hwnd, saved, monitor, work)
                 && WW_RectanglesMatch(saved["applied"], current, 3) {
-                before := saved["before"]
+                before := saved["before"], fresh := saved["fresh"]
                 if saved["step"] = "width" {
-                    WW_MoveWindowToVisibleRectangle(hwnd, before)
+                    WW_StretchBack(hwnd, before, fresh)
                     return
                 }
                 step := "width"
@@ -43,7 +44,7 @@ WW_CycleFullSpan()
             return
         WW_ForgetWindowLayoutCycle(hwnd)
         WW_full_span_windows[hwnd] := Map("pid", WinGetPID(hwnd), "monitor", monitor, "work_area", work,
-            "before", before, "step", step, "applied", WW_GetWindowLayoutRectangle(hwnd))
+            "before", before, "fresh", fresh, "step", step, "applied", WW_GetWindowLayoutRectangle(hwnd))
     }
     catch Error as failure
         WW_DebugError("Full height and width", failure)
@@ -81,7 +82,7 @@ WW_ToggleNeighborStretch()
                 }
                 if !saved["maximized"] && WinGetMinMax(hwnd) = 0
                     && WW_RectanglesMatch(saved["applied"], WW_GetWindowLayoutRectangle(hwnd), 3) {
-                    WW_MoveWindowToVisibleRectangle(hwnd, saved["before"])
+                    WW_StretchBack(hwnd, saved["before"], saved["fresh"])
                     return
                 }
             }
@@ -104,12 +105,13 @@ WW_ToggleNeighborStretch()
             SuiteNotice.Show("status", "No free space around this window", 1400)
             return
         }
+        fresh := WW_IsFreshPlacement(hwnd)
         WW_PrepareWindowForPlacement(hwnd, false)
         if !WW_MoveWindowToVisibleRectangle(hwnd, target)
             return
         WW_ForgetWindowLayoutCycle(hwnd)
         WW_neighbor_stretch_windows[hwnd] := Map("pid", WinGetPID(hwnd), "monitor", monitor,
-            "work_area", work, "maximized", false, "before", current,
+            "work_area", work, "maximized", false, "before", current, "fresh", fresh,
             "applied", WW_GetWindowLayoutRectangle(hwnd))
     }
     catch Error as failure
@@ -330,6 +332,25 @@ WW_IsPlacementStateCurrent(hwnd, saved, monitor_handle := 0, work_area := 0)
     catch {
         return false
     }
+}
+
+; True when Wonder Windows has not placed the window yet: a stretch from here
+; ends back at its original shape.
+WW_IsFreshPlacement(hwnd)
+{
+    global WW_normal_window_placements
+    return !WW_normal_window_placements.Has(hwnd)
+}
+
+; A stretch's way back. From a window's original shape it ends as Win + Down
+; does, so a cascade window lent out returns to its slot; from a zone or half
+; it goes back there.
+WW_StretchBack(hwnd, before, fresh)
+{
+    if fresh
+        WW_RestoreWindowTarget()
+    else
+        WW_MoveWindowToVisibleRectangle(hwnd, before)
 }
 
 WW_ForgetStretches(hwnd)
