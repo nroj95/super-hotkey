@@ -43,8 +43,10 @@ WW_MaximizeWindowTarget()
         next_index := WW_NextMaximizeCycleIndex(was_fullscreen, maximized, tile_index)
 
         if next_index = 0 {
-            SuiteWindowOwnership.Claim(hwnd)
-            WW_ForgetStretch(hwnd)
+            ; Maximizing places nothing by hand: like the maximize button, it
+            ; keeps a cascade window in its cascade, which lends its slot out
+            ; until the window is restored.
+            WW_ForgetFullSpan(hwnd)
             WW_ForgetWindowLayoutCycle(hwnd)
             WinMaximize(window)
         } else {
@@ -274,10 +276,11 @@ WW_RestoreMinimizedWindow()
     }
 }
 
-; Win + Down steps down: a placed, maximized or fullscreen window returns to
-; its normal rectangle; a window already there is minimized. Win + Shift +
-; Backspace brings it back.
-WW_RestoreOrMinimizeWindow()
+; Win + Down takes the active window back to normal size: a maximized or
+; fullscreen window, or one Wonder Windows placed in a zone, a half or a full
+; height or width, returns to its normal rectangle. It never minimizes, which
+; is Win + Backspace's job; a window already at normal size says so.
+WW_RestoreToNormalSize()
 {
     global WW_normal_window_placements
     Critical "On"
@@ -287,12 +290,12 @@ WW_RestoreOrMinimizeWindow()
     try {
         if WW_IsAtNormalPlacement(WinGetMinMax(hwnd), WW_IsNativeFullscreen(hwnd),
             WW_normal_window_placements.Has(hwnd))
-            WW_MinimizeActiveWindow()
+            SuiteNotice.Show("status", "Already at normal size", 1400)
         else
             WW_RestoreWindowTarget()
     }
     catch Error as err
-        WW_DebugError("Restore or minimize window", err)
+        WW_DebugError("Restore to normal size", err)
 }
 
 WW_IsAtNormalPlacement(min_max, native_fullscreen, has_saved_placement)
@@ -308,18 +311,18 @@ WW_RestoreWindowTarget()
         return
 
     try {
-        placed := CaptureWindowShape(hwnd)
         if !WW_RestoreNormalWindowPlacement(hwnd) {
             WinRestore(hwnd)
             if WinGetMinMax(hwnd) = 1
                 WinRestore(hwnd)
         }
-        WW_ForgetStretch(hwnd)
+        WW_ForgetFullSpan(hwnd)
         WW_ForgetWindowLayoutCycle(hwnd)
         WinActivate(hwnd)
-        ; Back at its original shape, the window is no longer placed by hand;
-        ; a cascade window rejoins its cascade, remembering where it was.
-        SuiteWindowOwnership.Return(hwnd, placed)
+        ; Back at its original shape, the window is no longer placed by hand.
+        ; A maximized cascade window was never claimed, so it simply takes its
+        ; slot back, as after the maximize button.
+        SuiteWindowOwnership.Release(hwnd, false)
     }
     catch Error as err
         WW_DebugError("Restore normal window", err)

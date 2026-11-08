@@ -10,6 +10,47 @@ class WonderWindowsChecks {
         this.ExpandedWindowCycle()
         this.MonitorWindowCycle()
         this.MinimizeAll()
+        this.FullSpanAndNormalSize()
+    }
+
+    ; Win + Shift + Up and Down toggle full height and width, Win + Down takes
+    ; a window back to normal size without minimizing, and Win + Up maximizes
+    ; without placing the window by hand.
+    static FullSpanAndNormalSize() {
+        window := SuiteGui("+Resize", "Full span check")
+        try {
+            SuiteWindowOwnership.AllowArranging(window)
+            window.Show("NA x200 y200 w400 h300")
+            hwnd := window.Hwnd
+            ActivateWindow(hwnd)
+            original := WW_GetWindowLayoutRectangle(hwnd)
+            work := WW_GetLayoutWorkArea(hwnd)
+            WW_ToggleFullSpan("height")
+            tall := WW_GetWindowLayoutRectangle(hwnd)
+            this.Assert(WW_RectanglesMatch(tall, [original[1], work[2], original[3], work[4] - work[2]], 3),
+                "Win + Shift + Up stretches to full height, keeping width and left edge")
+            WW_ToggleFullSpan("width")
+            this.Assert(WW_RectanglesMatch(WW_GetWindowLayoutRectangle(hwnd),
+                [work[1], work[2], work[3] - work[1], work[4] - work[2]], 3),
+                "full height and full width combine")
+            WW_ToggleFullSpan("width")
+            WW_ToggleFullSpan("height")
+            this.Assert(WW_RectanglesMatch(WW_GetWindowLayoutRectangle(hwnd), original, 3),
+                "each toggle again puts the window back as it was")
+            WW_ToggleFullSpan("height")
+            WW_RestoreToNormalSize()
+            this.Assert(WW_RectanglesMatch(WW_GetWindowLayoutRectangle(hwnd), original, 3)
+                && WinGetMinMax(hwnd) = 0,
+                "Win + Down takes a full-height window back to normal size")
+            WW_RestoreToNormalSize()
+            this.Assert(WinGetMinMax(hwnd) = 0, "Win + Down never minimizes a window at normal size")
+            WW_MaximizeWindowTarget()
+            this.Assert(WinGetMinMax(hwnd) = 1 && !SuiteWindowOwnership.IsManual(hwnd),
+                "Win + Up maximizes without placing the window by hand, so a cascade keeps it")
+            WW_RestoreToNormalSize()
+            this.Assert(WinGetMinMax(hwnd) = 0, "Win + Down takes a maximized window back to normal size")
+        }
+        finally window.Destroy()
     }
 
     static Assert(condition, label) => SuiteChecks.Assert(condition, label)
@@ -137,24 +178,6 @@ class WonderWindowsChecks {
                 "Win + Up advances lower half to maximized")
             this.Assert(WW_NextMaximizeCycleIndex(true, true, 0) = 0,
                 "Win + Up exits native fullscreen to maximized")
-            vertical := WW_GetCollisionLimitedVerticalBounds([100, 200, 300, 200],
-                [[100, 0, 300, 150], [100, 550, 300, 100], [600, 300, 200, 100]], 0, 900)
-            this.Assert(vertical[1] = 150 && vertical[2] = 550,
-                "vertical extension stops at upper and lower obstacles")
-            ; A neighbor on the left, one above the stretched span and one to the right.
-            neighbors := [[0, 200, 50, 200], [200, 0, 200, 120], [700, 100, 100, 600]]
-            this.Assert(WW_RectanglesMatch(
-                WW_NeighborStretchRectangle([100, 200, 300, 200], neighbors, [0, 0, 900, 1100], "across"),
-                [50, 200, 650, 200], 0),
-                "stretching across stops at the nearest windows on the left and right")
-            this.Assert(WW_RectanglesMatch(
-                WW_NeighborStretchRectangle([100, 200, 300, 200], neighbors, [0, 0, 900, 1100], "fill"),
-                [50, 120, 650, 980], 0),
-                "filling also stops at windows above and below the stretched span")
-            this.Assert(WW_RectanglesMatch(
-                WW_NeighborStretchRectangle([100, 200, 300, 200], [], [0, 0, 900, 1100], "fill"),
-                [0, 0, 900, 1100], 0),
-                "without neighbors, filling reaches the work area's edges")
             this.Assert(WW_RectanglesMatch(
                 WW_FitAcceptedRectangle([100, 150, 800, 500], [100, 150, 800, 500], [0, 0, 1600, 900]),
                 [100, 150, 800, 500], 0),
@@ -253,14 +276,15 @@ class WonderWindowsChecks {
                 && !WW_IsAtNormalPlacement(1, false, false)
                 && !WW_IsAtNormalPlacement(0, true, false)
                 && !WW_IsAtNormalPlacement(0, false, true),
-                "Win + Down restores placed, maximized and fullscreen windows before minimizing")
+                "Win + Down takes placed, maximized and fullscreen windows back to normal size; others are already there")
             session := WW_StartZoneSession(1, 2, work, "fourths", "down")
             this.Assert(WW_AdvanceZoneSession(session, "down", [600, 0]) = 5,
                 "zones an app cannot shrink to are skipped")
-            this.Assert(WW_GetCollisionLimitedEdge("left", [400, 0, 200, 300], [[100, 0, 200, 300]], 0) = 300,
-                "horizontal stretch stops at the nearest facing edge")
-            this.Assert(WW_GetCollisionLimitedEdge("left", [400, 0, 200, 300], [[450, 0, 200, 300]], 0) = 0,
-                "pre-existing overlap does not collapse a stretched window")
+            cycle := [101, 102, 103]
+            this.Assert(WW_NextMonitorCycleWindow(cycle, 101, 101, true) = 103
+                && WW_NextMonitorCycleWindow(cycle, 103, 103, true) = 102
+                && WW_NextMonitorCycleWindow(cycle, 0, 0, true) = 103,
+                "Win + Shift + Enter walks the stack order backwards, wrapping to the end")
             window := SuiteGui("+ToolWindow", "Owned test window")
             try {
                 this.Assert(SuiteWindowOwnership.IsSuiteSurface(window.Hwnd),
@@ -270,29 +294,15 @@ class WonderWindowsChecks {
                 this.Assert(IsIgnoredByCascade(window.Hwnd), "suite GUI is marked before it can be cascaded")
                 SuiteWindowOwnership.Claim(window.Hwnd)
                 this.Assert(SuiteWindowOwnership.IsManual(window.Hwnd), "manual geometry ownership is recorded per HWND and process")
-                global WW_stretched_windows, WW_normal_window_placements
-                WW_stretched_windows[window.Hwnd] := Map("pid", WindowProcessId(window.Hwnd))
+                global WW_full_span_windows, WW_normal_window_placements
+                WW_full_span_windows[window.Hwnd ":height"] := Map("pid", WindowProcessId(window.Hwnd))
                 WW_normal_window_placements[window.Hwnd] := Map("pid", WindowProcessId(window.Hwnd))
                 this.Assert(SuiteWindowOwnership.Release(window.Hwnd) && !SuiteWindowOwnership.IsManual(window.Hwnd),
                     "explicit adoption releases manual ownership")
-                this.Assert(!WW_stretched_windows.Has(window.Hwnd),
-                    "adoption discards stretch cleanup that would otherwise undo the new cascade")
+                this.Assert(!WW_full_span_windows.Has(window.Hwnd ":height"),
+                    "adoption discards a full-height toggle that would otherwise undo the new cascade")
                 this.Assert(!WW_normal_window_placements.Has(window.Hwnd),
                     "adoption starts a fresh manual-restore history")
-                returned := []
-                handler := (hwnd, shape) => returned.Push({hwnd: hwnd, shape: shape})
-                SuiteWindowOwnership.OnReturn(handler)
-                try {
-                    this.Assert(!SuiteWindowOwnership.Return(window.Hwnd) && !returned.Length,
-                        "a window never placed by hand has nothing to return")
-                    SuiteWindowOwnership.Claim(window.Hwnd)
-                    shape := CaptureWindowShape(window.Hwnd)
-                    this.Assert(SuiteWindowOwnership.Return(window.Hwnd, shape)
-                        && !SuiteWindowOwnership.IsManual(window.Hwnd)
-                        && returned.Length = 1 && returned[1].hwnd = window.Hwnd && returned[1].shape = shape,
-                        "returning a window to its original shape ends manual ownership and tells the lender where it was")
-                }
-                finally SuiteWindowOwnership.OffReturn(handler)
                 SuiteWindowOwnership.Claim(window.Hwnd)
                 DllCall("RemovePropW", "ptr", window.Hwnd, "str", SuiteWindowOwnership.marker, "ptr")
                 this.Assert(!SuiteWindowOwnership.IsManual(window.Hwnd), "a lost per-window marker invalidates cached manual ownership")

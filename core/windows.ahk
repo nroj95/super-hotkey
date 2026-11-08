@@ -8,13 +8,10 @@ class SuiteWindowOwnership {
     static windows := Map()
     static claimHandlers := []    ; handler(hwnd) after a window becomes manual
     static releaseHandlers := []  ; handler(hwnd) before adoption; false keeps it manual
-    static returnHandlers := []   ; handler(hwnd, shape) after a window is back at its original shape
 
     static OnClaim(handler) => this._AddHandler(this.claimHandlers, handler)
     static OffClaim(handler) => this._RemoveHandler(this.claimHandlers, handler)
     static OnRelease(handler) => this._AddHandler(this.releaseHandlers, handler)
-    static OnReturn(handler) => this._AddHandler(this.returnHandlers, handler)
-    static OffReturn(handler) => this._RemoveHandler(this.returnHandlers, handler)
 
     static _AddHandler(handlers, handler) {
         for existing in handlers
@@ -93,17 +90,6 @@ class SuiteWindowOwnership {
         if IsObject(SuiteState.Log)
             SuiteState.Log.Debug("Core", "Window no longer positioned by hand. | adoption=" (forAdoption ? 1 : 0)
                 . " | " DescribeWindow(hwnd))
-        return true
-    }
-
-    ; A window positioned by hand is back at its original shape: it stops being
-    ; manual, and a module that lent it, such as Cascade Kingdom, takes it back.
-    ; shape is the CaptureWindowShape it had by hand just before, or 0.
-    static Return(hwnd, shape := 0) {
-        if !this.Release(hwnd, false)
-            return false
-        for handler in this.returnHandlers.Clone()
-            handler.Call(hwnd, shape)
         return true
     }
 

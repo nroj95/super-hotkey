@@ -151,8 +151,6 @@ ForgetWindow(hwnd)
 
     if CascadeState.joinPositions.Has(hwnd)
         CascadeState.joinPositions.Delete(hwnd)
-    if CascadeState.lentWindows.Has(hwnd)
-        CascadeState.lentWindows.Delete(hwnd)
 
     CancelPlacementStabilization(hwnd)
 

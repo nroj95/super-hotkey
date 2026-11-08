@@ -41,8 +41,6 @@ class WonderWindowsModule extends SuiteModule {
         this.Add("zones-from-right", "cycle zones from the right", WW_CycleZone,
             ["Win + WheelUp", "Win + Right"], ["up"], {replaces: ["Win + Right"]})
         arrange := "Arrange your windows"
-        this.Add("stretch", "stretch to neighbors: across / fill / back", WW_CycleNeighborStretch,
-            ["Win + Shift + Enter"], , {section: arrange})
         for side in [["up", "above"], ["down", "below"], ["left", "to the left"], ["right", "to the right"]]
             this.Add("move-onto-" side[1], "stack on nearest window " side[2],
                 WW_MoveOntoWindow, ["Win + Alt + " side[1], "Caps + Win + " side[1]], [side[1]], {section: arrange})
@@ -54,8 +52,12 @@ class WonderWindowsModule extends SuiteModule {
         keys := "Better Windows keys"
         this.Add("maximize", "maximize, then upper / lower half", WW_MaximizeWindowTarget, ["Win + Up"],
             , {section: keys, replaces: ["Win + Up"]})
-        this.Add("restore", "undo placement, then minimize", WW_RestoreOrMinimizeWindow, ["Win + Down"],
+        this.Add("restore", "back to normal size", WW_RestoreToNormalSize, ["Win + Down"],
             , {section: keys, replaces: ["Win + Down"]})
+        this.Add("full-height", "toggle full height", WW_ToggleFullSpan, ["Win + Shift + Up"], ["height"],
+            {section: keys, replaces: ["Win + Shift + Up"]})
+        this.Add("full-width", "toggle full width", WW_ToggleFullSpan, ["Win + Shift + Down"], ["width"],
+            {section: keys, replaces: ["Win + Shift + Down"]})
         this.Add("minimize-all", "minimize all windows on this display", WW_MinimizeAllWindows, ["Win + M"],
             , {section: keys, replaces: ["Win + M"], anyWindow: true})
         this.Add("restore-all", "restore windows minimized on this display", WW_RestoreAllWindows,
@@ -75,6 +77,8 @@ class WonderWindowsModule extends SuiteModule {
             {section: focus})
         this.Add("cycle-stacked", "cycle windows in current stack", WW_CycleMonitorWindows, ["Win + Enter"],
             , {section: focus})
+        this.Add("cycle-stacked-previous", "cycle windows in current stack backwards", WW_CycleMonitorWindows,
+            ["Win + Shift + Enter"], ["previous"], {section: focus})
         this.Add("cycle-expanded-next", "show next maximized or fullscreen window",
             WW_CycleMaximizedFullscreenWindows, ["Win + Alt + Enter", "Caps + Win + Enter"], ["next"],
             {section: focus})
@@ -281,7 +285,6 @@ class WonderWindowsModule extends SuiteModule {
         Sizes an app cannot shrink to are skipped.
 
         ARRANGE YOUR WINDOWS
-        Win + Shift + Enter stretches a window across to its neighbors, then also up and down so it fills the free space, then back to its original size.
         Win + Backspace minimizes the active window; focus stays on that display while it has windows left, then moves to the next display.
         Win + Shift + Backspace brings back the windows it minimized, newest first.
 
@@ -289,13 +292,16 @@ class WonderWindowsModule extends SuiteModule {
         Windows' own keys work as you know them, with fewer surprises.
         Win + M, Win + Home and Win + D take Shift to bring back what they minimized, however much you do in between.
         They act on your display only, except Win + D, which reaches every display, and focus stays on your display.
-        Win + Down undoes a placement, and puts a cascade window back in its cascade, before it minimizes.
+        Win + Up maximizes the window, then steps to the upper and lower half.
+        Win + Down takes it back to normal size, out of maximized or fullscreen, a zone, a half or a full height or width; it never minimizes.
+        Win + Shift + Up stretches the window to the full height of the display, and Win + Shift + Down to the full width; the same key again puts it back.
+        A maximized or minimized cascade window keeps its place in its cascade; a zone, half or full height or width takes it out.
 
         FOCUS, STACKS AND FULLSCREEN
         Win + PgDn and PgUp step focus through every window on screen in reading order: displays left to right, columns left to right, top before bottom, and outline the window they reach; double-tap Caps to outline where you are.
         A stack of overlapping windows counts once, as its front window.
         Move a window onto its nearest neighbor to stack it in front.
-        Bring forward the next window stacked with the active one, and cycle a window between maximized and half-height positions.
+        Win + Enter brings forward the next window stacked with the active one; add Shift to go the other way.
         Layout actions exit F11 fullscreen before repositioning a window.
         Win + Alt + Enter shows the next maximized or fullscreen window on your display, minimized or not, and minimizes the others there, so one big window is out at a time; add Shift to go back.
         Keybindings below shows the current hotkey for each action.
@@ -307,11 +313,12 @@ class WonderWindowsModule extends SuiteModule {
 ; the window manual.
 WW_PrepareWindowForAdoption(hwnd)
 {
-    global WW_layout_cycle_windows, WW_normal_window_placements, WW_stretched_windows
+    global WW_layout_cycle_windows, WW_normal_window_placements
     if !WW_SetNativeFullscreen(hwnd, false)
         return false
     WW_ForgetLogicalZone(hwnd)
-    for states in [WW_layout_cycle_windows, WW_normal_window_placements, WW_stretched_windows]
+    WW_ForgetFullSpan(hwnd)
+    for states in [WW_layout_cycle_windows, WW_normal_window_placements]
         if states.Has(hwnd)
             states.Delete(hwnd)
     return true

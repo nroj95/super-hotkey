@@ -8,8 +8,9 @@
 ; Each press brings the next window of the active window's stack to the front:
 ; the windows overlapping it on its display. Other stacks stay put. The stack
 ; rotates in a stable order, because activation changes the Z-order and
-; always-on-top windows never fall to the back.
-WW_CycleMonitorWindows()
+; always-on-top windows never fall to the back. Win + Shift + Enter walks the
+; same order backwards.
+WW_CycleMonitorWindows(direction := "next")
 {
     Critical "On"
     global WW_monitor_cycle, WW_monitor_cycle_refused_hwnd, WW_monitor_cycle_refused_from
@@ -45,7 +46,8 @@ WW_CycleMonitorWindows()
             && WW_FindWindowIndex(stack, WW_monitor_cycle_refused_hwnd)
             from := WW_monitor_cycle_refused_hwnd
         if stack.Length > 1
-            target := WW_NextMonitorCycleWindow(WW_MergeCycleOrder(WW_monitor_cycle, stack), from, from)
+            target := WW_NextMonitorCycleWindow(WW_MergeCycleOrder(WW_monitor_cycle, stack), from, from,
+                direction = "previous")
     }
     ; From the desktop, focus goes to the frontmost window.
     else if windows.Length
@@ -143,13 +145,16 @@ WW_ShowMaximizedFullscreenWindow(windows, target_hwnd)
     return true
 }
 
-; The next window after from, wrapping around and skipping the active one.
-; 0 when no other window is left.
-WW_NextMonitorCycleWindow(windows, from_hwnd, active_hwnd)
+; The next window after from, or before it backwards, wrapping around and
+; skipping the active one. 0 when no other window is left.
+WW_NextMonitorCycleWindow(windows, from_hwnd, active_hwnd, backwards := false)
 {
     start := WW_FindWindowIndex(windows, from_hwnd)
+    if !start && backwards
+        start := windows.Length + 1  ; from outside the order, backwards starts at its end
     Loop windows.Length {
-        hwnd := windows[Mod(start + A_Index - 1, windows.Length) + 1]
+        step := backwards ? -A_Index : A_Index
+        hwnd := windows[Mod(Mod(start + step - 1, windows.Length) + windows.Length, windows.Length) + 1]
         if hwnd != active_hwnd
             return hwnd
     }

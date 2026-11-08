@@ -681,16 +681,16 @@ class KeybindingsChecks {
         this.AssertDisplaySequence(rows, [
             "wonder-windows.help",
             "wonder-windows.zones-from-left", "wonder-windows.zones-from-right",
-            "wonder-windows.stretch",
             "wonder-windows.move-onto-up", "wonder-windows.move-onto-down",
             "wonder-windows.move-onto-left", "wonder-windows.move-onto-right",
             "wonder-windows.minimize", "wonder-windows.restore-minimized",
             "wonder-windows.maximize", "wonder-windows.restore",
+            "wonder-windows.full-height", "wonder-windows.full-width",
             "wonder-windows.minimize-all", "wonder-windows.restore-all",
             "wonder-windows.minimize-others", "wonder-windows.restore-others",
             "wonder-windows.minimize-everywhere", "wonder-windows.restore-everywhere",
             "wonder-windows.focus-up", "wonder-windows.focus-down",
-            "wonder-windows.cycle-stacked",
+            "wonder-windows.cycle-stacked", "wonder-windows.cycle-stacked-previous",
             "wonder-windows.cycle-expanded-next", "wonder-windows.cycle-expanded-previous"],
             "Wonder Windows lists zones, then arranging, Windows keys beside their Shift twins, and focus")
         this.AssertDisplaySequence(rows, [

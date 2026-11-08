@@ -26,11 +26,11 @@ There are plenty of window managers for Windows, but the ones I tried tiled wind
 
 Hold `Win` and scroll, or press `Win + Left/Right`, to walk the active window through zones: full-height fourths and halves first, then the same zones in the upper and lower half of the display. The other direction steps back, and releasing `Win` starts over next time. Settings offers thirds instead.
 
-Windows can also sit side by side with others stacked behind them: `Win + Enter` cycles through the stack, and `Alt + Win + arrow` moves a window onto its nearest neighbor to stack them. `Win + Shift + Enter` stretches a window across to its neighbors, then into all the free space around it, then back.
+Windows can also sit side by side with others stacked behind them: `Win + Enter` cycles through the stack, `Win + Shift + Enter` the other way, and `Alt + Win + arrow` moves a window onto its nearest neighbor to stack them.
 
 For big windows, `Win + Alt + Enter` shows the next maximized or fullscreen window on your display and minimizes the others, so one is out at a time. Add `Shift` to go back.
 
-Windows' own keys work as you know them, with fewer surprises. `Win + M`, `Win + Home` and `Win + D` take `Shift` to bring back what they minimized, however much you do in between, and act on your display only, except `Win + D`, which reaches every display.
+Windows' own keys work as you know them, with fewer surprises, and each has one job. `Win + Up` maximizes, then steps to the upper and lower half, and `Win + Down` takes a window back to normal size but never minimizes; `Win + Backspace` does that. `Win + Shift + Up` and `Win + Shift + Down` stretch a window to the full height or width of the display and back. `Win + M`, `Win + Home` and `Win + D` take `Shift` to bring back what they minimized, however much you do in between, and act on your display only, except `Win + D`, which reaches every display.
 
 ### Cascade Kingdom
 

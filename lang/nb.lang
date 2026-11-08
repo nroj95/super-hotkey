@@ -340,9 +340,6 @@ Sizes an app cannot shrink to are skipped.
 ARRANGE YOUR WINDOWS
 =
 
-Win + Shift + Enter stretches a window across to its neighbors, then also up and down so it fills the free space, then back to its original size.
-=
-
 Win + Backspace minimizes the active window; focus stays on that display while it has windows left, then moves to the next display.
 =
 
@@ -361,7 +358,16 @@ Win + M, Win + Home and Win + D take Shift to bring back what they minimized, ho
 They act on your display only, except Win + D, which reaches every display, and focus stays on your display.
 =
 
-Win + Down undoes a placement, and puts a cascade window back in its cascade, before it minimizes.
+Win + Up maximizes the window, then steps to the upper and lower half.
+=
+
+Win + Down takes it back to normal size, out of maximized or fullscreen, a zone, a half or a full height or width; it never minimizes.
+=
+
+Win + Shift + Up stretches the window to the full height of the display, and Win + Shift + Down to the full width; the same key again puts it back.
+=
+
+A maximized or minimized cascade window keeps its place in its cascade; a zone, half or full height or width takes it out.
 =
 
 FOCUS, STACKS AND FULLSCREEN
@@ -376,7 +382,7 @@ A stack of overlapping windows counts once, as its front window.
 Move a window onto its nearest neighbor to stack it in front.
 =
 
-Bring forward the next window stacked with the active one, and cycle a window between maximized and half-height positions.
+Win + Enter brings forward the next window stacked with the active one; add Shift to go the other way.
 =
 
 Layout actions exit F11 fullscreen before repositioning a window.

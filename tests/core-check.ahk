@@ -119,9 +119,13 @@ class CoreChecks {
                     && configuration["wonder-windows.move-onto-" direction].bindings[2]
                     = Keybindings.Parse("Caps + Win + " direction).signature,
                     "moving onto a window defaults to Win + Alt + " direction " and Caps + Win + " direction)
-            this.Assert(configuration["wonder-windows.stretch"].bindings[1]
-                = Keybindings.Parse("Win + Shift + Enter").signature,
-                "one Win + Shift + Enter cycle stretches a window")
+            this.Assert(configuration["wonder-windows.cycle-stacked-previous"].bindings[1]
+                    = Keybindings.Parse("Win + Shift + Enter").signature
+                && configuration["wonder-windows.full-height"].bindings[1]
+                    = Keybindings.Parse("Win + Shift + Up").signature
+                && configuration["wonder-windows.full-width"].bindings[1]
+                    = Keybindings.Parse("Win + Shift + Down").signature,
+                "Win + Shift + Enter cycles a stack backwards; Win + Shift + Up and Down toggle full height and width")
             this.Assert(configuration["wonder-windows.cycle-stacked"].bindings[1]
                     = Keybindings.Parse("Win + Enter").signature
                 && configuration["wonder-windows.cycle-expanded-next"].bindings[1]

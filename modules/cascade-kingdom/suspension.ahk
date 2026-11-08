@@ -263,13 +263,9 @@ RestoreMinimizedCascadeWindowsOnExit()
 ; cascades kept across restarts
 ; =============================================================================
 
-; Saved on exit, one line per member in join order: hwnd=pid|device|join, and
-; one per window lent to Wonder Windows: hwnd=pid|device|slot.
+; Saved on exit, one line per member in join order: hwnd=pid|device|join.
 SaveCascades()
 {
-    lent := ""
-    for hwnd, slot in CascadeState.lentWindows
-        lent .= hwnd "=" slot.pid "|" slot.device "|" slot.slot "`n"
     lines := ""
     for monitor_index, history in CascadeState.history {
         if !CascadeState.displays.Has(monitor_index)
@@ -288,7 +284,6 @@ SaveCascades()
         SplitPath(CascadeState.statePath, , &directory)
         DirCreate(directory)
         IniWrite(lines, CascadeState.statePath, "Cascades")
-        IniWrite(lent, CascadeState.statePath, "Lent")
     }
     catch Error as err
         DebugError("Save cascades", err)
@@ -322,45 +317,7 @@ RestoreSavedCascades()
     }
     for monitor_index in CascadeState.history.Clone()
         GetLiveCascadeHistory(monitor_index)
-    DebugLog("Saved cascades restored. | windows=" restored " | lent=" RestoreLentCascadeWindows())
-}
-
-; Ownership by hand ends on exit, so a window Wonder Windows still has gets its
-; claim back and Win + Down can still return it to its slot. One already back
-; in a slot rejoins instead.
-RestoreLentCascadeWindows()
-{
-    try saved := IniRead(CascadeState.statePath, "Lent")
-    catch
-        return 0
-    restored := 0
-    for line in StrSplit(saved, "`n", "`r") {
-        try {
-            entry := StrSplit(line, "=", , 2)
-            fields := StrSplit(entry[2], "|")
-            hwnd := Integer(entry[1])
-            pid := Integer(fields[1])
-            if !DllCall("IsWindow", "ptr", hwnd, "int") || WinGetPID(hwnd) != pid
-                || GetManagedCascadeMonitor(hwnd)
-                continue
-            monitor := FindCascadeMonitorDevice(fields[2])
-            if !CascadeDisplayAllowed(monitor)
-                continue
-            if IsCascadeWindowShown(hwnd)
-                && TryGetCascadeLayoutOrigin(hwnd, &layout_monitor, &x, &y) && layout_monitor = monitor
-                && FindNearestCascadeSlot(x, y, GetCanonicalCascadeGeometry(monitor).slots,
-                    CascadeState.slotTolerance)
-            {
-                RecordCascadeWindow(monitor, hwnd)
-                continue
-            }
-            SuiteWindowOwnership.Claim(hwnd)
-            CascadeState.lentWindows[hwnd] := {pid: pid, monitor: monitor, device: fields[2],
-                slot: Integer(fields[3])}
-            restored += 1
-        }
-    }
-    return restored
+    DebugLog("Saved cascades restored. | windows=" restored)
 }
 
 ; A join position as text: x,y,width,height,was_manual[,placement in hex].

@@ -1,4 +1,4 @@
-; Wonder Windows ratio layouts and stretching to neighbors.
+; Wonder Windows ratio layouts and rectangle helpers.
 
 ; =============================================================================
 ; ratio layouts
@@ -82,52 +82,6 @@ WW_RectanglesMatch(first, second, tolerance := 4)
     return true
 }
 
-; =============================================================================
-; stretching to neighbors
-; =============================================================================
-
-; The rectangle a stretch step gives: across fills the space between the
-; nearest windows on the left and right; fill then also fills it up and down.
-WW_NeighborStretchRectangle(original, obstacles, work_area, step)
-{
-    left := WW_GetCollisionLimitedEdge("left", original, obstacles, work_area[1])
-    right := WW_GetCollisionLimitedEdge("right", original, obstacles, work_area[3])
-    if step = "across"
-        return [left, original[2], right - left, original[4]]
-    if step != "fill"
-        throw ValueError("Unknown stretch step: " step)
-    bounds := WW_GetCollisionLimitedVerticalBounds([left, original[2], right - left, original[4]],
-        obstacles, work_area[2], work_area[4])
-    return [left, bounds[1], right - left, bounds[2] - bounds[1]]
-}
-
-WW_GetCollisionLimitedVerticalBounds(active_rect, obstacles, work_top, work_bottom, tolerance := 1)
-{
-    left := active_rect[1]
-    top := active_rect[2]
-    right := left + active_rect[3]
-    bottom := top + active_rect[4]
-    limit_top := Min(work_top, top)
-    limit_bottom := Max(work_bottom, bottom)
-
-    for obstacle in obstacles {
-        if obstacle[3] <= 0 || obstacle[4] <= 0
-            continue
-        other_left := obstacle[1]
-        other_top := obstacle[2]
-        other_right := other_left + obstacle[3]
-        other_bottom := other_top + obstacle[4]
-        if Min(right, other_right) <= Max(left, other_left)
-            continue
-        ; Never shrink because of a window already overlapping our rectangle.
-        if other_bottom <= top + tolerance
-            limit_top := Max(limit_top, Min(top, other_bottom))
-        if other_top >= bottom - tolerance
-            limit_bottom := Min(limit_bottom, Max(bottom, other_top))
-    }
-    return [limit_top, limit_bottom]
-}
-
 ; Keep a window's accepted dimensions, placing it inside the work area as near
 ; as possible to the destination's top-left corner. Refuse truly unfittable sizes.
 WW_FitAcceptedRectangle(destination, accepted, work_area)
@@ -146,41 +100,4 @@ WW_FitAcceptedRectangle(destination, accepted, work_area)
     x := Max(left, Min(destination[1], right - width))
     y := Max(top, Min(destination[2], bottom - height))
     return [x, y, width, height]
-}
-
-WW_GetCollisionLimitedEdge(side, active_rect, obstacles, work_edge, tolerance := 1)
-{
-    active_left := active_rect[1]
-    active_top := active_rect[2]
-    active_right := active_left + active_rect[3]
-    active_bottom := active_top + active_rect[4]
-
-    if side != "left" && side != "right"
-        throw ValueError("Unknown stretch side: " side)
-
-    ; Stretching must not shrink a window that is already partly off-screen.
-    limit := side = "left" ? Min(work_edge, active_left) : Max(work_edge, active_right)
-
-    for obstacle in obstacles {
-        obstacle_left := obstacle[1]
-        obstacle_top := obstacle[2]
-        obstacle_right := obstacle_left + obstacle[3]
-        obstacle_bottom := obstacle_top + obstacle[4]
-
-        if obstacle[3] <= 0 || obstacle[4] <= 0
-            continue
-        if Min(active_bottom, obstacle_bottom) <= Max(active_top, obstacle_top)
-            continue
-
-        ; Ignore pre-existing overlap. An extension should not collapse the
-        ; window just because another window already sits behind or over it.
-        if side = "left" {
-            if obstacle_right <= active_left + tolerance
-                limit := Max(limit, Min(active_left, obstacle_right))
-        } else {
-            if obstacle_left >= active_right - tolerance
-                limit := Min(limit, Max(active_right, obstacle_left))
-        }
-    }
-    return limit
 }
