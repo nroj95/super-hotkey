@@ -774,7 +774,7 @@ class SuiteInterface {
     DisplayChoices(selected, includeAll := false) {
         values := includeAll ? ["All"] : []
         names := includeAll ? ["All displays"] : []
-        models := this.GetDisplayModels()
+        info := this.GetDisplayInfo()
         primary := MonitorGetPrimary()
         if selected = "Primary"
             selected := MonitorGetName(primary)
@@ -783,8 +783,8 @@ class SuiteInterface {
             try {
                 name := MonitorGetName(A_Index)
                 MonitorGetWorkArea(A_Index)
-                displays.Push({name: name, number: SuiteInterface.DisplayNumber(name, A_Index),
-                    primary: A_Index = primary})
+                displays.Push({name: name, primary: A_Index = primary, number: info.Has(name)
+                    ? info[name].number : SuiteInterface.DisplayNumber(name, A_Index)})
             }
         }
         ; Few displays, so a simple insertion sort by number.
@@ -799,7 +799,8 @@ class SuiteInterface {
         }
         for display in displays {
             values.Push(display.name)
-            names.Push("Display " display.number " - " models.Get(display.name, display.name)
+            model := info.Has(display.name) && info[display.name].model != "" ? info[display.name].model : display.name
+            names.Push("Display " display.number " - " model
                 . (display.primary ? " (primary)" : ""))
         }
         selectedIndex := 0
@@ -814,26 +815,32 @@ class SuiteInterface {
         return {values: values, names: names, selected: selectedIndex}
     }
 
-    ; Windows' own display number, from a device name such as \\.\DISPLAY2;
-    ; AutoHotkey's order, which always lists the primary first, otherwise.
+    ; The number in a device name such as \\.\DISPLAY2, used only when Windows
+    ; reports no display path; AutoHotkey's order, primary first, otherwise.
+    ; Settings numbers displays differently, see GetDisplayInfo.
     static DisplayNumber(name, fallback) => RegExMatch(name, "i)^\\\\\.\\DISPLAY(\d+)$", &match)
         ? Integer(match[1]) : fallback
 
-    GetDisplayModels() {
-        models := Map()
+    ; Device name -> {model, number} for each active display. Windows has no
+    ; API for the number Settings shows, and it is not the \\.\DISPLAYn digit;
+    ; Settings counts displays in connector order, by graphics adapter and
+    ; then target ID, so this does too.
+    GetDisplayInfo() {
+        displays := Map()
+        order := []
         pathCount := 0
         modeCount := 0
 
         if DllCall("user32\GetDisplayConfigBufferSizes", "UInt", 2,
             "UInt*", &pathCount, "UInt*", &modeCount, "Int")
-            return models
+            return displays
 
         paths := Buffer(pathCount * 72, 0)
         modes := Buffer(modeCount * 64, 0)
         if DllCall("user32\QueryDisplayConfig", "UInt", 2,
             "UInt*", &pathCount, "Ptr", paths,
             "UInt*", &modeCount, "Ptr", modes, "Ptr", 0, "Int")
-            return models
+            return displays
 
         loop pathCount {
             offset := (A_Index - 1) * 72
@@ -853,15 +860,21 @@ class SuiteInterface {
             NumPut("Int64", NumGet(paths, offset + 20, "Int64"), target, 8)
             NumPut("UInt", NumGet(paths, offset + 28, "UInt"), target, 16)
 
-            if DllCall("user32\DisplayConfigGetDeviceInfo", "Ptr", target, "Int")
-                continue
-
-            model := StrGet(target.Ptr + 36, "UTF-16")
-            if model != ""
-                models[display] := model
+            model := DllCall("user32\DisplayConfigGetDeviceInfo", "Ptr", target, "Int")
+                ? "" : StrGet(target.Ptr + 36, "UTF-16")
+            entry := {name: display, model: model,
+                adapter: NumGet(paths, offset + 20, "Int64"), target: NumGet(paths, offset + 28, "UInt")}
+            ; Few displays, so a simple insertion sort by adapter, then target.
+            index := order.Length + 1
+            while index > 1 && (order[index - 1].adapter > entry.adapter
+                || order[index - 1].adapter = entry.adapter && order[index - 1].target > entry.target)
+                index -= 1
+            order.InsertAt(index, entry)
         }
 
-        return models
+        for index, entry in order
+            displays[entry.name] := {model: entry.model, number: index}
+        return displays
     }
 
     NumberField(window, name, minimum, maximum) {
