@@ -1,5 +1,6 @@
 ; Cascade Kingdom navigation: focusing, swapping and rotating windows,
-; bringing a cascade forward and focusing the next cascade.
+; bringing a cascade forward and focusing the next cascade, the current one
+; first while another window partly covers it.
 
 ; =============================================================================
 ; current-layer focus and swapping
@@ -493,7 +494,8 @@ BringCascadeForward(monitor_index)
 
 ; Brings the next cascade forward and outlines its front window: after the
 ; current cascade, left to right and wrapping, or from outside a cascade the
-; first from the working display on. Hidden cascades do not count.
+; first from the working display on. A current cascade that another window
+; partly covers comes forward first. Hidden cascades do not count.
 FocusNextCascade()
 {
     if !IsCascadeEnabled()
@@ -527,13 +529,52 @@ FocusNextCascade()
     current := active_hwnd && IsCascadeWindowShown(active_hwnd) ? GetManagedCascadeMonitor(active_hwnd) : 0
     working_left := working_top := 0
     try MonitorGetPixels(SuiteWorkingMonitor.Get(), &working_left, &working_top)
-    target := NextCascadeMonitor(entries, current, working_left, working_top)
+    target := current && IsCascadeCovered(current)
+        ? current : NextCascadeMonitor(entries, current, working_left, working_top)
     if !target {
         SuiteNotice.Show("status", "No other cascades", 1400)
         return
     }
     if hwnd := BringCascadeForward(target)
         SuiteFocusBorder.Show(hwnd, "cascade-kingdom")
+}
+
+; Whether a window above any shown window of the cascade overlaps it. Windows
+; that are always on top or never activate (overlays, focus tabs, notices)
+; and a member's own dialogs do not count: bringing the cascade forward
+; could not rise above them.
+IsCascadeCovered(monitor_index)
+{
+    members := Map()
+    for hwnd in GetLiveCascadeHistory(monitor_index)
+        if IsCascadeWindowShown(hwnd)
+            members[hwnd] := true
+    remaining := members.Count
+    above := []
+    for hwnd in WinGetList() {
+        if !remaining
+            break
+        if members.Has(hwnd) {
+            remaining -= 1
+            if !above.Length || !GetVisibleWindowBounds(hwnd, &x, &y, &width, &height)
+                continue
+            for other in above
+                if other.x < x + width && x < other.x + other.width
+                    && other.y < y + height && y < other.y + other.height
+                    return true
+            continue
+        }
+        try exStyle := WinGetExStyle(hwnd)
+        catch
+            continue
+        if exStyle & 0x08000008 || !DllCall("IsWindowVisible", "ptr", hwnd, "int") ; WS_EX_NOACTIVATE | WS_EX_TOPMOST
+            || IsWindowCloaked(hwnd) || DllCall("IsIconic", "ptr", hwnd, "int")
+            || members.Has(DllCall("GetAncestor", "ptr", hwnd, "uint", 3, "ptr")) ; GA_ROOTOWNER
+            || !GetVisibleWindowBounds(hwnd, &x, &y, &width, &height)
+            continue
+        above.Push({x: x, y: y, width: width, height: height})
+    }
+    return false
 }
 
 ; Entries are {monitor, left, top}, sorted left to right then top to bottom.

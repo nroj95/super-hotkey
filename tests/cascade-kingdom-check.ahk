@@ -1,7 +1,7 @@
 ; Cascade Kingdom: destinations, settings, stabilization, drop guides, focus tabs and
 ; their absence from a cascade of one window, adoption,
-; compaction plans, home displays, the next-cascade order, snapped-window drags,
-; mirroring and cascades kept across restarts.
+; compaction plans, home displays, the next-cascade order, covered cascades,
+; snapped-window drags, mirroring and cascades kept across restarts.
 ; Disposable preferences, dry-run inputs and test-owned windows only.
 class CascadeChecks {
     static Run() {
@@ -15,6 +15,7 @@ class CascadeChecks {
         this.HomeDisplays()
         this.DisplayRefresh()
         this.NextCascade()
+        this.CoveredCascade()
         this.DragResize()
         this.Mirrored()
         this.ShownWindows()
@@ -157,6 +158,50 @@ class CascadeChecks {
             SetTimer(RefreshCascadeDisplays, 0)
             InitializeCascadeState()
             window.Destroy()
+        }
+    }
+
+    ; Caps + Tab raises the current cascade first only while a window that
+    ; bringing it forward could rise above overlaps it.
+    static CoveredCascade() {
+        InitializeCascadeState()
+        member := SuiteGui("+Resize", "Covered cascade member")
+        other := SuiteGui("+Resize", "Covering window")
+        dialog := SuiteGui("+Owner" member.Hwnd, "Member dialog")
+        topmost := SuiteGui("+AlwaysOnTop +ToolWindow", "Always-on-top window")
+        try {
+            CascadeState.displays := ReadCascadeDisplays().displays
+            member.Show("NA x60 y60 w320 h220")
+            monitor := WindowMonitorIndex(member.Hwnd)
+            slot := GetCanonicalCascadeGeometry(monitor).slots[1]
+            WinMovePixels(slot[1], slot[2], 400, 300, "ahk_id " member.Hwnd)
+            CascadeState.history[monitor] := [member.Hwnd]
+            this.Assert(!IsCascadeCovered(monitor), "a cascade with nothing above it is not covered")
+
+            other.Show("NA")
+            WinMovePixels(slot[1] + 100, slot[2] + 100, 300, 200, "ahk_id " other.Hwnd)
+            WinMoveTop("ahk_id " other.Hwnd)
+            covered := IsCascadeCovered(monitor)
+            WinMovePixels(slot[1] + 1000, slot[2], 300, 200, "ahk_id " other.Hwnd)
+            apart := IsCascadeCovered(monitor)
+            WinMovePixels(slot[1] + 100, slot[2] + 100, 300, 200, "ahk_id " other.Hwnd)
+            WinMoveBottom("ahk_id " other.Hwnd)
+            below := IsCascadeCovered(monitor)
+            this.Assert(covered && !apart && !below,
+                "only an overlapping window above the cascade covers it")
+
+            for window in [dialog, topmost] {
+                window.Show("NA")
+                WinMovePixels(slot[1] + 100, slot[2] + 100, 300, 200, "ahk_id " window.Hwnd)
+                WinMoveTop("ahk_id " window.Hwnd)
+            }
+            this.Assert(!IsCascadeCovered(monitor),
+                "a member's own dialog and an always-on-top window do not cover the cascade")
+        }
+        finally {
+            InitializeCascadeState()
+            for window in [topmost, dialog, other, member]
+                window.Destroy()
         }
     }
 

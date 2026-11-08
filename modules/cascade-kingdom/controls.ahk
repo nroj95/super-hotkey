@@ -128,11 +128,9 @@ DispatchCascadeCommand(command)
         return
     }
 
-    ; Adoption restores a maximized window, and bringing a cascade forward or
-    ; focusing it rises above one. Other commands would rearrange the cascade
-    ; underneath it.
-    allow_maximized := name = "adopt" || name = "bring-forward"
-        || name = "focus-previous" || name = "focus-next" || name = "next-cascade"
+    ; Adoption restores a maximized window, and focusing a cascade rises above
+    ; one. Other commands would rearrange the cascade underneath it.
+    allow_maximized := name = "adopt" || name = "focus-previous" || name = "focus-next" || name = "next-cascade"
     if reason := ActiveWindowBlocksCascadeCommands(allow_maximized) {
         DebugLog("Cascade command skipped. | reason=" reason " | command=" name)
         return
@@ -149,7 +147,6 @@ DispatchCascadeCommand(command)
         case "rotate-next": RotateCascadeLayers(1)
         case "adopt": AdoptActiveWindow()
         case "release": ReleaseActiveCascadeWindow()
-        case "bring-forward": BringCascadeForward(SuiteWorkingMonitor.Get())
         case "gather": GatherCascadesToCommandMonitor()
         case "close-monitor": CloseCommandMonitorCascade()
     }
