@@ -24,13 +24,13 @@ Use any module on its own or combine them.
 
 There are plenty of window managers for Windows, but the ones I tried tiled windows smaller than I liked, took a while to learn, or spread things across so many workspaces that I lost track of them. Small costs, but they added up. This is my take on window management that builds on the `Win` key shortcuts you already know and makes the ones I found frustrating or incomplete more predictable.
 
-Hold `Win` and scroll, or press `Win + Left/Right`, to walk the active window through zones: full-height fourths and halves first, then the same zones in the upper and lower half of the display. The other direction steps back, and releasing `Win` starts over next time. Settings offers thirds instead.
+Hold `Win` and scroll, or press `Win + Left/Right`, to walk the active window through zones: full-height fourths and halves first, then the same zones in the upper and lower half of the display. The other direction steps back, and releasing `Win` starts over next time. Each display picks its own layout in Settings: fourths, thirds, halves and corners, or rows for a portrait display, with separate choices for landscape and portrait if you rotate one. You can also type your own, such as `1:1:1:1 > 1:1 / 1:1`, where `:` separates columns, `/` rows and `>` means "and then": four columns, then four corners.
 
 Windows can also sit side by side with others stacked behind them: `Win + Enter` cycles through the stack, `Win + Shift + Enter` the other way, and `Alt + Win + arrow` moves a window onto its nearest neighbor to stack them.
 
 For big windows, `Win + Alt + Enter` shows the next maximized or fullscreen window on your display and minimizes the others, so one is out at a time. Add `Shift` to go back.
 
-Windows' own keys work as you know them, with fewer surprises, and each has one job. `Win + Up` maximizes, then steps to the upper and lower half, and `Win + Down` takes a window back to normal size but never minimizes; `Win + Backspace` does that. `Win + Shift + Up` and `Win + Shift + Down` stretch a window to the full height or width of the display and back. `Win + M`, `Win + Home` and `Win + D` take `Shift` to bring back what they minimized, however much you do in between, and act on your display only, except `Win + D`, which reaches every display.
+Windows' own keys work as you know them, with fewer surprises, and each has one job. `Win + Up` maximizes, then steps to the upper and lower half, and `Win + Down` takes a window back to normal size but never minimizes; `Win + Backspace` does that. `Win + Shift + Up` stretches a window to the full height of the display, then the full width, then back, and `Win + Shift + Down` stretches it into the free space around it and back, maximizing it when nothing is beside it. `Win + M`, `Win + Home` and `Win + D` take `Shift` to bring back what they minimized, however much you do in between, and act on your display only, except `Win + D`, which reaches every display.
 
 ### Cascade Kingdom
 
@@ -77,7 +77,7 @@ The tray icon also has guides, settings and **Modules...**, where you can turn o
 
 Other window managers and tiling tools can conflict with Super Hotkey when they also move windows, rearrange them after display changes, or use the same hotkeys.
 
-PowerToys FancyZones does all three, so it isn't supported; disable it in PowerToys. For `Shift + drag` window placement, I recommend [ScreenGrid](https://github.com/TtesseractT/ScreenGrid) instead. It shows a grid overlay for dropping windows into zones and works well alongside Super Hotkey.
+PowerToys FancyZones does all three, so it isn't supported; disable it in PowerToys. If you'd like to drag windows into zones with the mouse, [ScreenGrid](https://github.com/TtesseractT/ScreenGrid) works alongside Super Hotkey.
 
 ## Develop
 

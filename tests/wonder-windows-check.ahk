@@ -11,11 +11,13 @@ class WonderWindowsChecks {
         this.MonitorWindowCycle()
         this.MinimizeAll()
         this.FullSpanAndNormalSize()
+        this.ZoneLayoutsAndStretch()
     }
 
-    ; Win + Shift + Up and Down toggle full height and width, Win + Down takes
-    ; a window back to normal size without minimizing, and Win + Up maximizes
-    ; without placing the window by hand.
+    ; Win + Shift + Up steps full height, full width and back; Win + Shift + Down
+    ; stretches into free space and back; Win + Down takes a window back to
+    ; normal size without minimizing; Win + Up maximizes without placing the
+    ; window by hand.
     static FullSpanAndNormalSize() {
         window := SuiteGui("+Resize", "Full span check")
         try {
@@ -25,19 +27,18 @@ class WonderWindowsChecks {
             ActivateWindow(hwnd)
             original := WW_GetWindowLayoutRectangle(hwnd)
             work := WW_GetLayoutWorkArea(hwnd)
-            WW_ToggleFullSpan("height")
-            tall := WW_GetWindowLayoutRectangle(hwnd)
-            this.Assert(WW_RectanglesMatch(tall, [original[1], work[2], original[3], work[4] - work[2]], 3),
-                "Win + Shift + Up stretches to full height, keeping width and left edge")
-            WW_ToggleFullSpan("width")
+            WW_CycleFullSpan()
             this.Assert(WW_RectanglesMatch(WW_GetWindowLayoutRectangle(hwnd),
-                [work[1], work[2], work[3] - work[1], work[4] - work[2]], 3),
-                "full height and full width combine")
-            WW_ToggleFullSpan("width")
-            WW_ToggleFullSpan("height")
+                [original[1], work[2], original[3], work[4] - work[2]], 3),
+                "Win + Shift + Up first stretches to full height, keeping width and left edge")
+            WW_CycleFullSpan()
+            this.Assert(WW_RectanglesMatch(WW_GetWindowLayoutRectangle(hwnd),
+                [work[1], original[2], work[3] - work[1], original[4]], 3),
+                "then to full width, keeping its height and top")
+            WW_CycleFullSpan()
             this.Assert(WW_RectanglesMatch(WW_GetWindowLayoutRectangle(hwnd), original, 3),
-                "each toggle again puts the window back as it was")
-            WW_ToggleFullSpan("height")
+                "then puts the window back as it was")
+            WW_CycleFullSpan()
             WW_RestoreToNormalSize()
             this.Assert(WW_RectanglesMatch(WW_GetWindowLayoutRectangle(hwnd), original, 3)
                 && WinGetMinMax(hwnd) = 0,
@@ -52,6 +53,47 @@ class WonderWindowsChecks {
         }
         finally window.Destroy()
     }
+
+    ; Zone layouts: presets, rows turned 90 degrees, custom lines and the
+    ; largest free rectangle Win + Shift + Down fills.
+    static ZoneLayoutsAndStretch() {
+        work := [0, 0, 1200, 800]
+        Rect(zone) => zone[1] "," zone[2] "," zone[3] "," zone[4]
+        corners := WW_BuildLayoutZones(work, "corners")
+        this.Assert(corners.Length = 6 && Rect(corners[1]) = "0,0,600,800" && Rect(corners[3]) = "0,0,600,400"
+            && Rect(corners[6]) = "600,400,600,400",
+            "halves and corners walks the halves, then the corners row by row")
+        right := WW_BuildLayoutZones(work, "corners", true)
+        this.Assert(Rect(right[1]) = "600,0,600,800" && Rect(right[3]) = "600,0,600,400",
+            "from the right, each row starts at its right edge")
+        rows := WW_BuildLayoutZones([0, 0, 800, 1200], "rows-thirds")
+        this.Assert(rows.Length = 9 && Rect(rows[1]) = "0,0,800,400" && Rect(rows[3]) = "0,800,800,400"
+            && Rect(rows[4]) = "0,0,400,400",
+            "rows of thirds walk full-width bands from the top, then their left and right halves")
+        custom := WW_BuildLayoutZones(work, " 1 : 2 / 1 >1,5:1.5 ")
+        this.Assert(custom.Length = 5 && Rect(custom[1]) = "0,0,400,400" && Rect(custom[2]) = "400,0,800,400"
+            && Rect(custom[3]) = "0,400,1200,400" && Rect(custom[4]) = "0,0,600,800",
+            "a custom line takes columns, rows and pages, ignores whitespace and reads decimal commas")
+        for problem in [["", "Type a layout"], ["1::1", "Row 1 has an empty part"], ["1:1 //1", "Row 2 is empty"],
+            ["1:0", "Row 1 has 0"], ["1:x", "Row 1 has x"], ["1 > > 1", "Page 2 is empty"],
+            ["1:1 > 1/:1", "Page 2, row 2 has an empty part"]] {
+            message := ""
+            try WW_ParseZoneLine(problem[1])
+            catch ValueError as failure
+                message := failure.Message
+            this.Assert(InStr(message, problem[2]) = 1, "a broken custom line names its problem: " problem[1])
+        }
+        this.Assert(WW_ZoneLayouts.FromText(" Thirds ") = "thirds" && WW_ZoneLayouts.FromText("1:1") = "1:1",
+            "a dropdown's text names a preset or is a custom line")
+        ; A window in the middle with neighbors left, above and a stack behind it.
+        neighbors := [[0, 0, 200, 800], [300, 0, 600, 100], [400, 300, 300, 200]]
+        this.Assert(Rect(WW_LargestFreeRectangle([400, 300, 300, 200], neighbors, work))
+            = "200,100,1000,700",
+            "Win + Shift + Down fills the largest gap, ignoring a window it already overlaps")
+        this.Assert(Rect(WW_LargestFreeRectangle([400, 300, 300, 200], [], work)) = "0,0,1200,800",
+            "without neighbors, the stretch fills the work area")
+    }
+
 
     static Assert(condition, label) => SuiteChecks.Assert(condition, label)
 
@@ -295,12 +337,12 @@ class WonderWindowsChecks {
                 SuiteWindowOwnership.Claim(window.Hwnd)
                 this.Assert(SuiteWindowOwnership.IsManual(window.Hwnd), "manual geometry ownership is recorded per HWND and process")
                 global WW_full_span_windows, WW_normal_window_placements
-                WW_full_span_windows[window.Hwnd ":height"] := Map("pid", WindowProcessId(window.Hwnd))
+                WW_full_span_windows[window.Hwnd] := Map("pid", WindowProcessId(window.Hwnd))
                 WW_normal_window_placements[window.Hwnd] := Map("pid", WindowProcessId(window.Hwnd))
                 this.Assert(SuiteWindowOwnership.Release(window.Hwnd) && !SuiteWindowOwnership.IsManual(window.Hwnd),
                     "explicit adoption releases manual ownership")
-                this.Assert(!WW_full_span_windows.Has(window.Hwnd ":height"),
-                    "adoption discards a full-height toggle that would otherwise undo the new cascade")
+                this.Assert(!WW_full_span_windows.Has(window.Hwnd),
+                    "adoption discards a stretch that would otherwise undo the new cascade")
                 this.Assert(!WW_normal_window_placements.Has(window.Hwnd),
                     "adoption starts a fresh manual-restore history")
                 SuiteWindowOwnership.Claim(window.Hwnd)

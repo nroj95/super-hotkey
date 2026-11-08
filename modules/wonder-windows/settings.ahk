@@ -9,7 +9,8 @@ WW_InitializeState() {
 
 WW_minimized_stack := []  ; windows minimized with Win + Backspace, newest first: {hwnd, pid}
 WW_minimized_all := Map()  ; per display device, windows minimized with Win + M, Win + Home or Win + D, front to back: {hwnd, pid}
-WW_full_span_windows := Map()  ; "hwnd:height" or "hwnd:width" -> the rectangle before that toggle
+WW_full_span_windows := Map()  ; Win + Shift + Up: the rectangle before, the step and what it applied
+WW_neighbor_stretch_windows := Map()  ; Win + Shift + Down: the rectangle before and what it applied
 WW_logical_zones := Map()
 WW_layout_cycle_windows := Map()
 WW_normal_window_placements := Map()
@@ -23,7 +24,10 @@ WW_monitor_cycle_refused_from := 0  ; the window it was requested from
 
 
 WW_zone_cycle := 0
-WW_zone_cycle_unit := "fourths"
+WW_zone_layouts := Map()  ; "device|landscape" or "device|portrait" -> preset ID or custom line
+WW_zone_custom := Map()  ; the same keys -> the last custom line each one used
+WW_zone_landscape_default := "fourths"
+WW_zone_separate := false
 
 WW_fancyzones_process_id := 0
 }

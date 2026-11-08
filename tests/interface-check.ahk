@@ -536,8 +536,11 @@ class InterfaceChecks {
                     settings := app.ui.windows["settings:" id]
                     settings.GetClientPos(, , &settingsW, &settingsH)
                     if id = "wonder-windows" {
+                        presets := []
+                        for preset in WW_ZoneLayouts.Presets
+                            presets.Push(preset[2])
                         for pair in [["fancyZonesStatus", ["running, not supported", "not running, you're all set!"]],
-                            ["zoneUnit", ["Fourths and halves", "Thirds"]]] {
+                            ["zone1", presets]] {
                             statusValue := settings[pair[1]].Text
                             allowed := false
                             for permitted in pair[2]
@@ -550,15 +553,14 @@ class InterfaceChecks {
                             && WonderWindowsModule.StatusColor("running, not supported") = "B02020"
                             && WonderWindowsModule.StatusColor("unknown") = "505050",
                             "Wonder Windows status values use green, red or neutral colors")
-                        screenGridButtons := 0
+                        zoneRows := 0
                         for control in settings
-                            if control.Type = "Button" && control.Text = "ScreenGrid..."
-                                screenGridButtons += 1
-                        this.Assert(screenGridButtons = 1
-                            && WonderWindowsModule.ScreenGridUrl = "https://github.com/TtesseractT/ScreenGrid",
-                            "Wonder Windows suggests ScreenGrid with a link to its GitHub page")
+                            if control.Type = "ComboBox"
+                                zoneRows += 1
+                        this.Assert(zoneRows = MonitorGetCount(),
+                            "Wonder Windows lists one zone layout per connected display")
                         statusCoords := []
-                        for name in ["zoneUnit", "fancyZonesStatus"] {
+                        for name in ["zone1", "fancyZonesStatus"] {
                             settings[name].GetPos(&statusX, &statusY)
                             statusCoords.Push(statusY)
                             this.Assert(statusX = SuitePageRows.FieldX,

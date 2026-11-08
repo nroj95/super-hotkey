@@ -4,16 +4,15 @@
 ; Settings gives them back to Windows.
 class WonderWindowsModule extends SuiteModule {
     hasSettings := true
-    resetSections := ["Zones", "Keys"]
-    static ZoneUnits := [["fourths", "Fourths and halves"], ["thirds", "Thirds"]]
+    resetSections := ["Zones", "ZoneLayouts", "ZoneCustom", "Keys"]
 
     __New(app) {
-        global WW_zone_cycle_unit
         super.__New(app, "wonder-windows")
         WW_InitializeState()
         this.settingsPath := app.Settings.directory "\wonder-windows\settings.ini"
-        unit := IniRead(this.settingsPath, "Zones", "Cycle", "fourths")
-        WW_zone_cycle_unit := unit = "thirds" ? "thirds" : "fourths"
+        this.LoadZoneLayouts()
+        this.zoneControls := []
+        this.pageSeparate := false
         this.givesBackWindowsKeys := IniRead(this.settingsPath, "Keys", "GiveBackToWindows", 0) = "1"
         this.manager := 0
         this.stopping := false
@@ -54,10 +53,10 @@ class WonderWindowsModule extends SuiteModule {
             , {section: keys, replaces: ["Win + Up"]})
         this.Add("restore", "back to normal size", WW_RestoreToNormalSize, ["Win + Down"],
             , {section: keys, replaces: ["Win + Down"]})
-        this.Add("full-height", "toggle full height", WW_ToggleFullSpan, ["Win + Shift + Up"], ["height"],
-            {section: keys, replaces: ["Win + Shift + Up"]})
-        this.Add("full-width", "toggle full width", WW_ToggleFullSpan, ["Win + Shift + Down"], ["width"],
-            {section: keys, replaces: ["Win + Shift + Down"]})
+        this.Add("full-span", "full height, then full width, then back", WW_CycleFullSpan,
+            ["Win + Shift + Up"], , {section: keys, replaces: ["Win + Shift + Up"]})
+        this.Add("stretch-to-neighbors", "stretch to neighbors, then back", WW_ToggleNeighborStretch,
+            ["Win + Shift + Down"], , {section: keys, replaces: ["Win + Shift + Down"]})
         this.Add("minimize-all", "minimize all windows on this display", WW_MinimizeAllWindows, ["Win + M"],
             , {section: keys, replaces: ["Win + M"], anyWindow: true})
         this.Add("restore-all", "restore windows minimized on this display", WW_RestoreAllWindows,
@@ -200,62 +199,148 @@ class WonderWindowsModule extends SuiteModule {
         WW_RunWindowCommand(WW_ClearLogicalZones)
     }
 
-    ShowSettings(ui) {
-        global WW_zone_cycle_unit
-        key := "settings:wonder-windows"
-        if ui.Existing(key)
-            return
-        rows := SuitePageRows(ui.NewWindow(key, "Wonder Windows - Settings", true), 800)
-        names := []
-        selected := 1
-        for index, unit in WonderWindowsModule.ZoneUnits {
-            names.Push(unit[2])
-            if unit[1] = WW_zone_cycle_unit
-                selected := index
+    ; [ZoneLayouts] holds device|orientation=layout, empty for its default;
+    ; [ZoneCustom] the last custom line each one used, so its list offers it
+    ; again. [Zones] Cycle=thirds, from earlier versions, makes thirds the
+    ; landscape default.
+    LoadZoneLayouts() {
+        global WW_zone_layouts, WW_zone_custom, WW_zone_landscape_default, WW_zone_separate
+        WW_zone_landscape_default := IniRead(this.settingsPath, "Zones", "Cycle", "fourths") = "thirds"
+            ? "thirds" : "fourths"
+        WW_zone_separate := IniRead(this.settingsPath, "Zones", "Separate", 0) = "1"
+        WW_zone_layouts := Map(), WW_zone_custom := Map()
+        for section, target in Map("ZoneLayouts", WW_zone_layouts, "ZoneCustom", WW_zone_custom) {
+            try lines := IniRead(this.settingsPath, section)
+            catch
+                continue
+            for line in StrSplit(lines, "`n", "`r") {
+                parts := StrSplit(line, "=", , 2)
+                if parts.Length = 2 && Trim(parts[2]) != ""
+                    target[parts[1]] := Trim(parts[2])
+            }
         }
-        rows.Field("Zone cycle", "DropDownList", "w260 vzoneUnit", names).Choose(selected)
-        rows.Caption("Full height first, then the upper and lower halves of the display. Thirds skips the halves.")
+    }
+
+    ; One row per connected display: a layout for its current orientation, or
+    ; with the checkbox one for each orientation. Each list offers the presets
+    ; and the display's last custom line, and takes a typed line too.
+    ; pending holds unsaved values, by device|orientation, when the checkbox
+    ; rebuilds the page.
+    ShowSettings(ui, pending := 0) {
+        global WW_zone_layouts, WW_zone_custom, WW_zone_separate
+        key := "settings:wonder-windows"
+        if !pending && ui.Existing(key)
+            return
+        separate := pending ? pending["separate"] : WW_zone_separate
+        this.pageSeparate := separate
+        rows := SuitePageRows(ui.NewWindow(key, "Wonder Windows - Settings", true), 800)
+        choices := ui.DisplayChoices("Primary")
+        this.zoneControls := []
+        for index, device in choices.values {
+            current := WonderWindowsModule.DeviceOrientation(device)
+            for orientation in separate ? ["landscape", "portrait"] : [current] {
+                zoneKey := device "|" orientation
+                label := choices.names[index] (separate ? ", " orientation : " (" orientation ")")
+                items := []
+                for preset in WW_ZoneLayouts.Presets
+                    items.Push(preset[2])
+                if WW_zone_custom.Has(zoneKey)
+                    items.Push(WW_zone_custom[zoneKey])
+                name := "zone" this.zoneControls.Length + 1
+                control := rows.Field(label, "ComboBox", "w300 v" name, items)
+                layout := WW_zone_layouts.Has(zoneKey) ? WW_zone_layouts[zoneKey] : WW_DefaultZoneLayout(zoneKey)
+                control.Text := pending && pending.Has(zoneKey) ? pending[zoneKey]
+                    : WW_ZoneLayouts.IsPreset(layout) ? WW_ZoneLayouts.Name(layout) : layout
+                this.zoneControls.Push({name: name, key: zoneKey, label: label})
+            }
+        }
+        rows.Caption("Pick a layout, or type your own with : between columns, / between rows and > for"
+            . " and then, such as 1:1:1:1 > 1:1 / 1:1. A display left on its default follows its orientation.")
+        rows.Checkbox("Choose separate layouts for landscape and portrait", "vseparate").Value := separate
+        rows.window["separate"].OnEvent("Click", ObjBindMethod(this, "RebuildSettings", ui))
         rows.Checkbox("Give Windows back its own keys when you move or clear their actions", "vgiveBack")
-            .Value := this.givesBackWindowsKeys
+            .Value := pending ? pending["giveBack"] : this.givesBackWindowsKeys
         rows.Caption("Win + Left, Right, Up, Down, M, Shift + M, Home and D. Unchecked, they do nothing"
             . " once moved or cleared, so Windows' own versions never surprise you.", true)
         status := WW_IsFancyZonesRunning() ? "running, not supported" : "not running, you're all set!"
         rows.Field("FancyZones:", "Text", "w540 vfancyZonesStatus c" WonderWindowsModule.StatusColor(status), status)
-        rows.Text("FancyZones also moves windows and takes hotkeys, so it isn't supported;"
-            . " disable it in PowerToys. For drag-and-drop zones that work alongside Super Hotkey, try ScreenGrid.")
+        rows.Text("FancyZones also moves windows and takes hotkeys, so it isn't supported; disable it in PowerToys.")
         rows.Show(ui, key, [["Apply", ObjBindMethod(this, "SaveSettings", ui)],
-            ["ScreenGrid...", ObjBindMethod(this, "OpenScreenGrid", ui)],
             ["Back", ObjBindMethod(ui, "BackToHelp", this.id)]])
+        if pending {
+            ; The page now shows unsaved changes: keep Apply lit.
+            ui.pageLayouts[key].saved := ""
+            ui.PageChanged(key)
+        }
+    }
+
+    ; The checkbox shows or hides the second column, keeping what was typed.
+    RebuildSettings(ui, *) {
+        key := "settings:wonder-windows"
+        window := ui.windows[key]
+        pending := Map("separate", window["separate"].Value != 0, "giveBack", window["giveBack"].Value)
+        for item in this.zoneControls
+            pending[item.key] := window[item.name].Text
+        ui.CloseWindow(key)
+        this.ShowSettings(ui, pending)
+    }
+
+    ; landscape or portrait, from the display's bounds; landscape when the
+    ; display is gone.
+    static DeviceOrientation(device) {
+        loop MonitorGetCount() {
+            if MonitorGetName(A_Index) = device {
+                MonitorGet(A_Index, &left, &top, &right, &bottom)
+                return bottom - top > right - left ? "portrait" : "landscape"
+            }
+        }
+        return "landscape"
     }
 
     RestoreSettings(window) {
-        window["zoneUnit"].Choose(1)
+        for item in this.zoneControls
+            window[item.name].Text := WW_ZoneLayouts.Name(InStr(item.key, "|portrait") ? "corners" : "fourths")
+        window["separate"].Value := 0
         window["giveBack"].Value := 0
     }
 
-    static ScreenGridUrl := "https://github.com/TtesseractT/ScreenGrid"
-
-    OpenScreenGrid(ui, *) {
-        if this.app.dryRun {
-            MsgBox("Opening web pages is inactive in the dry run.", SuiteApplication.Name, "Iconi")
-            return
-        }
-        try Run(WonderWindowsModule.ScreenGridUrl)
-        catch Error as failure
-            ui.Report(failure, "Wonder Windows / ScreenGrid")
-    }
-
+    ; Checks every typed line before saving anything. A choice equal to its
+    ; default is saved empty, so the display keeps following its orientation.
     SaveSettings(ui, *) {
-        global WW_zone_cycle_unit
         key := "settings:wonder-windows"
+        window := ui.windows[key]
         try {
-            unit := WonderWindowsModule.ZoneUnits[ui.windows[key]["zoneUnit"].Value][1]
-            giveBack := ui.windows[key]["giveBack"].Value != 0
-            this.app.Settings.WritePreferences(this.id, Map("Zones", Map("Cycle", unit),
-                "Keys", Map("GiveBackToWindows", giveBack ? 1 : 0)))
-            WW_zone_cycle_unit := unit
+            layouts := Map()
+            custom := Map()
+            for item in this.zoneControls {
+                layout := WW_ZoneLayouts.FromText(window[item.name].Text)
+                if !WW_ZoneLayouts.IsPreset(layout) {
+                    try WW_ParseZoneLine(layout)
+                    catch ValueError as problem
+                        throw ValueError(item.label ": " problem.Message)
+                    custom[item.key] := layout
+                }
+                ; Saving resets an earlier version's Cycle=thirds, so a choice
+                ; of thirds is saved by display from here on.
+                layouts[item.key] := layout = (InStr(item.key, "|portrait") ? "corners" : "fourths") ? "" : layout
+            }
+            separate := window["separate"].Value != 0
+            giveBack := window["giveBack"].Value != 0
+            changes := Map("Zones", Map("Cycle", "fourths", "Separate", separate ? 1 : 0),
+                "Keys", Map("GiveBackToWindows", giveBack ? 1 : 0))
+            if layouts.Count
+                changes["ZoneLayouts"] := layouts
+            if custom.Count
+                changes["ZoneCustom"] := custom
+            this.app.Settings.WritePreferences(this.id, changes)
+            this.LoadZoneLayouts()
             this.givesBackWindowsKeys := giveBack
             WW_EndZoneCycle()
+            if separate != this.pageSeparate {
+                ui.CloseWindow(key)
+                this.ShowSettings(ui)
+                return
+            }
             ui.Applied(key)
         }
         catch Error as failure
@@ -281,7 +366,9 @@ class WonderWindowsModule extends SuiteModule {
         Left and scroll down start at the left fourth; Right and scroll up start at the right fourth.
         The other key steps back, so Left then Right jumps to the last zone.
         Release the keys to start over next time.
-        Settings can switch the cycle to thirds.
+        Each display has its own layout in Settings: fourths, thirds, halves and corners, or rows for a portrait display.
+        Or type your own there, with : between columns, / between rows and > for and then: 1:1:1:1 > 1:1 / 1:1 walks four columns, then four corners.
+        A display left on its default uses fourths in landscape and halves and corners in portrait; Settings can also give each orientation its own layout.
         Sizes an app cannot shrink to are skipped.
 
         ARRANGE YOUR WINDOWS
@@ -293,9 +380,10 @@ class WonderWindowsModule extends SuiteModule {
         Win + M, Win + Home and Win + D take Shift to bring back what they minimized, however much you do in between.
         They act on your display only, except Win + D, which reaches every display, and focus stays on your display.
         Win + Up maximizes the window, then steps to the upper and lower half.
-        Win + Down takes it back to normal size, out of maximized or fullscreen, a zone, a half or a full height or width; it never minimizes.
-        Win + Shift + Up stretches the window to the full height of the display, and Win + Shift + Down to the full width; the same key again puts it back.
-        A maximized or minimized cascade window keeps its place in its cascade; a zone, half or full height or width takes it out.
+        Win + Down takes it back to normal size, out of maximized or fullscreen, a zone, a half or a stretch; it never minimizes.
+        Win + Shift + Up stretches the window to the full height of the display, then to the full width, then puts it back.
+        Win + Shift + Down stretches it into the free space around it, up to the windows you can see, and again puts it back; with nothing beside it, it maximizes.
+        A maximized or minimized cascade window keeps its place in its cascade; a zone, half or stretch takes it out.
 
         FOCUS, STACKS AND FULLSCREEN
         Win + PgDn and PgUp step focus through every window on screen in reading order: displays left to right, columns left to right, top before bottom, and outline the window they reach; double-tap Caps to outline where you are.
@@ -317,7 +405,7 @@ WW_PrepareWindowForAdoption(hwnd)
     if !WW_SetNativeFullscreen(hwnd, false)
         return false
     WW_ForgetLogicalZone(hwnd)
-    WW_ForgetFullSpan(hwnd)
+    WW_ForgetStretches(hwnd)
     for states in [WW_layout_cycle_windows, WW_normal_window_placements]
         if states.Has(hwnd)
             states.Delete(hwnd)

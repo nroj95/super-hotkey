@@ -685,7 +685,7 @@ class KeybindingsChecks {
             "wonder-windows.move-onto-left", "wonder-windows.move-onto-right",
             "wonder-windows.minimize", "wonder-windows.restore-minimized",
             "wonder-windows.maximize", "wonder-windows.restore",
-            "wonder-windows.full-height", "wonder-windows.full-width",
+            "wonder-windows.full-span", "wonder-windows.stretch-to-neighbors",
             "wonder-windows.minimize-all", "wonder-windows.restore-all",
             "wonder-windows.minimize-others", "wonder-windows.restore-others",
             "wonder-windows.minimize-everywhere", "wonder-windows.restore-everywhere",

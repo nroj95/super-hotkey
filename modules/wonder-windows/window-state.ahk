@@ -46,7 +46,7 @@ WW_MaximizeWindowTarget()
             ; Maximizing places nothing by hand: like the maximize button, it
             ; keeps a cascade window in its cascade, which lends its slot out
             ; until the window is restored.
-            WW_ForgetFullSpan(hwnd)
+            WW_ForgetStretches(hwnd)
             WW_ForgetWindowLayoutCycle(hwnd)
             WinMaximize(window)
         } else {
@@ -316,7 +316,7 @@ WW_RestoreWindowTarget()
             if WinGetMinMax(hwnd) = 1
                 WinRestore(hwnd)
         }
-        WW_ForgetFullSpan(hwnd)
+        WW_ForgetStretches(hwnd)
         WW_ForgetWindowLayoutCycle(hwnd)
         WinActivate(hwnd)
         ; Back at its original shape, the window is no longer placed by hand.

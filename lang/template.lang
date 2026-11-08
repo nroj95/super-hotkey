@@ -331,7 +331,13 @@ The other key steps back, so Left then Right jumps to the last zone.
 Release the keys to start over next time.
 =
 
-Settings can switch the cycle to thirds.
+Each display has its own layout in Settings: fourths, thirds, halves and corners, or rows for a portrait display.
+=
+
+Or type your own there, with : between columns, / between rows and > for and then: 1:1:1:1 > 1:1 / 1:1 walks four columns, then four corners.
+=
+
+A display left on its default uses fourths in landscape and halves and corners in portrait; Settings can also give each orientation its own layout.
 =
 
 Sizes an app cannot shrink to are skipped.
@@ -361,13 +367,16 @@ They act on your display only, except Win + D, which reaches every display, and 
 Win + Up maximizes the window, then steps to the upper and lower half.
 =
 
-Win + Down takes it back to normal size, out of maximized or fullscreen, a zone, a half or a full height or width; it never minimizes.
+Win + Down takes it back to normal size, out of maximized or fullscreen, a zone, a half or a stretch; it never minimizes.
 =
 
-Win + Shift + Up stretches the window to the full height of the display, and Win + Shift + Down to the full width; the same key again puts it back.
+Win + Shift + Up stretches the window to the full height of the display, then to the full width, then puts it back.
 =
 
-A maximized or minimized cascade window keeps its place in its cascade; a zone, half or full height or width takes it out.
+Win + Shift + Down stretches it into the free space around it, up to the windows you can see, and again puts it back; with nothing beside it, it maximizes.
+=
+
+A maximized or minimized cascade window keeps its place in its cascade; a zone, half or stretch takes it out.
 =
 
 FOCUS, STACKS AND FULLSCREEN
