@@ -1,6 +1,6 @@
 # agent guide
 
-Super Hotkey is one AutoHotkey v2 64-bit process: a launcher, a small core and six modules. there is no build step; edit `core/` and `modules/` directly. earlier generators and snapshots live only in Git history.
+Super Hotkey is one AutoHotkey v2 64-bit process: a launcher, a small core and five modules. there is no build step; edit `core/` and `modules/` directly. earlier generators and snapshots live only in Git history.
 
 ## map
 

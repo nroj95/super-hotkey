@@ -744,8 +744,6 @@ class KeybindingsChecks {
 
     static ActiveShortcutVisibility() {
         app := SuiteApplication(true, SuiteChecks.directory "\visibility")
-        ; Galaxy Rhythm is opt-in; turn it on like a user would, to see it listed.
-        app.activeModules["galaxy-rhythm"] := true
         app.InitializeCatalog()
         manager := app.manager
         try {
@@ -816,7 +814,7 @@ class KeybindingsChecks {
                 }
             }
             expectedOrder := ["Global", "Paper Pad", "Cascade Kingdom",
-                "Wonder Windows", "Power-Up Utilities", "Secret Layers", "Galaxy Rhythm"]
+                "Wonder Windows", "Power-Up Utilities", "Secret Layers"]
             this.Assert(mainHeadings.Length = expectedOrder.Length,
                 "Keybindings includes exactly the module sections")
             for index, expectedName in expectedOrder
@@ -839,7 +837,6 @@ class KeybindingsChecks {
                 "Cascade Kingdom", "cascade-kingdom.help",
                 "Wonder Windows", "wonder-windows.help",
                 "Power-Up Utilities", "power-up-utilities.help",
-                "Galaxy Rhythm", "galaxy-rhythm.help",
                 "Secret Layers", "secret-layers.help")
             for index, row in rows {
                 if row.id != "" || !expectedHelp.Has(row.label)
@@ -860,9 +857,6 @@ class KeybindingsChecks {
             this.Assert(saved["secret-layers.help"].bindings[1] = ""
                 && saved["secret-layers.help"].bindings[2] = "",
                 "Secret Layers Help remains unassigned by default")
-            this.Assert(saved["galaxy-rhythm.help"].bindings[1] = Keybindings.Parse("Pause + G").signature
-                && saved["galaxy-rhythm.help"].bindings[2] = "",
-                "Galaxy Rhythm Help defaults to Pause + G")
             this.Assert(saved["cascade-kingdom.help"].bindings[1]
                 = Keybindings.Parse("Caps + H").signature
                 && saved["wonder-windows.help"].bindings[1]

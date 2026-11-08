@@ -35,8 +35,7 @@ class CoreChecks {
         enabled := 0
         for id, value in settings.modules
             enabled += value
-        this.Assert(enabled = 5 && !settings.modules["galaxy-rhythm"],
-            "the five tool modules default to enabled, and Galaxy Rhythm to disabled")
+        this.Assert(enabled = 5 && settings.modules.Count = 5, "every module defaults to enabled")
         choices := settings.modules.Clone()
         choices["secret-layers"] := false
         settings.Save(choices)
@@ -921,17 +920,17 @@ class CoreChecks {
             SuiteNotice.Hide("status")
             ; News from two sources stacks; a source's newer news replaces its own.
             SuiteNotice.ShowEverywhere("awake", "Sleep allowed again")
-            SuiteNotice.ShowEverywhere("bedtime", "You feel sleepy")
+            SuiteNotice.ShowEverywhere("speakers", "Speakers kept awake")
             SuiteNotice.notices["awake-1"].window.GetPos(, &awakeY, , &awakeHeight)
-            SuiteNotice.notices["bedtime-1"].window.GetPos(, &bedtimeY)
-            stacked := bedtimeY >= awakeY + awakeHeight
-            SuiteNotice.ShowEverywhere("bedtime", "Good night")
-            this.Assert(stacked && SuiteNotice.notices["bedtime-1"].text = "Good night"
+            SuiteNotice.notices["speakers-1"].window.GetPos(, &speakersY)
+            stacked := speakersY >= awakeY + awakeHeight
+            SuiteNotice.ShowEverywhere("speakers", "Speakers allowed to sleep")
+            this.Assert(stacked && SuiteNotice.notices["speakers-1"].text = "Speakers allowed to sleep"
                 && SuiteNotice.notices["awake-1"].shown && SuiteNotice.notices["awake-1"].text = "Sleep allowed again",
                 "news from different sources stacks, and a source's newer news replaces its own")
             loop MonitorGetCount() {
                 SuiteNotice.Hide("awake-" A_Index)
-                SuiteNotice.Hide("bedtime-" A_Index)
+                SuiteNotice.Hide("speakers-" A_Index)
             }
             this.Assert(SuiteNotice.CoveredMonitor() = 0, "no exclusive fullscreen game covers a display")
             ; An exclusive fullscreen game hides whatever shows on its display.

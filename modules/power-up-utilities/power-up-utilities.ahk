@@ -382,7 +382,7 @@ class PowerUpUtilities extends SuiteModule {
         Pause + Shift + End allows sleep again.
         The tray icon's tooltip shows how long.
         The screen still turns off and locks as usual, and choosing Sleep or closing a laptop lid still sleeps.
-        So when you leave work running, lock with Win + L or turn the screens off with Pause + Pause: it keeps running, and Galaxy Rhythm's energy bar counts the time as a break.
+        So when you leave work running, lock with Win + L or turn the screens off with Pause + Pause: it keeps running.
         Suspending or exiting Super Hotkey ends it.
 
         KEEP SPEAKERS AWAKE

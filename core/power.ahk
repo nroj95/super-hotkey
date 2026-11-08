@@ -3,10 +3,9 @@
 ; =============================================================================
 ; Power-Up Utilities' hotkeys turn stay awake on and off, and any module may
 ; ask whether it is on. SuiteSleep puts the computer to sleep for whichever
-; module asks: the sleep hotkey and bedtime's sleep. Where the power plan lets
-; Away Mode replace sleep, keeping the computer running with its screens dark,
-; it sleeps for real unless the caller allows Away Mode, as the sleep hotkey
-; may; bedtime's sleep and the faint never do, since their night needs it.
+; module asks, so far the sleep hotkey. Where the power plan lets Away Mode
+; replace sleep, keeping the computer running with its screens dark, it
+; sleeps for real unless the caller allows Away Mode, as the sleep hotkey may.
 ; The application starts and stops it, so an interrupted sleep transaction is
 ; restored at the next start or on exit; a dry run never starts it.
 ; =============================================================================

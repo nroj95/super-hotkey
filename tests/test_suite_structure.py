@@ -8,7 +8,7 @@ CORE = sorted((ROOT / 'core').glob('*.ahk'))
 MODULES = sorted((ROOT / 'modules').rglob('*.ahk'))
 RUNTIME = [ROOT / 'super-hotkey.ahk', *CORE, *MODULES]
 MODULE_CLASSES = {'CascadeKingdomModule', 'WonderWindowsModule', 'PowerUpUtilities',
-                  'PaperPadModule', 'SecretLayersModule', 'GalaxyRhythmModule'}
+                  'PaperPadModule', 'SecretLayersModule'}
 
 
 def source(path):

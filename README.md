@@ -19,7 +19,6 @@ Use any module on its own or combine them.
 | [Paper Pad](#paper-pad) | A quick-notes drawer using Notepad3 |
 | [Power-Up Utilities](#power-up-utilities) | Extra keys, text shortcuts and system utilities |
 | [Secret Layers](#secret-layers) | Use CapsLock and Pause as extra keyboard layers |
-| [Galaxy Rhythm](#galaxy-rhythm) | Bedtime nudges, a fade to sleep and an energy bar, off until you turn it on |
 
 ### Wonder Windows
 
@@ -58,10 +57,6 @@ In Windows Terminal, copy the buffer as Markdown or clear it; both use Terminal'
 ### Secret Layers
 
 Hold CapsLock or Pause and press another key for extra hotkeys, or tap it first so you don't have to hold both. `Caps` and `Pause` hotkeys use these layers. Double-tap Shift to toggle Caps Lock.
-
-### Galaxy Rhythm
-
-Gentle structure for an irregular sleep rhythm, without nagging. Its settings show up to three bedtime messages at times you choose, by default *It's getting late* at midnight, *zzz…* at 1:00 and *You feel sleepy* at 2:00. After the last, the screen fades to grey over 10 minutes, says *Good night* and puts the computer to sleep, and until your day starts, waking it fades it back to sleep; Power-Up Utilities' stay awake keeps it up. A small, see-through energy bar marked E, upright in the bottom-right corner of the primary display unless you move it, is your energy for the day. It drains while you use the computer, and breaks give some back, short ones the most, counted from the moment the computer locks, turns its screens off or sleeps, so lock it with `Win + L` when you leave. It starts over when your day starts, and as in Stardew Valley a late night or running dry means a smaller bar the next day. Run it empty and the screen greys over half an hour until you faint into sleep. For a game night, *Tonight off* in its Help pauses all of it until your day starts, or until you press *Back on*. The module starts disabled: turn it on in Modules and all of it is on, ready to adjust in Settings.
 
 ## Start
 

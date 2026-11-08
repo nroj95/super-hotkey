@@ -41,7 +41,7 @@ class SuiteApplication {
     static Version := "1.0.0-beta.4"
     ; Keybindings lists the compact Paper Pad section right after Global.
     static KeybindingsOrder := ["paper-pad", "cascade-kingdom", "wonder-windows",
-        "power-up-utilities", "secret-layers", "galaxy-rhythm"]
+        "power-up-utilities", "secret-layers"]
 
     __New(dryRun := false, directory := "") {
         this.dryRun := dryRun
@@ -152,7 +152,6 @@ class SuiteApplication {
             "cascade-kingdom", CascadeKingdomModule(this),
             "wonder-windows", WonderWindowsModule(this),
             "power-up-utilities", PowerUpUtilities(this),
-            "galaxy-rhythm", GalaxyRhythmModule(this),
             "paper-pad", PaperPadModule(this),
             "secret-layers", SecretLayersModule(this))
         options := {directory: this.Settings.directory "\keybindings",

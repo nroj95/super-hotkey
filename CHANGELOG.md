@@ -4,23 +4,14 @@
 
 ### Breaking changes
 
+- **Galaxy Rhythm** is removed, with its bedtime messages, fade to sleep and energy bar, since it isn't about hotkeys. Super Hotkey now has five modules, all on by default, and `Pause + G` is free. Its settings and state in `%LOCALAPPDATA%\nroj\SuperHotkey\galaxy-rhythm` are left as they are.
 - **Cascade Kingdom:** dropping a window onto a slot no longer adds it; `Caps + Insert` and the new double-click do. Dragging a window outside a cascade shows no guides. Dragging a window in a cascade shows them, as before: dropped on one, it takes that slot, on any display. Dropped anywhere else, it leaves the cascade where you dropped it, now at the size, or maximized, as it was before joining, instead of cascade-sized. Resizing it by any edge now always takes it out, where and as large as you made it.
 
 ### Changes
 
-- **Galaxy Rhythm:** what a break or *Second wind* gives back now shows in purple at the top of the energy bar for 3 seconds, so you can see the reward. A break now counts as soon as you're back, instead of up to 10 seconds later.
-- **Galaxy Rhythm:** *Tonight off* can be undone. Its button turns into **Back on**, which ends the night off early, and *Your day starts at* in Settings is no longer locked meanwhile. Back on asks first only if the energy bar is on the road and it's before your bedtime sleep, since the grey and *Lights out* come back with it. After your bedtime sleep time, the fade to sleep starts right away with your last bedtime message.
-- **Galaxy Rhythm:** *Second wind* waits until the energy bar is at 75 % or less, so none of it is wasted. Pressed earlier, it says so and stays available.
-- **Galaxy Rhythm:** when a pause on the energy bar lifts, because you turn a night off back on, resume Super Hotkey or unlock the computer, its warnings and *Lights out* come within a second instead of at its next 10-second check.
-- **Galaxy Rhythm:** its guide mentions Windows' Dynamic Lock, which locks the computer when you walk away with your phone and so starts a break.
-- **Galaxy Rhythm:** bedtime's messages and fade wait until the screens are on. When Windows wakes the computer on its own at night for updates or maintenance, with the screens still off, bedtime no longer fades it back to sleep halfway through. A fade already under way still ends in sleep if the screens turn off.
 - `Pause + F1` is renamed from *clear debug log* to *start new debug log*, since it never threw anything away. The previous log is now kept zipped in a `logs` folder in `%LOCALAPPDATA%\nroj\SuperHotkey`, one archive per new log, instead of a single `debug.log.old` that the next new log overwrote. Archives are never deleted, and they're small: about an eighth of the log's size. Logs that reach 2 MB are archived the same way. Archives with verbose lines, which record window titles, end in `-verbose`, so you can find and delete them. A `debug.log.old` from earlier versions moves into `logs` too. Restarts still keep writing to the same log.
 - With three or more displays, a notice for a display that a game in exclusive fullscreen covers now shows on every other display instead of only the next one.
 - **Cascade Kingdom:** hold `Caps`, `Win` or `Pause` and double-click anywhere on a window to add it to its display's cascade, as `Caps + Insert` does; keep holding to add more. Double-clicking a window already in a cascade takes it out, back to where it was, as `Caps + Shift + Insert` does. While one of them is held, a click only focuses a window, and no click, drag, scroll or other mouse button reaches what is inside it. The taskbar, the desktop, Start and focus tabs work as usual. `Caps` and `Pause` need Secret Layers; `Win` works without it.
-
-### Fixes
-
-- **Galaxy Rhythm:** a video left playing on an unlocked computer no longer runs the day dry. Watching still empties the energy bar, at half speed, and *You're running on fumes* waits until you use the keyboard, mouse or a controller with the bar empty. The day now counts as run dry, halving the next morning, only a tenth of the way along the road to *Lights out*, 3 minutes of use by default, so the key that stops a forgotten video or a minute to save and lock costs nothing.
 
 ## v1.0.0-beta.4
 

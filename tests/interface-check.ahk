@@ -77,8 +77,6 @@ class InterfaceChecks {
 
     static Interfaces() {
         app := SuiteApplication(true, SuiteChecks.directory "\new-interfaces")
-        ; Galaxy Rhythm is opt-in; turn it on like a user would, to see it everywhere.
-        app.activeModules["galaxy-rhythm"] := true
         try {
             app.Start()
             this.Assert(SuiteApplication.Name = "Super Hotkey"
@@ -87,14 +85,14 @@ class InterfaceChecks {
             this.Assert(A_IconTip = "Super Hotkey v1.0.0-beta.4 - dry run",
                 "tray hover text includes its assigned version and dry-run suffix")
             count := DllCall("GetMenuItemCount", "ptr", A_TrayMenu.Handle, "int")
-            this.Assert(count = 21,
+            this.Assert(count = 20,
                 "tray includes Language..., application suspension and an explicit app restart")
             loop count
                 this.Assert(!DllCall("GetSubMenu", "ptr", A_TrayMenu.Handle, "int", A_Index - 1, "ptr"),
                     "tray entry has no submenu: " A_Index)
-            for item in [[2, "Language..."], [12, "Verbose logging"], [13, "Open settings folder"],
-                [15, "Run at startup"], [16, "Suspend"],
-                [17, "Restart Super Hotkey"], [18, "Reset to defaults..."]] {
+            for item in [[2, "Language..."], [11, "Verbose logging"], [12, "Open settings folder"],
+                [14, "Run at startup"], [15, "Suspend"],
+                [16, "Restart Super Hotkey"], [17, "Reset to defaults..."]] {
                 name := Buffer(256, 0)
                 DllCall("GetMenuStringW", "ptr", A_TrayMenu.Handle,
                     "uint", item[1], "ptr", name, "int", 128, "uint", 0x400, "int")
@@ -102,15 +100,15 @@ class InterfaceChecks {
                     "tray exposes " item[2] " directly")
             }
             verboseStatus := (*) => DllCall("GetMenuState", "ptr", A_TrayMenu.Handle,
-                "uint", 12, "uint", 0x400, "uint")
+                "uint", 11, "uint", 0x400, "uint")
             this.Assert(!(verboseStatus.Call() & 8),
                 "verbose logging starts unchecked in the tray")
             startupState := DllCall("GetMenuState", "ptr", A_TrayMenu.Handle,
-                "uint", 15, "uint", 0x400, "uint")
+                "uint", 14, "uint", 0x400, "uint")
             this.Assert(startupState & 3,
                 "Run at startup is disabled during safe dry-run testing")
             hotkeyState := (*) => DllCall("GetMenuState", "ptr", A_TrayMenu.Handle,
-                "uint", 16, "uint", 0x400, "uint")
+                "uint", 15, "uint", 0x400, "uint")
             this.Assert(!(hotkeyState.Call() & 8) && !app.suspended,
                 "Suspend starts unchecked")
             app.ui.ToggleSuspension()
@@ -356,7 +354,6 @@ class InterfaceChecks {
                 firstHeading := Map("cascade-kingdom", "ADD A WINDOW",
                     "wonder-windows", "CYCLE ZONES",
                     "power-up-utilities", "MORE KEYS WITHOUT A NEW KEYBOARD",
-                    "galaxy-rhythm", "BEDTIME MESSAGES",
                     "paper-pad", "YOUR OWN QUICK-NOTES DRAWER",
                     "secret-layers", "HOLD A KEY FOR MORE HOTKEYS")
                 this.Assert(parts.Length >= 4 && parts[1].heading && parts[1].control.Text = "WHY I MADE THIS"
@@ -370,104 +367,6 @@ class InterfaceChecks {
                 if id = "cascade-kingdom"
                     this.Assert(InStr(guide, "Caps + Shift + Insert to take it out again") > 0,
                         "Cascade Kingdom explains how to take a window out again")
-                if id = "galaxy-rhythm" {
-                    rhythm := app.modules[id]
-                    button := 0
-                    for hwnd, control in window
-                        if control.Type = "Button" && control.Text = "Tonight off"
-                            button := control
-                    rhythm.energy.dry := false
-                    footerButtons := app.ui.pageFooters[window.Hwnd].buttons
-                    button.GetPos(, , &usualWidth)
-                    footerButtons[-1].button.GetPos(&closeX)
-                    rhythm.SetNightOff()
-                    tonight := IsObject(button) && button.Text = "Back on"
-                        && button.Enabled && rhythm.Off() && !rhythm.energy.dry
-                        && DateDiff(rhythm.offUntil, A_Now, "Hours") < 24
-                        && SubStr(rhythm.offUntil, 9) = rhythm.bedtime.wakeTime "00"
-                    button.GetPos(&backX, , &backWidth)
-                    footerButtons[-1].button.GetPos(&closeAfterX)
-                    footerButtons[3].button.GetPos(&settingsX)
-                    this.Assert(usualWidth = SuiteInterface.ButtonMinWidth && backWidth >= SuiteInterface.ButtonMinWidth
-                        && closeAfterX = closeX && backX + backWidth + 10 = settingsX,
-                        "footer buttons fit their text, at least the shared width, and keep their places as one is renamed")
-                    rhythm.ShowSettings(app.ui)
-                    wakeOpen := app.ui.windows["settings:" id]["wake"].Enabled
-                    app.ui.CloseWindow("settings:" id)
-                    this.Assert(tonight && wakeOpen,
-                        "Galaxy Rhythm's Help takes tonight off until the day starts, with no dry day of its own, a Back on button and the day start still open in Settings")
-                    ; Back on asks first only on the energy bar's road before bedtime's night.
-                    evening := DateAdd(rhythm.offUntil, -6, "Hours")
-                    night := DateAdd(rhythm.offUntil, -2, "Hours")
-                    energy := rhythm.energy
-                    level := energy.level
-                    energy.level := 100
-                    above := rhythm.BackOnQuestion(evening)
-                    energy.level := -10
-                    road := rhythm.BackOnQuestion(evening)
-                    inNight := rhythm.BackOnQuestion(night)
-                    energy.level := -energy.roadMinutes
-                    bottom := rhythm.BackOnQuestion(evening)
-                    this.Assert(above = "" && InStr(road, "about " energy.roadMinutes - 10 " min of activity")
-                        && InStr(bottom, "Lights out") && !InStr(bottom, "min of activity") && inNight = "",
-                        "Back on asks first anywhere on the road before bedtime's night, with the minutes left or Lights out")
-                    energy.level := 100
-                    rhythm.BackOn(evening)
-                    this.Assert(!rhythm.Off() && button.Text = "Tonight off" && !rhythm.bedtime.fadeStarted,
-                        "above zero Back on ends the night off at once")
-                    rhythm.SetNightOff()
-                    night := DateAdd(rhythm.offUntil, -2, "Hours")
-                    rhythm.BackOn(night)
-                    this.Assert(!rhythm.Off() && rhythm.bedtime.fadeStarted,
-                        "in bedtime's night Back on starts the fade to sleep at once")
-                    rhythm.bedtime.CancelFade()
-                    energy.level := level
-                    rhythm.SetNightOff()
-                    ; The day starting ends it, and the button comes back.
-                    rhythm.offUntil := A_Now
-                    rhythm.SyncNightOff()
-                    this.Assert(!rhythm.Off() && button.Text = "Tonight off" && button.Enabled,
-                        "as the day starts, Tonight off is back")
-                    ; Modules start before the interface exists.
-                    interface := app.ui
-                    app.ui := 0
-                    try {
-                        rhythm.SyncNightOff()
-                        synced := true
-                    }
-                    catch
-                        synced := false
-                    app.ui := interface
-                    this.Assert(synced, "Galaxy Rhythm starts before the interface exists, a night off running or not")
-                    wind := 0
-                    for hwnd, control in window
-                        if control.Type = "Button" && control.Text = "Second wind"
-                            wind := control
-                    rhythm.energy.level := rhythm.energy.full
-                    rhythm.TakeSecondWind()
-                    this.Assert(rhythm.energy.level = rhythm.energy.full && rhythm.energy.windDay = "",
-                        "pressed with a full bar, Second wind waits and stays available")
-                    rhythm.energy.level := 100
-                    windLevel := 100 + rhythm.energy.full * GR_Energy.WindShare
-                    rhythm.TakeSecondWind()
-                    once := rhythm.energy.level = windLevel
-                    rhythm.TakeSecondWind()
-                    this.Assert(IsObject(wind) && once && rhythm.energy.level = windLevel,
-                        "Galaxy Rhythm's Help gives a second wind of a quarter bar, once a day")
-                    rhythm.ShowSettings(app.ui)
-                    settings := app.ui.windows["settings:" id]
-                    pageApply := app.ui.pageLayouts["settings:" id].apply
-                    greyAtOpen := IsObject(pageApply) && !pageApply.Enabled
-                    noCheckbox := true
-                    for hwnd, control in settings
-                        if control.Text = "Tonight off"
-                            noCheckbox := false
-                    pageApply.Enabled := true ; as a change on the page does
-                    rhythm.SaveSettings(app.ui)
-                    this.Assert(greyAtOpen && noCheckbox && app.ui.windows.Has("settings:" id) && !pageApply.Enabled,
-                        "Galaxy Rhythm's Settings leave Tonight off to Help; Apply, grey until a change, saves and stays open")
-                    app.ui.CloseWindow("settings:" id)
-                }
                 window.GetClientPos(, , &helpWidth, &helpHeight)
                 fullHeight := Max(480, app.ui.HelpContentHeight(id, 820) + SuiteInterface.FooterBand)
                 WinGetPos(, , &outerWidth, &outerHeight, "ahk_id " window.Hwnd)
@@ -736,30 +635,15 @@ class InterfaceChecks {
                     app.ui.FillDefaults(id)
                     this.Assert(restoreButtons = 1 && (!pageApply || !pageApply.Enabled),
                         "Restore defaults leaves Apply grey when the page already shows them: " id)
-                    if id = "galaxy-rhythm" {
+                    if id = "power-up-utilities" {
                         ; Checks call PageChanged, as the page's change events would.
-                        settings["text1"].Value := "Bed!"
+                        settings["minutes"].Value := 9
                         app.ui.PageChanged("settings:" id)
                         litByChange := pageApply.Enabled
-                        settings["text1"].Value := "It's getting late"
+                        settings["minutes"].Value := 8
                         app.ui.PageChanged("settings:" id)
                         this.Assert(litByChange && !pageApply.Enabled,
                             "Apply lights up for a change and goes grey when it is changed back")
-                        settings["text1"].Value := "Bed!"
-                        settings["showEnergy"].Value := 0
-                        app.ui.FillDefaults(id)
-                        this.Assert(settings["text1"].Value = "It's getting late" && settings["showEnergy"].Value = 1
-                            && settings["energyFade"].Enabled && settings["fade"].Value = GR_Bedtime.FadeDefault
-                            && !pageApply.Enabled,
-                            "Galaxy Rhythm restores its words, switches and the fields they enable, with nothing left to apply")
-                        settings["fullHours"].Value := 12
-                        rhythm := app.modules[id]
-                        rhythm.SaveSettings(app.ui)
-                        app.ui.FillDefaults(id)
-                        this.Assert(settings["fullHours"].Value = GR_Energy.FullDefault && pageApply.Enabled,
-                            "after a saved change, restoring defaults lights Apply")
-                        app.ui.FillDefaults(id)
-                        rhythm.SaveSettings(app.ui)
                     }
                     if id = "power-up-utilities"
                         this.Assert(settings["realSleep"].Value = 1 && settings["minutes"].Value = 8
@@ -830,8 +714,8 @@ class InterfaceChecks {
             this.AssertCentered(window, page)
             this.Assert(layout.footer.buttons.Length >= 2,
                 "utility footer has its buttons: " page)
-            this.Assert(app.ui.moduleControls.Count = 6,
-                "Modules presents all six features")
+            this.Assert(app.ui.moduleControls.Count = 5,
+                "Modules presents all five features")
             app.ui.ShowLanguage()
             this.Assert(ControlGetItems(app.ui.languageList).Length = 2 + SuiteLanguage.Available().Length
                 && app.ui.languageList.Value = 1,
@@ -863,8 +747,8 @@ class InterfaceChecks {
                     descriptionCount += 1
                 }
             }
-            this.Assert(descriptionCount = 6,
-                "all six Module descriptions are actually present and visible")
+            this.Assert(descriptionCount = 5,
+                "all five Module descriptions are actually present and visible")
             window.Show("w" (layout.width + 100) " h" (layout.height + 130))
             window.GetClientPos(, , &pageW, &pageH)
             app.ui.ResizePage(page, window, 0, pageW, pageH)
@@ -885,7 +769,7 @@ class InterfaceChecks {
             OnExit(app.exitCallback, 0)
             OnError(app.errorCallback, 0)
         }
-        this.Assert(!InStr(SuiteState.Log.Read(), "ERROR"), "the six-module GUI smoke test emits no errors")
+        this.Assert(!InStr(SuiteState.Log.Read(), "ERROR"), "the five-module GUI smoke test emits no errors")
     }
 
     ; Posts BN_CLICKED, so the button's action runs through AutoHotkey's real

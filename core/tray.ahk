@@ -133,33 +133,6 @@ class SuiteInterface {
         return Max(SuiteInterface.ButtonMinWidth, Round(NumGet(size, 0, "int") * 96 / A_ScreenDPI) + 24)
     }
 
-    ; New text for a footer button: it resizes to fit, the buttons to its left
-    ; make room, and Help never gets narrower than its footer.
-    SetFooterText(button, text) {
-        button.Text := text
-        window := button.Gui
-        if !this.pageFooters.Has(window.Hwnd)
-            return
-        footer := this.pageFooters[window.Hwnd]
-        footer.total := 0
-        for item in footer.buttons {
-            if item.button = button
-                item.width := SuiteInterface.ButtonWidth(button)
-            footer.total += item.width + 10
-        }
-        footer.buttons[-1].button.GetPos(&lastX, &y, &lastWidth)
-        x := lastX + lastWidth + 10 - footer.total
-        for item in footer.buttons {
-            item.button.Move(x, y, item.width)
-            x += item.width + 10
-        }
-        for id, layout in this.helpLayouts
-            if layout.footer = footer {
-                layout.minWidth := Max(560, footer.total + 20)
-                window.Opt("+MinSize" layout.minWidth "x300")
-            }
-    }
-
     ; =========================================================================
     ; Scrolling: Help and Settings open at their full size, up to OpenShare of
     ; the working display like a cascade window, and content that does not fit
@@ -1006,7 +979,7 @@ class SuiteInterface {
             app.manager.Apply(app.manager._DefaultConfiguration())
             choices := Map()
             for id in SuiteSettings.ModuleOrder
-                choices[id] := SuiteSettings.ModuleDefault(id)
+                choices[id] := true
             app.Settings.Save(choices, Map("caps", true, "pause", true), "")
             app.Settings.ResetModulePreferences(sections)
             SuiteState.Log.Write("Core", "defaults restored; backup: " backup)

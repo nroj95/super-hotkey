@@ -244,7 +244,7 @@ SuiteMoveControls(window, positions) {
 ; news they did not just ask for shows on every display.
 ; Each slot shows one message; a newer message replaces it. Answers to a
 ; press share the status slot, since one press answers at a time, while news
-; takes a slot named for its source, such as bedtime or energy, so news from
+; takes a slot named for its source, such as stay awake, so news from
 ; different sources stacks and a source's newer news replaces its own. A
 ; notice stays where it first appeared until it hides, so nothing on screen
 ; ever jumps: a new one takes the center of its display when that is free,
