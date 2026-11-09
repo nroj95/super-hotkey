@@ -215,13 +215,15 @@ class WonderWindowsModule extends SuiteModule {
     ; pairs on (1) or off (0) along a display's long and short side.
     static StopPairs := [["Sixths", "1/6 and 5/6"], ["Fourths", "1/4 and 3/4"], ["Thirds", "1/3 and 2/3"]]
 
-    ; Fourths and thirds are on by default, sixths off, on both sides.
+    ; By default the long side has fourths and thirds and the short side thirds
+    ; only, so a half there moves straight between top and bottom.
+    static DefaultStop(side, pair) => pair = "Thirds" || pair = "Fourths" && side = "long"
     LoadZoneStops() {
         global WW_zone_stops
         for side, stops in WW_zone_stops
             for pair in WonderWindowsModule.StopPairs
                 stops[StrLower(pair[1])] := IniRead(this.settingsPath, "ZoneStops",
-                    (side = "long" ? "Long" : "Short") pair[1], pair[1] != "Sixths" ? 1 : 0) = "1"
+                    (side = "long" ? "Long" : "Short") pair[1], WonderWindowsModule.DefaultStop(side, pair[1]) ? 1 : 0) = "1"
     }
 
     ShowSettings(ui) {
@@ -263,7 +265,7 @@ class WonderWindowsModule extends SuiteModule {
         window["giveBack"].Value := 0
         for side in ["Long", "Short"]
             for pair in WonderWindowsModule.StopPairs
-                window[side pair[1]].Value := pair[1] != "Sixths"
+                window[side pair[1]].Value := WonderWindowsModule.DefaultStop(StrLower(side), pair[1])
     }
 
     static ScreenGridUrl := "https://github.com/TtesseractT/ScreenGrid"
@@ -317,9 +319,10 @@ class WonderWindowsModule extends SuiteModule {
         In zone mode a window sits only where both its edges land on stops: halves, fourths and thirds, so a half sits left, in the middle or right, and windows always fit together.
         Left and Right slide it to its next place; past the side, they move it to the next display that way, onto the facing side, and from the last display around to the first, as Windows does.
         Down and Up make it the bottom or top quarter, as Windows does, then slide it the same way.
+        Along a display's short side, the height on a landscape display, only halves and thirds count by default, since fourths are too thin there, so a half moves straight between top and bottom.
         Plain arrows move the window, and Shift with an arrow resizes it: one size bigger or smaller, snapped into the place that size fits that overlaps it most, ties going toward the arrow.
         Toward the side it hugs it shrinks and away from it it grows; a window as wide or tall as the display shrinks toward the arrow, and one in the middle grows, so a middle third becomes the middle half.
-        Settings can add sixths, or leave out fourths or thirds, separately along the display's long and short side; halves and full are always there.
+        Settings can add sixths or fourths, or leave out fourths or thirds, separately along the display's long and short side; halves and full are always there.
         Outside zone mode, Win + Up and Down maximize and restore, and Win + Shift + Left and Right stay Windows' own, moving windows between displays.
         For zones you drag with the mouse, we recommend ScreenGrid; its button is in Settings.
 

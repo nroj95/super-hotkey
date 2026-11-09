@@ -36,8 +36,12 @@ class WonderWindowsChecks {
             "with sixths on, the ladder runs from a sixth to full, without fifths")
         short := WW_ZoneLadder(false)
         this.Assert(SpanIs(WW_ZoneEdgeSpan([0, 1 / 2], false, short), 0, 0.6667)
-            && SpanIs(WW_ZoneEdgeSpan([0, 3 / 4], false, short), 0, 1) && !WW_ZoneEdgeSpan([0, 1 / 4], true, short),
-            "the short side's ladder runs from a fourth to full, so a half grows to full in three steps")
+            && SpanIs(WW_ZoneEdgeSpan([0, 2 / 3], false, short), 0, 1) && !WW_ZoneEdgeSpan([0, 1 / 3], true, short),
+            "the short side's ladder runs from a third to full, so a half grows to full in two steps")
+        halves := ""
+        for place in WW_ZonePlaces(1 / 2, short)
+            halves .= Round(place * 12) " "
+        this.Assert(halves = "0 6 ", "along the short side a half sits at the top or bottom, never in between")
         Ladder(sixths, fourths, thirds) {
             text := ""
             for stop in WW_BuildZoneLadder(sixths, fourths, thirds)
@@ -100,9 +104,8 @@ class WonderWindowsChecks {
             this.Assert(near(WW_GetWindowLayoutRectangle(hwnd), [area[1] + width / 2, area[2] + height / 2, width / 2, height / 2]),
                 "and again to the bottom-right quarter")
             WW_ZoneRow("up")
-            WW_ZoneRow("up")
             this.Assert(near(WW_GetWindowLayoutRectangle(hwnd), [area[1] + width / 2, area[2], width / 2, height / 2]),
-                "Up twice slides the quarter through the middle to the top-right")
+                "Up slides the quarter straight to the top-right")
             WW_EndZoneCycle()
             WW_ZoneSide("right")
             WW_ZoneEdge("left")

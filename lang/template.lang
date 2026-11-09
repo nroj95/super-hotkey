@@ -340,13 +340,16 @@ Left and Right slide it to its next place; past the side, they move it to the ne
 Down and Up make it the bottom or top quarter, as Windows does, then slide it the same way.
 =
 
+Along a display's short side, the height on a landscape display, only halves and thirds count by default, since fourths are too thin there, so a half moves straight between top and bottom.
+=
+
 Plain arrows move the window, and Shift with an arrow resizes it: one size bigger or smaller, snapped into the place that size fits that overlaps it most, ties going toward the arrow.
 =
 
 Toward the side it hugs it shrinks and away from it it grows; a window as wide or tall as the display shrinks toward the arrow, and one in the middle grows, so a middle third becomes the middle half.
 =
 
-Settings can add sixths, or leave out fourths or thirds, separately along the display's long and short side; halves and full are always there.
+Settings can add sixths or fourths, or leave out fourths or thirds, separately along the display's long and short side; halves and full are always there.
 =
 
 Outside zone mode, Win + Up and Down maximize and restore, and Win + Shift + Left and Right stay Windows' own, moving windows between displays.

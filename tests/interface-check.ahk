@@ -547,20 +547,22 @@ class InterfaceChecks {
                         for control in settings
                             screenGrid := screenGrid || control.Type = "Button" && control.Text = "ScreenGrid..."
                         this.Assert(screenGrid, "Wonder Windows Settings recommend ScreenGrid with a button")
-                        ; Zone stop pairs: fourths and thirds on by default, sixths off.
-                        this.Assert(!settings["LongSixths"].Value && settings["LongThirds"].Value
-                            && !settings["ShortSixths"].Value && settings["ShortFourths"].Value,
-                            "zone stop checkboxes start with fourths and thirds on and sixths off")
+                        ; Zone stop pairs: fourths and thirds along the long side, thirds
+                        ; only along the short side, sixths off.
+                        this.Assert(!settings["LongSixths"].Value && settings["LongFourths"].Value
+                            && settings["LongThirds"].Value && !settings["ShortSixths"].Value
+                            && !settings["ShortFourths"].Value && settings["ShortThirds"].Value,
+                            "zone stop checkboxes start with fourths and thirds on the long side, thirds on the short")
                         wonder := app.modules["wonder-windows"]
-                        settings["ShortFourths"].Value := 0
+                        settings["ShortFourths"].Value := 1
                         wonder.SaveSettings(app.ui)
                         short := ""
                         for stop in WW_ZoneLadder(false)
                             short .= Round(stop * 12) " "
-                        this.Assert(short = "0 4 6 8 12 ", "turning a pair off drops both its stops from that side")
-                        settings["ShortFourths"].Value := 1
+                        this.Assert(short = "0 3 4 6 8 9 12 ", "turning a pair on adds both its stops to that side")
+                        settings["ShortFourths"].Value := 0
                         wonder.SaveSettings(app.ui)
-                        this.Assert(WW_ZoneLadder(false).Length = 7, "and turning it back on restores them")
+                        this.Assert(WW_ZoneLadder(false).Length = 5, "and turning it back off removes them")
                         settings["fancyZonesStatus"].GetPos(&statusX)
                         this.Assert(statusX = SuitePageRows.FieldX,
                             "Wonder Windows FancyZones status sits in the page's field column")
