@@ -49,10 +49,11 @@ class WonderWindowsModule extends SuiteModule {
             ["Win + Shift + Backspace"], , {section: arrange})
         ; Each key beside its Shift twin. The display-wide ones answer from any window.
         keys := "Better Windows keys"
-        this.Add("maximize", "maximize, then upper / lower half", WW_MaximizeWindowTarget, ["Win + Up"],
-            , {section: keys, replaces: ["Win + Up"]})
-        this.Add("restore", "back to normal size", WW_RestoreToNormalSize, ["Win + Down"],
-            , {section: keys, replaces: ["Win + Down"]})
+        ; In zone mode, with Win held after Win + Left/Right, they step between rows.
+        this.Add("maximize", "maximize, then upper / lower half", WW_ZoneStepOr.Bind("up", WW_MaximizeWindowTarget),
+            ["Win + Up"], , {section: keys, replaces: ["Win + Up"]})
+        this.Add("restore", "back to normal size", WW_ZoneStepOr.Bind("down", WW_RestoreToNormalSize),
+            ["Win + Down"], , {section: keys, replaces: ["Win + Down"]})
         this.Add("full-span", "full height, then full width, then back", WW_CycleFullSpan,
             ["Win + Shift + Up"], , {section: keys, replaces: ["Win + Shift + Up"]})
         this.Add("stretch-to-neighbors", "stretch to neighbors, then back", WW_ToggleNeighborStretch,
@@ -398,7 +399,8 @@ class WonderWindowsModule extends SuiteModule {
         Hold Win and scroll, or press Win + Left or Right, to walk the window through fourths and halves: full height first, then upper and lower fourths, then upper and lower halves.
         Left and scroll down start at the left fourth; Right and scroll up start at the right fourth.
         The other key steps back, so Left then Right jumps to the last zone.
-        Release the keys to start over next time.
+        While you still hold Win, Up and Down move to the zone above or below, such as the top half of the fourth you're on, and Left and Right walk on from there.
+        Release the keys to start over next time; Win + Up and Down then maximize and restore again.
         Each display has its own layout in Settings: fourths, thirds, halves and corners, or rows for a portrait display.
         Or tick Custom there and type your own, with : between columns, / between rows and > for and then: 1:1:1:1 > 1:1 / 1:1 walks four columns, then four corners.
         A display left on its default uses fourths in landscape and halves and corners in portrait; Settings can also give each orientation its own layout.

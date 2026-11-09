@@ -7,7 +7,9 @@
 ; zone is on the side the key names: down/Left walks from the left fourth,
 ; up/Right walks the mirror image from the right fourth. The key that started
 ; the session keeps going; the other one steps back, wrapping to the last zone.
-; Releasing every modifier starts the next session over.
+; Releasing every modifier starts the next session over. Until then, zone mode
+; lends Win + Up and Down to the session: they move to the zone directly above
+; or below, and the walk goes on from there.
 
 ; Zone groups, each left to right as left space : width : right space.
 WW_GetZoneGroups(unit)
@@ -218,6 +220,65 @@ WW_CycleZone(direction)
     catch Error as err {
         WW_DebugError("Cycle zones", err)
     }
+}
+
+; Zone mode: while Win is still held after Win + Left/Right or scroll, Win +
+; Up and Down move to the zone directly above or below in the same layout,
+; and the walk goes on from there; otherwise they maximize and restore.
+WW_ZoneStepOr(direction, fallback)
+{
+    if !WW_StepZoneVertically(direction)
+        fallback()
+}
+
+; True while a zone session holds the active window, even when nothing lies
+; that way, so the key never falls through to maximize mid-walk.
+WW_StepZoneVertically(direction)
+{
+    global WW_zone_cycle
+    Critical "On"
+    session := WW_zone_cycle
+    if !IsObject(session) || !session.index
+        return false
+    hwnd := WW_GetWindowControlTarget()
+    try {
+        if hwnd != session.hwnd || WinGetPID(hwnd) != session.pid
+            || !WW_RectanglesMatch(session.work_area, WW_GetLayoutWorkArea(hwnd), 0)
+            return false
+        index := WW_VerticalZoneIndex(session.zones, session.index, direction, WW_GetMinimumVisibleSize(hwnd))
+        if index {
+            session.index := index
+            WW_ApplyTrackedLayout(hwnd, "zones", session.work_area, session.zones, index)
+        }
+    }
+    catch Error as err {
+        WW_DebugError("Step zone vertically", err)
+    }
+    return true
+}
+
+; The zone nearest above ("up") or below ("down") zones[current] whose span
+; overlaps it side to side: its top or bottom half from full height, and full
+; height from a half. Ties go to the closest match in width, then the walk's
+; order. 0 when none fits.
+WW_VerticalZoneIndex(zones, current, direction, minimum := 0)
+{
+    zone := zones[current]
+    center := zone[2] + zone[4] / 2
+    best := 0, best_distance := 0, best_match := 0
+    for index, other in zones {
+        if index = current || IsObject(minimum) && !WW_LayoutFitsMinimum(other, minimum)
+            continue
+        overlap := Min(zone[1] + zone[3], other[1] + other[3]) - Max(zone[1], other[1])
+        distance := direction = "up" ? center - (other[2] + other[4] / 2) : other[2] + other[4] / 2 - center
+        if overlap <= 0 || distance <= 0
+            continue
+        match := overlap / (Max(zone[1] + zone[3], other[1] + other[3]) - Min(zone[1], other[1]))
+        if !best || distance < best_distance - 0.5
+            || Abs(distance - best_distance) <= 0.5 && match > best_match
+            best := index, best_distance := distance, best_match := match
+    }
+    return best
 }
 
 WW_ModifiersReleased()

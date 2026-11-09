@@ -12,6 +12,69 @@ class WonderWindowsChecks {
         this.MinimizeAll()
         this.FullSpanAndNormalSize()
         this.ZoneLayoutsAndStretch()
+        this.ZoneMode()
+    }
+
+    ; Zone mode: with Win held after Win + Left/Right, Win + Up and Down move to
+    ; the zone above or below, and the walk goes on from there; afterwards they
+    ; maximize and restore again.
+    static ZoneMode() {
+        work := [0, 0, 1920, 1080]
+        fourths := WW_BuildLayoutZones(work, "fourths")
+        ; 1-4 fourths, 5-7 halves, 8-11 upper fourths, 12-15 lower fourths,
+        ; 16-18 upper halves, 19-21 lower halves.
+        this.Assert(WW_VerticalZoneIndex(fourths, 1, "up") = 8 && WW_VerticalZoneIndex(fourths, 1, "down") = 12
+            && WW_VerticalZoneIndex(fourths, 8, "down") = 1 && WW_VerticalZoneIndex(fourths, 12, "up") = 1
+            && WW_VerticalZoneIndex(fourths, 8, "up") = 0 && WW_VerticalZoneIndex(fourths, 12, "down") = 0,
+            "a fourth moves to its own top or bottom half and back, and stops at the edge")
+        this.Assert(WW_VerticalZoneIndex(fourths, 6, "up") = 17 && WW_VerticalZoneIndex(fourths, 19, "up") = 5,
+            "a half moves to its own halves, never to a fourth beside it")
+        corners := WW_BuildLayoutZones(work, "corners")
+        this.Assert(WW_VerticalZoneIndex(corners, 1, "up") = 3 && WW_VerticalZoneIndex(corners, 2, "down") = 6
+            && WW_VerticalZoneIndex(corners, 5, "up") = 1,
+            "halves and corners moves between a half and its corners")
+        bands := WW_BuildLayoutZones(work, "1 / 1 / 1")
+        this.Assert(WW_VerticalZoneIndex(bands, 2, "up") = 1 && WW_VerticalZoneIndex(bands, 2, "down") = 3
+            && WW_VerticalZoneIndex(bands, 1, "up") = 0,
+            "stacked bands step one band at a time")
+        this.Assert(WW_VerticalZoneIndex(fourths, 1, "up", [600, 300]) = 16
+            && !WW_VerticalZoneIndex(fourths, 1, "up", [600, 600]),
+            "a zone too small for the window is skipped for the next one above, or none")
+
+        window := SuiteGui("+Resize", "Zone mode check")
+        fallbacks := []
+        fallback := () => fallbacks.Push(1)
+        try {
+            SuiteWindowOwnership.AllowArranging(window)
+            window.Show("NA x200 y200 w400 h300")
+            hwnd := window.Hwnd
+            ActivateWindow(hwnd)
+            area := WW_GetLayoutWorkArea(hwnd)
+            WW_CycleZone("down")
+            first := WW_GetWindowLayoutRectangle(hwnd)
+            WW_ZoneStepOr("up", fallback)
+            top := WW_GetWindowLayoutRectangle(hwnd)
+            this.Assert(!fallbacks.Length && WW_RectanglesMatch(top,
+                [first[1], first[2], first[3], first[4] // 2], 4) && WinGetMinMax(hwnd) = 0,
+                "in zone mode, Win + Up takes the top half of the zone instead of maximizing")
+            WW_ZoneStepOr("up", fallback)
+            this.Assert(!fallbacks.Length && WW_RectanglesMatch(WW_GetWindowLayoutRectangle(hwnd), top, 4),
+                "with nothing above, it stays put without maximizing")
+            WW_CycleZone("down")
+            next := WW_GetWindowLayoutRectangle(hwnd)
+            this.Assert(next[1] > top[1] && Abs(next[2] - top[2]) <= 4 && Abs(next[4] - top[4]) <= 4,
+                "the walk goes on along the top row")
+            WW_ZoneStepOr("down", fallback)
+            this.Assert(!fallbacks.Length && WW_GetWindowLayoutRectangle(hwnd)[4] > next[4] * 1.5,
+                "Win + Down goes back to full height")
+            WW_EndZoneCycle()
+            WW_ZoneStepOr("up", fallback)
+            this.Assert(fallbacks.Length = 1, "once Win is let go, Win + Up maximizes again")
+        }
+        finally {
+            WW_EndZoneCycle()
+            window.Destroy()
+        }
     }
 
     ; Win + Shift + Up steps full height, full width and back; Win + Shift + Down
