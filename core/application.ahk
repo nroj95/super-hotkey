@@ -121,6 +121,10 @@ class SuiteApplication {
         OnMessage(0x02B1, this.sessionCallback)
         this.sessionNotifications := DllCall("Wtsapi32\WTSRegisterSessionNotification",
             "ptr", A_ScriptHwnd, "uint", 0, "int") != 0
+        if !this.dryRun
+            try SuiteDisplays.Start()
+            catch Error as failure
+                SuiteState.Log.Error("Core / displays", failure)
         this.RefreshInputGate()
         for id in SuiteSettings.ModuleOrder
             SuiteState.Log.Write(SuiteSettings.ModuleNames[id], this.ModuleActive(id)
@@ -376,7 +380,10 @@ class SuiteApplication {
         this.manager.SetPaused(other || this.suspended, !other)
     }
 
-    PowerEvent(event, *) {
+    PowerEvent(event, setting := 0, *) {
+        ; PBT_POWERSETTINGCHANGE: the displays turned on or off.
+        if event = 0x8013
+            return SuiteDisplays.OnPowerSetting(setting)
         SuiteSleep.OnPowerEvent(event)
         ; PBT_APMSUSPEND, PBT_APMRESUMESUSPEND, PBT_APMRESUMEAUTOMATIC
         if event != 4 && event != 7 && event != 0x12
@@ -448,6 +455,7 @@ class SuiteApplication {
                 this.Cleanup(SuiteSettings.ModuleNames[id], ObjBindMethod(this.modules[id], "Stop", reason, code))
         this.Cleanup("Core / stay awake", (*) => SuiteStayAwake.Release())
         this.Cleanup("Core / sleep", (*) => SuiteSleep.Stop())
+        this.Cleanup("Core / displays", (*) => SuiteDisplays.Stop())
         this.Cleanup("Core / focus border", (*) => SuiteFocusBorder.Hide("", true))
         this.Cleanup("Core / working monitor", (*) => SuiteWorkingMonitor.Stop())
         this.Cleanup("Core / notices", (*) => SuiteNotice.Destroy())

@@ -15,6 +15,7 @@ class CoreChecks {
         this.ApplicationSuspension()
         this.DisabledModuleWarning()
         this.PowerCancellation()
+        this.DisplayState()
         this.LogArchiving()
         this.WorkingMonitor()
         this.PassingOverlay()
@@ -27,6 +28,42 @@ class CoreChecks {
     }
 
     static Assert(condition, label) => SuiteChecks.Assert(condition, label)
+
+    ; Windows' display state notification reaches handlers only when the
+    ; displays turn off or on, never registered here.
+    static DisplayState() {
+        changes := []
+        handler := (on) => changes.Push(on)
+        setting(guidText, value) {
+            data := Buffer(24, 0)
+            DllCall("ole32\CLSIDFromString", "str", guidText, "ptr", data, "hresult")
+            NumPut("uint", 4, data, 16)
+            NumPut("uint", value, data, 20)
+            return data
+        }
+        SuiteDisplays.OnChange(handler)
+        SuiteDisplays.OnChange(handler)
+        try {
+            SuiteDisplays.OnPowerSetting(setting(SuiteDisplays.Guid, 1))
+            this.Assert(!changes.Length, "the state Windows sends on registering changes nothing")
+            SuiteDisplays.OnPowerSetting(setting(SuiteDisplays.Guid, 0))
+            SuiteDisplays.OnPowerSetting(setting(SuiteDisplays.Guid, 0))
+            this.Assert(changes.Length = 1 && changes[1] = false && !SuiteDisplays.on,
+                "the displays turning off reaches each handler once")
+            SuiteDisplays.OnPowerSetting(setting("{02731015-4510-4526-99E6-E5A17EBD1AEA}", 1))
+            this.Assert(changes.Length = 1, "other power settings are ignored")
+            SuiteDisplays.OnPowerSetting(setting(SuiteDisplays.Guid, 2))
+            this.Assert(changes.Length = 2 && changes[2] = true && SuiteDisplays.on,
+                "dimmed displays count as on again")
+            SuiteDisplays.OffChange(handler)
+            SuiteDisplays.OnPowerSetting(setting(SuiteDisplays.Guid, 0))
+            this.Assert(changes.Length = 2, "a removed handler hears nothing")
+        }
+        finally {
+            SuiteDisplays.OffChange(handler)
+            SuiteDisplays.on := true
+        }
+    }
 
     static calls := 0
 

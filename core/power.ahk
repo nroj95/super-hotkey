@@ -1,8 +1,10 @@
 ; =============================================================================
-; power.ahk - staying awake and sleeping the computer, shared by every module
+; power.ahk - staying awake, the displays turning on and off, and sleeping
+; the computer, shared by every module
 ; =============================================================================
 ; Power-Up Utilities' hotkeys turn stay awake on and off, and any module may
-; ask whether it is on. SuiteSleep puts the computer to sleep for whichever
+; ask whether it is on. SuiteDisplays tells modules when the displays turn
+; off and on again, so they can tell when someone comes back. SuiteSleep puts the computer to sleep for whichever
 ; module asks, so far the sleep hotkey. Where the power plan lets Away Mode
 ; replace sleep, keeping the computer running with its screens dark, it
 ; sleeps for real unless the caller allows Away Mode, as the sleep hotkey may.
@@ -26,6 +28,68 @@ class SuiteStayAwake {
         if this.active
             DllCall("SetThreadExecutionState", "uint", 0x80000000, "uint") ; ES_CONTINUOUS
         this.active := false
+    }
+}
+
+; Whether the displays are on, from Windows' own notification
+; (GUID_CONSOLE_DISPLAY_STATE): they go off when the screen timeout or a
+; hotkey turns them off, and on again at a touch, so coming back to a
+; computer left alone is an event, not something to poll for. A dimmed
+; display counts as on. Handlers get (on) only when that changes.
+class SuiteDisplays {
+    static Guid := "{6FE69556-704A-47A0-8F24-C28D936FDA47}"
+    static handle := 0
+    static on := true
+    static handlers := []
+
+    static OnChange(handler) {
+        for existing in this.handlers
+            if existing = handler
+                return
+        this.handlers.Push(handler)
+    }
+
+    static OffChange(handler) {
+        for index, existing in this.handlers
+            if existing = handler
+                return this.handlers.RemoveAt(index)
+    }
+
+    ; Windows answers at once with the current state, which changes nothing.
+    static Start() {
+        guid := Buffer(16)
+        DllCall("ole32\CLSIDFromString", "str", this.Guid, "ptr", guid, "hresult")
+        this.handle := DllCall("RegisterPowerSettingNotification", "ptr", A_ScriptHwnd, "ptr", guid,
+            "uint", 0, "ptr") ; DEVICE_NOTIFY_WINDOW_HANDLE
+        if !this.handle
+            throw OSError(A_LastError, "Register display state notification")
+    }
+
+    static Stop(*) {
+        if this.handle
+            DllCall("UnregisterPowerSettingNotification", "ptr", this.handle)
+        this.handle := 0
+        this.handlers := []
+        this.on := true
+    }
+
+    ; WM_POWERBROADCAST's PBT_POWERSETTINGCHANGE: a POWERBROADCAST_SETTING
+    ; with the setting's GUID, a data length and the data, 0 off, 1 on and
+    ; 2 dimmed.
+    static OnPowerSetting(setting) {
+        guid := Buffer(16)
+        DllCall("ole32\CLSIDFromString", "str", this.Guid, "ptr", guid, "hresult")
+        if DllCall("ntdll\RtlCompareMemory", "ptr", setting, "ptr", guid, "uptr", 16, "uptr") != 16
+            || NumGet(setting, 16, "uint") < 4
+            return
+        on := NumGet(setting, 20, "uint") != 0
+        if on = this.on
+            return
+        this.on := on
+        for handler in this.handlers.Clone()
+            try handler.Call(on)
+            catch Error as failure
+                SuiteState.Log.Error("Core / displays", failure)
     }
 }
 

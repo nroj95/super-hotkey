@@ -25,6 +25,7 @@ class PowerUpUtilities extends SuiteModule {
         this.terminal := PU_Terminal(this)
         this.utilities := PU_Utilities(this)
         this.stayAwake := PU_StayAwake(this)
+        this.displaysCallback := ObjBindMethod(this, "DisplaysChanged")
         this.settingsPath := app.Settings.directory "\" this.id "\settings.ini"
         this.realSleep := IniRead(this.settingsPath, "Sleep", "Real", 1) != "0"
         this.speakers := PU_Speakers(this, this.settingsPath)
@@ -40,9 +41,9 @@ class PowerUpUtilities extends SuiteModule {
             {category: "Power-Up Utilities", available: (*) => this.app.ModuleActive(this.id)})
         this.AddAction("sleep", "system.sleep", "put computer to sleep", "sleep", "", "Pause + Escape")
         this.AddAction("displays", "system.displays-off", "turn off the displays", "displays-off", "", "Pause + Pause")
-        this.AddAction("awake", "system.stay-awake", "stay awake: 30 min, 1, 2, 4, 8 h, no limit",
+        this.AddAction("awake", "system.stay-awake", "stay awake, then sleep: 30 min, 1, 2, 4, 8 h, no limit",
             "awake-step", "", "Pause + End")
-        this.AddAction("awake", "system.allow-sleep", "allow sleep again",
+        this.AddAction("awake", "system.allow-sleep", "stop staying awake, without sleeping",
             "awake-end", "", "Pause + Shift + End")
         ; Terminal copy shares Caps + C with F23: the Terminal scope wins there.
         this.AddAction("terminal", "terminal.copy", "copy terminal buffer as Markdown",
@@ -85,30 +86,44 @@ class PowerUpUtilities extends SuiteModule {
                 available: (*) => this.app.ModuleActive(this.id)})
     }
 
-    Start() => this.speakers.Start()
+    Start() {
+        SuiteDisplays.OnChange(this.displaysCallback)
+        this.speakers.Start()
+    }
+
+    ; The displays going off counts as leaving; coming back on counts as
+    ; returning only at the desktop, since unlocking resumes the module.
+    DisplaysChanged(on) {
+        if !on
+            this.stayAwake.Left()
+        else if !this.app.sessionLocked && !this.app.systemSuspended && !this.app.suspended
+            this.stayAwake.Returned()
+    }
 
     ; Core restores an interrupted sleep transaction.
     Stop(*) {
         if this.stopping
             return
         this.stopping := true
+        SuiteDisplays.OffChange(this.displaysCallback)
         this.CancelWork()
         this.stayAwake.End()
         try this.speakers.Stop()
     }
 
     ; Suspending Super Hotkey hands everything back to Windows, staying awake
-    ; included, and stops nudging the speakers; a locked session or system
-    ; sleep keeps staying awake.
+    ; included, without sleeping, and stops nudging the speakers; a locked
+    ; session or system sleep keeps staying awake, and counts as leaving.
     Suspend() {
         if this.app.suspended {
             this.stayAwake.End()
             try this.speakers.Silence()
-        }
+        } else
+            this.stayAwake.Left()
     }
 
-    ; Back at the desktop: show a stay awake that ran out while away, and
-    ; wake the speakers.
+    ; Back at the desktop: say how long stay awake has left after a long
+    ; break, and wake the speakers.
     Resume() {
         this.stayAwake.Returned()
         this.speakers.Check()
@@ -377,13 +392,16 @@ class PowerUpUtilities extends SuiteModule {
         Pause + Pause turns the displays off, as Windows' screen timeout does, for a break or to save power, and any touch wakes them; off is also the kindest to an OLED screen.
 
         STAY AWAKE
-        Pause + End keeps the computer from sleeping for 30 minutes.
+        Pause + End keeps the computer awake for 30 minutes and then puts it to sleep.
         Press again while its notice shows for 1, 2, 4 or 8 hours or no limit, counted from now; once the notice has gone, the next press starts over at 30 minutes.
-        Pause + Shift + End allows sleep again.
-        The tray icon's tooltip shows how long.
+        A minute before the end, and again at 30 seconds, a notice on every display warns you; Pause + End then gives you more time.
+        Back after half an hour or more, unlocking or waking the screens shows how long is left.
+        If you're still using the computer when the time runs out, it waits until you've left it alone for a minute; locked, it sleeps on time.
+        Pause + Shift + End stops staying awake without sleeping, and Windows' own sleep settings take over again.
+        The tray icon's tooltip shows until when.
         The screen still turns off and locks as usual, and choosing Sleep or closing a laptop lid still sleeps.
-        So when you leave work running, lock with Win + L or turn the screens off with Pause + Pause: it keeps running.
-        Suspending or exiting Super Hotkey ends it.
+        So when you leave work running, lock with Win + L or turn the screens off with Pause + Pause: it keeps running until the time is up.
+        Suspending or exiting Super Hotkey ends it without sleeping.
 
         KEEP SPEAKERS AWAKE
         Some speakers fall asleep after minutes of silence and wake a few seconds late, so notifications and the starts of videos go missing.

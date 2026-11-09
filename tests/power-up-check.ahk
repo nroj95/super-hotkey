@@ -1,7 +1,8 @@
-; Power-Up Utilities: sleep policy recovery, the stay-awake steps, the keys
-; that hold macros back and keeping speakers awake.
+; Power-Up Utilities: sleep policy recovery, the stay-awake steps and sleep
+; timer, the keys that hold macros back and keeping speakers awake.
 ; Disposable preferences, dry-run inputs and test-owned windows only; staying
-; awake is never requested from Windows here, and no nudge plays.
+; awake is never requested from Windows here, the sleep timer only reports a
+; dry-run sleep, and no nudge plays.
 class PowerUpChecks {
     static Run() {
         this.SleepPolicyRecovery()
@@ -116,28 +117,112 @@ class PowerUpChecks {
         awake.End()
         this.Assert(awake.index = 0 && statuses.Length = 1 && statuses[1] = "",
             "ending without a request only clears the tray status")
-        reports := []
-        app := {systemSuspended: true, sessionLocked: true}
-        awake := PU_StayAwake({app: app, SetTrayStatus: (module, text) => 0,
-            Report: (module, text) => reports.Push(text)})
-        awake.index := 1
-        awake.Expire()
-        this.Assert(awake.index = 0 && awake.missed && reports.Length = 1,
-            "running out while asleep or locked allows sleep at once")
-        awake.ShowMissed()
-        this.Assert(awake.missed, "the notice still waits while the session is locked")
-        app.systemSuspended := app.sessionLocked := false
-        awake.Returned()
-        this.Assert(awake.missed, "the notice waits a second after the unlock")
-        ; Checks run uninterruptible, so the second's timer is called by hand.
-        SetTimer(awake.missedTimer, 0)
-        awake.missedTimer.Call()
-        this.Assert(!awake.missed && this.ShownEverywhere("Sleep allowed again"),
-            "then it shows on every display")
-        awake.index := 1
-        awake.Expire()
-        this.Assert(!awake.missed && this.ShownEverywhere("Sleep allowed again"),
-            "running out while the user is there shows on every display at once")
+        ; The sleep timer, always in a dry run: running out only reports.
+        reports := [], statuses := []
+        app := {dryRun: true, systemSuspended: false, sessionLocked: false}
+        awake := PU_StayAwake({app: app, realSleep: true,
+            SetTrayStatus: (module, text) => statuses.Push(text), Report: (module, text) => reports.Push(text)})
+        idle := 0
+        awake.DefineProp("IdleTime", {call: (*) => idle})
+        ; A timed step that runs out in seconds from now.
+        start(seconds) {
+            awake.index := 1
+            awake.deadline := DateAdd(A_NowUTC, seconds, "Seconds")
+            awake.warned := 0, awake.waiting := awake.waitingShown := false
+            reports.Length := 0, statuses.Length := 0
+        }
+        slept() {
+            for text in reports
+                if text = "dry run: sleep"
+                    return true
+            return false
+        }
+        awakeNotice() => SuiteNotice.notices.Has("awake-1") && SuiteNotice.notices["awake-1"].shown
+        back(minutesAway) {
+            awake.Left()
+            awake.lastSeen := DateAdd(A_NowUTC, -minutesAway * 60, "Seconds")
+            awake.Returned()
+        }
+        try {
+            start(600)
+            awake.Advance()
+            this.Assert(awake.warned = 0 && awake.index && !slept(), "minutes before the end, nothing warns")
+            start(60)
+            awake.Advance()
+            this.Assert(awake.warned = 1 && this.ShownEverywhere("Sleeping in 1 minute."),
+                "a minute before the end, a warning shows on every display")
+            awake.deadline := DateAdd(A_NowUTC, 30, "Seconds")
+            awake.Advance()
+            this.Assert(awake.warned = 2 && this.ShownEverywhere("Sleeping in 30 seconds."),
+                "and again 30 seconds before")
+            start(20)
+            awake.Advance()
+            this.Assert(awake.warned = 2 && !this.ShownEverywhere("Sleeping in 30 seconds."),
+                "a warning noticed late never tells the wrong time")
+            start(60)
+            app.sessionLocked := true
+            awake.Advance()
+            this.Assert(awake.warned = 1 && !this.ShownEverywhere("Sleeping in 1 minute."),
+                "a locked computer shows no warnings")
+            start(0)
+            awake.Advance()
+            this.Assert(slept() && !awake.index && statuses[-1] = "", "a locked computer sleeps on time")
+            app.sessionLocked := false
+            start(0)
+            idle := 5000
+            awake.Advance()
+            this.Assert(!slept() && awake.index && awake.waiting
+                && statuses[-1] = "Sleeping once you leave the computer alone",
+                "someone using the computer keeps it awake when the time runs out")
+            idle := PU_StayAwake.IdleMs
+            awake.Advance()
+            this.Assert(slept() && !awake.index, "and it sleeps once they leave it alone for a minute")
+            start(-PU_StayAwake.LateSeconds - 60)
+            awake.Advance()
+            this.Assert(!slept() && !awake.index, "a computer asleep when the time ran out stays awake on waking")
+            start(0)
+            app.systemSuspended := true
+            awake.Advance()
+            this.Assert(!slept() && !awake.index, "and so does one still waking up")
+            app.systemSuspended := false
+            start(0)
+            awake.index := 0
+            awake.Advance()
+            this.Assert(!slept(), "a stay awake already ended never sleeps")
+
+            ; Coming back after a long break says how long is left.
+            this.Assert(PU_StayAwake.DescribeLeft(45 * 60) = "45 min" && PU_StayAwake.DescribeLeft(61) = "2 min"
+                && PU_StayAwake.DescribeLeft(72 * 60) = "1 h 12 min" && PU_StayAwake.DescribeLeft(7200) = "2 h",
+                "time left reads in whole minutes, rounded up")
+            start(7200)
+            idle := 0
+            back(31)
+            this.Assert(this.ShownEverywhere("Sleeping in 2 h") && awake.lastSeen = "",
+                "back after half an hour, a timed stay awake shows how long is left on every display")
+            back(20)
+            this.Assert(!awakeNotice(), "a shorter break shows nothing")
+            awake.lastSeen := DateAdd(A_NowUTC, -3600, "Seconds"), first := awake.lastSeen
+            awake.Left()
+            this.Assert(awake.lastSeen = first, "leaving twice, as the displays go off before the lock, keeps the first")
+            awake.lastSeen := ""
+            idle := 600000
+            awake.Left()
+            this.Assert(DateDiff(A_NowUTC, awake.lastSeen, "Seconds") >= 599,
+                "time away counts from the last touch, not from when the displays went off")
+            awake.lastSeen := ""
+            start(45)
+            back(31)
+            this.Assert(!awakeNotice(), "the last minute leaves it to the warnings")
+            start(0)
+            awake.index := 6, awake.deadline := ""
+            back(31)
+            this.Assert(!awakeNotice(), "no limit shows nothing on return")
+        }
+        finally {
+            SetTimer(awake.timer, 0)
+            loop MonitorGetCount()
+                SuiteNotice.Hide("awake-" A_Index)
+        }
     }
 
     ; Whether text shows on each display, in whichever slot, hiding it afterwards.

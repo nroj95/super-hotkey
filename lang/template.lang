@@ -205,25 +205,34 @@ Pause + Pause turns the displays off, as Windows' screen timeout does, for a bre
 STAY AWAKE
 =
 
-Pause + End keeps the computer from sleeping for 30 minutes.
+Pause + End keeps the computer awake for 30 minutes and then puts it to sleep.
 =
 
 Press again while its notice shows for 1, 2, 4 or 8 hours or no limit, counted from now; once the notice has gone, the next press starts over at 30 minutes.
 =
 
-Pause + Shift + End allows sleep again.
+A minute before the end, and again at 30 seconds, a notice on every display warns you; Pause + End then gives you more time.
 =
 
-The tray icon's tooltip shows how long.
+Back after half an hour or more, unlocking or waking the screens shows how long is left.
+=
+
+If you're still using the computer when the time runs out, it waits until you've left it alone for a minute; locked, it sleeps on time.
+=
+
+Pause + Shift + End stops staying awake without sleeping, and Windows' own sleep settings take over again.
+=
+
+The tray icon's tooltip shows until when.
 =
 
 The screen still turns off and locks as usual, and choosing Sleep or closing a laptop lid still sleeps.
 =
 
-So when you leave work running, lock with Win + L or turn the screens off with Pause + Pause: it keeps running.
+So when you leave work running, lock with Win + L or turn the screens off with Pause + Pause: it keeps running until the time is up.
 =
 
-Suspending or exiting Super Hotkey ends it.
+Suspending or exiting Super Hotkey ends it without sleeping.
 =
 
 KEEP SPEAKERS AWAKE
