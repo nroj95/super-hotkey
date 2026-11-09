@@ -289,8 +289,10 @@ WW_RestoreToNormalSize()
     if !hwnd || !IsSwitchableWindow(hwnd)
         return
     try {
+        ; A window still held by hand counts as placed even without its normal
+        ; rectangle: after a restart, a cascade window still lent out.
         if WW_IsAtNormalPlacement(WinGetMinMax(hwnd), WW_IsNativeFullscreen(hwnd),
-            WW_normal_window_placements.Has(hwnd))
+            WW_normal_window_placements.Has(hwnd) || SuiteWindowOwnership.IsManual(hwnd))
             SuiteNotice.Show("status", "Already at normal size", 1400)
         else
             WW_RestoreWindowTarget()

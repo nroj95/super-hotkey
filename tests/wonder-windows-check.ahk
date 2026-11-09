@@ -50,6 +50,16 @@ class WonderWindowsChecks {
                 "Win + Down takes a full-height window back to normal size")
             WW_RestoreToNormalSize()
             this.Assert(WinGetMinMax(hwnd) = 0, "Win + Down never minimizes a window at normal size")
+            ; After a restart, a lent window is held again but its normal
+            ; rectangle is gone.
+            SuiteWindowOwnership.Claim(hwnd)
+            returned := []
+            SuiteWindowOwnership.OnReturn(handler)
+            try WW_RestoreToNormalSize()
+            finally SuiteWindowOwnership.OffReturn(handler)
+            this.Assert(!SuiteWindowOwnership.IsManual(hwnd) && returned.Length = 1 && returned[1] = hwnd
+                && WinGetMinMax(hwnd) = 0,
+                "Win + Down hands back a window still held after a restart, without its normal rectangle")
             WW_MaximizeWindowTarget()
             this.Assert(WinGetMinMax(hwnd) = 1 && !SuiteWindowOwnership.IsManual(hwnd),
                 "Win + Up maximizes without placing the window by hand, so a cascade keeps it")
