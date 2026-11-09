@@ -555,10 +555,37 @@ class InterfaceChecks {
                             "Wonder Windows status values use green, red or neutral colors")
                         zoneRows := 0
                         for control in settings
-                            if control.Type = "ComboBox"
+                            if control.Type = "DDL"
                                 zoneRows += 1
                         this.Assert(zoneRows = MonitorGetCount(),
                             "Wonder Windows lists one zone layout per connected display")
+                        ; Custom swaps the preset list for a box in its place.
+                        wonder := app.modules["wonder-windows"]
+                        item := wonder.zoneControls[1]
+                        settings["zone1"].GetPos(&listX, &listY, &listW)
+                        settings["zone1Line"].GetPos(&lineX, &lineY, &lineW)
+                        settings["zone1Custom"].GetPos(&customX, &customY)
+                        this.Assert(lineX = listX && lineY = listY && lineW = listW && customX > listX + listW
+                            && Abs(customY - listY) <= 6 && settings["zone1"].Visible && !settings["zone1Line"].Visible,
+                            "a zone row shows its preset list, with Custom beside it and the box hidden in its place")
+                        custom(on) {
+                            settings["zone1Custom"].Value := on
+                            wonder.CustomClicked(settings, item, settings["zone1Custom"])
+                        }
+                        custom(1)
+                        this.Assert(settings["zone1Line"].Visible && !settings["zone1"].Visible,
+                            "ticking Custom shows the box instead of the list")
+                        settings["zone1Line"].Text := "1:1 / 1:1"
+                        wonder.SaveSettings(app.ui)
+                        this.Assert(WW_zone_layouts.Get(item.key, "") = "1:1 / 1:1"
+                            && WW_zone_custom.Get(item.key, "") = "1:1 / 1:1",
+                            "a typed layout is saved as the display's layout and its last custom line")
+                        custom(0)
+                        this.Assert(settings["zone1"].Visible && !settings["zone1Line"].Visible,
+                            "unticking Custom brings the list back")
+                        wonder.SaveSettings(app.ui)
+                        this.Assert(!WW_zone_layouts.Has(item.key) && WW_zone_custom.Get(item.key, "") = "1:1 / 1:1",
+                            "back on a preset, the display keeps its custom line for next time")
                         statusCoords := []
                         for name in ["zone1", "fancyZonesStatus"] {
                             settings[name].GetPos(&statusX, &statusY)

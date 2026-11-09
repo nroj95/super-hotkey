@@ -378,13 +378,12 @@ class SuiteInterface {
         this.PageChanged(key)
     }
 
-    ; Every value a page's fields hold, in one string to compare. An editable
-    ; list's value is its text, which typing changes without a selection.
+    ; Every value a page's fields hold, in one string to compare.
     static PageValues(window) {
         values := ""
         for hwnd, control in window
             if control.Type != "Text" && control.Type != "Button" && control.Type != "Custom"
-                try values .= hwnd "=" (control.Type = "ComboBox" ? control.Text : control.Value) "`n"
+                try values .= hwnd "=" control.Value "`n"
         return values
     }
 

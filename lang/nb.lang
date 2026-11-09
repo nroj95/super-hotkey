@@ -343,7 +343,7 @@ Release the keys to start over next time.
 Each display has its own layout in Settings: fourths, thirds, halves and corners, or rows for a portrait display.
 =
 
-Or type your own there, with : between columns, / between rows and > for and then: 1:1:1:1 > 1:1 / 1:1 walks four columns, then four corners.
+Or tick Custom there and type your own, with : between columns, / between rows and > for and then: 1:1:1:1 > 1:1 / 1:1 walks four columns, then four corners.
 =
 
 A display left on its default uses fourths in landscape and halves and corners in portrait; Settings can also give each orientation its own layout.

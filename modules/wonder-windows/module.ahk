@@ -200,8 +200,8 @@ class WonderWindowsModule extends SuiteModule {
     }
 
     ; [ZoneLayouts] holds device|orientation=layout, empty for its default;
-    ; [ZoneCustom] the last custom line each one used, so its list offers it
-    ; again. [Zones] Cycle=thirds, from earlier versions, makes thirds the
+    ; [ZoneCustom] the last custom line each one used, so ticking Custom
+    ; offers it again. [Zones] Cycle=thirds, from earlier versions, makes thirds the
     ; landscape default.
     LoadZoneLayouts() {
         global WW_zone_layouts, WW_zone_custom, WW_zone_landscape_default, WW_zone_separate
@@ -222,10 +222,10 @@ class WonderWindowsModule extends SuiteModule {
     }
 
     ; One row per connected display: a layout for its current orientation, or
-    ; with the checkbox one for each orientation. Each list offers the presets
-    ; and the display's last custom line, and takes a typed line too.
-    ; pending holds unsaved values, by device|orientation, when the checkbox
-    ; rebuilds the page.
+    ; with the checkbox one for each orientation. Each row picks a preset from
+    ; a list, or with Custom ticked takes a typed line in a box in the list's
+    ; place, starting from the display's last custom line. pending holds
+    ; unsaved rows, by device|orientation, when the checkbox rebuilds the page.
     ShowSettings(ui, pending := 0) {
         global WW_zone_layouts, WW_zone_custom, WW_zone_separate
         key := "settings:wonder-windows"
@@ -247,18 +247,28 @@ class WonderWindowsModule extends SuiteModule {
                 items := []
                 for preset in WW_ZoneLayouts.Presets
                     items.Push(preset[2])
-                if WW_zone_custom.Has(zoneKey)
-                    items.Push(WW_zone_custom[zoneKey])
-                name := "zone" this.zoneControls.Length + 1
-                control := rows.Field(label, "ComboBox", "w300 v" name, items)
-                layout := WW_zone_layouts.Has(zoneKey) ? WW_zone_layouts[zoneKey] : WW_DefaultZoneLayout(zoneKey)
-                control.Text := pending && pending.Has(zoneKey) ? pending[zoneKey]
-                    : WW_ZoneLayouts.IsPreset(layout) ? WW_ZoneLayouts.Name(layout) : layout
-                this.zoneControls.Push({name: name, key: zoneKey, label: label})
+                item := {name: "zone" this.zoneControls.Length + 1, key: zoneKey, label: label}
+                list := rows.Field(label, "DropDownList", "w300 v" item.name, items)
+                list.GetPos(&x, &y, &width, &height)
+                rows.window.AddEdit("x" x " y" y " w" width " h" height " Hidden v" item.name "Line")
+                rows.window.AddCheckbox("x" (x + width + 12) " y" (y + 4) " v" item.name "Custom", "Custom")
+                    .OnEvent("Click", ObjBindMethod(this, "CustomClicked", rows.window, item))
+                if pending && pending.Has(zoneKey) {
+                    row := pending[zoneKey]
+                } else {
+                    layout := WW_zone_layouts.Has(zoneKey) ? WW_zone_layouts[zoneKey] : WW_DefaultZoneLayout(zoneKey)
+                    custom := !WW_ZoneLayouts.IsPreset(layout)
+                    row := {custom: custom,
+                        preset: WW_ZoneLayouts.Name(custom ? WW_DefaultZoneLayout(zoneKey) : layout),
+                        line: custom ? layout : WW_zone_custom.Get(zoneKey, "")}
+                }
+                this.SetZoneRow(rows.window, item, row)
+                this.zoneControls.Push(item)
             }
         }
-        rows.Caption("Pick a layout, or type your own with : between columns, / between rows and > for"
-            . " and then, such as 1:1:1:1 > 1:1 / 1:1. A display left on its default follows its orientation.")
+        rows.Caption("Pick a layout, or tick Custom and type your own with : between columns, / between rows"
+            . " and > for and then, such as 1:1:1:1 > 1:1 / 1:1. A display left on its default follows its"
+            . " orientation.")
         rows.Checkbox("Choose separate layouts for landscape and portrait", "vseparate").Value := separate
         rows.window["separate"].OnEvent("Click", ObjBindMethod(this, "RebuildSettings", ui))
         rows.Checkbox("Give Windows back its own keys when you move or clear their actions", "vgiveBack")
@@ -283,7 +293,8 @@ class WonderWindowsModule extends SuiteModule {
         window := ui.windows[key]
         pending := Map("separate", window["separate"].Value != 0, "giveBack", window["giveBack"].Value)
         for item in this.zoneControls
-            pending[item.key] := window[item.name].Text
+            pending[item.key] := {custom: window[item.name "Custom"].Value != 0,
+                preset: window[item.name].Text, line: window[item.name "Line"].Text}
         ui.CloseWindow(key)
         this.ShowSettings(ui, pending)
     }
@@ -300,9 +311,27 @@ class WonderWindowsModule extends SuiteModule {
         return "landscape"
     }
 
+    ; A row's controls from {custom, preset, line}: the list or the box shows.
+    SetZoneRow(window, item, row) {
+        window[item.name].Choose(row.preset)
+        window[item.name "Line"].Text := row.line
+        window[item.name "Custom"].Value := row.custom
+        window[item.name].Visible := !row.custom
+        window[item.name "Line"].Visible := row.custom
+    }
+
+    ; Custom swaps the list for the box, and keeps the focus in the row.
+    CustomClicked(window, item, checkbox, *) {
+        custom := checkbox.Value != 0
+        window[item.name].Visible := !custom
+        window[item.name "Line"].Visible := custom
+        window[item.name (custom ? "Line" : "")].Focus()
+    }
+
     RestoreSettings(window) {
         for item in this.zoneControls
-            window[item.name].Text := WW_ZoneLayouts.Name(InStr(item.key, "|portrait") ? "corners" : "fourths")
+            this.SetZoneRow(window, item, {custom: false, line: window[item.name "Line"].Text,
+                preset: WW_ZoneLayouts.Name(InStr(item.key, "|portrait") ? "corners" : "fourths")})
         window["separate"].Value := 0
         window["giveBack"].Value := 0
     }
@@ -316,7 +345,8 @@ class WonderWindowsModule extends SuiteModule {
             layouts := Map()
             custom := Map()
             for item in this.zoneControls {
-                layout := WW_ZoneLayouts.FromText(window[item.name].Text)
+                layout := window[item.name "Custom"].Value
+                    ? Trim(window[item.name "Line"].Text) : WW_ZoneLayouts.FromText(window[item.name].Text)
                 if !WW_ZoneLayouts.IsPreset(layout) {
                     try WW_ParseZoneLine(layout)
                     catch ValueError as problem
@@ -370,7 +400,7 @@ class WonderWindowsModule extends SuiteModule {
         The other key steps back, so Left then Right jumps to the last zone.
         Release the keys to start over next time.
         Each display has its own layout in Settings: fourths, thirds, halves and corners, or rows for a portrait display.
-        Or type your own there, with : between columns, / between rows and > for and then: 1:1:1:1 > 1:1 / 1:1 walks four columns, then four corners.
+        Or tick Custom there and type your own, with : between columns, / between rows and > for and then: 1:1:1:1 > 1:1 / 1:1 walks four columns, then four corners.
         A display left on its default uses fourths in landscape and halves and corners in portrait; Settings can also give each orientation its own layout.
         Sizes an app cannot shrink to are skipped.
 
