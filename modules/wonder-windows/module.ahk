@@ -66,8 +66,6 @@ class WonderWindowsModule extends SuiteModule {
             {section: keys, replaces: ["Win + Shift + Up"]})
         this.Add("full-width", "toggle full width", WW_ToggleFullSpan, ["Win + Shift + Down"], ["width"],
             {section: keys, replaces: ["Win + Shift + Down"]})
-        this.Add("stretch-to-neighbors", "stretch to neighbors, then back", WW_ToggleNeighborStretch,
-            ["Win + Enter"], , {section: keys})
         this.Add("minimize-all", "minimize all windows on this display", WW_MinimizeAllWindows, ["Win + M"],
             , {section: keys, replaces: ["Win + M"], anyWindow: true})
         this.Add("restore-all", "restore windows minimized on this display", WW_RestoreAllWindows,
@@ -90,10 +88,10 @@ class WonderWindowsModule extends SuiteModule {
         this.Add("cycle-stacked-previous", "cycle windows in current stack backwards", WW_CycleMonitorWindows,
             ["Win + Shift + PgUp"], ["previous"], {section: focus})
         this.Add("cycle-expanded-next", "show next maximized or fullscreen window",
-            WW_CycleMaximizedFullscreenWindows, ["Win + Alt + Enter", "Caps + Win + Enter"], ["next"],
+            WW_CycleMaximizedFullscreenWindows, ["Win + Enter"], ["next"],
             {section: focus})
         this.Add("cycle-expanded-previous", "show previous maximized or fullscreen window",
-            WW_CycleMaximizedFullscreenWindows, ["Win + Alt + Shift + Enter", "Caps + Win + Shift + Enter"],
+            WW_CycleMaximizedFullscreenWindows, ["Win + Shift + Enter"],
             ["previous"], {section: focus})
     }
 
@@ -246,9 +244,6 @@ class WonderWindowsModule extends SuiteModule {
         }
         rows.Caption("The stops Shift steps through in zone mode, besides halves and full. The long side is a"
             . " display's width in landscape and its height in portrait.")
-        rows.Text("For zones, we recommend ScreenGrid: hold Shift while you drag a window and drop it on a"
-            . " grid, alongside Super Hotkey. Zone mode here is a keyboard extra for halves, quarters and the"
-            . " sizes in between.")
         rows.Checkbox("Give Windows back its own keys when you move or clear their actions", "vgiveBack")
             .Value := this.givesBackWindowsKeys
         rows.Caption("Win + Left, Right, Up, Down, M, Shift + M, Home and D. Unchecked, they do nothing"
@@ -257,7 +252,6 @@ class WonderWindowsModule extends SuiteModule {
         rows.Field("FancyZones:", "Text", "w540 vfancyZonesStatus c" WonderWindowsModule.StatusColor(status), status)
         rows.Text("FancyZones also moves windows and takes hotkeys, so it isn't supported; disable it in PowerToys.")
         rows.Show(ui, key, [["Apply", ObjBindMethod(this, "SaveSettings", ui)],
-            ["ScreenGrid...", ObjBindMethod(this, "OpenScreenGrid", ui)],
             ["Back", ObjBindMethod(ui, "BackToHelp", this.id)]])
     }
 
@@ -266,18 +260,6 @@ class WonderWindowsModule extends SuiteModule {
         for side in ["Long", "Short"]
             for pair in WonderWindowsModule.StopPairs
                 window[side pair[1]].Value := WonderWindowsModule.DefaultStop(StrLower(side), pair[1])
-    }
-
-    static ScreenGridUrl := "https://github.com/TtesseractT/ScreenGrid"
-
-    OpenScreenGrid(ui, *) {
-        if this.app.dryRun {
-            MsgBox("Opening web pages is inactive in the dry run.", SuiteApplication.Name, "Iconi")
-            return
-        }
-        try Run(WonderWindowsModule.ScreenGridUrl)
-        catch Error as failure
-            ui.Report(failure, "Wonder Windows / ScreenGrid")
     }
 
     SaveSettings(ui, *) {
@@ -315,7 +297,8 @@ class WonderWindowsModule extends SuiteModule {
         I wanted something more powerful, consistent and predictable, without constantly reaching for the mouse.
 
         ZONE MODE
-        Win + Left or Right puts the window in that half of the display, as Windows does, and starts zone mode, which lasts while you hold Win.
+        Win + Left or Right starts zone mode, which lasts while you hold Win.
+        A window already in a zone keeps its size and moves one place that way; any other snaps to the closest size against that side; a maximized window becomes that half, as in Windows.
         In zone mode a window sits only where both its edges land on stops: halves, fourths and thirds, so a half sits left, in the middle or right, and windows always fit together.
         Left and Right slide it to its next place; past the side, they move it to the next display that way, onto the facing side, and from the last display around to the first, as Windows does.
         Down and Up make it the bottom or top quarter, as Windows does, then slide it the same way.
@@ -324,7 +307,6 @@ class WonderWindowsModule extends SuiteModule {
         Toward the side it hugs it shrinks and away from it it grows; a window as wide or tall as the display shrinks toward the arrow, and one in the middle grows, so a middle third becomes the middle half.
         Settings can add sixths or fourths, or leave out fourths or thirds, separately along the display's long and short side; halves and full are always there.
         Outside zone mode, Win + Up and Down maximize and restore, and Win + Shift + Left and Right stay Windows' own, moving windows between displays.
-        For zones you drag with the mouse, we recommend ScreenGrid; its button is in Settings.
 
         ARRANGE YOUR WINDOWS
         Win + Backspace minimizes the active window; focus stays on that display while it has windows left, then moves to the next display.
@@ -336,8 +318,7 @@ class WonderWindowsModule extends SuiteModule {
         They act on your display only, except Win + D, which reaches every display, and focus stays on your display.
         Win + Up maximizes the window, then steps to the upper and lower half.
         Win + Down takes it back to normal size, out of maximized or fullscreen, a zone, a half or a stretch; it never minimizes.
-        Win + Shift + Up stretches the window to the full height of the display and back, and Win + Shift + Down to the full width and back; each undoes only its own direction.
-        Win + Enter stretches it into the free space around it, up to the windows you can see, and again puts it back; with nothing beside it, it maximizes.
+        Win + Shift + Up stretches the window to the full height of the display and back, and Win + Shift + Down to the full width and back; each undoes only its own direction. A maximized window is already both, so they only say so.
         A cascade window keeps its place in its cascade while it's maximized, minimized, in a zone, a half or a stretch, and Win + Down puts it back there.
 
         FOCUS, STACKS AND FULLSCREEN
@@ -346,7 +327,7 @@ class WonderWindowsModule extends SuiteModule {
         Move a window onto its nearest neighbor to stack it in front.
         Win + Shift + PgDn brings forward the next window stacked with the active one, and Win + Shift + PgUp the previous one.
         Layout actions exit F11 fullscreen before repositioning a window.
-        Win + Alt + Enter shows the next maximized or fullscreen window on your display, minimized or not, and minimizes the others there, so one big window is out at a time; add Shift to go back.
+        Win + Enter shows the next maximized or fullscreen window on your display, minimized or not, and minimizes the others there, so one big window is out at a time; add Shift to go back.
         Keybindings below shows the current hotkey for each action.
     )"
 }

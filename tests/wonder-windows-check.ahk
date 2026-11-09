@@ -11,7 +11,6 @@ class WonderWindowsChecks {
         this.MonitorWindowCycle()
         this.MinimizeAll()
         this.FullSpanAndNormalSize()
-        this.NeighborStretch()
         this.ZoneMode()
     }
 
@@ -78,6 +77,22 @@ class WonderWindowsChecks {
             && !WW_NeighborDisplay(1, "left", [0]),
             "the next display that way wraps from the last to the first, and one display has none")
 
+        ; Starting zone mode keeps a zoned window's size and moves it on; any
+        ; other window snaps to the closest size.
+        area := [0, 0, 1200, 800], across := WW_BuildZoneLadder(false, true, true), down := WW_BuildZoneLadder(false, false, true)
+        start := WW_ZoneStart([800, 0, 400, 800], area, "left", across, down)
+        this.Assert(start.slides && SpanIs(start.x, 0.6667, 1) && SpanIs(start.y, 0, 1),
+            "a right third already on the grid keeps its size and moves on from there")
+        start := WW_ZoneStart([600, 0, 600, 400], area, "left", across, down)
+        this.Assert(start.slides && SpanIs(start.x, 0.5, 1) && SpanIs(start.y, 0, 0.5),
+            "so does a top-right quarter, keeping its row")
+        start := WW_ZoneStart([300, 100, 456, 480], area, "left", across, down)
+        this.Assert(!start.slides && SpanIs(start.x, 0, 0.3333) && SpanIs(start.y, 0, 0.6667),
+            "a loose window snaps to the closest width against that side and the closest height")
+        start := WW_ZoneStart([0, 100, 1200, 500], area, "right", across, down)
+        this.Assert(!start.slides && SpanIs(start.x, 0.5, 1),
+            "a full-width window becomes that half, as in Windows")
+
         window := SuiteGui("+Resize", "Zone mode check")
         try {
             SuiteWindowOwnership.AllowArranging(window)
@@ -91,9 +106,10 @@ class WonderWindowsChecks {
             WW_ZoneRow("down")
             this.Assert(!WW_IsCyclingZones() && WinGetMinMax(hwnd) = 0,
                 "outside zone mode, its row keys do nothing")
+            WinMaximize(hwnd)
             WW_ZoneSide("left")
             this.Assert(WW_IsCyclingZones() && near(WW_GetWindowLayoutRectangle(hwnd), [area[1], area[2], width / 2, height]),
-                "Win + Left gives the left half and starts zone mode")
+                "Win + Left on a maximized window gives the left half and starts zone mode")
             WW_ZoneRow("down")
             this.Assert(near(WW_GetWindowLayoutRectangle(hwnd), [area[1], area[2] + height / 2, width / 2, height / 2]),
                 "Down makes it the bottom-left quarter")
@@ -107,6 +123,11 @@ class WonderWindowsChecks {
             this.Assert(near(WW_GetWindowLayoutRectangle(hwnd), [area[1] + width / 2, area[2], width / 2, height / 2]),
                 "Up slides the quarter straight to the top-right")
             WW_EndZoneCycle()
+            WW_ZoneSide("left")
+            this.Assert(near(WW_GetWindowLayoutRectangle(hwnd), [area[1] + width / 4, area[2], width / 2, height / 2]),
+                "a new zone mode keeps a zoned window's size and moves it one place")
+            WW_EndZoneCycle()
+            WinMaximize(hwnd)
             WW_ZoneSide("right")
             WW_ZoneEdge("left")
             this.Assert(near(WW_GetWindowLayoutRectangle(hwnd), [area[1] + width / 3, area[2], width * 2 / 3, height]),
@@ -115,9 +136,10 @@ class WonderWindowsChecks {
             this.Assert(near(WW_GetWindowLayoutRectangle(hwnd), [area[1], area[2], width * 2 / 3, height]),
                 "Left slides it back to the left side at the same width")
             WW_EndZoneCycle()
+            WinMaximize(hwnd)
             WW_ZoneSide("right")
             this.Assert(near(WW_GetWindowLayoutRectangle(hwnd), [area[1] + width / 2, area[2], width / 2, height]),
-                "a new zone mode starts over at a half")
+                "a maximized window starts over at a half")
             if MonitorGetCount() > 1 {
                 start := WindowMonitorIndex(hwnd)
                 WW_ZoneSide("right")
@@ -189,25 +211,16 @@ class WonderWindowsChecks {
             WW_MaximizeWindowTarget()
             this.Assert(WinGetMinMax(hwnd) = 1 && !SuiteWindowOwnership.IsManual(hwnd),
                 "Win + Up maximizes without placing the window by hand, so a cascade keeps it")
+            WW_ToggleFullSpan("height")
+            WW_ToggleFullSpan("width")
+            this.Assert(WinGetMinMax(hwnd) = 1 && SuiteNotice.notices.Has("status")
+                && SuiteNotice.notices["status"].text = "Already maximized",
+                "Win + Shift + Up and Down leave a maximized window maximized and say so")
             WW_RestoreToNormalSize()
             this.Assert(WinGetMinMax(hwnd) = 0, "Win + Down takes a maximized window back to normal size")
         }
         finally window.Destroy()
     }
-
-    ; Win + Enter fills the largest free rectangle.
-    static NeighborStretch() {
-        work := [0, 0, 1200, 800]
-        Rect(zone) => zone[1] "," zone[2] "," zone[3] "," zone[4]
-        ; A window in the middle with neighbors left, above and a stack behind it.
-        neighbors := [[0, 0, 200, 800], [300, 0, 600, 100], [400, 300, 300, 200]]
-        this.Assert(Rect(WW_LargestFreeRectangle([400, 300, 300, 200], neighbors, work))
-            = "200,100,1000,700",
-            "Win + Enter fills the largest gap, ignoring a window it already overlaps")
-        this.Assert(Rect(WW_LargestFreeRectangle([400, 300, 300, 200], [], work)) = "0,0,1200,800",
-            "without neighbors, the stretch fills the work area")
-    }
-
 
     static Assert(condition, label) => SuiteChecks.Assert(condition, label)
 

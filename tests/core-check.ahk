@@ -160,14 +160,13 @@ class CoreChecks {
             this.Assert(configuration["wonder-windows.cycle-stacked"].bindings[1] = sig("Win + Shift + PgDn")
                 && configuration["wonder-windows.cycle-stacked-previous"].bindings[1] = sig("Win + Shift + PgUp")
                 && configuration["wonder-windows.full-height"].bindings[1] = sig("Win + Shift + Up")
-                && configuration["wonder-windows.full-width"].bindings[1] = sig("Win + Shift + Down")
-                && configuration["wonder-windows.stretch-to-neighbors"].bindings[1] = sig("Win + Enter"),
-                "stacks cycle on Win + Shift + PgDn/PgUp, Win + Shift + Up and Down toggle full height and width, Win + Enter stretches")
-            this.Assert(configuration["wonder-windows.cycle-expanded-next"].bindings[1] = sig("Win + Alt + Enter")
-                && configuration["wonder-windows.cycle-expanded-next"].bindings[2] = sig("Caps + Win + Enter")
-                && configuration["wonder-windows.cycle-expanded-previous"].bindings[1] = sig("Win + Alt + Shift + Enter")
-                && configuration["wonder-windows.cycle-expanded-previous"].bindings[2] = sig("Caps + Win + Shift + Enter"),
-                "Win + Alt + Enter and its Shift twin cycle big windows")
+                && configuration["wonder-windows.full-width"].bindings[1] = sig("Win + Shift + Down"),
+                "stacks cycle on Win + Shift + PgDn/PgUp, and Win + Shift + Up and Down toggle full height and width")
+            this.Assert(configuration["wonder-windows.cycle-expanded-next"].bindings[1] = sig("Win + Enter")
+                && configuration["wonder-windows.cycle-expanded-next"].bindings[2] = ""
+                && configuration["wonder-windows.cycle-expanded-previous"].bindings[1] = sig("Win + Shift + Enter")
+                && configuration["wonder-windows.cycle-expanded-previous"].bindings[2] = "",
+                "Win + Enter and its Shift twin cycle big windows")
             this.Assert(configuration["wonder-windows.zones-from-left"].bindings[1] = sig("Win + Left")
                 && configuration["wonder-windows.zones-from-right"].bindings[1] = sig("Win + Right")
                 && configuration["wonder-windows.zone-row-up"].bindings[1] = sig("Win + Up")

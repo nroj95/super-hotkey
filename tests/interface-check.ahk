@@ -543,10 +543,6 @@ class InterfaceChecks {
                             && WonderWindowsModule.StatusColor("running, not supported") = "B02020"
                             && WonderWindowsModule.StatusColor("unknown") = "505050",
                             "Wonder Windows status values use green, red or neutral colors")
-                        screenGrid := false
-                        for control in settings
-                            screenGrid := screenGrid || control.Type = "Button" && control.Text = "ScreenGrid..."
-                        this.Assert(screenGrid, "Wonder Windows Settings recommend ScreenGrid with a button")
                         ; Zone stop pairs: fourths and thirds along the long side, thirds
                         ; only along the short side, sixths off.
                         this.Assert(!settings["LongSixths"].Value && settings["LongFourths"].Value

@@ -1,5 +1,5 @@
-; Wonder Windows stretching, Win + Shift + Up and Down and Win + Enter, and the
-; layout state it shares with zones and maximize.
+; Wonder Windows full height and width, Win + Shift + Up and Down, and the
+; layout state they share with zones and maximize.
 
 ; =============================================================================
 ; full height and full width
@@ -11,6 +11,7 @@
 ; only, while the window is still where the toggle left it, so height and
 ; width combine and undo in any order. Undoing the last one from the window's
 ; original shape ends as Win + Down does, handing a lent cascade window back.
+; A maximized or fullscreen window stays as it is, with a notice.
 WW_ToggleFullSpan(axis)
 {
     Critical "On"
@@ -21,6 +22,12 @@ WW_ToggleFullSpan(axis)
         return
 
     try {
+        ; A maximized or fullscreen window is already as tall and wide as it
+        ; gets: the key only says so.
+        if WinGetMinMax(hwnd) = 1 || WW_IsNativeFullscreen(hwnd) {
+            SuiteNotice.Show("status", WW_IsNativeFullscreen(hwnd) ? "Already fullscreen" : "Already maximized", 1400)
+            return
+        }
         fresh := WW_IsFreshPlacement(hwnd)
         WW_PrepareWindowForPlacement(hwnd, false)
         pid := WinGetPID(hwnd)
@@ -66,137 +73,6 @@ WW_ToggleFullSpan(axis)
     }
     catch Error as failure
         WW_DebugError("Full " axis " toggle", failure)
-}
-
-; =============================================================================
-; stretch to neighbors
-; =============================================================================
-
-; Win + Enter grows the active window into the largest empty rectangle
-; around it, and again puts it back, while it is still where the stretch left
-; it. Only what is visible stops it: the display's edges and the front window
-; of each other stack. Windows it already overlaps never shrink it. When the
-; whole work area is free, it maximizes instead, so the window is what it
-; looks like: maximize keeps a cascade window in its cascade, and the
-; big-window cycle knows it.
-WW_ToggleNeighborStretch()
-{
-    Critical "On"
-    global WW_neighbor_stretch_windows
-
-    hwnd := WW_GetWindowControlTarget()
-    if !hwnd
-        return
-
-    try {
-        monitor := WindowMonitor(hwnd)
-        work := WW_GetLayoutWorkArea(hwnd)
-        if WW_neighbor_stretch_windows.Has(hwnd) {
-            saved := WW_neighbor_stretch_windows.Delete(hwnd)
-            if WW_IsPlacementStateCurrent(hwnd, saved, monitor, work) {
-                if saved["maximized"] && WinGetMinMax(hwnd) = 1 {
-                    WinRestore(hwnd)
-                    return
-                }
-                if !saved["maximized"] && WinGetMinMax(hwnd) = 0
-                    && WW_RectanglesMatch(saved["applied"], WW_GetWindowLayoutRectangle(hwnd), 3) {
-                    WW_StretchBack(hwnd, saved["before"], saved["fresh"])
-                    return
-                }
-            }
-        }
-        ; Measure the window at its normal size, before anything claims it.
-        if !WW_SetNativeFullscreen(hwnd, false)
-            return
-        if WinGetMinMax(hwnd) != 0
-            WinRestore(hwnd)
-        current := WW_GetWindowLayoutRectangle(hwnd)
-        target := WW_LargestFreeRectangle(current, WW_GetVisibleNeighbors(hwnd, monitor), work)
-        if WW_RectanglesMatch(target, [work[1], work[2], work[3] - work[1], work[4] - work[2]], 3) {
-            WW_ForgetWindowLayoutCycle(hwnd)
-            WinMaximize(hwnd)
-            WW_neighbor_stretch_windows[hwnd] := Map("pid", WinGetPID(hwnd), "monitor", monitor,
-                "work_area", work, "maximized", true)
-            return
-        }
-        if WW_RectanglesMatch(target, current, 3) {
-            SuiteNotice.Show("status", "No free space around this window", 1400)
-            return
-        }
-        fresh := WW_IsFreshPlacement(hwnd)
-        WW_PrepareWindowForPlacement(hwnd, false)
-        if !WW_MoveWindowToVisibleRectangle(hwnd, target)
-            return
-        WW_ForgetWindowLayoutCycle(hwnd)
-        WW_neighbor_stretch_windows[hwnd] := Map("pid", WinGetPID(hwnd), "monitor", monitor,
-            "work_area", work, "maximized", false, "before", current, "fresh", fresh,
-            "applied", WW_GetWindowLayoutRectangle(hwnd))
-    }
-    catch Error as failure
-        WW_DebugError("Stretch to neighbors", failure)
-}
-
-; The front window of each other stack on the display, as [x, y, width,
-; height]: a stack counts once, as what you see of it. Cascade windows count.
-WW_GetVisibleNeighbors(active_hwnd, monitor_handle)
-{
-    entries := []
-    for hwnd in WinGetList() {
-        if hwnd = active_hwnd || !IsSwitchableWindow(hwnd) || WindowMonitor(hwnd) != monitor_handle
-            continue
-        try entries.Push({hwnd: hwnd, rect: WW_GetWindowLayoutRectangle(hwnd), full: WW_IsFullWindow(hwnd)})
-    }
-    rects := Map()
-    for entry in entries
-        rects[entry.hwnd] := entry.rect
-    neighbors := []
-    for stack in WW_GroupWindowStacks(entries)
-        neighbors.Push(rects[stack[1]])
-    return neighbors
-}
-
-; The largest rectangle inside work_area ([left, top, right, bottom]) that
-; contains rect and overlaps no obstacle; obstacles rect already overlaps are
-; ignored. Every [x, y, width, height]. Each left and right edge a neighbor
-; offers is tried, and for each span the top and bottom grow until a
-; neighbor stops them.
-WW_LargestFreeRectangle(rect, obstacles, work_area)
-{
-    left := rect[1], top := rect[2], right := rect[1] + rect[3], bottom := rect[2] + rect[4]
-    walls := []
-    for obstacle in obstacles
-        if WW_IntersectionArea(rect, obstacle) <= 0
-            walls.Push([obstacle[1], obstacle[2], obstacle[1] + obstacle[3], obstacle[2] + obstacle[4]])
-    lefts := [Min(work_area[1], left)], rights := [Max(work_area[3], right)]
-    for wall in walls {
-        if wall[3] <= left && wall[3] > lefts[1]
-            lefts.Push(wall[3])
-        if wall[1] >= right && wall[1] < rights[1]
-            rights.Push(wall[1])
-    }
-    best := rect, best_area := rect[3] * rect[4]
-    for span_left in lefts {
-        for span_right in rights {
-            span_top := Min(work_area[2], top), span_bottom := Max(work_area[4], bottom)
-            blocked := false
-            for wall in walls {
-                if wall[3] <= span_left || wall[1] >= span_right
-                    continue
-                if wall[4] <= top
-                    span_top := Max(span_top, wall[4])
-                else if wall[2] >= bottom
-                    span_bottom := Min(span_bottom, wall[2])
-                else {
-                    blocked := true
-                    break
-                }
-            }
-            area := (span_right - span_left) * (span_bottom - span_top)
-            if !blocked && area > best_area
-                best := [span_left, span_top, span_right - span_left, span_bottom - span_top], best_area := area
-        }
-    }
-    return best
 }
 
 ; =============================================================================
@@ -298,10 +174,8 @@ WW_ForgetWindowLayoutCycle(hwnd)
 
 WW_PruneLayoutStates()
 {
-    global WW_layout_cycle_windows, WW_normal_window_placements, WW_full_span_windows,
-        WW_neighbor_stretch_windows
-    for states in [WW_layout_cycle_windows, WW_normal_window_placements, WW_full_span_windows,
-        WW_neighbor_stretch_windows] {
+    global WW_layout_cycle_windows, WW_normal_window_placements, WW_full_span_windows
+    for states in [WW_layout_cycle_windows, WW_normal_window_placements, WW_full_span_windows] {
         stale_hwnds := []
         for hwnd, entry in states {
             stale := !DllCall("IsWindow", "ptr", hwnd, "int")
@@ -352,28 +226,16 @@ WW_IsPlacementStateCurrent(hwnd, saved, monitor_handle := 0, work_area := 0)
     }
 }
 
-; True when Wonder Windows has not placed the window yet: a stretch from here
-; ends back at its original shape.
+; True when Wonder Windows has not placed the window yet: a full height or
+; width from here ends back at its original shape.
 WW_IsFreshPlacement(hwnd)
 {
     global WW_normal_window_placements
     return !WW_normal_window_placements.Has(hwnd)
 }
 
-; A stretch's way back. From a window's original shape it ends as Win + Down
-; does, so a cascade window lent out returns to its slot; from a zone or half
-; it goes back there.
-WW_StretchBack(hwnd, before, fresh)
-{
-    if fresh
-        WW_RestoreWindowTarget()
-    else
-        WW_MoveWindowToVisibleRectangle(hwnd, before)
-}
-
 WW_ForgetStretches(hwnd)
 {
-    global WW_full_span_windows, WW_neighbor_stretch_windows
-    for states in [WW_full_span_windows, WW_neighbor_stretch_windows]
-        try states.Delete(hwnd)
+    global WW_full_span_windows
+    try WW_full_span_windows.Delete(hwnd)
 }

@@ -328,7 +328,10 @@ I wanted something more powerful, consistent and predictable, without constantly
 ZONE MODE
 =
 
-Win + Left or Right puts the window in that half of the display, as Windows does, and starts zone mode, which lasts while you hold Win.
+Win + Left or Right starts zone mode, which lasts while you hold Win.
+=
+
+A window already in a zone keeps its size and moves one place that way; any other snaps to the closest size against that side; a maximized window becomes that half, as in Windows.
 =
 
 In zone mode a window sits only where both its edges land on stops: halves, fourths and thirds, so a half sits left, in the middle or right, and windows always fit together.
@@ -353,9 +356,6 @@ Settings can add sixths or fourths, or leave out fourths or thirds, separately a
 =
 
 Outside zone mode, Win + Up and Down maximize and restore, and Win + Shift + Left and Right stay Windows' own, moving windows between displays.
-=
-
-For zones you drag with the mouse, we recommend ScreenGrid; its button is in Settings.
 =
 
 ARRANGE YOUR WINDOWS
@@ -385,10 +385,7 @@ Win + Up maximizes the window, then steps to the upper and lower half.
 Win + Down takes it back to normal size, out of maximized or fullscreen, a zone, a half or a stretch; it never minimizes.
 =
 
-Win + Shift + Up stretches the window to the full height of the display and back, and Win + Shift + Down to the full width and back; each undoes only its own direction.
-=
-
-Win + Enter stretches it into the free space around it, up to the windows you can see, and again puts it back; with nothing beside it, it maximizes.
+Win + Shift + Up stretches the window to the full height of the display and back, and Win + Shift + Down to the full width and back; each undoes only its own direction. A maximized window is already both, so they only say so.
 =
 
 A cascade window keeps its place in its cascade while it's maximized, minimized, in a zone, a half or a stretch, and Win + Down puts it back there.
@@ -412,7 +409,7 @@ Win + Shift + PgDn brings forward the next window stacked with the active one, a
 Layout actions exit F11 fullscreen before repositioning a window.
 =
 
-Win + Alt + Enter shows the next maximized or fullscreen window on your display, minimized or not, and minimizes the others there, so one big window is out at a time; add Shift to go back.
+Win + Enter shows the next maximized or fullscreen window on your display, minimized or not, and minimizes the others there, so one big window is out at a time; add Shift to go back.
 =
 
 Keybindings below shows the current hotkey for each action.

@@ -24,13 +24,13 @@ Use any module on its own or combine them.
 
 There are plenty of window managers for Windows, but the ones I tried tiled windows smaller than I liked, took a while to learn, or spread things across so many workspaces that I lost track of them. Small costs, but they added up. This is my take on window management that builds on the `Win` key shortcuts you already know and makes the ones I found frustrating or incomplete more predictable.
 
-`Win + Left/Right` put the active window in that half of the display, as Windows does, and start *zone mode*, which lasts while you hold `Win`. In zone mode a window sits only where both its edges land on halves, fourths or thirds, so a half can sit left, in the middle or right, and windows always fit together. `Left/Right` slide it to its next place, or on to the next display, as Windows does, `Down` and `Up` make it the bottom or top quarter and then slide it, and `Shift` with an arrow makes it one size bigger or smaller and snaps it into place (by default only halves and thirds along the display's short side, its height in landscape; Settings can add sixths or fourths, or leave out fourths or thirds, separately along the display's long and short side). For zones you drag with the mouse, I strongly recommend [ScreenGrid](https://github.com/TtesseractT/ScreenGrid): hold `Shift` while you drag a window and drop it on a grid. It works alongside Super Hotkey, and zone mode is a keyboard extra for when you feel like it.
+`Win + Left/Right` start *zone mode*, which lasts while you hold `Win`: a window already in a zone keeps its size and moves one place, any other snaps to the closest size against that side, and a maximized one becomes that half, as in Windows. In zone mode a window sits only where both its edges land on halves, fourths or thirds, so a half can sit left, in the middle or right, and windows always fit together. `Left/Right` slide it to its next place, or on to the next display, as Windows does, `Down` and `Up` make it the bottom or top quarter and then slide it, and `Shift` with an arrow makes it one size bigger or smaller and snaps it into place (by default only halves and thirds along the display's short side, its height in landscape; Settings can add sixths or fourths, or leave out fourths or thirds, separately along the display's long and short side).
 
 Windows can also sit side by side with others stacked behind them: `Win + Shift + PgDn` cycles through the stack, `Win + Shift + PgUp` the other way, and `Alt + Win + arrow` moves a window onto its nearest neighbor to stack them.
 
-For big windows, `Win + Alt + Enter` shows the next maximized or fullscreen window on your display and minimizes the others, so one is out at a time. Add `Shift` to go back.
+For big windows, `Win + Enter` shows the next maximized or fullscreen window on your display and minimizes the others, so one is out at a time. Add `Shift` to go back.
 
-Windows' own keys work as you know them, with fewer surprises, and each has one job. `Win + Up` maximizes, then steps to the upper and lower half, and `Win + Down` takes a window back to normal size but never minimizes; `Win + Backspace` does that. `Win + Shift + Up` and `Win + Shift + Down` stretch a window to the full height or width of the display and back, and `Win + Enter` stretches it into the free space around it and back, maximizing it when nothing is beside it. `Win + M`, `Win + Home` and `Win + D` take `Shift` to bring back what they minimized, however much you do in between, and act on your display only, except `Win + D`, which reaches every display.
+Windows' own keys work as you know them, with fewer surprises, and each has one job. `Win + Up` maximizes, then steps to the upper and lower half, and `Win + Down` takes a window back to normal size but never minimizes; `Win + Backspace` does that. `Win + Shift + Up` and `Win + Shift + Down` stretch a window to the full height or width of the display and back. `Win + M`, `Win + Home` and `Win + D` take `Shift` to bring back what they minimized, however much you do in between, and act on your display only, except `Win + D`, which reaches every display.
 
 ### Cascade Kingdom
 
@@ -77,7 +77,7 @@ The tray icon also has guides, settings and **Modules...**, where you can turn o
 
 Other window managers and tiling tools can conflict with Super Hotkey when they also move windows, rearrange them after display changes, or use the same hotkeys.
 
-PowerToys FancyZones does all three, so it isn't supported; disable it in PowerToys and use [ScreenGrid](https://github.com/TtesseractT/ScreenGrid) for zones you drag with the mouse.
+PowerToys FancyZones does all three, so it isn't supported; disable it in PowerToys. Zone mode covers what it did.
 
 ## Develop
 

@@ -3,9 +3,11 @@
 ; =============================================================================
 ; zone mode
 ; =============================================================================
-; Win + Left or Right snaps the active window to that half of its display,
-; as Windows does, and starts zone mode, which lasts while any modifier stays
-; held. In zone mode the window is a span of the work area, kept as fractions
+; Win + Left or Right starts zone mode, which lasts while any modifier stays
+; held. A window already on the zone grid moves one place that way, as if
+; zone mode had never ended; any other window snaps to the closest size, in
+; width against the arrow's side and in height at the closest place; a
+; maximized, fullscreen or full-width one becomes that half, as in Windows. In zone mode the window is a span of the work area, kept as fractions
 ; [x0, x1] and [y0, y1], and it sits only where both its edges land on stops:
 ; halves, and the pairs Settings turns on for that side of the display, long or
 ; short, by default fourths and thirds. So a half sits left, in the middle or
@@ -50,7 +52,8 @@ WW_BuildZoneLadder(sixths, fourths, thirds)
     return ladder
 }
 
-; Win + Left or Right: that half the first time, then a step sideways.
+; Win + Left or Right: zone mode from the window's own size, then a step
+; sideways.
 WW_ZoneSide(side)
 {
     global WW_zone_cycle
@@ -65,8 +68,19 @@ WW_ZoneSide(side)
                 x0: side = "left" ? 0 : 1 / 2, x1: side = "left" ? 1 / 2 : 1, y0: 0, y1: 1}
             WW_zone_cycle := session
             SetTimer(WW_WatchZoneCycleRelease, 50)
-            WW_ApplyZoneSession(session)
-            return
+            ; A maximized or fullscreen window was just restored: it starts at
+            ; a half, as in Windows. Any other starts from its own size.
+            if !fresh_entry {
+                start := WW_ZoneStart(WW_GetWindowLayoutRectangle(hwnd), session.work_area, side,
+                    WW_ZoneAxisLadder(session, false), WW_ZoneAxisLadder(session, true))
+                session.x0 := start.x[1], session.x1 := start.x[2]
+                session.y0 := start.y[1], session.y1 := start.y[2]
+                fresh_entry := !start.slides
+            }
+            if fresh_entry {
+                WW_ApplyZoneSession(session)
+                return
+            }
         }
         width := session.x1 - session.x0
         left_edge := WW_ZoneSlide(session.x0, width, side, WW_ZoneAxisLadder(session, false))
@@ -90,6 +104,66 @@ WW_ZoneSide(side)
     }
     catch Error as err
         WW_DebugError("Zone side", err)
+}
+
+; Where zone mode starts for a window at rect ([x, y, width, height]) on area
+; ([left, top, right, bottom]) when Win + side starts it: {x, y, slides}, each
+; span as fractions of the area. A span already on the grid, its size and
+; place on the stops within a few pixels, is kept, and slides says the window
+; then moves one place that way. Otherwise the width snaps to the closest size
+; against that side, a full width becoming a half, and the height to the
+; closest size at the place overlapping it most.
+WW_ZoneStart(rect, area, side, across, down)
+{
+    width := area[3] - area[1], height := area[4] - area[2]
+    x := [(rect[1] - area[1]) / width, (rect[1] + rect[3] - area[1]) / width]
+    y := [(rect[2] - area[2]) / height, (rect[2] + rect[4] - area[2]) / height]
+    on_grid := WW_ZoneGridSpan(x, across, 8 / width)
+    slides := IsObject(on_grid) && on_grid[2] - on_grid[1] < 0.999
+    if slides {
+        x := on_grid
+    } else {
+        size := WW_ClosestZoneSize(x[2] - x[1], across)
+        if size >= 0.999
+            size := 1 / 2
+        x := side = "left" ? [0, size] : [1 - size, 1]
+    }
+    rows := WW_ZoneGridSpan(y, down, 8 / height)
+    if !IsObject(rows) {
+        size := WW_ClosestZoneSize(y[2] - y[1], down)
+        best := 0, best_overlap := -1
+        for place in WW_ZonePlaces(size, down) {
+            overlap := Min(y[2], place + size) - Max(y[1], place)
+            if overlap > best_overlap + 0.0001
+                best := place, best_overlap := overlap
+        }
+        rows := [best, best + size]
+    }
+    return {x: x, y: rows, slides: slides}
+}
+
+; The grid span a span already sits on: a size on the ladder at one of its
+; places, both within tolerance. 0 when it is off the grid.
+WW_ZoneGridSpan(span, ladder, tolerance)
+{
+    for size in ladder {
+        if size <= 0 || Abs(size - (span[2] - span[1])) > tolerance * 2
+            continue
+        for place in WW_ZonePlaces(size, ladder)
+            if Abs(place - span[1]) <= tolerance
+                return [place, place + size]
+    }
+    return 0
+}
+
+; The ladder size nearest size, never 0.
+WW_ClosestZoneSize(size, ladder)
+{
+    best := 1
+    for stop in ladder
+        if stop > 0 && Abs(stop - size) < Abs(best - size)
+            best := stop
+    return best
 }
 
 ; The ladder along one of the session display's sides: its long side's
