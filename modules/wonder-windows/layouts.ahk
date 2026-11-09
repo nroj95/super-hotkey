@@ -126,7 +126,7 @@ WW_GetVisibleNeighbors(active_hwnd, monitor_handle)
     for hwnd in WinGetList() {
         if hwnd = active_hwnd || !IsSwitchableWindow(hwnd) || WindowMonitor(hwnd) != monitor_handle
             continue
-        try entries.Push({hwnd: hwnd, rect: WW_GetWindowLayoutRectangle(hwnd)})
+        try entries.Push({hwnd: hwnd, rect: WW_GetWindowLayoutRectangle(hwnd), full: WW_IsFullWindow(hwnd)})
     }
     rects := Map()
     for entry in entries

@@ -44,7 +44,8 @@ WW_GetFocusEntries()
         monitor_left := 0
         if monitor := WindowMonitorIndex(hwnd)
             MonitorGetPixels(monitor, &monitor_left)
-        entries.Push({hwnd: hwnd, monitor: monitor_left, x: x, y: y, rect: [x, y, width, height]})
+        entries.Push({hwnd: hwnd, monitor: monitor_left, x: x, y: y, rect: [x, y, width, height],
+            full: WW_IsFullWindow(hwnd)})
     }
     return entries
 }
@@ -58,7 +59,7 @@ WW_FrontFocusEntries(entries, keep_hwnd)
         hidden := false
         if entry.hwnd != keep_hwnd {
             Loop index - 1
-                if WW_WindowsStack(entries[A_Index].rect, entry.rect) {
+                if WW_WindowsStack(entries[A_Index], entry) {
                     hidden := true
                     break
                 }

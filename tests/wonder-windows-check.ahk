@@ -640,19 +640,27 @@ class WonderWindowsChecks {
             "only windows sharing area with the display count as on it")
 
         maximized := [0, 0, 1920, 1080]
-        this.Assert(WW_WindowsStack([100, 100, 800, 600], [140, 120, 800, 600])
-            && !WW_WindowsStack([0, 0, 640, 1080], [640, 0, 640, 1080])
-            && !WW_WindowsStack([0, 0, 960, 1080], maximized)
-            && !WW_WindowsStack([0, 0, 640, 1080], maximized)
-            && !WW_WindowsStack([0, 0, 200, 150], [0, 0, 800, 600]),
-            "only windows sharing most of each other's area stack")
+        tile(rect) => ({rect: rect, full: false})
+        this.Assert(WW_WindowsStack(tile([100, 100, 800, 600]), tile([140, 120, 800, 600]))
+            && !WW_WindowsStack(tile([0, 0, 640, 1080]), tile([640, 0, 640, 1080]))
+            && !WW_WindowsStack(tile([0, 0, 200, 150]), tile([0, 0, 800, 600]))
+            && !WW_WindowsStack(tile([0, 0, 800, 600]), tile([400, 0, 800, 600])),
+            "windows of one size stack when they share most of their area")
+        this.Assert(WW_WindowsStack(tile([0, 0, 480, 1080]), tile([0, 0, 960, 1080]))
+            && WW_WindowsStack(tile([0, 0, 960, 1080]), tile([4, 0, 476, 1080]))
+            && WW_WindowsStack(tile([480, 0, 480, 1080]), tile([0, 0, 960, 1080])),
+            "a fourth on a half stacks, either side, gaps between zones included")
+        this.Assert(!WW_WindowsStack(tile([0, 0, 960, 1080]), {rect: maximized, full: true})
+            && !WW_WindowsStack({rect: maximized, full: true}, tile([0, 0, 480, 1080]))
+            && !WW_WindowsStack(tile([0, 0, 640, 1080]), {rect: maximized, full: true}),
+            "halves, thirds and fourths in front of a maximized window stay apart")
 
         ; Explorer over Terminal on the left, VS Code over Firefox in the middle,
         ; a lone window on the right and a maximized window behind them all.
         stacks := WW_GroupWindowStacks([
             {hwnd: 201, rect: [0, 0, 640, 1080]}, {hwnd: 301, rect: [640, 0, 640, 1080]},
             {hwnd: 202, rect: [10, 20, 630, 1060]}, {hwnd: 401, rect: [1280, 0, 640, 1080]},
-            {hwnd: 302, rect: [640, 0, 640, 1080]}, {hwnd: 501, rect: maximized}])
+            {hwnd: 302, rect: [640, 0, 640, 1080]}, {hwnd: 501, rect: maximized, full: true}])
         this.Assert(stacks.Length = 4
             && stacks[1].Length = 2 && stacks[1][1] = 201 && stacks[1][2] = 202
             && stacks[2].Length = 2 && stacks[2][1] = 301 && stacks[2][2] = 302
@@ -669,7 +677,7 @@ class WonderWindowsChecks {
         ; the active window even when something stacks in front of it.
         entries := [{hwnd: 201, rect: [0, 0, 640, 1080]}, {hwnd: 301, rect: [640, 0, 640, 1080]},
             {hwnd: 202, rect: [10, 20, 630, 1060]}, {hwnd: 302, rect: [640, 0, 640, 1080]},
-            {hwnd: 501, rect: maximized}]
+            {hwnd: 501, rect: maximized, full: true}]
         order := ""
         for entry in WW_FrontFocusEntries(entries, 201)
             order .= entry.hwnd " "

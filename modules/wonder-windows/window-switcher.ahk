@@ -162,7 +162,7 @@ WW_NextMonitorCycleWindow(windows, from_hwnd, active_hwnd, backwards := false)
 }
 
 ; Switchable windows whose visible frame is on this display, front to back,
-; as {hwnd, rect}. Some apps keep titled windows off-screen; activating one
+; as {hwnd, rect, full}. Some apps keep titled windows off-screen; activating one
 ; would show nothing.
 WW_GetMonitorCycleEntries(monitor)
 {
@@ -180,14 +180,14 @@ WW_GetMonitorCycleEntries(monitor)
         }
         rect := [x, y, width, height]
         if WW_IntersectionArea(rect, display)
-            entries.Push({hwnd: hwnd, rect: rect})
+            entries.Push({hwnd: hwnd, rect: rect, full: WW_IsFullWindow(hwnd)})
         else
             WW_DebugLog("Stacked window cycle skips an off-screen window. | " DescribeWindow(hwnd))
     }
     return entries
 }
 
-; Groups {hwnd, rect} entries, front to back, into stacks of windows linked
+; Groups {hwnd, rect, full} entries, front to back, into stacks of windows linked
 ; by overlap. Stacks come in order of their frontmost window, and each lists
 ; its windows front to back.
 WW_GroupWindowStacks(entries)
@@ -203,7 +203,7 @@ WW_GroupWindowStacks(entries)
         while pending.Length {
             member := entries[pending.Pop()]
             for other_index, other in entries {
-                if stack_of.Has(other_index) || !WW_WindowsStack(member.rect, other.rect)
+                if stack_of.Has(other_index) || !WW_WindowsStack(member, other)
                     continue
                 stack_of[other_index] := stacks.Length
                 pending.Push(other_index)
@@ -215,12 +215,30 @@ WW_GroupWindowStacks(entries)
     return stacks
 }
 
-; Windows stack when they share at least 60% of each one's area. Side-by-side
-; tiles, and halves or thirds in front of a maximized window, stay apart.
+; Two {rect, full} entries stack when the smaller window shares at least 60%
+; of its area with the bigger one, and the bigger at least 45% of its own, a
+; little under half so a fourth on a half stacks despite gaps between zones.
+; A maximized or fullscreen bigger window (full) needs 60% too, so halves,
+; thirds and fourths in front of it stay their own stacks. Side-by-side tiles
+; share nothing and stay apart.
 WW_WindowsStack(first, second)
 {
-    shared := WW_IntersectionArea(first, second) * 5
-    return shared > 0 && shared >= first[3] * first[4] * 3 && shared >= second[3] * second[4] * 3
+    shared := WW_IntersectionArea(first.rect, second.rect)
+    if !shared
+        return false
+    small := first, big := second
+    if first.rect[3] * first.rect[4] > second.rect[3] * second.rect[4]
+        small := second, big := first
+    big_percent := HasProp(big, "full") && big.full ? 60 : 45
+    return shared * 100 >= small.rect[3] * small.rect[4] * 60
+        && shared * 100 >= big.rect[3] * big.rect[4] * big_percent
+}
+
+; Maximized or fullscreen: windows in front of it count as tiles, not a pile.
+WW_IsFullWindow(hwnd)
+{
+    try return WinGetMinMax(hwnd) = 1 || WW_IsNativeFullscreen(hwnd)
+    return false
 }
 
 ; The area two [x, y, width, height] rectangles share.
