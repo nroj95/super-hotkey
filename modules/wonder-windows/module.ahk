@@ -298,13 +298,14 @@ class WonderWindowsModule extends SuiteModule {
 
         ZONE MODE
         Win + Left or Right starts zone mode, which lasts while you hold Win.
-        A window already in a zone keeps its size and moves one place that way; any other snaps to the closest size against that side; a maximized window becomes that half, as in Windows.
+        Like Windows, the first press puts the window against that side, but at its own size, or the closest zone size; a maximized window becomes that half.
         In zone mode a window sits only where both its edges land on stops: halves, fourths and thirds, so a half sits left, in the middle or right, and windows always fit together.
         Left and Right slide it to its next place; past the side, they move it to the next display that way, onto the facing side, and from the last display around to the first, as Windows does.
-        Down and Up make it the bottom or top quarter, as Windows does, then slide it the same way.
+        Down and Up make it the bottom or top quarter, as Windows does, then slide it the same way, and past the edge on to a display above or below, if one touches it.
         Along a display's short side, the height on a landscape display, only halves and thirds count by default, since fourths are too thin there, so a half moves straight between top and bottom.
         Plain arrows move the window, and Shift with an arrow resizes it: one size bigger or smaller, snapped into the place that size fits that overlaps it most, ties going toward the arrow.
         Toward the side it hugs it shrinks and away from it it grows; a window as wide or tall as the display shrinks toward the arrow, and one in the middle grows, so a middle third becomes the middle half.
+        Grown to the whole display, the window is maximized; shrink it again while you still hold Win and it is restored.
         Settings can add sixths or fourths, or leave out fourths or thirds, separately along the display's long and short side; halves and full are always there.
         Outside zone mode, Win + Up and Down maximize and restore, and Win + Shift + Left and Right stay Windows' own, moving windows between displays.
 

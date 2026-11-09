@@ -4,10 +4,11 @@
 ; zone mode
 ; =============================================================================
 ; Win + Left or Right starts zone mode, which lasts while any modifier stays
-; held. A window already on the zone grid moves one place that way, as if
-; zone mode had never ended; any other window snaps to the closest size, in
-; width against the arrow's side and in height at the closest place; a
-; maximized, fullscreen or full-width one becomes that half, as in Windows. In zone mode the window is a span of the work area, kept as fractions
+; held. Like Windows, it puts the window against that side, but at its own
+; width, or the closest zone width when it is not on a stop; its height stays
+; when it is on the grid, otherwise it snaps to the closest one at the place
+; overlapping it most. A maximized, fullscreen or full-width window becomes
+; that half, as in Windows. In zone mode the window is a span of the work area, kept as fractions
 ; [x0, x1] and [y0, y1], and it sits only where both its edges land on stops:
 ; halves, and the pairs Settings turns on for that side of the display, long or
 ; short, by default fourths and thirds. So a half sits left, in the middle or
@@ -16,11 +17,14 @@
 ;   they move it to the next display that way, onto the facing side, wrapping
 ;   from the last display to the first, as Windows does.
 ; - Up and Down split a full-height window into its top or bottom half, as
-;   Windows does, then slide it the same way, without leaving the display.
+;   Windows does, then slide it the same way. Past the top or bottom, they
+;   move it to a display touching that edge, onto its facing side; there is
+;   no wrapping, so with displays side by side nothing happens.
 ; - Shift + an arrow makes it one size bigger or smaller and snaps it into the
 ;   place for that size that overlaps it most, ties going toward the arrow.
 ;   Toward a side it hugs it shrinks, away from it it grows; a window as wide
 ;   or tall as the display shrinks toward the arrow; one in the middle grows.
+;   Grown to the whole work area it is maximized, and shrinking restores it.
 ; Plain arrows move and Shift arrows resize. Up, Down and the Shift arrows
 ; answer only in zone mode (the zone-cycling scope), so outside it Win + Up and
 ; Down maximize and restore, Win + Shift + Up and Down toggle full height and
@@ -75,12 +79,9 @@ WW_ZoneSide(side)
                     WW_ZoneAxisLadder(session, false), WW_ZoneAxisLadder(session, true))
                 session.x0 := start.x[1], session.x1 := start.x[2]
                 session.y0 := start.y[1], session.y1 := start.y[2]
-                fresh_entry := !start.slides
             }
-            if fresh_entry {
-                WW_ApplyZoneSession(session)
-                return
-            }
+            WW_ApplyZoneSession(session)
+            return
         }
         width := session.x1 - session.x0
         left_edge := WW_ZoneSlide(session.x0, width, side, WW_ZoneAxisLadder(session, false))
@@ -107,27 +108,21 @@ WW_ZoneSide(side)
 }
 
 ; Where zone mode starts for a window at rect ([x, y, width, height]) on area
-; ([left, top, right, bottom]) when Win + side starts it: {x, y, slides}, each
-; span as fractions of the area. A span already on the grid, its size and
-; place on the stops within a few pixels, is kept, and slides says the window
-; then moves one place that way. Otherwise the width snaps to the closest size
-; against that side, a full width becoming a half, and the height to the
-; closest size at the place overlapping it most.
+; ([left, top, right, bottom]) when Win + side starts it: {x, y}, each span as
+; fractions of the area. The width snaps to the closest size, its own when it
+; is on a stop, against that side, a full width becoming a half. The height
+; stays when it is on the grid, its size and place on the stops within a few
+; pixels, and otherwise snaps to the closest size at the place overlapping it
+; most.
 WW_ZoneStart(rect, area, side, across, down)
 {
     width := area[3] - area[1], height := area[4] - area[2]
     x := [(rect[1] - area[1]) / width, (rect[1] + rect[3] - area[1]) / width]
     y := [(rect[2] - area[2]) / height, (rect[2] + rect[4] - area[2]) / height]
-    on_grid := WW_ZoneGridSpan(x, across, 8 / width)
-    slides := IsObject(on_grid) && on_grid[2] - on_grid[1] < 0.999
-    if slides {
-        x := on_grid
-    } else {
-        size := WW_ClosestZoneSize(x[2] - x[1], across)
-        if size >= 0.999
-            size := 1 / 2
-        x := side = "left" ? [0, size] : [1 - size, 1]
-    }
+    size := WW_ClosestZoneSize(x[2] - x[1], across)
+    if size >= 0.999
+        size := 1 / 2
+    x := side = "left" ? [0, size] : [1 - size, 1]
     rows := WW_ZoneGridSpan(y, down, 8 / height)
     if !IsObject(rows) {
         size := WW_ClosestZoneSize(y[2] - y[1], down)
@@ -139,7 +134,7 @@ WW_ZoneStart(rect, area, side, across, down)
         }
         rows := [best, best + size]
     }
-    return {x: x, y: rows, slides: slides}
+    return {x: x, y: rows}
 }
 
 ; The grid span a span already sits on: a size on the ladder at one of its
@@ -228,13 +223,49 @@ WW_ZoneRow(direction)
         return
     try {
         span := WW_ZoneRowSpan([session.y0, session.y1], direction, WW_ZoneAxisLadder(session, true))
-        if !IsObject(span)
-            return
+        if !IsObject(span) {
+            ; Past the top or bottom: on to a display touching that edge, onto
+            ; its facing side; with none there, nothing happens.
+            rect := WW_ZoneSessionRectangle(session)
+            displays := []
+            loop MonitorGetCount() {
+                MonitorGetPixels(A_Index, &left, &top, &right, &bottom)
+                displays.Push([left, top, right, bottom])
+            }
+            target := WW_VerticalNeighborDisplay(WindowMonitorIndex(session.hwnd), displays,
+                rect[1], rect[1] + rect[3], direction)
+            if !target
+                return
+            MonitorGetWorkAreaPixels(target, &left, &top, &right, &bottom)
+            session.work_area := [left, top, right, bottom]
+            height := session.y1 - session.y0
+            span := direction = "up" ? [1 - height, 1] : [0, height]
+        }
         session.y0 := span[1], session.y1 := span[2]
         WW_ApplyZoneSession(session)
     }
     catch Error as err
         WW_DebugError("Zone row", err)
+}
+
+; The display above ("up") or below monitor (indexes into displays, each
+; [left, top, right, bottom]) that touches its edge and overlaps the window's
+; columns, from left to right, the most; 0 when there is none. Never wraps.
+WW_VerticalNeighborDisplay(monitor, displays, left, right, direction)
+{
+    if !monitor || monitor > displays.Length
+        return 0
+    current := displays[monitor]
+    best := 0, best_overlap := 0
+    for index, display in displays {
+        if index = monitor
+            continue
+        touches := direction = "up" ? Abs(display[4] - current[2]) <= 2 : Abs(display[2] - current[4]) <= 2
+        overlap := Min(right, display[3]) - Max(left, display[1])
+        if touches && overlap > best_overlap
+            best := index, best_overlap := overlap
+    }
+    return best
 }
 
 ; A vertical span after Up ("up") or Down: full height splits into the top or
@@ -330,9 +361,24 @@ WW_ZoneSessionRectangle(session)
     return [left, top, area[1] + Round(width * session.x1) - left, area[2] + Round(height * session.y1) - top]
 }
 
+; Places the window on its span. A span covering the whole work area makes it
+; truly maximized, so stacks, the big-window cycle, the focus outline and
+; cascades treat it as one; a smaller span un-maximizes it first.
 WW_ApplyZoneSession(session)
 {
-    WW_ApplyTrackedLayout(session.hwnd, "zones", session.work_area, [WW_ZoneSessionRectangle(session)], 1)
+    hwnd := session.hwnd
+    full := session.x0 <= 0.001 && session.x1 >= 0.999 && session.y0 <= 0.001 && session.y1 >= 0.999
+    if WinGetMinMax(hwnd) = 1 {
+        if full && WW_RectanglesMatch(session.work_area, WW_GetLayoutWorkArea(hwnd), 0)
+            return
+        WinRestore(hwnd)
+    }
+    ; Move first, so a window maximizes on the display its span is on.
+    WW_ApplyTrackedLayout(hwnd, "zones", session.work_area, [WW_ZoneSessionRectangle(session)], 1)
+    if full {
+        WW_ForgetWindowLayoutCycle(hwnd)
+        WinMaximize(hwnd)
+    }
 }
 
 ; The zone-cycling input scope: true while zone mode runs.

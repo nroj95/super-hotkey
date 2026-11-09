@@ -76,21 +76,31 @@ class WonderWindowsChecks {
             && WW_NeighborDisplay(2, "right", lefts) = 3 && WW_NeighborDisplay(3, "left", lefts) = 2
             && !WW_NeighborDisplay(1, "left", [0]),
             "the next display that way wraps from the last to the first, and one display has none")
+        ; A laptop under a monitor, a second monitor beside it, nothing above.
+        displays := [[0, 0, 2560, 1440], [2560, 0, 5120, 1440], [400, 1440, 1936, 2304]]
+        this.Assert(WW_VerticalNeighborDisplay(1, displays, 500, 1300, "down") = 3
+            && WW_VerticalNeighborDisplay(3, displays, 500, 1300, "up") = 1
+            && !WW_VerticalNeighborDisplay(1, displays, 500, 1300, "up")
+            && !WW_VerticalNeighborDisplay(2, displays, 2600, 3000, "down"),
+            "Up and Down find the display touching that edge under the window, never wrapping")
+        this.Assert(!WW_VerticalNeighborDisplay(1, displays, 2000, 2500, "down")
+            && !WW_VerticalNeighborDisplay(1, [[0, 0, 2560, 1440], [2560, 0, 5120, 1440]], 0, 1280, "down"),
+            "a window not over the lower display, or displays side by side, have nothing below")
 
-        ; Starting zone mode keeps a zoned window's size and moves it on; any
-        ; other window snaps to the closest size.
+        ; Starting zone mode puts a window against that side at its own size,
+        ; or the closest zone size.
         area := [0, 0, 1200, 800], across := WW_BuildZoneLadder(false, true, true), down := WW_BuildZoneLadder(false, false, true)
         start := WW_ZoneStart([800, 0, 400, 800], area, "left", across, down)
-        this.Assert(start.slides && SpanIs(start.x, 0.6667, 1) && SpanIs(start.y, 0, 1),
-            "a right third already on the grid keeps its size and moves on from there")
+        this.Assert(SpanIs(start.x, 0, 0.3333) && SpanIs(start.y, 0, 1),
+            "Win + Left puts a right third against the left side, still a third")
         start := WW_ZoneStart([600, 0, 600, 400], area, "left", across, down)
-        this.Assert(start.slides && SpanIs(start.x, 0.5, 1) && SpanIs(start.y, 0, 0.5),
-            "so does a top-right quarter, keeping its row")
+        this.Assert(SpanIs(start.x, 0, 0.5) && SpanIs(start.y, 0, 0.5),
+            "a top-right quarter becomes the top-left quarter, keeping its row")
         start := WW_ZoneStart([300, 100, 456, 480], area, "left", across, down)
-        this.Assert(!start.slides && SpanIs(start.x, 0, 0.3333) && SpanIs(start.y, 0, 0.6667),
+        this.Assert(SpanIs(start.x, 0, 0.3333) && SpanIs(start.y, 0, 0.6667),
             "a loose window snaps to the closest width against that side and the closest height")
         start := WW_ZoneStart([0, 100, 1200, 500], area, "right", across, down)
-        this.Assert(!start.slides && SpanIs(start.x, 0.5, 1),
+        this.Assert(SpanIs(start.x, 0.5, 1),
             "a full-width window becomes that half, as in Windows")
 
         window := SuiteGui("+Resize", "Zone mode check")
@@ -124,8 +134,8 @@ class WonderWindowsChecks {
                 "Up slides the quarter straight to the top-right")
             WW_EndZoneCycle()
             WW_ZoneSide("left")
-            this.Assert(near(WW_GetWindowLayoutRectangle(hwnd), [area[1] + width / 4, area[2], width / 2, height / 2]),
-                "a new zone mode keeps a zoned window's size and moves it one place")
+            this.Assert(near(WW_GetWindowLayoutRectangle(hwnd), [area[1], area[2], width / 2, height / 2]),
+                "a new zone mode puts a zoned window against the arrow's side at its own size")
             WW_EndZoneCycle()
             WinMaximize(hwnd)
             WW_ZoneSide("right")
@@ -135,6 +145,18 @@ class WonderWindowsChecks {
             WW_ZoneSide("left")
             this.Assert(near(WW_GetWindowLayoutRectangle(hwnd), [area[1], area[2], width * 2 / 3, height]),
                 "Left slides it back to the left side at the same width")
+            ; Grown to the whole display it is really maximized, and shrinking
+            ; in the same zone mode restores it.
+            WW_EndZoneCycle()
+            WinMaximize(hwnd)
+            WW_ZoneSide("left")
+            loop 3
+                WW_ZoneEdge("right")
+            this.Assert(WinGetMinMax(hwnd) = 1, "a zone grown to the whole display is maximized")
+            WW_ZoneEdge("left")
+            this.Assert(WinGetMinMax(hwnd) = 0
+                && near(WW_GetWindowLayoutRectangle(hwnd), [area[1], area[2], width * 3 / 4, height]),
+                "and shrinking it in the same zone mode restores it to three-quarters")
             WW_EndZoneCycle()
             WinMaximize(hwnd)
             WW_ZoneSide("right")
