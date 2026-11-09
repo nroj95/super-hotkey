@@ -26,7 +26,7 @@ WW_monitor_cycle_refused_from := 0  ; the window it was requested from
 WW_zone_cycle := 0
 WW_zone_layouts := Map()  ; "device|landscape" or "device|portrait" -> preset ID or custom line
 WW_zone_custom := Map()  ; the same keys -> the last custom line each one used
-WW_zone_landscape_default := "fourths"
+WW_zone_landscape_default := ""  ; "thirds" while an earlier version's Cycle=thirds stands
 WW_zone_separate := false
 
 WW_fancyzones_process_id := 0

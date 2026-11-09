@@ -113,6 +113,7 @@ class KeybindingsEditor {
         switch scope {
             case "paper-pad": return "editor only"
             case "windows-terminal": return "terminal only"
+            case "zone-cycling": return "zone cycling only"
             default: return ""
         }
     }

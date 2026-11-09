@@ -328,7 +328,7 @@ I wanted something more powerful, consistent and predictable, without constantly
 CYCLE ZONES
 =
 
-Hold Win and scroll, or press Win + Left or Right, to walk the window through fourths and halves: full height first, then upper and lower fourths, then upper and lower halves.
+Hold Win and scroll, or press Win + Left or Right, to walk the window through the full-height zones: the four fourths, then the halves.
 =
 
 Left and scroll down start at the left fourth; Right and scroll up start at the right fourth.
@@ -337,19 +337,22 @@ Left and scroll down start at the left fourth; Right and scroll up start at the 
 The other key steps back, so Left then Right jumps to the last zone.
 =
 
-While you still hold Win, Up and Down move to the zone above or below, such as the top half of the fourth you're on, and Left and Right walk on from there.
+While you still hold Win, add Shift to walk the upper and lower zones instead, a page at a time, such as the fourths and then the halves, each page's top row before its bottom row whichever way you go: the key you started with enters the top row at the column you're on, and the other key its bottom row; the key you entered with walks on, and the other key retraces your steps; let go of Shift to return to its full height.
 =
 
-Release the keys to start over next time; Win + Up and Down then maximize and restore again.
+Outside a walk, Win + Shift + Left and Right stay Windows' own, moving windows between displays.
 =
 
-Each display has its own layout in Settings: fourths, thirds, halves and corners, or rows for a portrait display.
+Release the keys to start over next time.
 =
 
-Or tick Custom there and type your own, with : between columns, / between rows and > for and then: 1:1:1:1 > 1:1 / 1:1 walks four columns, then four corners.
+Each display has its own layout in Settings: halves, thirds then two-thirds, fourths then halves, or sixths then thirds for a super-ultrawide display; a portrait display offers halves and thirds, turned into bands stacked top to bottom.
 =
 
-A display left on its default uses fourths in landscape and halves and corners in portrait; Settings can also give each orientation its own layout.
+Or tick Custom there and type your own, with : between columns, / between rows and > for and then: 1:1:1:1 > 1:1 / 1:1 gives four columns, and with Shift four corners.
+=
+
+A display left on its default picks one for its size: halves on a small laptop, thirds up to 2400 pixels wide, fourths up to 4400 and sixths beyond, and in portrait halves, or thirds from 2400 pixels tall; Settings can also give each orientation its own layout.
 =
 
 Sizes an app cannot shrink to are skipped.
