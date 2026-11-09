@@ -1255,6 +1255,30 @@ class CoreChecks {
             && clip([90, -10, 500, 12]) = "90,0,500,2"
             && clip([90, 90, 500, 12]) = "90,90,500,12",
             "the focus border keeps only the part on its window's display")
+        this.Assert(SuiteFocusBorder.Clip([90, 1038, 500, 12], [0, 0, 1920, 1040])[4] = 2,
+            "below a window resting on the taskbar, only the overlap shows")
+        probe := SuiteGui("+Resize", "Focus border work area check")
+        try {
+            probe.Show("NA x100 y100 w300 h200")
+            MonitorGetWorkAreaPixels(WindowMonitorIndex(probe.Hwnd), &workLeft, &workTop, &workRight, &workBottom)
+            area := SuiteFocusBorder.WorkAreaBounds(probe.Hwnd)
+            this.Assert(IsObject(area) && area[1] = workLeft && area[2] = workTop && area[3] = workRight
+                && area[4] = workBottom, "the focus border is clipped to its display's work area, never the taskbar")
+            Text(rect) => rect[1] "," rect[2] "," rect[3] "," rect[4]
+            inside := SuiteFocusBorder.Rects(0, 0, 1920, 1040, true)
+            this.Assert(Text(inside[1]) = "0,0,1920,12" && Text(inside[2]) = "0,1028,1920,12"
+                && Text(inside[3]) = "0,12,12,1016" && Text(inside[4]) = "1908,12,12,1016",
+                "drawn inside, the outline frames the window's own edge on all four sides")
+            WinMaximize(probe.Hwnd)
+            GetVisibleWindowBounds(probe.Hwnd, &maxX, &maxY, &maxWidth, &maxHeight)
+            this.Assert(SuiteFocusBorder.FillsDisplay(probe.Hwnd, maxX, maxY, maxWidth, maxHeight),
+                "a maximized window gets its outline inside")
+            WinRestore(probe.Hwnd)
+            GetVisibleWindowBounds(probe.Hwnd, &x, &y, &w, &h)
+            this.Assert(!SuiteFocusBorder.FillsDisplay(probe.Hwnd, x, y, w, h),
+                "a normal window keeps its outline outside")
+        }
+        finally probe.Destroy()
         this.Assert(SuiteFocusBorder.durationMs = 1500
             && SuiteFocusBorder.thickness = 12
             && SuiteFocusBorder.overlap = 2

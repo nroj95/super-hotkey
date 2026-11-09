@@ -1,6 +1,10 @@
 ; Shared, module-independent focus border. Windows-accent outline identical to
 ; the former Wonder Windows highlight (12 px, 2 px overlap, 1500 ms), hidden
-; early when its window moves.
+; early when its window moves. It stays inside its display's work area, so a
+; window at an edge shows only the overlap there, and nothing covers another
+; display or a taskbar. A maximized or fullscreen window has no side with
+; room, so its outline is drawn inside it instead, which tells displays with
+; a big window each apart.
 class SuiteFocusBorder {
     static guis := []
     static owner := ""
@@ -34,16 +38,9 @@ class SuiteFocusBorder {
             return false
         }
 
-        thickness := this.thickness
-        overlap := this.overlap
-        outside := thickness - overlap
         color := SuiteAccentColor()
-        rects := [
-            [x - outside, y - outside, width + outside * 2, thickness],
-            [x - outside, y + height - overlap, width + outside * 2, thickness],
-            [x - outside, y, thickness, height],
-            [x + width - overlap, y, thickness, height]
-        ]
+        inside := this.FillsDisplay(hwnd, x, y, width, height)
+        rects := this.Rects(x, y, width, height, inside)
 
         try {
             ; Reuse these same four non-activating windows for successive outlines.
@@ -56,9 +53,11 @@ class SuiteFocusBorder {
                     this.guis.Push(borderGui)
                 }
             }
-            ; Keep the outline on the window's display; a window touching a
-            ; display edge must not paint a strip onto the neighbouring one.
-            bounds := this.MonitorBounds(hwnd)
+            ; Keep the outline inside the work area of the window's display: a
+            ; window touching a display edge must not paint a strip onto the
+            ; neighbouring display, nor onto a taskbar or docked bar. Drawn
+            ; inside a fullscreen window, it may cover the window's whole display.
+            bounds := inside ? this.DisplayBounds(hwnd) : this.WorkAreaBounds(hwnd)
             for index, rect in rects {
                 borderGui := this.guis[index]
                 if !(rect := this.Clip(rect, bounds)) {
@@ -136,11 +135,46 @@ class SuiteFocusBorder {
         return true
     }
 
-    ; The display rectangle [left, top, right, bottom] in physical pixels, or 0.
-    static MonitorBounds(hwnd) {
+    ; The work area of the window's display, the display without its taskbars
+    ; and docked bars, as [left, top, right, bottom] in physical pixels, or 0.
+    static WorkAreaBounds(hwnd) {
+        try return CallWithDpiContext(-3, MonitorRects, WindowMonitor(hwnd)).work
+        catch
+            return 0
+    }
+
+    ; The window's whole display, taskbars included, the same way, or 0.
+    static DisplayBounds(hwnd) {
         try return CallWithDpiContext(-3, MonitorRects, WindowMonitor(hwnd)).monitor
         catch
             return 0
+    }
+
+    ; Maximized, or covering its whole display as a fullscreen window does.
+    static FillsDisplay(hwnd, x, y, width, height) {
+        try {
+            if WinGetMinMax(hwnd) = 1
+                return true
+            display := this.DisplayBounds(hwnd)
+            return IsObject(display) && x <= display[1] && y <= display[2]
+                && x + width >= display[3] && y + height >= display[4]
+        }
+        return false
+    }
+
+    ; The four sides of an outline around [x, y, width, height]: mostly
+    ; outside the window, overlapping its edge, or wholly inside it.
+    static Rects(x, y, width, height, inside := false) {
+        thickness := this.thickness
+        if inside
+            return [[x, y, width, thickness], [x, y + height - thickness, width, thickness],
+                [x, y + thickness, thickness, height - thickness * 2],
+                [x + width - thickness, y + thickness, thickness, height - thickness * 2]]
+        outside := thickness - this.overlap
+        return [[x - outside, y - outside, width + outside * 2, thickness],
+            [x - outside, y + height - this.overlap, width + outside * 2, thickness],
+            [x - outside, y, thickness, height],
+            [x + width - this.overlap, y, thickness, height]]
     }
 
     ; The part of [x, y, width, height] inside bounds, or 0 when none remains.
