@@ -352,7 +352,7 @@ class InterfaceChecks {
                 this.Assert(StrLen(guide) > 300 && !InStr(guide, "CURRENT SAVED SHORTCUTS"),
                     "help explains usage without listing every keybinding: " id)
                 firstHeading := Map("cascade-kingdom", "ADD A WINDOW",
-                    "wonder-windows", "CYCLE ZONES",
+                    "wonder-windows", "ZONE MODE",
                     "power-up-utilities", "MORE KEYS WITHOUT A NEW KEYBOARD",
                     "paper-pad", "YOUR OWN QUICK-NOTES DRAWER",
                     "secret-layers", "HOLD A KEY FOR MORE HOTKEYS")
@@ -536,65 +536,34 @@ class InterfaceChecks {
                     settings := app.ui.windows["settings:" id]
                     settings.GetClientPos(, , &settingsW, &settingsH)
                     if id = "wonder-windows" {
-                        presets := []
-                        for preset in WW_ZoneLayouts.Presets
-                            presets.Push(preset[2])
-                        for pair in [["fancyZonesStatus", ["running, not supported", "not running, you're all set!"]],
-                            ["zone1", presets]] {
-                            statusValue := settings[pair[1]].Text
-                            allowed := false
-                            for permitted in pair[2]
-                                if statusValue = permitted
-                                    allowed := true
-                            this.Assert(allowed,
-                                "Wonder Windows shows an explicit " pair[1] " status")
-                        }
+                        statusValue := settings["fancyZonesStatus"].Text
+                        this.Assert(statusValue = "running, not supported" || statusValue = "not running, you're all set!",
+                            "Wonder Windows shows an explicit FancyZones status")
                         this.Assert(WonderWindowsModule.StatusColor("not running, you're all set!") = "008000"
                             && WonderWindowsModule.StatusColor("running, not supported") = "B02020"
                             && WonderWindowsModule.StatusColor("unknown") = "505050",
                             "Wonder Windows status values use green, red or neutral colors")
-                        zoneRows := 0
+                        screenGrid := false
                         for control in settings
-                            if control.Type = "DDL"
-                                zoneRows += 1
-                        this.Assert(zoneRows = MonitorGetCount(),
-                            "Wonder Windows lists one zone layout per connected display")
-                        ; Custom swaps the preset list for a box in its place.
+                            screenGrid := screenGrid || control.Type = "Button" && control.Text = "ScreenGrid..."
+                        this.Assert(screenGrid, "Wonder Windows Settings recommend ScreenGrid with a button")
+                        ; Zone stop pairs: fourths and thirds on by default, sixths off.
+                        this.Assert(!settings["LongSixths"].Value && settings["LongThirds"].Value
+                            && !settings["ShortSixths"].Value && settings["ShortFourths"].Value,
+                            "zone stop checkboxes start with fourths and thirds on and sixths off")
                         wonder := app.modules["wonder-windows"]
-                        item := wonder.zoneControls[1]
-                        settings["zone1"].GetPos(&listX, &listY, &listW)
-                        settings["zone1Line"].GetPos(&lineX, &lineY, &lineW)
-                        settings["zone1Custom"].GetPos(&customX, &customY)
-                        this.Assert(lineX = listX && lineY = listY && lineW = listW && customX > listX + listW
-                            && Abs(customY - listY) <= 6 && settings["zone1"].Visible && !settings["zone1Line"].Visible,
-                            "a zone row shows its preset list, with Custom beside it and the box hidden in its place")
-                        custom(on) {
-                            settings["zone1Custom"].Value := on
-                            wonder.CustomClicked(settings, item, settings["zone1Custom"])
-                        }
-                        custom(1)
-                        this.Assert(settings["zone1Line"].Visible && !settings["zone1"].Visible,
-                            "ticking Custom shows the box instead of the list")
-                        settings["zone1Line"].Text := "1:1 / 1:1"
+                        settings["ShortFourths"].Value := 0
                         wonder.SaveSettings(app.ui)
-                        this.Assert(WW_zone_layouts.Get(item.key, "") = "1:1 / 1:1"
-                            && WW_zone_custom.Get(item.key, "") = "1:1 / 1:1",
-                            "a typed layout is saved as the display's layout and its last custom line")
-                        custom(0)
-                        this.Assert(settings["zone1"].Visible && !settings["zone1Line"].Visible,
-                            "unticking Custom brings the list back")
+                        short := ""
+                        for stop in WW_ZoneLadder(false)
+                            short .= Round(stop * 12) " "
+                        this.Assert(short = "0 4 6 8 12 ", "turning a pair off drops both its stops from that side")
+                        settings["ShortFourths"].Value := 1
                         wonder.SaveSettings(app.ui)
-                        this.Assert(!WW_zone_layouts.Has(item.key) && WW_zone_custom.Get(item.key, "") = "1:1 / 1:1",
-                            "back on a preset, the display keeps its custom line for next time")
-                        statusCoords := []
-                        for name in ["zone1", "fancyZonesStatus"] {
-                            settings[name].GetPos(&statusX, &statusY)
-                            statusCoords.Push(statusY)
-                            this.Assert(statusX = SuitePageRows.FieldX,
-                                "Wonder Windows " name " value sits in the page's field column")
-                        }
-                        this.Assert(statusCoords[1] < statusCoords[2],
-                            "Wonder Windows settings rows are spaced in reading order")
+                        this.Assert(WW_ZoneLadder(false).Length = 7, "and turning it back on restores them")
+                        settings["fancyZonesStatus"].GetPos(&statusX)
+                        this.Assert(statusX = SuitePageRows.FieldX,
+                            "Wonder Windows FancyZones status sits in the page's field column")
                     }
                     this.Assert(app.ui.pageLayouts.Has("settings:" id)
                         && !!(WinGetStyle("ahk_id " settings.Hwnd) & 0x00040000),

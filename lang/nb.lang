@@ -325,37 +325,34 @@ Windows already has window-management shortcuts, but I found many of them frustr
 I wanted something more powerful, consistent and predictable, without constantly reaching for the mouse.
 =
 
-CYCLE ZONES
+ZONE MODE
 =
 
-Hold Win and scroll, or press Win + Left or Right, to walk the window through the full-height zones: the four fourths, then the halves.
+Win + Left or Right puts the window in that half of the display, as Windows does, and starts zone mode, which lasts while you hold Win.
 =
 
-Left and scroll down start at the left fourth; Right and scroll up start at the right fourth.
+In zone mode a window sits only where both its edges land on stops: halves, fourths and thirds, so a half sits left, in the middle or right, and windows always fit together.
 =
 
-The other key steps back, so Left then Right jumps to the last zone.
+Left and Right slide it to its next place; past the side, they move it to the next display that way, onto the facing side, and from the last display around to the first, as Windows does.
 =
 
-While you still hold Win, add Shift to walk the upper and lower zones instead, a page at a time, such as the fourths and then the halves, each page's top row before its bottom row whichever way you go: the key you started with enters the top row at the column you're on, and the other key its bottom row; the key you entered with walks on, and the other key retraces your steps; let go of Shift to return to its full height.
+Down and Up make it the bottom or top quarter, as Windows does, then slide it the same way.
 =
 
-Outside a walk, Win + Shift + Left and Right stay Windows' own, moving windows between displays.
+Plain arrows move the window, and Shift with an arrow resizes it: one size bigger or smaller, snapped into the place that size fits that overlaps it most, ties going toward the arrow.
 =
 
-Release the keys to start over next time.
+Toward the side it hugs it shrinks and away from it it grows; a window as wide or tall as the display shrinks toward the arrow, and one in the middle grows, so a middle third becomes the middle half.
 =
 
-Each display has its own layout in Settings: halves, thirds then two-thirds, fourths then halves, or sixths then thirds for a super-ultrawide display; a portrait display offers halves and thirds, turned into bands stacked top to bottom.
+Settings can add sixths, or leave out fourths or thirds, separately along the display's long and short side; halves and full are always there.
 =
 
-Or tick Custom there and type your own, with : between columns, / between rows and > for and then: 1:1:1:1 > 1:1 / 1:1 gives four columns, and with Shift four corners.
+Outside zone mode, Win + Up and Down maximize and restore, and Win + Shift + Left and Right stay Windows' own, moving windows between displays.
 =
 
-A display left on its default picks one for its size: halves on a small laptop, thirds up to 2400 pixels wide, fourths up to 4400 and sixths beyond, and in portrait halves, or thirds from 2400 pixels tall; Settings can also give each orientation its own layout.
-=
-
-Sizes an app cannot shrink to are skipped.
+For zones you drag with the mouse, we recommend ScreenGrid; its button is in Settings.
 =
 
 ARRANGE YOUR WINDOWS
@@ -385,10 +382,10 @@ Win + Up maximizes the window, then steps to the upper and lower half.
 Win + Down takes it back to normal size, out of maximized or fullscreen, a zone, a half or a stretch; it never minimizes.
 =
 
-Win + Shift + Up stretches the window to the full height of the display, then to the full width, then puts it back.
+Win + Shift + Up stretches the window to the full height of the display and back, and Win + Shift + Down to the full width and back; each undoes only its own direction.
 =
 
-Win + Shift + Down stretches it into the free space around it, up to the windows you can see, and again puts it back; with nothing beside it, it maximizes.
+Win + Enter stretches it into the free space around it, up to the windows you can see, and again puts it back; with nothing beside it, it maximizes.
 =
 
 A cascade window keeps its place in its cascade while it's maximized, minimized, in a zone, a half or a stretch, and Win + Down puts it back there.
@@ -406,7 +403,7 @@ A stack of overlapping windows counts once, as its front window.
 Move a window onto its nearest neighbor to stack it in front.
 =
 
-Win + Enter brings forward the next window stacked with the active one; add Shift to go the other way.
+Win + Shift + PgDn brings forward the next window stacked with the active one, and Win + Shift + PgUp the previous one.
 =
 
 Layout actions exit F11 fullscreen before repositioning a window.

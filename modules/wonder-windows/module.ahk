@@ -4,16 +4,14 @@
 ; Settings gives them back to Windows.
 class WonderWindowsModule extends SuiteModule {
     hasSettings := true
-    resetSections := ["Zones", "ZoneLayouts", "ZoneCustom", "Keys"]
+    resetSections := ["Keys", "ZoneStops"]
 
     __New(app) {
         super.__New(app, "wonder-windows")
         WW_InitializeState()
         this.settingsPath := app.Settings.directory "\wonder-windows\settings.ini"
-        this.LoadZoneLayouts()
-        this.zoneControls := []
-        this.pageSeparate := false
         this.givesBackWindowsKeys := IniRead(this.settingsPath, "Keys", "GiveBackToWindows", 0) = "1"
+        this.LoadZoneStops()
         this.manager := 0
         this.stopping := false
         this.generation := 0
@@ -28,23 +26,28 @@ class WonderWindowsModule extends SuiteModule {
     }
 
     ; Registration order is the Keybindings display order: Help and zone
-    ; cycling, then one subcategory per section of the guide. replaces names
-    ; the Windows key an action improves.
+    ; mode, then one subcategory per section of the guide. replaces names the
+    ; Windows key an action improves. Zone mode's other keys answer only in
+    ; zone mode (the zone-cycling scope), so outside it those keys keep their
+    ; usual actions, and Windows keeps Win + Shift + Left and Right.
     Register(manager) {
         this.manager := manager
         manager.RegisterScope("zone-cycling", WW_IsCyclingZones)
         manager.AddAction("wonder-windows.help", "show Wonder Windows help",
             ObjBindMethod(this.app, "HelpShortcutEvent", this.id), ["Ctrl + Alt + H", "Caps + Win + H"],
             {category: "Wonder Windows", available: ObjBindMethod(this, "Available")})
-        this.Add("zones-from-left", "cycle zones from the left", WW_CycleZone,
-            ["Win + WheelDown", "Win + Left"], ["down"], {replaces: ["Win + Left"]})
-        this.Add("zones-from-right", "cycle zones from the right", WW_CycleZone,
-            ["Win + WheelUp", "Win + Right"], ["up"], {replaces: ["Win + Right"]})
-        ; Only while a walk runs, so Windows keeps Win + Shift + Left/Right.
-        this.Add("split-zones-from-left", "cycle split zones from the left", WW_CycleZone,
-            ["Win + Shift + WheelDown", "Win + Shift + Left"], ["down", true], {scope: "zone-cycling"})
-        this.Add("split-zones-from-right", "cycle split zones from the right", WW_CycleZone,
-            ["Win + Shift + WheelUp", "Win + Shift + Right"], ["up", true], {scope: "zone-cycling"})
+        this.Add("zones-from-left", "left half, then zone mode", WW_ZoneSide, ["Win + Left"], ["left"],
+            {replaces: ["Win + Left"]})
+        this.Add("zones-from-right", "right half, then zone mode", WW_ZoneSide, ["Win + Right"], ["right"],
+            {replaces: ["Win + Right"]})
+        this.Add("zone-row-up", "zone mode: top half, then slide up", WW_ZoneRow, ["Win + Up"],
+            ["up"], {scope: "zone-cycling"})
+        this.Add("zone-row-down", "zone mode: bottom half, then slide down", WW_ZoneRow, ["Win + Down"],
+            ["down"], {scope: "zone-cycling"})
+        for side in [["left", "side edge left"], ["right", "side edge right"], ["up", "top or bottom edge up"],
+            ["down", "top or bottom edge down"]]
+            this.Add("zone-edge-" side[1], "zone mode: move the " side[2], WW_ZoneEdge,
+                ["Win + Shift + " side[1]], [side[1]], {scope: "zone-cycling"})
         arrange := "Arrange your windows"
         for side in [["up", "above"], ["down", "below"], ["left", "to the left"], ["right", "to the right"]]
             this.Add("move-onto-" side[1], "stack on nearest window " side[2],
@@ -59,10 +62,12 @@ class WonderWindowsModule extends SuiteModule {
             , {section: keys, replaces: ["Win + Up"]})
         this.Add("restore", "back to normal size", WW_RestoreToNormalSize, ["Win + Down"],
             , {section: keys, replaces: ["Win + Down"]})
-        this.Add("full-span", "full height, then full width, then back", WW_CycleFullSpan,
-            ["Win + Shift + Up"], , {section: keys, replaces: ["Win + Shift + Up"]})
+        this.Add("full-height", "toggle full height", WW_ToggleFullSpan, ["Win + Shift + Up"], ["height"],
+            {section: keys, replaces: ["Win + Shift + Up"]})
+        this.Add("full-width", "toggle full width", WW_ToggleFullSpan, ["Win + Shift + Down"], ["width"],
+            {section: keys, replaces: ["Win + Shift + Down"]})
         this.Add("stretch-to-neighbors", "stretch to neighbors, then back", WW_ToggleNeighborStretch,
-            ["Win + Shift + Down"], , {section: keys, replaces: ["Win + Shift + Down"]})
+            ["Win + Enter"], , {section: keys})
         this.Add("minimize-all", "minimize all windows on this display", WW_MinimizeAllWindows, ["Win + M"],
             , {section: keys, replaces: ["Win + M"], anyWindow: true})
         this.Add("restore-all", "restore windows minimized on this display", WW_RestoreAllWindows,
@@ -80,10 +85,10 @@ class WonderWindowsModule extends SuiteModule {
             {section: focus})
         this.Add("focus-down", "focus next visible window", WW_CycleWindowFocus, ["Win + PgDn"], ["down"],
             {section: focus})
-        this.Add("cycle-stacked", "cycle windows in current stack", WW_CycleMonitorWindows, ["Win + Enter"],
+        this.Add("cycle-stacked", "cycle windows in current stack", WW_CycleMonitorWindows, ["Win + Shift + PgDn"],
             , {section: focus})
         this.Add("cycle-stacked-previous", "cycle windows in current stack backwards", WW_CycleMonitorWindows,
-            ["Win + Shift + Enter"], ["previous"], {section: focus})
+            ["Win + Shift + PgUp"], ["previous"], {section: focus})
         this.Add("cycle-expanded-next", "show next maximized or fullscreen window",
             WW_CycleMaximizedFullscreenWindows, ["Win + Alt + Enter", "Caps + Win + Enter"], ["next"],
             {section: focus})
@@ -152,7 +157,7 @@ class WonderWindowsModule extends SuiteModule {
             return
         ; Taps held back by a slow move arrive together; each counts, and the
         ; numbered tokens drain in the order pressed. Wheel notches share one,
-        ; so a fast spin cannot fling a window several zones on.
+        ; so a fast spin cannot fling a window several steps on.
         if !InStr(event.key, "Wheel") {
             this.sequence += 1
             token := Format("{:010}", this.sequence) "|" press
@@ -206,191 +211,87 @@ class WonderWindowsModule extends SuiteModule {
         WW_RunWindowCommand(WW_ClearLogicalZones)
     }
 
-    ; [ZoneLayouts] holds device|orientation=layout, empty for its default;
-    ; [ZoneCustom] the last custom line each one used, so ticking Custom
-    ; offers it again. [Zones] Cycle=thirds, from earlier versions, keeps thirds the
-    ; landscape default instead of one picked by size, until Settings are applied.
-    LoadZoneLayouts() {
-        global WW_zone_layouts, WW_zone_custom, WW_zone_landscape_default, WW_zone_separate
-        WW_zone_landscape_default := IniRead(this.settingsPath, "Zones", "Cycle", "") = "thirds" ? "thirds" : ""
-        WW_zone_separate := IniRead(this.settingsPath, "Zones", "Separate", 0) = "1"
-        WW_zone_layouts := Map(), WW_zone_custom := Map()
-        for section, target in Map("ZoneLayouts", WW_zone_layouts, "ZoneCustom", WW_zone_custom) {
-            try lines := IniRead(this.settingsPath, section)
-            catch
-                continue
-            for line in StrSplit(lines, "`n", "`r") {
-                parts := StrSplit(line, "=", , 2)
-                if parts.Length = 2 && Trim(parts[2]) != ""
-                    target[parts[1]] := Trim(parts[2])
-            }
-        }
+    ; [ZoneStops] Long|ShortSixths, Fourths and Thirds turn zone mode's stop
+    ; pairs on (1) or off (0) along a display's long and short side.
+    static StopPairs := [["Sixths", "1/6 and 5/6"], ["Fourths", "1/4 and 3/4"], ["Thirds", "1/3 and 2/3"]]
+
+    ; Fourths and thirds are on by default, sixths off, on both sides.
+    LoadZoneStops() {
+        global WW_zone_stops
+        for side, stops in WW_zone_stops
+            for pair in WonderWindowsModule.StopPairs
+                stops[StrLower(pair[1])] := IniRead(this.settingsPath, "ZoneStops",
+                    (side = "long" ? "Long" : "Short") pair[1], pair[1] != "Sixths" ? 1 : 0) = "1"
     }
 
-    ; One row per connected display: a layout for its current orientation, or
-    ; with the checkbox one for each orientation. Each row picks a preset from
-    ; a list, or with Custom ticked takes a typed line in a box in the list's
-    ; place, starting from the display's last custom line. pending holds
-    ; unsaved rows, by device|orientation, when the checkbox rebuilds the page.
-    ShowSettings(ui, pending := 0) {
-        global WW_zone_layouts, WW_zone_custom, WW_zone_separate
+    ShowSettings(ui) {
+        global WW_zone_stops
         key := "settings:wonder-windows"
-        if !pending && ui.Existing(key)
+        if ui.Existing(key)
             return
-        separate := pending ? pending["separate"] : WW_zone_separate
-        this.pageSeparate := separate
         rows := SuitePageRows(ui.NewWindow(key, "Wonder Windows - Settings", true), 800)
-        choices := ui.DisplayChoices("Primary")
-        this.zoneControls := []
-        for index, device in choices.values {
-            current := WonderWindowsModule.DeviceOrientation(device)
-            for orientation in separate ? ["landscape", "portrait"] : [current] {
-                zoneKey := device "|" orientation
-                ; One pair of parentheses: "(primary, landscape)".
-                label := choices.names[index]
-                label := SubStr(label, -10) = " (primary)"
-                    ? SubStr(label, 1, -10) " (primary, " orientation ")" : label " (" orientation ")"
-                if pending && pending.Has(zoneKey) {
-                    row := pending[zoneKey]
-                } else {
-                    layout := WW_zone_layouts.Get(zoneKey, "")
-                    if !WW_IsUsableZoneLayout(layout)
-                        layout := WW_DefaultZoneLayout(zoneKey)
-                    custom := !WW_ZoneLayouts.IsPreset(layout)
-                    row := {custom: custom,
-                        preset: WW_ZoneLayouts.Name(custom ? WW_DefaultZoneLayout(zoneKey) : layout),
-                        line: custom ? layout : WW_zone_custom.Get(zoneKey, "")}
-                }
-                ; The orientation's presets, plus a saved one it no longer offers.
-                items := []
-                for id in WW_ZoneLayouts.Offered(orientation)
-                    items.Push(WW_ZoneLayouts.Name(id))
-                listed := false
-                for name in items
-                    listed := listed || name = row.preset
-                if !listed
-                    items.Push(row.preset)
-                item := {name: "zone" this.zoneControls.Length + 1, key: zoneKey, label: label, items: items}
-                list := rows.Field(label, "DropDownList", "w300 v" item.name, items)
-                list.GetPos(&x, &y, &width, &height)
-                rows.window.AddEdit("x" x " y" y " w" width " h" height " Hidden v" item.name "Line")
-                rows.window.AddCheckbox("x" (x + width + 12) " y" (y + 4) " v" item.name "Custom", "Custom")
-                    .OnEvent("Click", ObjBindMethod(this, "CustomClicked", rows.window, item))
-                this.SetZoneRow(rows.window, item, row)
-                this.zoneControls.Push(item)
-            }
+        ; Zone mode's stops: one row per side of the display, a checkbox per pair.
+        for side in ["long", "short"] {
+            prefix := side = "long" ? "Long" : "Short"
+            first := rows.Field(side = "long" ? "Zone stops, long side:" : "Zone stops, short side:", "Checkbox",
+                "v" prefix "Sixths", WonderWindowsModule.StopPairs[1][2])
+            first.Value := WW_zone_stops[side]["sixths"]
+            first.GetPos(&x, &y)
+            for index, pair in WonderWindowsModule.StopPairs
+                if index > 1
+                    rows.window.AddCheckbox("x" (x + (index - 1) * 170) " y" y " v" prefix pair[1], pair[2])
+                        .Value := WW_zone_stops[side][StrLower(pair[1])]
         }
-        rows.Caption("Pick a layout, or tick Custom and type your own with : between columns, / between rows"
-            . " and > for and then, such as 1:1:1:1 > 1:1 / 1:1. A display left on its default picks a layout"
-            . " for its size and orientation.")
-        rows.Checkbox("Choose separate layouts for landscape and portrait", "vseparate").Value := separate
-        rows.window["separate"].OnEvent("Click", ObjBindMethod(this, "RebuildSettings", ui))
+        rows.Caption("The stops Shift steps through in zone mode, besides halves and full. The long side is a"
+            . " display's width in landscape and its height in portrait.")
+        rows.Text("For zones, we recommend ScreenGrid: hold Shift while you drag a window and drop it on a"
+            . " grid, alongside Super Hotkey. Zone mode here is a keyboard extra for halves, quarters and the"
+            . " sizes in between.")
         rows.Checkbox("Give Windows back its own keys when you move or clear their actions", "vgiveBack")
-            .Value := pending ? pending["giveBack"] : this.givesBackWindowsKeys
+            .Value := this.givesBackWindowsKeys
         rows.Caption("Win + Left, Right, Up, Down, M, Shift + M, Home and D. Unchecked, they do nothing"
             . " once moved or cleared, so Windows' own versions never surprise you.", true)
         status := WW_IsFancyZonesRunning() ? "running, not supported" : "not running, you're all set!"
         rows.Field("FancyZones:", "Text", "w540 vfancyZonesStatus c" WonderWindowsModule.StatusColor(status), status)
         rows.Text("FancyZones also moves windows and takes hotkeys, so it isn't supported; disable it in PowerToys.")
         rows.Show(ui, key, [["Apply", ObjBindMethod(this, "SaveSettings", ui)],
+            ["ScreenGrid...", ObjBindMethod(this, "OpenScreenGrid", ui)],
             ["Back", ObjBindMethod(ui, "BackToHelp", this.id)]])
-        if pending {
-            ; The page now shows unsaved changes: keep Apply lit.
-            ui.pageLayouts[key].saved := ""
-            ui.PageChanged(key)
-        }
-    }
-
-    ; The checkbox shows or hides the second column, keeping what was typed.
-    RebuildSettings(ui, *) {
-        key := "settings:wonder-windows"
-        window := ui.windows[key]
-        pending := Map("separate", window["separate"].Value != 0, "giveBack", window["giveBack"].Value)
-        for item in this.zoneControls
-            pending[item.key] := {custom: window[item.name "Custom"].Value != 0,
-                preset: window[item.name].Text, line: window[item.name "Line"].Text}
-        ui.CloseWindow(key)
-        this.ShowSettings(ui, pending)
-    }
-
-    ; landscape or portrait, from the display's bounds; landscape when the
-    ; display is gone.
-    static DeviceOrientation(device) {
-        loop MonitorGetCount() {
-            if MonitorGetName(A_Index) = device {
-                MonitorGet(A_Index, &left, &top, &right, &bottom)
-                return bottom - top > right - left ? "portrait" : "landscape"
-            }
-        }
-        return "landscape"
-    }
-
-    ; A row's controls from {custom, preset, line}: the list or the box shows.
-    SetZoneRow(window, item, row) {
-        for index, name in item.items
-            if name = row.preset
-                window[item.name].Choose(index)
-        window[item.name "Line"].Text := row.line
-        window[item.name "Custom"].Value := row.custom
-        window[item.name].Visible := !row.custom
-        window[item.name "Line"].Visible := row.custom
-    }
-
-    ; Custom swaps the list for the box, and keeps the focus in the row.
-    CustomClicked(window, item, checkbox, *) {
-        custom := checkbox.Value != 0
-        window[item.name].Visible := !custom
-        window[item.name "Line"].Visible := custom
-        window[item.name (custom ? "Line" : "")].Focus()
     }
 
     RestoreSettings(window) {
-        for item in this.zoneControls
-            this.SetZoneRow(window, item, {custom: false, line: window[item.name "Line"].Text,
-                preset: WW_ZoneLayouts.Name(WW_DefaultZoneLayout(item.key, , false))})
-        window["separate"].Value := 0
         window["giveBack"].Value := 0
+        for side in ["Long", "Short"]
+            for pair in WonderWindowsModule.StopPairs
+                window[side pair[1]].Value := pair[1] != "Sixths"
     }
 
-    ; Checks every typed line before saving anything. A choice equal to its
-    ; default is saved empty, so the display keeps following its size and
-    ; orientation.
+    static ScreenGridUrl := "https://github.com/TtesseractT/ScreenGrid"
+
+    OpenScreenGrid(ui, *) {
+        if this.app.dryRun {
+            MsgBox("Opening web pages is inactive in the dry run.", SuiteApplication.Name, "Iconi")
+            return
+        }
+        try Run(WonderWindowsModule.ScreenGridUrl)
+        catch Error as failure
+            ui.Report(failure, "Wonder Windows / ScreenGrid")
+    }
+
     SaveSettings(ui, *) {
         key := "settings:wonder-windows"
-        window := ui.windows[key]
         try {
-            layouts := Map()
-            custom := Map()
-            for item in this.zoneControls {
-                layout := window[item.name "Custom"].Value
-                    ? Trim(window[item.name "Line"].Text) : WW_ZoneLayouts.FromText(window[item.name].Text)
-                if !WW_ZoneLayouts.IsPreset(layout) {
-                    try WW_ParseZoneLine(layout)
-                    catch ValueError as problem
-                        throw ValueError(item.label ": " problem.Message)
-                    custom[item.key] := layout
-                }
-                ; Saving resets an earlier version's Cycle=thirds, so a choice
-                ; of thirds is saved by display from here on.
-                layouts[item.key] := layout = WW_DefaultZoneLayout(item.key, , false) ? "" : layout
-            }
-            separate := window["separate"].Value != 0
+            window := ui.windows[key]
             giveBack := window["giveBack"].Value != 0
-            changes := Map("Zones", Map("Cycle", "fourths", "Separate", separate ? 1 : 0),
-                "Keys", Map("GiveBackToWindows", giveBack ? 1 : 0))
-            if layouts.Count
-                changes["ZoneLayouts"] := layouts
-            if custom.Count
-                changes["ZoneCustom"] := custom
-            this.app.Settings.WritePreferences(this.id, changes)
-            this.LoadZoneLayouts()
+            stops := Map()
+            for side in ["Long", "Short"]
+                for pair in WonderWindowsModule.StopPairs
+                    stops[side pair[1]] := window[side pair[1]].Value ? 1 : 0
+            this.app.Settings.WritePreferences(this.id, Map("Keys", Map("GiveBackToWindows", giveBack ? 1 : 0),
+                "ZoneStops", stops))
             this.givesBackWindowsKeys := giveBack
+            this.LoadZoneStops()
             WW_EndZoneCycle()
-            if separate != this.pageSeparate {
-                ui.CloseWindow(key)
-                this.ShowSettings(ui)
-                return
-            }
             ui.Applied(key)
         }
         catch Error as failure
@@ -411,17 +312,16 @@ class WonderWindowsModule extends SuiteModule {
         Windows already has window-management shortcuts, but I found many of them frustrating or incomplete.
         I wanted something more powerful, consistent and predictable, without constantly reaching for the mouse.
 
-        CYCLE ZONES
-        Hold Win and scroll, or press Win + Left or Right, to walk the window through the full-height zones: the four fourths, then the halves.
-        Left and scroll down start at the left fourth; Right and scroll up start at the right fourth.
-        The other key steps back, so Left then Right jumps to the last zone.
-        While you still hold Win, add Shift to walk the upper and lower zones instead, a page at a time, such as the fourths and then the halves, each page's top row before its bottom row whichever way you go: the key you started with enters the top row at the column you're on, and the other key its bottom row; the key you entered with walks on, and the other key retraces your steps; let go of Shift to return to its full height.
-        Outside a walk, Win + Shift + Left and Right stay Windows' own, moving windows between displays.
-        Release the keys to start over next time.
-        Each display has its own layout in Settings: halves, thirds then two-thirds, fourths then halves, or sixths then thirds for a super-ultrawide display; a portrait display offers halves and thirds, turned into bands stacked top to bottom.
-        Or tick Custom there and type your own, with : between columns, / between rows and > for and then: 1:1:1:1 > 1:1 / 1:1 gives four columns, and with Shift four corners.
-        A display left on its default picks one for its size: halves on a small laptop, thirds up to 2400 pixels wide, fourths up to 4400 and sixths beyond, and in portrait halves, or thirds from 2400 pixels tall; Settings can also give each orientation its own layout.
-        Sizes an app cannot shrink to are skipped.
+        ZONE MODE
+        Win + Left or Right puts the window in that half of the display, as Windows does, and starts zone mode, which lasts while you hold Win.
+        In zone mode a window sits only where both its edges land on stops: halves, fourths and thirds, so a half sits left, in the middle or right, and windows always fit together.
+        Left and Right slide it to its next place; past the side, they move it to the next display that way, onto the facing side, and from the last display around to the first, as Windows does.
+        Down and Up make it the bottom or top quarter, as Windows does, then slide it the same way.
+        Plain arrows move the window, and Shift with an arrow resizes it: one size bigger or smaller, snapped into the place that size fits that overlaps it most, ties going toward the arrow.
+        Toward the side it hugs it shrinks and away from it it grows; a window as wide or tall as the display shrinks toward the arrow, and one in the middle grows, so a middle third becomes the middle half.
+        Settings can add sixths, or leave out fourths or thirds, separately along the display's long and short side; halves and full are always there.
+        Outside zone mode, Win + Up and Down maximize and restore, and Win + Shift + Left and Right stay Windows' own, moving windows between displays.
+        For zones you drag with the mouse, we recommend ScreenGrid; its button is in Settings.
 
         ARRANGE YOUR WINDOWS
         Win + Backspace minimizes the active window; focus stays on that display while it has windows left, then moves to the next display.
@@ -433,15 +333,15 @@ class WonderWindowsModule extends SuiteModule {
         They act on your display only, except Win + D, which reaches every display, and focus stays on your display.
         Win + Up maximizes the window, then steps to the upper and lower half.
         Win + Down takes it back to normal size, out of maximized or fullscreen, a zone, a half or a stretch; it never minimizes.
-        Win + Shift + Up stretches the window to the full height of the display, then to the full width, then puts it back.
-        Win + Shift + Down stretches it into the free space around it, up to the windows you can see, and again puts it back; with nothing beside it, it maximizes.
+        Win + Shift + Up stretches the window to the full height of the display and back, and Win + Shift + Down to the full width and back; each undoes only its own direction.
+        Win + Enter stretches it into the free space around it, up to the windows you can see, and again puts it back; with nothing beside it, it maximizes.
         A cascade window keeps its place in its cascade while it's maximized, minimized, in a zone, a half or a stretch, and Win + Down puts it back there.
 
         FOCUS, STACKS AND FULLSCREEN
         Win + PgDn and PgUp step focus through every window on screen in reading order: displays left to right, columns left to right, top before bottom, and outline the window they reach; double-tap Caps to outline where you are.
         A stack of overlapping windows counts once, as its front window.
         Move a window onto its nearest neighbor to stack it in front.
-        Win + Enter brings forward the next window stacked with the active one; add Shift to go the other way.
+        Win + Shift + PgDn brings forward the next window stacked with the active one, and Win + Shift + PgUp the previous one.
         Layout actions exit F11 fullscreen before repositioning a window.
         Win + Alt + Enter shows the next maximized or fullscreen window on your display, minimized or not, and minimizes the others there, so one big window is out at a time; add Shift to go back.
         Keybindings below shows the current hotkey for each action.

@@ -11,113 +11,121 @@ class WonderWindowsChecks {
         this.MonitorWindowCycle()
         this.MinimizeAll()
         this.FullSpanAndNormalSize()
-        this.ZoneLayoutsAndStretch()
-        this.ZoneWalks()
+        this.NeighborStretch()
+        this.ZoneMode()
     }
 
-    ; The plain zone walk covers the zones that span the full height; its
-    ; Shift twin walks the split ones page by page while a walk runs, rows
-    ; always top to bottom, entering the column the window is in at its top,
-    ; or with the other key its bottom.
-    static ZoneWalks() {
-        work := [0, 0, 1920, 1080]
-        Rect(zone) => zone[1] "," zone[2] "," zone[3] "," zone[4]
-        walks := WW_SplitZoneWalks(WW_BuildLayoutZones(work, "fourths"), work)
-        this.Assert(walks.main.Length = 7 && Rect(walks.main[1]) = "0,0,480,1080" && Rect(walks.main[7]) = "960,0,960,1080",
-            "the plain walk holds the four fourths and three halves")
-        this.Assert(walks.split.Length = 14 && Rect(walks.split[1]) = "0,0,480,540" && Rect(walks.split[2]) = "480,0,480,540"
-            && Rect(walks.split[5]) = "0,540,480,540" && Rect(walks.split[9]) = "0,0,960,540"
-            && Rect(walks.split[14]) = "960,540,960,540",
-            "the split walk goes page by page: upper and lower fourths, then upper and lower halves")
-        this.Assert(walks.back.Length = 14 && Rect(walks.back[1]) = "960,0,960,540" && Rect(walks.back[3]) = "0,0,960,540"
-            && Rect(walks.back[4]) = "960,540,960,540" && Rect(walks.back[7]) = "1440,0,480,540"
-            && Rect(walks.back[14]) = "0,540,480,540",
-            "stepping back takes the pages in reverse, but each page's rows still top to bottom")
-        corners := WW_SplitZoneWalks(WW_BuildLayoutZones(work, "corners"), work)
-        this.Assert(corners.main.Length = 2 && Rect(corners.split[2]) = "960,0,960,540"
-            && Rect(corners.split[3]) = "0,540,960,540",
-            "halves and corners walks the halves, then the corners row by row")
-        tall := [0, 0, 1080, 1920]
-        rows := WW_SplitZoneWalks(WW_BuildLayoutZones(tall, "thirds"), tall, true)
-        this.Assert(rows.main.Length = 5 && Rect(rows.main[1]) = "0,0,1080,640" && Rect(rows.main[4]) = "0,0,1080,1280"
-            && Rect(rows.split[1]) = "0,0,540,640" && Rect(rows.split[2]) = "0,640,540,640",
-            "turned thirds walk full-width bands, and their split walk the left halves, then the right ones")
-        onlySplit := WW_SplitZoneWalks(WW_BuildLayoutZones(work, "1:1 / 1:1"), work)
-        this.Assert(onlySplit.main.Length = 4 && onlySplit.split.Length = 4
-            && Rect(onlySplit.split[2]) = "960,0,960,540",
-            "a custom line without full-height zones walks every zone either way")
-        onlyFull := WW_SplitZoneWalks(WW_BuildLayoutZones(work, "1:1:1"), work)
-        this.Assert(onlyFull.main.Length = 3 && !onlyFull.split.Length, "and one without split zones has no split walk")
+    ; Zone mode: Win + Left/Right give a half, then while it runs Left/Right
+    ; flip sides, Up/Down step through Windows' quarters and the Shift arrows
+    ; move the free edge along one ladder.
+    static ZoneMode() {
+        SpanIs(span, first, last) => IsObject(span) && Abs(span[1] - first) < 0.001 && Abs(span[2] - last) < 0.001
+        this.Assert(SpanIs(WW_ZoneRowSpan([0, 1], "down"), 0.5, 1) && SpanIs(WW_ZoneRowSpan([0, 1], "up"), 0, 0.5)
+            && SpanIs(WW_ZoneRowSpan([0.5, 1], "up"), 0.25, 0.75) && SpanIs(WW_ZoneRowSpan([0.25, 0.75], "up"), 0, 0.5)
+            && !WW_ZoneRowSpan([0, 0.5], "up") && !WW_ZoneRowSpan([0.5, 1], "down"),
+            "Up and Down split a full-height window into a half, then slide it through bottom, middle and top")
+        this.Assert(SpanIs(WW_ZoneRowSpan([0, 1 / 3], "down"), 0.3333, 0.6667)
+            && SpanIs(WW_ZoneRowSpan([1 / 3, 2 / 3], "down"), 0.6667, 1),
+            "a third slides through the top, middle and bottom rows")
+        this.Assert(SpanIs(WW_ZoneEdgeSpan([0, 0.5], true), 0, 0.3333) && SpanIs(WW_ZoneEdgeSpan([0, 0.5], false), 0, 0.6667)
+            && SpanIs(WW_ZoneEdgeSpan([0.5, 1], false), 0.6667, 1) && SpanIs(WW_ZoneEdgeSpan([0.5, 1], true), 0.3333, 1),
+            "Shift moves the free edge, shrinking toward the side the window hugs and growing away from it")
+        fine := WW_BuildZoneLadder(true, true, true)
+        this.Assert(SpanIs(WW_ZoneEdgeSpan([0, 1 / 6], false, fine), 0, 0.25) && !WW_ZoneEdgeSpan([0, 1 / 6], true, fine)
+            && SpanIs(WW_ZoneEdgeSpan([0, 5 / 6], false, fine), 0, 1),
+            "with sixths on, the ladder runs from a sixth to full, without fifths")
+        short := WW_ZoneLadder(false)
+        this.Assert(SpanIs(WW_ZoneEdgeSpan([0, 1 / 2], false, short), 0, 0.6667)
+            && SpanIs(WW_ZoneEdgeSpan([0, 3 / 4], false, short), 0, 1) && !WW_ZoneEdgeSpan([0, 1 / 4], true, short),
+            "the short side's ladder runs from a fourth to full, so a half grows to full in three steps")
+        Ladder(sixths, fourths, thirds) {
+            text := ""
+            for stop in WW_BuildZoneLadder(sixths, fourths, thirds)
+                text .= Round(stop * 12) " "
+            return text
+        }
+        this.Assert(Ladder(true, true, true) = "0 2 3 4 6 8 9 10 12 " && Ladder(false, false, true) = "0 4 6 8 12 "
+            && Ladder(false, false, false) = "0 6 12 ",
+            "each stop pair that is on adds both its stops, keeping halves and full")
+        this.Assert(SpanIs(WW_ZoneEdgeSpan([0, 1], true, fine), 0, 0.8333) && SpanIs(WW_ZoneEdgeSpan([0, 1], false, fine), 0.1667, 1),
+            "a full span moves whichever edge can go that way")
+        this.Assert(SpanIs(WW_ZoneEdgeSpan(WW_ZoneEdgeSpan([0, 0.5], true), true), 0, 0.25),
+            "each press steps one rung: a half, a third, a fourth")
+        this.Assert(SpanIs(WW_ZoneEdgeSpan([1 / 3, 2 / 3], true), 0.25, 0.75)
+            && SpanIs(WW_ZoneEdgeSpan([1 / 3, 2 / 3], false), 0.25, 0.75),
+            "a middle third grows to the middle half, the place overlapping it most")
+        this.Assert(SpanIs(WW_ZoneEdgeSpan([0.25, 0.75], true), 0, 0.6667)
+            && SpanIs(WW_ZoneEdgeSpan([0.25, 0.75], false), 0.3333, 1)
+            && SpanIs(WW_ZoneEdgeSpan([0.25, 0.5], false), 0.3333, 0.6667)
+            && SpanIs(WW_ZoneEdgeSpan([0, 1], false), 0.25, 1),
+            "a tie goes toward the arrow, a middle fourth grows to the middle third, and a full span shrinks toward the arrow")
+        places := ""
+        for place in WW_ZonePlaces(1 / 2, WW_ZoneLadder())
+            places .= Round(place * 12) " "
+        this.Assert(places = "0 3 6 ", "a half sits left, in the middle or right, where both its edges land on stops")
+        this.Assert(WW_ZoneSlide(0, 1 / 2, "right") = 1 / 4 && WW_ZoneSlide(1 / 4, 1 / 2, "right") = 1 / 2
+            && WW_ZoneSlide(1 / 2, 1 / 2, "right") = ""
+            && Abs(WW_ZoneSlide(0, 1 / 3, "right") - 1 / 3) < 0.001 && Abs(WW_ZoneSlide(1 / 3, 1 / 3, "right") - 2 / 3) < 0.001
+            && WW_ZoneSlide(0, 1 / 3, "left") = "" && Abs(WW_ZoneSlide(0, 2 / 3, "right") - 1 / 3) < 0.001,
+            "Left and Right slide a window through its places: a half via the middle, a third through three columns")
+        lefts := [0, 1920, -1920]
+        this.Assert(WW_NeighborDisplay(1, "right", lefts) = 2 && WW_NeighborDisplay(1, "left", lefts) = 3
+            && WW_NeighborDisplay(2, "right", lefts) = 3 && WW_NeighborDisplay(3, "left", lefts) = 2
+            && !WW_NeighborDisplay(1, "left", [0]),
+            "the next display that way wraps from the last to the first, and one display has none")
 
-        window := SuiteGui("+Resize", "Zone walk check")
+        window := SuiteGui("+Resize", "Zone mode check")
         try {
             SuiteWindowOwnership.AllowArranging(window)
             window.Show("NA x200 y200 w400 h300")
             hwnd := window.Hwnd
             ActivateWindow(hwnd)
             WW_EndZoneCycle()
-            before := WW_GetWindowLayoutRectangle(hwnd)
-            WW_CycleZone("down", true)
-            this.Assert(!WW_IsCyclingZones() && WW_RectanglesMatch(WW_GetWindowLayoutRectangle(hwnd), before, 2),
-                "the split walk waits for a running walk")
-            WW_CycleZone("down")
-            WW_CycleZone("down")
-            second := WW_GetWindowLayoutRectangle(hwnd)
-            this.Assert(WW_IsCyclingZones(), "a walk runs the zone-cycling scope")
-            WW_CycleZone("down", true)
-            top := WW_GetWindowLayoutRectangle(hwnd)
-            this.Assert(Abs(top[1] - second[1]) <= 4 && Abs(top[3] - second[3]) <= 4 && top[4] < second[4] * 0.75,
-                "Shift picks up at the top of the column the window is in")
-            WW_CycleZone("down", true)
-            next := WW_GetWindowLayoutRectangle(hwnd)
-            this.Assert(next[1] > top[1] && Abs(next[2] - top[2]) <= 4 && Abs(next[4] - top[4]) <= 4,
-                "and goes on sideways along the top row")
-            WW_CycleZone("up")
-            full := WW_GetWindowLayoutRectangle(hwnd)
-            this.Assert(Abs(full[1] - next[1]) <= 4 && Abs(full[3] - next[3]) <= 4 && full[4] > next[4] * 1.5,
-                "without Shift, the walk returns to that column's full height")
-            WW_CycleZone("up", true)
-            bottom := WW_GetWindowLayoutRectangle(hwnd)
-            this.Assert(Abs(bottom[1] - full[1]) <= 4 && Abs(bottom[3] - full[3]) <= 4
-                && bottom[2] > full[2] + full[4] / 3 && bottom[4] < full[4] * 0.75,
-                "Shift with the other key enters that column's bottom row")
-            ; Win + Right, then Shift + Left again and again: from the bottom of
-            ; the right fourth to the halves page, top row then bottom row, then
-            ; the fourths page from the top left.
-            WW_EndZoneCycle()
-            WW_CycleZone("up")
             area := WW_GetLayoutWorkArea(hwnd)
-            WW_CycleZone("down", true)
-            seen := []
-            loop 7 {
-                WW_CycleZone("down", true)
-                seen.Push(WW_GetWindowLayoutRectangle(hwnd))
-            }
             width := area[3] - area[1], height := area[4] - area[2]
-            near(value, expected) => Abs(value - expected) <= 6
-            this.Assert(near(seen[1][1], area[1]) && near(seen[1][2], area[2]) && near(seen[1][3], width / 2)
-                && near(seen[3][1], area[3] - width / 2) && near(seen[3][2], area[2])
-                && near(seen[4][1], area[1]) && near(seen[4][2], area[2] + height / 2) && near(seen[4][3], width / 2)
-                && near(seen[7][1], area[1]) && near(seen[7][2], area[2]) && near(seen[7][3], width / 4),
-                "stepping back walks the halves page top row then bottom row, then the fourths from the top left")
-            ; The opposite key retraces: Win + Right, Shift + Left into the bottom
-            ; right, four more to the bottom-left half, then Shift + Right goes
-            ; back to the top-right half, and Left and Right keep swapping them.
+            near(rect, expected) => WW_RectanglesMatch(rect, expected, 6)
+            WW_ZoneRow("down")
+            this.Assert(!WW_IsCyclingZones() && WinGetMinMax(hwnd) = 0,
+                "outside zone mode, its row keys do nothing")
+            WW_ZoneSide("left")
+            this.Assert(WW_IsCyclingZones() && near(WW_GetWindowLayoutRectangle(hwnd), [area[1], area[2], width / 2, height]),
+                "Win + Left gives the left half and starts zone mode")
+            WW_ZoneRow("down")
+            this.Assert(near(WW_GetWindowLayoutRectangle(hwnd), [area[1], area[2] + height / 2, width / 2, height / 2]),
+                "Down makes it the bottom-left quarter")
+            WW_ZoneSide("right")
+            this.Assert(near(WW_GetWindowLayoutRectangle(hwnd), [area[1] + width / 4, area[2] + height / 2, width / 2, height / 2]),
+                "Right slides it to the middle of the row")
+            WW_ZoneSide("right")
+            this.Assert(near(WW_GetWindowLayoutRectangle(hwnd), [area[1] + width / 2, area[2] + height / 2, width / 2, height / 2]),
+                "and again to the bottom-right quarter")
+            WW_ZoneRow("up")
+            WW_ZoneRow("up")
+            this.Assert(near(WW_GetWindowLayoutRectangle(hwnd), [area[1] + width / 2, area[2], width / 2, height / 2]),
+                "Up twice slides the quarter through the middle to the top-right")
             WW_EndZoneCycle()
-            WW_CycleZone("up")
-            WW_CycleZone("down", true)
-            loop 4
-                WW_CycleZone("down", true)
-            bottomLeft := WW_GetWindowLayoutRectangle(hwnd)
-            retraced := true
-            loop 2 {
-                WW_CycleZone("up", true)
-                retraced := retraced && WW_RectanglesMatch(WW_GetWindowLayoutRectangle(hwnd), seen[3], 4)
-                WW_CycleZone("down", true)
-                retraced := retraced && WW_RectanglesMatch(WW_GetWindowLayoutRectangle(hwnd), bottomLeft, 4)
+            WW_ZoneSide("right")
+            WW_ZoneEdge("left")
+            this.Assert(near(WW_GetWindowLayoutRectangle(hwnd), [area[1] + width / 3, area[2], width * 2 / 3, height]),
+                "Shift + Left grows a right half to two-thirds")
+            WW_ZoneSide("left")
+            this.Assert(near(WW_GetWindowLayoutRectangle(hwnd), [area[1], area[2], width * 2 / 3, height]),
+                "Left slides it back to the left side at the same width")
+            WW_EndZoneCycle()
+            WW_ZoneSide("right")
+            this.Assert(near(WW_GetWindowLayoutRectangle(hwnd), [area[1] + width / 2, area[2], width / 2, height]),
+                "a new zone mode starts over at a half")
+            if MonitorGetCount() > 1 {
+                start := WindowMonitorIndex(hwnd)
+                WW_ZoneSide("right")
+                moved := WW_GetLayoutWorkArea(hwnd)
+                this.Assert(WindowMonitorIndex(hwnd) != start && near(WW_GetWindowLayoutRectangle(hwnd),
+                    [moved[1], moved[2], (moved[3] - moved[1]) / 2, moved[4] - moved[2]]),
+                    "Right again on a right half moves it to the next display's left half")
+                WW_ZoneSide("left")
+                this.Assert(WindowMonitorIndex(hwnd) = start, "and Left brings it back")
             }
-            this.Assert(retraced && WW_RectanglesMatch(bottomLeft, seen[4], 4),
-                "the other key retraces the last step, so the top-right and bottom-left halves swap back and forth")
+            WW_RestoreToNormalSize()
         }
         finally {
             WW_EndZoneCycle()
@@ -125,8 +133,8 @@ class WonderWindowsChecks {
         }
     }
 
-    ; Win + Shift + Up steps full height, full width and back; Win + Shift + Down
-    ; stretches into free space and back; Win + Down takes a window back to
+    ; Win + Shift + Up and Down toggle full height and width, each undoing its
+    ; own direction; Win + Down takes a window back to
     ; normal size without minimizing; Win + Up maximizes without placing the
     ; window by hand.
     static FullSpanAndNormalSize() {
@@ -138,23 +146,27 @@ class WonderWindowsChecks {
             ActivateWindow(hwnd)
             original := WW_GetWindowLayoutRectangle(hwnd)
             work := WW_GetLayoutWorkArea(hwnd)
-            WW_CycleFullSpan()
+            WW_ToggleFullSpan("height")
             this.Assert(WW_RectanglesMatch(WW_GetWindowLayoutRectangle(hwnd),
                 [original[1], work[2], original[3], work[4] - work[2]], 3),
-                "Win + Shift + Up first stretches to full height, keeping width and left edge")
-            WW_CycleFullSpan()
+                "Win + Shift + Up stretches to full height, keeping width and left edge")
+            WW_ToggleFullSpan("width")
+            this.Assert(WW_RectanglesMatch(WW_GetWindowLayoutRectangle(hwnd),
+                [work[1], work[2], work[3] - work[1], work[4] - work[2]], 3),
+                "Win + Shift + Down adds the full width")
+            WW_ToggleFullSpan("height")
             this.Assert(WW_RectanglesMatch(WW_GetWindowLayoutRectangle(hwnd),
                 [work[1], original[2], work[3] - work[1], original[4]], 3),
-                "then to full width, keeping its height and top")
+                "Win + Shift + Up again takes back only the height")
             returned := []
             handler := (hwnd, shape) => returned.Push(hwnd)
             SuiteWindowOwnership.OnReturn(handler)
-            try WW_CycleFullSpan()
+            try WW_ToggleFullSpan("width")
             finally SuiteWindowOwnership.OffReturn(handler)
             this.Assert(WW_RectanglesMatch(WW_GetWindowLayoutRectangle(hwnd), original, 3)
                 && !SuiteWindowOwnership.IsManual(hwnd) && returned.Length = 1 && returned[1] = hwnd,
-                "then puts the window back as it was, handing a lent cascade window back like Win + Down")
-            WW_CycleFullSpan()
+                "undoing the last one puts the window back as it was, handing a lent cascade window back like Win + Down")
+            WW_ToggleFullSpan("height")
             WW_RestoreToNormalSize()
             this.Assert(WW_RectanglesMatch(WW_GetWindowLayoutRectangle(hwnd), original, 3)
                 && WinGetMinMax(hwnd) = 0,
@@ -180,61 +192,15 @@ class WonderWindowsChecks {
         finally window.Destroy()
     }
 
-    ; Zone layouts: presets, rows turned 90 degrees, custom lines and the
-    ; largest free rectangle Win + Shift + Down fills.
-    static ZoneLayoutsAndStretch() {
+    ; Win + Enter fills the largest free rectangle.
+    static NeighborStretch() {
         work := [0, 0, 1200, 800]
         Rect(zone) => zone[1] "," zone[2] "," zone[3] "," zone[4]
-        corners := WW_BuildLayoutZones(work, "corners")
-        this.Assert(corners.Length = 6 && Rect(corners[1]) = "0,0,600,800" && Rect(corners[3]) = "0,0,600,400"
-            && Rect(corners[6]) = "600,400,600,400",
-            "halves and corners walks the halves, then the corners row by row")
-        right := WW_BuildLayoutZones(work, "corners", true)
-        this.Assert(Rect(right[1]) = "600,0,600,800" && Rect(right[3]) = "600,0,600,400",
-            "from the right, each row starts at its right edge")
-        rows := WW_BuildLayoutZones([0, 0, 800, 1200], "thirds")
-        this.Assert(rows.Length = 15 && Rect(rows[1]) = "0,0,800,400" && Rect(rows[3]) = "0,800,800,400"
-            && Rect(rows[4]) = "0,0,800,800" && Rect(rows[6]) = "0,0,400,400",
-            "on a portrait display a preset is turned: bands from the top, then their left and right halves")
-        halves := WW_BuildLayoutZones([0, 0, 800, 1200], "corners")
-        this.Assert(Rect(halves[1]) = "0,0,800,600" && Rect(halves[2]) = "0,600,800,600",
-            "turned halves are the top and bottom half")
-        this.Assert(Rect(WW_BuildLayoutZones([0, 0, 800, 1200], "1:1")[1]) = "0,0,400,1200",
-            "custom lines are never turned")
-        this.Assert(WW_SizeDefaultZoneLayout(1536, 864) = "corners" && WW_SizeDefaultZoneLayout(1920, 1080) = "thirds"
-            && WW_SizeDefaultZoneLayout(2560, 1440) = "fourths" && WW_SizeDefaultZoneLayout(3440, 1440) = "fourths"
-            && WW_SizeDefaultZoneLayout(5120, 1440) = "sixths",
-            "a landscape display's default follows its width: halves, thirds, fourths, then sixths")
-        this.Assert(WW_SizeDefaultZoneLayout(1080, 1920) = "corners" && WW_SizeDefaultZoneLayout(1440, 2560) = "thirds"
-            && WW_DefaultZoneLayout("test|portrait", [2560, 1440], false) = "thirds"
-            && WW_DefaultZoneLayout("test|landscape", [1440, 2560], false) = "fourths",
-            "a portrait display's default follows its height, and each orientation reads the display's long side")
-        portrait := WW_ZoneLayouts.Offered("portrait"), landscape := WW_ZoneLayouts.Offered("landscape")
-        this.Assert(portrait.Length = 2 && portrait[1] = "corners" && portrait[2] = "thirds" && landscape.Length = 4,
-            "a portrait list offers halves and thirds, a landscape list all four presets")
-        this.Assert(!WW_IsUsableZoneLayout("rows-thirds") && WW_IsUsableZoneLayout("sixths")
-            && WW_IsUsableZoneLayout("1:1 / 1:1"),
-            "a saved layout that no longer reads falls back to the default")
-        custom := WW_BuildLayoutZones(work, " 1 : 2 / 1 >1,5:1.5 ")
-        this.Assert(custom.Length = 5 && Rect(custom[1]) = "0,0,400,400" && Rect(custom[2]) = "400,0,800,400"
-            && Rect(custom[3]) = "0,400,1200,400" && Rect(custom[4]) = "0,0,600,800",
-            "a custom line takes columns, rows and pages, ignores whitespace and reads decimal commas")
-        for problem in [["", "Type a layout"], ["1::1", "Row 1 has an empty part"], ["1:1 //1", "Row 2 is empty"],
-            ["1:0", "Row 1 has 0"], ["1:x", "Row 1 has x"], ["1 > > 1", "Page 2 is empty"],
-            ["1:1 > 1/:1", "Page 2, row 2 has an empty part"]] {
-            message := ""
-            try WW_ParseZoneLine(problem[1])
-            catch ValueError as failure
-                message := failure.Message
-            this.Assert(InStr(message, problem[2]) = 1, "a broken custom line names its problem: " problem[1])
-        }
-        this.Assert(WW_ZoneLayouts.FromText(" Thirds, then two-thirds ") = "thirds" && WW_ZoneLayouts.FromText("1:1") = "1:1",
-            "a dropdown's text names a preset or is a custom line")
         ; A window in the middle with neighbors left, above and a stack behind it.
         neighbors := [[0, 0, 200, 800], [300, 0, 600, 100], [400, 300, 300, 200]]
         this.Assert(Rect(WW_LargestFreeRectangle([400, 300, 300, 200], neighbors, work))
             = "200,100,1000,700",
-            "Win + Shift + Down fills the largest gap, ignoring a window it already overlaps")
+            "Win + Enter fills the largest gap, ignoring a window it already overlaps")
         this.Assert(Rect(WW_LargestFreeRectangle([400, 300, 300, 200], [], work)) = "0,0,1200,800",
             "without neighbors, the stretch fills the work area")
     }
@@ -397,55 +363,6 @@ class WonderWindowsChecks {
                 && WW_GetNextFittingIndex(1, side, [900, 500]) = 2
                 && WW_GetNextFittingIndex(0, side, [900, 500]) = 1,
                 "a single fitting size repeats; when none fits the normal cycle continues")
-            work := [0, 0, 1600, 900]
-            zones := WW_BuildZoneSequence(work, "fourths")
-            this.Assert(zones.Length = 21
-                && WW_RectanglesMatch(zones[1], [0, 0, 400, 900], 0)
-                && WW_RectanglesMatch(zones[4], [1200, 0, 400, 900], 0)
-                && WW_RectanglesMatch(zones[6], [400, 0, 800, 900], 0)
-                && WW_RectanglesMatch(zones[8], [0, 0, 400, 450], 0)
-                && WW_RectanglesMatch(zones[11], [1200, 0, 400, 450], 0)
-                && WW_RectanglesMatch(zones[12], [0, 450, 400, 450], 0)
-                && WW_RectanglesMatch(zones[16], [0, 0, 800, 450], 0)
-                && WW_RectanglesMatch(zones[19], [0, 450, 800, 450], 0)
-                && WW_RectanglesMatch(zones[21], [800, 450, 800, 450], 0),
-                "fourths: full quarters and halves, then upper and lower quarters, then halves")
-            thirds := WW_BuildZoneSequence(work, "thirds")
-            this.Assert(thirds.Length = 15 && WW_RectanglesMatch(thirds[2], [533, 0, 534, 900], 0)
-                && WW_RectanglesMatch(thirds[4], [0, 0, 1067, 900], 0)
-                && WW_RectanglesMatch(thirds[6], [0, 0, 533, 450], 0)
-                && WW_RectanglesMatch(thirds[15], [533, 450, 1067, 450], 0),
-                "thirds, then two-thirds, then their upper and lower halves, never halves")
-            sixths := WW_BuildZoneSequence(work, "sixths")
-            this.Assert(sixths.Length = 27 && WW_RectanglesMatch(sixths[2], [267, 0, 266, 900], 1)
-                && WW_RectanglesMatch(sixths[7], [0, 0, 533, 900], 1)
-                && WW_RectanglesMatch(sixths[9], [1067, 0, 533, 900], 1),
-                "sixths, then thirds, with no halves")
-            mirrored := WW_BuildZoneSequence(work, "fourths", true)
-            this.Assert(WW_RectanglesMatch(mirrored[1], [1200, 0, 400, 900], 0)
-                && WW_RectanglesMatch(mirrored[5], [800, 0, 800, 900], 0)
-                && WW_RectanglesMatch(mirrored[21], [0, 450, 800, 450], 0),
-                "starting from the right mirrors the walk")
-            session := WW_StartZoneSession(1, 2, work, "fourths", "down")
-            steps := []
-            for direction in ["down", "down", "up", "up", "up"]
-                steps.Push(WW_AdvanceZoneSession(session, direction, [0, 0]))
-            this.Assert(steps[1] = 1 && steps[2] = 2 && steps[3] = 1 && steps[4] = 7 && steps[5] = 6,
-                "the other key steps back one zone, wrapping at the ends of the full-height walk")
-            ; Each walk starts on the side its key names; one press of the other
-            ; key wraps to the last zone on the opposite side.
-            session := WW_StartZoneSession(1, 2, work, "fourths", "up")
-            this.Assert(WW_RectanglesMatch(session.zones[WW_AdvanceZoneSession(session, "up", [0, 0])],
-                    [1200, 0, 400, 900], 0)
-                && WW_RectanglesMatch(session.zones[WW_AdvanceZoneSession(session, "up", [0, 0])],
-                    [800, 0, 400, 900], 0)
-                && WW_AdvanceZoneSession(session, "down", [0, 0]) = 1,
-                "Right starts at the right fourth and Left steps back")
-            session := WW_StartZoneSession(1, 2, work, "fourths", "down")
-            WW_AdvanceZoneSession(session, "down", [0, 0])
-            this.Assert(WW_RectanglesMatch(session.zones[WW_AdvanceZoneSession(session, "up", [0, 0])],
-                    [800, 0, 800, 900], 0),
-                "Left then Right reaches the right half in two presses")
             ; Two displays: a left column split top/bottom (hwnds 40 and 30), a
             ; right column (10) and two windows stacked exactly (60 and 20).
             entries := [{hwnd: 10, monitor: 0, x: 960, y: 0},
@@ -470,14 +387,11 @@ class WonderWindowsChecks {
                 && !WW_IsAtNormalPlacement(0, true, false)
                 && !WW_IsAtNormalPlacement(0, false, true),
                 "Win + Down takes placed, maximized and fullscreen windows back to normal size; others are already there")
-            session := WW_StartZoneSession(1, 2, work, "fourths", "down")
-            this.Assert(WW_AdvanceZoneSession(session, "down", [600, 0]) = 5,
-                "zones an app cannot shrink to are skipped")
             cycle := [101, 102, 103]
             this.Assert(WW_NextMonitorCycleWindow(cycle, 101, 101, true) = 103
                 && WW_NextMonitorCycleWindow(cycle, 103, 103, true) = 102
                 && WW_NextMonitorCycleWindow(cycle, 0, 0, true) = 103,
-                "Win + Shift + Enter walks the stack order backwards, wrapping to the end")
+                "Win + Shift + PgUp walks the stack order backwards, wrapping to the end")
             window := SuiteGui("+ToolWindow", "Owned test window")
             try {
                 this.Assert(SuiteWindowOwnership.IsSuiteSurface(window.Hwnd),

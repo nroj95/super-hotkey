@@ -1,15 +1,17 @@
-; Wonder Windows stretching, Win + Shift + Up and Down, and the layout state
-; it shares with zones and maximize.
+; Wonder Windows stretching, Win + Shift + Up and Down and Win + Enter, and the
+; layout state it shares with zones and maximize.
 
 ; =============================================================================
 ; full height and full width
 ; =============================================================================
 
 ; Win + Shift + Up stretches the active window to the work area's full height,
-; keeping its width and left edge; again to the full width instead, keeping its
-; height and top; again back to how it was. A window moved in between starts
-; over. Win + Down takes it back to normal size at once.
-WW_CycleFullSpan()
+; keeping its width and left edge, and Win + Shift + Down to its full width,
+; keeping its height and top. The same key again takes back that direction
+; only, while the window is still where the toggle left it, so height and
+; width combine and undo in any order. Undoing the last one from the window's
+; original shape ends as Win + Down does, handing a lent cascade window back.
+WW_ToggleFullSpan(axis)
 {
     Critical "On"
     global WW_full_span_windows
@@ -21,40 +23,56 @@ WW_CycleFullSpan()
     try {
         fresh := WW_IsFreshPlacement(hwnd)
         WW_PrepareWindowForPlacement(hwnd, false)
+        pid := WinGetPID(hwnd)
         monitor := WindowMonitor(hwnd)
         work := WW_GetLayoutWorkArea(hwnd)
         current := WW_GetWindowLayoutRectangle(hwnd)
-        step := "height", before := current
-        if WW_full_span_windows.Has(hwnd) {
-            saved := WW_full_span_windows.Delete(hwnd)
+        spans := WW_full_span_windows.Get(hwnd, 0)
+        if !IsObject(spans) || spans["pid"] != pid
+            spans := WW_full_span_windows[hwnd] := Map("pid", pid)
+        height := axis = "height"
+        if spans.Has(axis) {
+            saved := spans.Delete(axis)
             if WW_IsPlacementStateCurrent(hwnd, saved, monitor, work)
                 && WW_RectanglesMatch(saved["applied"], current, 3) {
-                before := saved["before"], fresh := saved["fresh"]
-                if saved["step"] = "width" {
-                    WW_StretchBack(hwnd, before, fresh)
+                other := height ? "width" : "height"
+                if saved["fresh"] && !spans.Has(other) {
+                    WW_full_span_windows.Delete(hwnd)
+                    WW_RestoreWindowTarget()
                     return
                 }
-                step := "width"
+                before := saved["before"]
+                WW_MoveWindowToVisibleRectangle(hwnd, height
+                    ? [current[1], before[2], current[3], before[4]]
+                    : [before[1], current[2], before[3], current[4]])
+                if spans.Has(other)
+                    spans[other]["applied"] := WW_GetWindowLayoutRectangle(hwnd)
+                return
             }
         }
-        target := step = "height"
-            ? [before[1], work[2], before[3], work[4] - work[2]]
-            : [work[1], before[2], work[3] - work[1], before[4]]
+        target := height
+            ? [current[1], work[2], current[3], work[4] - work[2]]
+            : [work[1], current[2], work[3] - work[1], current[4]]
         if !WW_MoveWindowToVisibleRectangle(hwnd, target)
             return
         WW_ForgetWindowLayoutCycle(hwnd)
-        WW_full_span_windows[hwnd] := Map("pid", WinGetPID(hwnd), "monitor", monitor, "work_area", work,
-            "before", before, "fresh", fresh, "step", step, "applied", WW_GetWindowLayoutRectangle(hwnd))
+        applied := WW_GetWindowLayoutRectangle(hwnd)
+        spans[axis] := Map("pid", pid, "monitor", monitor, "work_area", work, "before", current,
+            "fresh", fresh || spans.Has(height ? "width" : "height") && spans[height ? "width" : "height"]["fresh"],
+            "applied", applied)
+        for other in ["height", "width"]
+            if other != axis && spans.Has(other)
+                spans[other]["applied"] := applied
     }
     catch Error as failure
-        WW_DebugError("Full height and width", failure)
+        WW_DebugError("Full " axis " toggle", failure)
 }
 
 ; =============================================================================
 ; stretch to neighbors
 ; =============================================================================
 
-; Win + Shift + Down grows the active window into the largest empty rectangle
+; Win + Enter grows the active window into the largest empty rectangle
 ; around it, and again puts it back, while it is still where the stretch left
 ; it. Only what is visible stops it: the display's edges and the front window
 ; of each other stack. Windows it already overlaps never shrink it. When the

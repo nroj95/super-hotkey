@@ -681,18 +681,21 @@ class KeybindingsChecks {
         this.AssertDisplaySequence(rows, [
             "wonder-windows.help",
             "wonder-windows.zones-from-left", "wonder-windows.zones-from-right",
+            "wonder-windows.zone-row-up", "wonder-windows.zone-row-down",
+            "wonder-windows.zone-edge-left", "wonder-windows.zone-edge-right",
+            "wonder-windows.zone-edge-up", "wonder-windows.zone-edge-down",
             "wonder-windows.move-onto-up", "wonder-windows.move-onto-down",
             "wonder-windows.move-onto-left", "wonder-windows.move-onto-right",
             "wonder-windows.minimize", "wonder-windows.restore-minimized",
             "wonder-windows.maximize", "wonder-windows.restore",
-            "wonder-windows.full-span", "wonder-windows.stretch-to-neighbors",
+            "wonder-windows.full-height", "wonder-windows.full-width", "wonder-windows.stretch-to-neighbors",
             "wonder-windows.minimize-all", "wonder-windows.restore-all",
             "wonder-windows.minimize-others", "wonder-windows.restore-others",
             "wonder-windows.minimize-everywhere", "wonder-windows.restore-everywhere",
             "wonder-windows.focus-up", "wonder-windows.focus-down",
             "wonder-windows.cycle-stacked", "wonder-windows.cycle-stacked-previous",
             "wonder-windows.cycle-expanded-next", "wonder-windows.cycle-expanded-previous"],
-            "Wonder Windows lists zones, then arranging, Windows keys beside their Shift twins, and focus")
+            "Wonder Windows lists zone mode, then arranging, Windows keys beside their Shift twins, and focus")
         this.AssertDisplaySequence(rows, [
             "power-up-utilities.help",
             "power-up-utilities.system.sleep", "power-up-utilities.system.stay-awake",
@@ -795,6 +798,10 @@ class KeybindingsChecks {
             this.Assert(manager.actions["wonder-windows.zones-from-left"].scope = ""
                 && manager.actions["paper-pad.previous"].scope = "paper-pad",
                 "Wonder Windows is a global fallback for Paper Pad editor shortcuts")
+            this.Assert(manager.actions["wonder-windows.zone-row-up"].scope = "zone-cycling"
+                && manager.actions["wonder-windows.zone-edge-left"].scope = "zone-cycling"
+                && KeybindingsEditor.ContextTagText("zone-cycling") = "zone cycling only",
+                "zone mode's own keys answer only in zone mode, tagged in Keybindings")
             this.Assert(manager.actions["power-up-utilities.terminal.clear"].scope = "windows-terminal"
                 && manager.actions["power-up-utilities.terminal.copy"].scope = "windows-terminal",
                 "Terminal shortcuts are gated by the actual foreground application")
@@ -910,7 +917,7 @@ class KeybindingsChecks {
                 && sampleRows[2].label = "Alpha / Extensions",
                 "search keeps extension headings directly after their parent")
             this.Assert(this.RouteExists(manager, "wonder-windows.zones-from-left"),
-                "zone cycling is registered")
+                "zone mode is registered")
             app.activeModules["paper-pad"] := false
             manager.Apply(manager.GetConfiguration())
             rows := Keybindings.DisplayRows(manager.Catalog())

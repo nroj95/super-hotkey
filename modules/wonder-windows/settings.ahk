@@ -9,8 +9,8 @@ WW_InitializeState() {
 
 WW_minimized_stack := []  ; windows minimized with Win + Backspace, newest first: {hwnd, pid}
 WW_minimized_all := Map()  ; per display device, windows minimized with Win + M, Win + Home or Win + D, front to back: {hwnd, pid}
-WW_full_span_windows := Map()  ; Win + Shift + Up: the rectangle before, the step and what it applied
-WW_neighbor_stretch_windows := Map()  ; Win + Shift + Down: the rectangle before and what it applied
+WW_full_span_windows := Map()  ; Win + Shift + Up and Down: per window, each direction's way back
+WW_neighbor_stretch_windows := Map()  ; Win + Enter: the rectangle before and what it applied
 WW_logical_zones := Map()
 WW_layout_cycle_windows := Map()
 WW_normal_window_placements := Map()
@@ -23,11 +23,10 @@ WW_monitor_cycle_refused_hwnd := 0  ; the last target that refused activation
 WW_monitor_cycle_refused_from := 0  ; the window it was requested from
 
 
-WW_zone_cycle := 0
-WW_zone_layouts := Map()  ; "device|landscape" or "device|portrait" -> preset ID or custom line
-WW_zone_custom := Map()  ; the same keys -> the last custom line each one used
-WW_zone_landscape_default := ""  ; "thirds" while an earlier version's Cycle=thirds stands
-WW_zone_separate := false
+WW_zone_cycle := 0  ; zone mode: {hwnd, pid, work_area, x0, x1, y0, y1} while it runs
+; Zone mode's stop pairs along a display's long and short side; Settings may change them.
+WW_zone_stops := Map("long", Map("sixths", false, "fourths", true, "thirds", true),
+    "short", Map("sixths", false, "fourths", true, "thirds", true))
 
 WW_fancyzones_process_id := 0
 }

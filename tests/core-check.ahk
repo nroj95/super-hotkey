@@ -156,33 +156,25 @@ class CoreChecks {
                     && configuration["wonder-windows.move-onto-" direction].bindings[2]
                     = Keybindings.Parse("Caps + Win + " direction).signature,
                     "moving onto a window defaults to Win + Alt + " direction " and Caps + Win + " direction)
-            this.Assert(configuration["wonder-windows.cycle-stacked-previous"].bindings[1]
-                    = Keybindings.Parse("Win + Shift + Enter").signature
-                && configuration["wonder-windows.full-span"].bindings[1]
-                    = Keybindings.Parse("Win + Shift + Up").signature
-                && configuration["wonder-windows.stretch-to-neighbors"].bindings[1]
-                    = Keybindings.Parse("Win + Shift + Down").signature,
-                "Win + Shift + Enter cycles a stack backwards; Win + Shift + Up and Down stretch")
-            this.Assert(configuration["wonder-windows.cycle-stacked"].bindings[1]
-                    = Keybindings.Parse("Win + Enter").signature
-                && configuration["wonder-windows.cycle-expanded-next"].bindings[1]
-                    = Keybindings.Parse("Win + Alt + Enter").signature
-                && configuration["wonder-windows.cycle-expanded-next"].bindings[2]
-                    = Keybindings.Parse("Caps + Win + Enter").signature
-                && configuration["wonder-windows.cycle-expanded-previous"].bindings[1]
-                    = Keybindings.Parse("Win + Alt + Shift + Enter").signature
-                && configuration["wonder-windows.cycle-expanded-previous"].bindings[2]
-                    = Keybindings.Parse("Caps + Win + Shift + Enter").signature,
-                "Win + Enter cycles the stack; Win + Alt + Enter and its Shift twin cycle big windows")
-            this.Assert(configuration["wonder-windows.zones-from-left"].bindings[1]
-                    = Keybindings.Parse("Win + WheelDown").signature
-                && configuration["wonder-windows.zones-from-left"].bindings[2]
-                    = Keybindings.Parse("Win + Left").signature
-                && configuration["wonder-windows.zones-from-right"].bindings[1]
-                    = Keybindings.Parse("Win + WheelUp").signature
-                && configuration["wonder-windows.zones-from-right"].bindings[2]
-                    = Keybindings.Parse("Win + Right").signature,
-                "zone cycling defaults to Win + wheel and Win + Left/Right")
+            sig(text) => Keybindings.Parse(text).signature
+            this.Assert(configuration["wonder-windows.cycle-stacked"].bindings[1] = sig("Win + Shift + PgDn")
+                && configuration["wonder-windows.cycle-stacked-previous"].bindings[1] = sig("Win + Shift + PgUp")
+                && configuration["wonder-windows.full-height"].bindings[1] = sig("Win + Shift + Up")
+                && configuration["wonder-windows.full-width"].bindings[1] = sig("Win + Shift + Down")
+                && configuration["wonder-windows.stretch-to-neighbors"].bindings[1] = sig("Win + Enter"),
+                "stacks cycle on Win + Shift + PgDn/PgUp, Win + Shift + Up and Down toggle full height and width, Win + Enter stretches")
+            this.Assert(configuration["wonder-windows.cycle-expanded-next"].bindings[1] = sig("Win + Alt + Enter")
+                && configuration["wonder-windows.cycle-expanded-next"].bindings[2] = sig("Caps + Win + Enter")
+                && configuration["wonder-windows.cycle-expanded-previous"].bindings[1] = sig("Win + Alt + Shift + Enter")
+                && configuration["wonder-windows.cycle-expanded-previous"].bindings[2] = sig("Caps + Win + Shift + Enter"),
+                "Win + Alt + Enter and its Shift twin cycle big windows")
+            this.Assert(configuration["wonder-windows.zones-from-left"].bindings[1] = sig("Win + Left")
+                && configuration["wonder-windows.zones-from-right"].bindings[1] = sig("Win + Right")
+                && configuration["wonder-windows.zone-row-up"].bindings[1] = sig("Win + Up")
+                && configuration["wonder-windows.zone-row-down"].bindings[1] = sig("Win + Down")
+                && configuration["wonder-windows.zone-edge-left"].bindings[1] = sig("Win + Shift + Left")
+                && configuration["wonder-windows.zone-edge-down"].bindings[1] = sig("Win + Shift + Down"),
+                "zone mode starts on Win + Left/Right and has its own arrows")
             ; Wonder Windows works without the Caps layer: Caps only appears in second slots.
             capsPrimaries := ""
             for actionId, action in manager.actions

@@ -1,408 +1,267 @@
-; Wonder Windows zone cycling and the zone layouts each display uses.
+; Wonder Windows zone mode.
 
 ; =============================================================================
-; zone cycling
+; zone mode
 ; =============================================================================
-; A session walks one zone sequence while any modifier stays held. The first
-; zone is on the side the key names: down/Left walks from the left fourth,
-; up/Right walks the mirror image from the right fourth. The key that started
-; the session keeps going; the other one steps back, wrapping to the last zone.
-; Releasing every modifier starts the next session over. The plain keys walk
-; the zones that span the full height; while a walk runs, their Shift twins
-; walk the split ones page by page, each page's rows top to bottom, whichever
-; way the keys go along a row. Shift with the key that started the walk
-; enters the top row at the column the window is in, and with the other key
-; the bottom row; the key that entered walks on, and the other one retraces.
+; Win + Left or Right snaps the active window to that half of its display,
+; as Windows does, and starts zone mode, which lasts while any modifier stays
+; held. In zone mode the window is a span of the work area, kept as fractions
+; [x0, x1] and [y0, y1], and it sits only where both its edges land on stops:
+; halves, and the pairs Settings turns on for that side of the display, long or
+; short, by default fourths and thirds. So a half sits left, in the middle or
+; right, a third left, middle or right, and windows always fit together.
+; - Left and Right slide it to the next place for its size. Past the side,
+;   they move it to the next display that way, onto the facing side, wrapping
+;   from the last display to the first, as Windows does.
+; - Up and Down split a full-height window into its top or bottom half, as
+;   Windows does, then slide it the same way, without leaving the display.
+; - Shift + an arrow makes it one size bigger or smaller and snaps it into the
+;   place for that size that overlaps it most, ties going toward the arrow.
+;   Toward a side it hugs it shrinks, away from it it grows; a window as wide
+;   or tall as the display shrinks toward the arrow; one in the middle grows.
+; Plain arrows move and Shift arrows resize. Up, Down and the Shift arrows
+; answer only in zone mode (the zone-cycling scope), so outside it Win + Up and
+; Down maximize and restore, Win + Shift + Up and Down toggle full height and
+; width, and Windows keeps Win + Shift + Left and Right.
 
-; Zone groups, each left to right as left space : width : right space.
-WW_GetZoneGroups(unit)
+; Where an edge may stop along the display's long or short side, as a
+; fraction of the work area, from the pairs Settings turns on.
+WW_ZoneLadder(long := true)
 {
-    switch unit {
-        case "fourths":
-            return [[[0, 1, 3], [1, 1, 2], [2, 1, 1], [3, 1, 0]], [[0, 2, 2], [1, 2, 1], [2, 2, 0]]]
-        case "thirds":
-            return [[[0, 1, 2], [1, 1, 1], [2, 1, 0]], [[0, 2, 1], [1, 2, 0]]]
-        case "sixths":
-            return [[[0, 1, 5], [1, 1, 4], [2, 1, 3], [3, 1, 2], [4, 1, 1], [5, 1, 0]],
-                [[0, 2, 4], [2, 2, 2], [4, 2, 0]]]
-        default:
-            throw ValueError("Unknown zone unit: " unit)
-    }
+    global WW_zone_stops
+    stops := WW_zone_stops[long ? "long" : "short"]
+    return WW_BuildZoneLadder(stops["sixths"], stops["fourths"], stops["thirds"])
 }
 
-; Every group at full height, then each group in the upper and lower halves:
-; full fourths, full halves, upper fourths, lower fourths, upper halves, ...
-WW_BuildZoneSequence(work_area, unit, from_right := false)
+; A ladder with halves and full, and each pair that is on: sixths (1/6 and
+; 5/6), fourths (1/4 and 3/4) and thirds (1/3 and 2/3). Pairs keep it
+; symmetric, so windows on either side always fit together.
+WW_BuildZoneLadder(sixths, fourths, thirds)
 {
-    rows := []
-    for group in WW_GetZoneGroups(unit)
-        rows.Push([group, "full"])
-    for group in WW_GetZoneGroups(unit)
-        for vertical_position in ["top", "bottom"]
-            rows.Push([group, vertical_position])
-    zones := []
-    for row in rows
-        for ratios in row[1]
-            zones.Push(WW_BuildRatioLayout(work_area,
-                from_right ? [ratios[3], ratios[2], ratios[1]] : ratios, row[2]))
-    return zones
+    low := [], high := []
+    for pair in [[sixths, 1/6], [fourths, 1/4], [thirds, 1/3]]
+        if pair[1]
+            low.Push(pair[2]), high.InsertAt(1, 1 - pair[2])
+    ladder := [0]
+    ladder.Push(low*)
+    ladder.Push(1 / 2)
+    ladder.Push(high*)
+    ladder.Push(1)
+    return ladder
 }
 
-; =============================================================================
-; zone layouts: presets and custom lines
-; =============================================================================
-; A layout is a preset ID or a custom line. Presets walk columns: corners is
-; the halves (its ID from when it was named Halves and corners), thirds adds
-; the two-thirds, fourths the halves and sixths the thirds, each then split
-; in upper and lower halves. On a portrait display a preset is turned 90
-; degrees, so Left starts at the top and Right at the bottom. A custom line
-; lists pages separated by > ("and then"), rows by / and the parts of a row
-; by :, as relative sizes: 1:1 / 1:1:1 is halves over thirds. Whitespace is
-; ignored, and decimals take . or ,. Custom lines are never turned.
-
-class WW_ZoneLayouts {
-    static Presets := [["corners", "Halves"], ["thirds", "Thirds, then two-thirds"],
-        ["fourths", "Fourths, then halves"], ["sixths", "Sixths, then thirds"]]
-    ; What a portrait list offers; fourths and sixths make bands too short.
-    static Portrait := ["corners", "thirds"]
-
-    ; The preset IDs a landscape or portrait list offers, in order.
-    static Offered(orientation) {
-        if orientation = "portrait"
-            return this.Portrait
-        ids := []
-        for preset in this.Presets
-            ids.Push(preset[1])
-        return ids
-    }
-
-    static Name(id) {
-        for preset in this.Presets
-            if preset[1] = id
-                return preset[2]
-        return ""
-    }
-
-    ; The preset ID a dropdown's text names, or the text as a custom line.
-    static FromText(text) {
-        for preset in this.Presets
-            if preset[2] = Trim(text)
-                return preset[1]
-        return Trim(text)
-    }
-
-    static IsPreset(layout) => this.Name(layout) != ""
-}
-
-; A custom line as pages of rows of positive part sizes. Throws a ValueError
-; naming the first problem.
-WW_ParseZoneLine(text)
+; Win + Left or Right: that half the first time, then a step sideways.
+WW_ZoneSide(side)
 {
-    line := RegExReplace(StrReplace(text, ",", "."), "\s+")
-    if line = ""
-        throw ValueError("Type a layout, such as 1:1 / 1:1:1.")
-    pages := []
-    page_texts := StrSplit(line, ">")
-    for page_index, page_text in page_texts {
-        if page_text = ""
-            throw ValueError((page_texts.Length > 1 ? "Page " page_index : "The layout") " is empty.")
-        rows := []
-        row_texts := StrSplit(page_text, "/")
-        for row_index, row_text in row_texts {
-            where := (page_texts.Length > 1 ? "Page " page_index ", row " : "Row ") row_index
-            if row_text = ""
-                throw ValueError(where " is empty.")
-            parts := []
-            for part in StrSplit(row_text, ":") {
-                if part = ""
-                    throw ValueError(where " has an empty part.")
-                if !RegExMatch(part, "^(\d+(\.\d*)?|\.\d+)$") || Number(part) <= 0
-                    throw ValueError(where " has " part ", which isn't a positive number.")
-                parts.Push(Number(part))
-            }
-            rows.Push(parts)
+    global WW_zone_cycle
+    Critical "On"
+    hwnd := WW_GetPlacementTarget(&fresh_entry)
+    if !hwnd
+        return
+    try {
+        session := WW_CurrentZoneSession(hwnd)
+        if !IsObject(session) {
+            session := {hwnd: hwnd, pid: WinGetPID(hwnd), work_area: WW_GetLayoutWorkArea(hwnd),
+                x0: side = "left" ? 0 : 1 / 2, x1: side = "left" ? 1 / 2 : 1, y0: 0, y1: 1}
+            WW_zone_cycle := session
+            SetTimer(WW_WatchZoneCycleRelease, 50)
+            WW_ApplyZoneSession(session)
+            return
         }
-        pages.Push(rows)
-    }
-    return pages
-}
-
-; Each page's cells, rows top to bottom and each row left to right, or right
-; to left with from_right. Rows share the height equally.
-WW_BuildCustomZones(work_area, pages, from_right := false)
-{
-    left := work_area[1], top := work_area[2]
-    width := work_area[3] - left, height := work_area[4] - top
-    zones := []
-    for rows in pages {
-        for row_index, parts in rows {
-            row_top := top + Round(height * (row_index - 1) / rows.Length)
-            row_bottom := top + Round(height * row_index / rows.Length)
-            total := 0
-            for part in parts
-                total += part
-            cells := []
-            sum := 0
-            for part in parts {
-                cell_left := left + Round(width * sum / total)
-                sum += part
-                cells.Push([cell_left, row_top, left + Round(width * sum / total) - cell_left,
-                    row_bottom - row_top])
+        width := session.x1 - session.x0
+        left_edge := WW_ZoneSlide(session.x0, width, side, WW_ZoneAxisLadder(session, false))
+        if left_edge = "" {
+            ; Past the side: on to the next display that way, as Windows does,
+            ; onto its facing side, wrapping at the last display.
+            lefts := []
+            loop MonitorGetCount() {
+                MonitorGetPixels(A_Index, &left)
+                lefts.Push(left)
             }
-            Loop cells.Length
-                zones.Push(cells[from_right ? cells.Length - A_Index + 1 : A_Index])
+            target := WW_NeighborDisplay(WindowMonitorIndex(hwnd), side, lefts)
+            if !target
+                return
+            MonitorGetWorkAreaPixels(target, &left, &top, &right, &bottom)
+            session.work_area := [left, top, right, bottom]
+            left_edge := side = "left" ? 1 - width : 0
         }
+        session.x0 := left_edge, session.x1 := left_edge + width
+        WW_ApplyZoneSession(session)
     }
-    return zones
+    catch Error as err
+        WW_DebugError("Zone side", err)
 }
 
-; The zones a layout gives on a work area, in cycle order. On a portrait
-; work area a preset is turned 90 degrees: the columns of the transposed
-; area, transposed back into bands.
-WW_BuildLayoutZones(work_area, layout, from_right := false)
+; The ladder along one of the session display's sides: its long side's
+; stops or its short side's.
+WW_ZoneAxisLadder(session, vertical)
 {
-    if !WW_ZoneLayouts.IsPreset(layout)
-        return WW_BuildCustomZones(work_area, WW_ParseZoneLine(layout), from_right)
-    if !WW_IsTurnedLayout(work_area, layout)
-        return WW_BuildPresetZones(work_area, layout, from_right)
-    bands := []
-    for zone in WW_BuildPresetZones([work_area[2], work_area[1], work_area[4], work_area[3]], layout, from_right)
-        bands.Push([zone[2], zone[1], zone[4], zone[3]])
-    return bands
+    area := session.work_area
+    return WW_ZoneLadder(vertical != (area[3] - area[1] >= area[4] - area[2]))
 }
 
-WW_BuildPresetZones(work_area, layout, from_right)
+; Where a span of size may start: every stop from which it also ends on a
+; stop. A size off the ladder, as after Settings drop a pair, steps by its
+; own size instead, the last place lining up with the far side.
+WW_ZonePlaces(size, ladder)
 {
-    if layout = "corners"
-        return WW_BuildCustomZones(work_area, WW_ParseZoneLine("1:1 > 1:1 / 1:1"), from_right)
-    return WW_BuildZoneSequence(work_area, layout, from_right)
+    places := []
+    for stop in ladder
+        for other in ladder
+            if Abs(stop + size - other) < 0.001 && stop + size <= 1.001
+                places.Push(stop)
+    if places.Length
+        return places
+    position := 0
+    while position <= 1 - size + 0.001 {
+        places.Push(position)
+        position += size
+    }
+    if Abs(places[places.Length] - (1 - size)) > 0.001
+        places.Push(1 - size)
+    return places
 }
 
-; Whether a layout is a preset turned for a portrait work area.
-WW_IsTurnedLayout(work_area, layout)
+; The start a span at start, size long, slides to one place that way: left
+; or up ("left") or right or down. "" when it already hugs that side.
+WW_ZoneSlide(start, size, side, ladder := WW_ZoneLadder())
 {
-    return WW_ZoneLayouts.IsPreset(layout) && work_area[4] - work_area[2] > work_area[3] - work_area[1]
+    places := WW_ZonePlaces(size, ladder)
+    loop places.Length {
+        place := places[side = "left" ? places.Length - A_Index + 1 : A_Index]
+        if side = "left" ? place < start - 0.001 : place > start + 0.001
+            return place
+    }
+    return ""
 }
 
-; A saved layout that is a preset or a custom line that still reads.
-WW_IsUsableZoneLayout(layout)
+; The display next to monitor on that side (an index into lefts, each
+; display's left edge), wrapping from the last to the first; 0 with one.
+WW_NeighborDisplay(monitor, side, lefts)
 {
-    if WW_ZoneLayouts.IsPreset(layout)
-        return true
-    try return !!WW_ParseZoneLine(layout).Length
-    return false
+    order := WW_DisplayOrderFrom(monitor, lefts)
+    if order.Length < 2
+        return 0
+    return side = "right" ? order[2] : order[order.Length]
 }
 
-; A display's device name and orientation key, such as \\.\DISPLAY1|portrait.
-; Portrait means taller than wide.
-WW_DisplayOrientationKey(monitor_handle)
+; Win + Up or Down in zone mode: a half from full height, then a slide.
+WW_ZoneRow(direction)
 {
-    device := StrGet(ReadMonitorInfo(monitor_handle).Ptr + 40, 32, "UTF-16")
-    bounds := MonitorRects(monitor_handle).monitor
-    return device "|" (bounds[4] - bounds[2] > bounds[3] - bounds[1] ? "portrait" : "landscape")
+    Critical "On"
+    session := WW_CurrentZoneSession(WW_GetWindowControlTarget())
+    if !IsObject(session)
+        return
+    try {
+        span := WW_ZoneRowSpan([session.y0, session.y1], direction, WW_ZoneAxisLadder(session, true))
+        if !IsObject(span)
+            return
+        session.y0 := span[1], session.y1 := span[2]
+        WW_ApplyZoneSession(session)
+    }
+    catch Error as err
+        WW_DebugError("Zone row", err)
 }
 
-; The layout a display uses now: its saved choice for its current
-; orientation, or its default.
-WW_DisplayZoneLayout(monitor_handle)
+; A vertical span after Up ("up") or Down: full height splits into the top or
+; bottom half, and anything shorter slides to its next place. 0 when it
+; already hugs that edge.
+WW_ZoneRowSpan(span, direction, ladder := WW_ZoneLadder())
 {
-    global WW_zone_layouts
-    key := WW_DisplayOrientationKey(monitor_handle)
-    if WW_zone_layouts.Has(key) && WW_IsUsableZoneLayout(WW_zone_layouts[key])
-        return WW_zone_layouts[key]
-    return WW_DefaultZoneLayout(key, WW_MonitorLogicalSize(monitor_handle))
+    if span[1] <= 0.001 && span[2] >= 0.999
+        return direction = "up" ? [0, 1 / 2] : [1 / 2, 1]
+    height := span[2] - span[1]
+    top := WW_ZoneSlide(span[1], height, direction = "up" ? "left" : "right", ladder)
+    return top = "" ? 0 : [top, top + height]
 }
 
-; The layout a display left on its default uses in an orientation (from its
-; device|orientation key), by its size in logical pixels, Windows' scaling
-; undone. size is [width, height] when known; otherwise the device is
-; looked up. legacy honours Cycle=thirds from earlier versions in landscape.
-WW_DefaultZoneLayout(key, size := 0, legacy := true)
+; Win + Shift + an arrow in zone mode: one size bigger or smaller.
+WW_ZoneEdge(direction)
 {
-    global WW_zone_landscape_default
-    portrait := InStr(key, "|portrait")
-    if legacy && !portrait && WW_zone_landscape_default != ""
-        return WW_zone_landscape_default
-    if !IsObject(size)
-        size := WW_DeviceLogicalSize(SubStr(key, 1, InStr(key, "|", , -1) - 1))
-    if !IsObject(size)
-        return portrait ? "thirds" : "fourths"
-    long := Max(size[1], size[2]), short := Min(size[1], size[2])
-    return portrait ? WW_SizeDefaultZoneLayout(short, long) : WW_SizeDefaultZoneLayout(long, short)
+    Critical "On"
+    session := WW_CurrentZoneSession(WW_GetWindowControlTarget())
+    if !IsObject(session)
+        return
+    try {
+        vertical := direction = "up" || direction = "down"
+        toward_start := direction = "left" || direction = "up"
+        span := WW_ZoneEdgeSpan(vertical ? [session.y0, session.y1] : [session.x0, session.x1], toward_start,
+            WW_ZoneAxisLadder(session, vertical))
+        if !IsObject(span)
+            return
+        if vertical
+            session.y0 := span[1], session.y1 := span[2]
+        else
+            session.x0 := span[1], session.x1 := span[2]
+        WW_ApplyZoneSession(session)
+    }
+    catch Error as err
+        WW_DebugError("Zone edge", err)
 }
 
-; The default for a display of width x height logical pixels. Height is
-; scarcer than width, since most content scrolls down, so portrait gets
-; thirds only from 2400 px tall.
-WW_SizeDefaultZoneLayout(width, height)
+; A span [start, end] one size bigger or smaller after Shift with an arrow
+; toward the start (left or up) or the end, snapped into the place for its new
+; size that overlaps it most, ties going toward the arrow. Hugging one side,
+; the arrow toward it shrinks and the other grows; spanning both, it shrinks;
+; in the middle, it grows. 0 when no size is left that way.
+WW_ZoneEdgeSpan(span, toward_start, ladder := WW_ZoneLadder())
 {
-    if height > width
-        return height < 2400 ? "corners" : "thirds"
-    return width < 1700 ? "corners" : width < 2400 ? "thirds" : width < 4400 ? "fourths" : "sixths"
+    at_start := span[1] <= 0.001, at_end := span[2] >= 0.999
+    grows := at_start && at_end ? false : at_start ? !toward_start : at_end ? toward_start : true
+    size := WW_ZoneLadderStep(span[2] - span[1], !grows, ladder)
+    if size = "" || size <= 0.001
+        return 0
+    best := "", best_overlap := -1
+    for place in WW_ZonePlaces(size, ladder) {
+        overlap := Min(span[2], place + size) - Max(span[1], place)
+        ; Places come left to right: a tie keeps the first toward the start,
+        ; or moves on to the last toward the end.
+        if overlap > best_overlap + 0.0001 || !toward_start && Abs(overlap - best_overlap) <= 0.0001
+            best := place, best_overlap := overlap
+    }
+    return [best, best + size]
 }
 
-; A display's [width, height] in logical pixels, from a handle or a device
-; name; 0 when the device is gone.
-WW_MonitorLogicalSize(monitor_handle)
+; The next ladder value below (down) or above a value, or "".
+WW_ZoneLadderStep(value, down, ladder)
 {
-    bounds := CallWithDpiContext(-3, MonitorRects, monitor_handle).monitor
-    dpi := WW_MonitorDpi(monitor_handle)
-    return [(bounds[3] - bounds[1]) * 96 / dpi, (bounds[4] - bounds[2]) * 96 / dpi]
+    loop ladder.Length {
+        step := ladder[down ? ladder.Length - A_Index + 1 : A_Index]
+        if down ? step < value - 0.001 : step > value + 0.001
+            return step
+    }
+    return ""
 }
 
-WW_DeviceLogicalSize(device)
+; The running session for hwnd, or 0 when there is none or it no longer fits.
+WW_CurrentZoneSession(hwnd)
 {
-    loop MonitorGetCount() {
-        if MonitorGetName(A_Index) != device
-            continue
-        MonitorGetPixels(A_Index, &left, &top, &right, &bottom)
-        point := ((left + right) // 2 & 0xFFFFFFFF) | ((top + bottom) // 2 << 32)
-        try return WW_MonitorLogicalSize(PhysicalDllCall("MonitorFromPoint", "int64", point, "uint", 2, "ptr"))
+    global WW_zone_cycle
+    session := WW_zone_cycle
+    if !hwnd || !IsObject(session) || session.hwnd != hwnd
+        return 0
+    try {
+        if WinGetPID(hwnd) = session.pid && WW_RectanglesMatch(session.work_area, WW_GetLayoutWorkArea(hwnd), 0)
+            return session
     }
     return 0
 }
 
-WW_MonitorDpi(monitor_handle)
+; The session's span as a rectangle on its work area.
+WW_ZoneSessionRectangle(session)
 {
-    dpi_x := 96, dpi_y := 96
-    try PhysicalDllCall("shcore\GetDpiForMonitor", "ptr", monitor_handle, "int", 0, "uint*", &dpi_x, "uint*", &dpi_y)
-    return dpi_x || 96
+    area := session.work_area
+    width := area[3] - area[1], height := area[4] - area[2]
+    left := area[1] + Round(width * session.x0), top := area[2] + Round(height * session.y0)
+    return [left, top, area[1] + Round(width * session.x1) - left, area[2] + Round(height * session.y1) - top]
 }
 
-WW_StartZoneSession(hwnd, pid, work_area, layout, direction)
+WW_ApplyZoneSession(session)
 {
-    turned := WW_IsTurnedLayout(work_area, layout)
-    walks := WW_SplitZoneWalks(WW_BuildLayoutZones(work_area, layout, direction = "up"), work_area, turned)
-    return {hwnd: hwnd, pid: pid, work_area: work_area, layout: layout, turned: turned, index: 0,
-        direction: direction,
-        main: walks.main, split: walks.split, back: walks.back, splitting: false, split_direction: direction,
-        zones: walks.main}
+    WW_ApplyTrackedLayout(session.hwnd, "zones", session.work_area, [WW_ZoneSessionRectangle(session)], 1)
 }
 
-; A layout's zones as walks. main holds the zones that span the work area's
-; full height, or its full width for rows, in the layout's order; every zone
-; when none does. split holds the rest in the layout's order: page by page,
-; such as the fourths, then the halves, each page's rows top to bottom.
-; back is the order for a split walk entered with the other key: the pages
-; in reverse, but still each page's rows top to bottom, each row read
-; backwards, the way a line of text is followed by the one below whichever
-; way you read it.
-WW_SplitZoneWalks(zones, work_area, rows := false, tolerance := 2)
-{
-    ; Rows are columns turned: compare widths and left edges instead.
-    along := rows ? 1 : 2
-    full := work_area[along + 2] - work_area[along]
-    main := [], split := []
-    for zone in zones
-        (Abs(zone[along + 2] - full) <= tolerance ? main : split).Push(zone)
-    ; A row is a run of zones on one edge; a page starts where the edge
-    ; goes back up, since each page lists its rows top to bottom.
-    pages := []
-    for zone in split {
-        if !pages.Length || zone[along] < previous - tolerance
-            pages.Push([[]])
-        else if Abs(zone[along] - previous) > tolerance
-            pages[pages.Length].Push([])
-        page := pages[pages.Length]
-        page[page.Length].Push(zone)
-        previous := zone[along]
-    }
-    back := []
-    loop pages.Length
-        for row in pages[pages.Length - A_Index + 1]
-            loop row.Length
-                back.Push(row[row.Length - A_Index + 1])
-    return {main: main.Length ? main : zones, split: split, back: back}
-}
-
-; Whether two [x, y, width, height] zones cover the same span across the
-; walk: the same left and right edges, or top and bottom ones for rows.
-WW_SameSpan(first, second, across, tolerance := 2)
-{
-    return Abs(first[across] - second[across]) <= tolerance
-        && Abs(first[across] + first[across + 2] - second[across] - second[across + 2]) <= tolerance
-}
-
-; The key that started the walk goes forward; the other steps back and
-; retraces it. In the split walk, the key that entered it goes forward.
-WW_AdvanceZoneSession(session, direction, minimum)
-{
-    backwards := direction != (session.splitting ? session.split_direction : session.direction)
-    session.index := WW_GetNextFittingIndex(session.index, session.zones, minimum, backwards)
-    return session.index
-}
-
-; Switching between the walks keeps the column. The key that started the
-; walk enters the split walk at the column's top and walks it in the layout's
-; order; the other key (backwards) enters at its bottom and walks the back
-; order. Either way the entering key goes on in that order and the other key
-; retraces it. The main walk returns to the full zone over the column.
-; Returns the index to show, 0 when the other walk has nothing there.
-WW_SwitchZoneWalk(session, split, minimum, direction)
-{
-    current := session.index ? session.zones[session.index] : 0
-    across := session.turned ? 2 : 1
-    backwards := direction != session.direction
-    session.splitting := split
-    session.split_direction := direction
-    session.zones := !split ? session.main : backwards ? session.back : session.split
-    session.index := 0
-    if !IsObject(current)
-        return 0
-    entered := 0
-    for zone in split ? session.split : session.main
-        if WW_SameSpan(current, zone, across) && WW_LayoutFitsMinimum(zone, minimum) {
-            entered := zone
-            if !split || !backwards
-                break
-        }
-    for index, zone in session.zones
-        if zone = entered
-            session.index := index
-    return session.index
-}
-
-; Win + Left/Right and scroll walk the full-height zones; their Shift twins
-; walk the split zones, only while a walk runs (the zone-cycling scope).
-WW_CycleZone(direction, split := false)
-{
-    global WW_zone_cycle
-    Critical "On"
-    if split && !IsObject(WW_zone_cycle)
-        return
-    hwnd := WW_GetPlacementTarget(&fresh_entry)
-    if !hwnd
-        return
-
-    try {
-        work_area := WW_GetLayoutWorkArea(hwnd)
-        layout := WW_DisplayZoneLayout(WindowMonitor(hwnd))
-        pid := WinGetPID(hwnd)
-        session := WW_zone_cycle
-        if !IsObject(session) || session.hwnd != hwnd || session.pid != pid || session.layout != layout
-            || !WW_RectanglesMatch(session.work_area, work_area, 0) {
-            if split
-                return
-            session := WW_StartZoneSession(hwnd, pid, work_area, layout, direction)
-            WW_zone_cycle := session
-            SetTimer(WW_WatchZoneCycleRelease, 50)
-        }
-        minimum := WW_GetMinimumVisibleSize(hwnd)
-        if split != session.splitting && WW_SwitchZoneWalk(session, split, minimum, direction)
-            index := session.index
-        else if session.zones.Length
-            index := WW_AdvanceZoneSession(session, direction, minimum)
-        else
-            return
-        WW_ApplyTrackedLayout(hwnd, "zones", work_area, session.zones, index)
-    }
-    catch Error as err {
-        WW_DebugError("Cycle zones", err)
-    }
-}
-
-; The zone-cycling input scope: true while a walk runs, so the split walk's
-; Win + Shift + Left/Right reach Windows the rest of the time.
+; The zone-cycling input scope: true while zone mode runs.
 WW_IsCyclingZones(*)
 {
     global WW_zone_cycle
