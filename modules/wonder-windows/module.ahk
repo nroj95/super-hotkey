@@ -240,7 +240,10 @@ class WonderWindowsModule extends SuiteModule {
             current := WonderWindowsModule.DeviceOrientation(device)
             for orientation in separate ? ["landscape", "portrait"] : [current] {
                 zoneKey := device "|" orientation
-                label := choices.names[index] (separate ? ", " orientation : " (" orientation ")")
+                ; One pair of parentheses: "(primary, landscape)".
+                label := choices.names[index]
+                label := SubStr(label, -10) = " (primary)"
+                    ? SubStr(label, 1, -10) " (primary, " orientation ")" : label " (" orientation ")"
                 items := []
                 for preset in WW_ZoneLayouts.Presets
                     items.Push(preset[2])
