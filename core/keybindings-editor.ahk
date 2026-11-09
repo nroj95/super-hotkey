@@ -407,9 +407,11 @@ class KeybindingsEditor {
                     this._SetBindingText(control, "+ Add")
                     continue
                 }
-                ; A layer binding stays editable while its layer is off; it is only marked.
-                inactiveLayer := parsed.layer != "normal" && manager.BindingUnavailable(parsed) != ""
-                this._SetBindingText(control, (inactiveLayer ? "⚠ " : "") parsed.label)
+                ; A layer binding stays editable while its layer is off, and one a
+                ; module would take first stays too; both are only marked.
+                marked := parsed.layer != "normal" && manager.BindingUnavailable(parsed) != ""
+                    || manager.BindingWarning(parsed) != ""
+                this._SetBindingText(control, (marked ? "⚠ " : "") parsed.label)
             }
             defaults := manager.actions[entry.id].defaults
             KeybindingsEditor._SetEnabled(row.reset,
@@ -824,6 +826,10 @@ class KeybindingsEditor {
         if Keybindings.NeedsMouseConfirmation(Keybindings.Parse(value))
             && MsgBox("This hotkey intercepts ordinary middle-click or mouse-wheel input. Assign it?",
                 this.manager.name, "YesNo Default2 Icon!") != "Yes"
+            return
+        parsed := Keybindings.Parse(value)
+        if IsObject(parsed) && (warning := this.manager.BindingWarning(parsed)) != ""
+            && MsgBox(parsed.label ": " warning " Assign it anyway?", this.manager.name, "YesNo Default2 Icon!") != "Yes"
             return
         configuration := this.manager._CloneConfiguration(this.draft)
         configuration[actionId].bindings[slot] := value

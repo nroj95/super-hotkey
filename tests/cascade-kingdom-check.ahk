@@ -4,8 +4,27 @@
 ; snapped-window drags, mirroring and cascades kept across restarts.
 ; Disposable preferences, dry-run inputs and test-owned windows only.
 class CascadeChecks {
+    ; With Win as the click key, Win + mouse hotkeys are flagged in Keybindings,
+    ; since the click key takes those presses over windows first.
+    static ClickKeyBindingWarning() {
+        saved := CascadeState.mouseKey
+        try {
+            CascadeState.mouseKey := "Win"
+            this.Assert(CascadeMouseKeyBindingWarning(Keybindings.Parse("Win + WheelUp")) != ""
+                && CascadeMouseKeyBindingWarning(Keybindings.Parse("Win + MButton")) != ""
+                && CascadeMouseKeyBindingWarning(Keybindings.Parse("Win + Left")) = ""
+                && CascadeMouseKeyBindingWarning(Keybindings.Parse("Ctrl + WheelUp")) = "",
+                "with Win as the click key, Win + mouse hotkeys are flagged and others are not")
+            CascadeState.mouseKey := "Caps"
+            this.Assert(CascadeMouseKeyBindingWarning(Keybindings.Parse("Win + WheelUp")) = "",
+                "with Caps as the click key, Win + scroll is free")
+        }
+        finally CascadeState.mouseKey := saved
+    }
+
     static Run() {
         this.LiveCascadeSettings()
+        this.ClickKeyBindingWarning()
         this.PlacementStabilization()
         this.FocusTabDpi()
         this.LoneWindowTabs()

@@ -104,3 +104,15 @@ ObserveMouseKeyClicks(manager)
             manager.Observe((win ? "*#" : "*") wheel, CanClaimMouseKeyClick.Bind("", win),
                 BeginMouseKeyClick.Bind(manager, ""))
 }
+
+; Keybindings asks before taking a mouse hotkey the click key would claim:
+; with Win as that key, every Win + mouse press over a window comes here
+; first. Caps and Pause take only keyboard keys in Keybindings, so they never
+; clash. The hotkey still works over the taskbar, the desktop and suite windows.
+CascadeMouseKeyBindingWarning(binding)
+{
+    if CascadeState.mouseKey != "Win" || !binding.mouse || !(binding.modifiers & 8)
+        return ""
+    return "Cascade Kingdom's click to focus takes the mouse while Win is held over a window,"
+        . " so this hotkey would rarely reach its action. Settings there can use Caps or Pause instead."
+}

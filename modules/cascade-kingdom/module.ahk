@@ -15,6 +15,7 @@ class CascadeKingdomModule extends SuiteModule {
     Register(manager) {
         this.manager := manager
         RegisterCascadeActions(manager)
+        manager.AddBindingCheck(CascadeMouseKeyBindingWarning)
     }
 
     Start() {

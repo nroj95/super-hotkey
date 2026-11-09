@@ -802,6 +802,12 @@ class KeybindingsChecks {
                 && manager.actions["wonder-windows.zone-edge-left"].scope = "zone-cycling"
                 && KeybindingsEditor.ContextTagText("zone-cycling") = "zone cycling only",
                 "zone mode's own keys answer only in zone mode, tagged in Keybindings")
+            probe := (binding) => binding.key = "WheelUp" ? "probe" : ""
+            manager.AddBindingCheck(probe)
+            try this.Assert(manager.BindingWarning(Keybindings.Parse("Win + WheelUp")) = "probe"
+                && manager.BindingWarning(Keybindings.Parse("Win + Left")) = "",
+                "a module's binding check flags only the bindings it would take")
+            finally manager.bindingChecks.Pop()
             this.Assert(manager.actions["power-up-utilities.terminal.clear"].scope = "windows-terminal"
                 && manager.actions["power-up-utilities.terminal.copy"].scope = "windows-terminal",
                 "Terminal shortcuts are gated by the actual foreground application")

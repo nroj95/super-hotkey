@@ -23,6 +23,7 @@ class Keybindings {
         this.statusCallback := Keybindings.Option(options, "statusCallback", 0)
         this.scopes := Map()
         this.disjointPairs := Map()
+        this.bindingChecks := []
         this.loadWarnings := []
         this.observerGroups := Map()
         this.actions := Map()
@@ -1108,6 +1109,27 @@ class Keybindings {
         if second = ""
             return SubStr(first, 1, 1) != "!"
         return false
+    }
+
+    ; A module that takes input while a key is held, such as Cascade Kingdom's
+    ; click to focus, adds check(binding), returning why a binding would rarely
+    ; reach its action, or "". The editor marks such bindings and asks before
+    ; assigning one; they still work wherever the module lets the input through.
+    AddBindingCheck(check) {
+        if !HasMethod(check, "Call")
+            throw TypeError("A binding check must be callable.")
+        this.bindingChecks.Push(check)
+    }
+
+    BindingWarning(binding) {
+        for check in this.bindingChecks {
+            try text := check.Call(binding)
+            catch
+                continue
+            if text != ""
+                return text
+        }
+        return ""
     }
 
     BindingUnavailable(binding) {
