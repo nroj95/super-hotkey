@@ -365,11 +365,10 @@ class PowerUpUtilities extends SuiteModule {
         STAY AWAKE
         Pause + End keeps the computer awake for 30 minutes, then puts it to sleep once you're no longer using it.
         Press again while its notice shows for 1, 2, 4 or 8 hours or no limit.
-        A minute before the end, and again at 30 seconds, a notice on every display warns you.
-        Pause + Pause shows how long is left, along with anything else running or hidden.
-        Pause + Shift + End stops staying awake without sleeping, and Windows' own sleep settings take over again.
-        The screen still turns off and locks as usual, and Sleep from Start and your laptop lid setting still work.
-        So when you leave work running, lock with Win + L: it keeps running until the time is up.
+        Pause + Shift + End cancels it.
+        Pause + Pause shows how long is left.
+
+        For more reliable sleep, turn off Windows' Away Mode and let only your keyboard wake the computer.
 
         MORE KEYS WITHOUT A NEW KEYBOARD
         Caps + QWER/ASDF/ZXCV sends F13–F24; Caps + 0–9 provides a virtual number pad, even if your keyboard lacks those keys.
@@ -377,7 +376,5 @@ class PowerUpUtilities extends SuiteModule {
         HANDY EXTRAS
         Insert symbols such as ’, – or ß, the HTML entity &nbsp; or a timestamp such as 20261110-203729.
         Terminal copy and clear operate only in Windows Terminal and use its default Ctrl + Shift + A, C and K shortcuts.
-        Pause + Escape sleeps as Windows does, and locking is an action you can give a hotkey in Keybindings.
-        For more reliable sleep, turn off Windows' Away Mode and let only your keyboard wake the computer.
     )"
 }

@@ -6,6 +6,7 @@
 
 - **Wonder Windows:** `Win + Shift + Home` is named *restore others (this display)* in Keybindings, matching *minimize others (this display)*.
 - **Cascade Kingdom:** Keybindings lists *gather all cascades*, which reaches every display, before the actions for this display.
+- **Power-Up Utilities:** Help's stay awake section is shorter, with the tip to turn off Windows' Away Mode right beside it.
 
 ## v1.0.0-beta.5
 
