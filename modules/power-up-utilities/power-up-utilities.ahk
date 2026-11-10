@@ -1,14 +1,13 @@
 ; Power-Up Utilities: extra keys, text and Terminal macros, system actions and
-; the settings page for real sleep and keeping speakers awake. Real sleep,
-; on by default, keeps Away Mode from replacing the sleep hotkey's sleep;
-; unticked, it sleeps as Start's Sleep does. Macros run once their trigger
+; the settings page for keeping speakers awake. Sleep works as Start's Sleep
+; does, and locking as Win + L does. Macros run once their trigger
 ; key and modifiers are released, outside input callbacks, with Caps or Pause
 ; still allowed down; staying awake and keeping speakers awake type nothing
 ; and answer each press at once.
 
 class PowerUpUtilities extends SuiteModule {
     hasSettings := true
-    resetSections := ["Sleep", "Speakers"]
+    resetSections := ["Speakers"]
 
     __New(app) {
         super.__New(app, "power-up-utilities")
@@ -26,7 +25,6 @@ class PowerUpUtilities extends SuiteModule {
         this.utilities := PU_Utilities(this)
         this.stayAwake := PU_StayAwake(this)
         this.settingsPath := app.Settings.directory "\" this.id "\settings.ini"
-        this.realSleep := IniRead(this.settingsPath, "Sleep", "Real", 1) != "0"
         this.speakers := PU_Speakers(this, this.settingsPath)
     }
 
@@ -39,6 +37,8 @@ class PowerUpUtilities extends SuiteModule {
             ObjBindMethod(this.app, "HelpShortcutEvent", this.id), ["Pause + H"],
             {category: "Power-Up Utilities", available: (*) => this.app.ModuleActive(this.id)})
         this.AddAction("sleep", "system.sleep", "put computer to sleep", "sleep", "", "Pause + Escape")
+        ; Win + L does the same everywhere, so it has no default hotkey.
+        this.AddAction("lock", "system.lock", "lock the computer", "lock", "", "")
         this.AddAction("awake", "system.stay-awake", "stay awake, then sleep: 30 min, 1, 2, 4, 8 h, no limit",
             "awake-step", "", "Pause + End")
         this.AddAction("awake", "system.allow-sleep", "stop staying awake, without sleeping",
@@ -98,7 +98,6 @@ class PowerUpUtilities extends SuiteModule {
         return lines
     }
 
-    ; Core restores an interrupted sleep transaction.
     Stop(*) {
         if this.stopping
             return
@@ -128,10 +127,6 @@ class PowerUpUtilities extends SuiteModule {
         if ui.Existing(key)
             return
         rows := SuitePageRows(ui.NewWindow(key, "Power-Up Utilities - Settings", true), 640)
-        rows.Heading("Sleep")
-        rows.Checkbox("Sleep for real, even where Away Mode is allowed", "vrealSleep").Value := this.realSleep
-        rows.Caption("Some computers let Away Mode replace sleep, keeping them running with their screens dark."
-            . " Unticked, Pause + Escape sleeps as Start's Sleep does.", true)
         rows.Heading("Keep speakers awake")
         rows.Text("Keep speakers awake, an action you can give a hotkey in Keybindings, nudges speakers"
             . " that fall asleep in silence while you're at the computer.")
@@ -147,7 +142,6 @@ class PowerUpUtilities extends SuiteModule {
     }
 
     RestoreSettings(window) {
-        window["realSleep"].Value := 1
         window["minutes"].Value := PU_Speakers.MinutesDefault
         window["chime"].Value := 0
     }
@@ -158,10 +152,8 @@ class PowerUpUtilities extends SuiteModule {
         try {
             minutes := PU_Speakers.CleanMinutes(window["minutes"].Value)
             chime := window["chime"].Value != 0
-            realSleep := window["realSleep"].Value != 0
-            this.app.Settings.WritePreferences(this.id, Map("Sleep", Map("Real", realSleep ? 1 : 0),
-                "Speakers", Map("Minutes", minutes, "Chime", chime ? 1 : 0)))
-            this.realSleep := realSleep
+            this.app.Settings.WritePreferences(this.id,
+                Map("Speakers", Map("Minutes", minutes, "Chime", chime ? 1 : 0)))
             this.speakers.minutes := minutes
             this.speakers.chime := chime
             ui.Applied(key)
@@ -317,6 +309,7 @@ class PowerUpUtilities extends SuiteModule {
                 case "terminal-copy": this.terminal.Copy(job)
                 case "terminal-clear": this.terminal.Clear(job)
                 case "sleep": this.utilities.SleepComputer(job)
+                case "lock": this.utilities.LockComputer(job)
                 default: throw Error("Unknown action kind: " job.action.kind)
             }
         }
@@ -335,8 +328,9 @@ class PowerUpUtilities extends SuiteModule {
     ; Macros wait for every modifier, which would turn typed characters into
     ; shortcuts. A held Caps or Pause never holds them back, so a layer types
     ; like a real key. Text types while its own key is down, which the hotkey
-    ; keeps from the app; other macros wait for it to come up. Sleep also
-    ; waits for the layer keys, so none can stay stuck down after waking.
+    ; keeps from the app; other macros wait for it to come up. Sleeping and
+    ; locking also wait for the layer keys, so none can stay stuck down after
+    ; waking or unlocking.
     InputsReleased(event) {
         kind := this.catalog.Has(event.actionId) ? this.catalog[event.actionId].kind : ""
         if kind != "text" && kind != "timestamp" && !InStr(event.key, "Wheel")
@@ -350,7 +344,7 @@ class PowerUpUtilities extends SuiteModule {
 
     static BlockingKeys(kind) {
         keys := ["Ctrl", "Alt", "Shift", "LWin", "RWin"]
-        if kind = "sleep"
+        if kind = "sleep" || kind = "lock"
             keys.Push("CapsLock", "Pause", "CtrlBreak")
         return keys
     }
@@ -380,7 +374,7 @@ class PowerUpUtilities extends SuiteModule {
 
         SYSTEM UTILITIES
         Pause + Escape puts your computer to sleep once you let go of every key, so none stays stuck after waking.
-        It sleeps for real even where Away Mode is allowed to replace sleep; Settings can leave that to Windows.
+        If it only darkens the screens, set Allow Away Mode Policy to No in Power Options, and it sleeps for real.
 
         STAY AWAKE
         Pause + End keeps the computer awake for 30 minutes and then puts it to sleep.

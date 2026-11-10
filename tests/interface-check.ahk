@@ -642,8 +642,8 @@ class InterfaceChecks {
                             "Apply lights up for a change and goes grey when it is changed back")
                     }
                     if id = "power-up-utilities"
-                        this.Assert(settings["realSleep"].Value = 1 && settings["minutes"].Value = 8
-                            && settings["chime"].Value = 0, "Power-Up Utilities restores real sleep and an 8-minute nudge")
+                        this.Assert(settings["minutes"].Value = 8 && settings["chime"].Value = 0,
+                            "Power-Up Utilities restores an 8-minute nudge without the chime")
                     app.ui.BackToHelp(id)
                     this.Assert(!app.ui.windows.Has("settings:" id)
                         && app.ui.windows.Has(key),

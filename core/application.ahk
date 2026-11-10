@@ -110,7 +110,7 @@ class SuiteApplication {
         for warning in this.manager.loadWarnings
             this.startupWarnings.Push(warning)
         if !this.dryRun {
-            SuiteSleep.Start(this.Settings.directory)
+            SuiteSleep.Start()
             SuiteWorkingMonitor.Start(this.manager)
             for id in SuiteSettings.ModuleOrder
                 if this.ModuleActive(id)
@@ -417,7 +417,6 @@ class SuiteApplication {
         ; PBT_POWERSETTINGCHANGE: the displays turned on or off.
         if event = 0x8013
             return SuiteDisplays.OnPowerSetting(setting)
-        SuiteSleep.OnPowerEvent(event)
         ; PBT_APMSUSPEND, PBT_APMRESUMESUSPEND, PBT_APMRESUMEAUTOMATIC
         if event != 4 && event != 7 && event != 0x12
             return

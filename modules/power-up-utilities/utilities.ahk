@@ -1,6 +1,7 @@
 ; =============================================================================
-; utilities.ahk - the sleep hotkey and stay awake's steps and sleep timer; simple text actions live in dispatch, keeping speakers awake
-; in speakers.ahk
+; utilities.ahk - the sleep and lock hotkeys and stay awake's steps and sleep
+; timer; simple text actions live in dispatch, keeping speakers awake in
+; speakers.ahk
 ; =============================================================================
 ; Sleeping and the stay awake request itself live in core (SuiteSleep,
 ; SuiteStayAwake), shared with every module.
@@ -14,7 +15,16 @@ class PU_Utilities {
     SleepComputer(job) {
         if !this.app.JobValid(job) || !this.app.InputsReleased(job.event)
             return
-        SuiteSleep.Now(!this.app.realSleep)
+        SuiteSleep.Now()
+    }
+
+    ; Locks as Win + L does, once every key is up: a key let go on the lock
+    ; screen never reaches the suite, so one still down would stay stuck.
+    LockComputer(job) {
+        if !this.app.JobValid(job) || !this.app.InputsReleased(job.event)
+            return
+        if !DllCall("LockWorkStation", "int")
+            throw OSError(A_LastError, "LockWorkStation", "Windows could not lock the computer.")
     }
 }
 
@@ -165,7 +175,7 @@ class PU_StayAwake {
             this.module.Report("dry run: sleep")
             return
         }
-        try SuiteSleep.Now(!this.module.realSleep)
+        try SuiteSleep.Now()
         catch Error as failure
             SuiteState.Log.Error("Power-Up Utilities / stay awake sleep", failure)
     }

@@ -4,6 +4,7 @@
 
 ### Breaking changes
 
+- **Power-Up Utilities:** `Pause + Escape` now sleeps as Start's Sleep does. Where the power plan allows Away Mode and a program asks for it, that only darkens the screens; set *Allow Away Mode Policy* to No in Power Options, and it sleeps for real. The *Sleep for real* setting is gone with it, and Super Hotkey no longer changes the Away Mode setting for a moment while it sleeps. Stay awake running out sleeps the same way.
 - **Power-Up Utilities:** *turn off the displays* (`Pause + Pause`) is removed. `Win + L` locks the computer, which keeps working while it stays awake, and Windows turns the screens off on its own about a minute later by default, so the habit works on any PC. `Pause + Pause` now shows what is hidden or running instead, and a hotkey you gave the removed action is not carried over.
 - **Galaxy Rhythm** is removed, with its bedtime messages, fade to sleep and energy bar, since it isn't about hotkeys. Super Hotkey now has five modules, all on by default, and `Pause + G` is free. Its settings and state in `%LOCALAPPDATA%\nroj\SuperHotkey\galaxy-rhythm` are left as they are.
 - **Cascade Kingdom:** dropping a window onto a slot no longer adds it; `Caps + Insert` and the new double-click do. Dragging a window outside a cascade shows no guides. Dragging a window in a cascade shows them, as before: dropped on one, it takes that slot, on any display. Dropped anywhere else, it leaves the cascade where you dropped it, now at the size, or maximized, as it was before joining, instead of cascade-sized. Resizing it by any edge now always takes it out, where and as large as you made it.
@@ -16,6 +17,7 @@
 
 ### Changes
 
+- **Power-Up Utilities:** *lock the computer* locks it as `Win + L` does, for anyone who wants it on an easier key. It has no default hotkey.
 - `Pause + Pause` shows what is out of sight in one notice: how long stay awake has left, whether speakers are kept awake, windows minimized on your display, cascade windows hidden there with `Caps + M`, and verbose logging. With nothing to report it says *Nothing hidden or running*. Each module adds its own lines, and only while it is on. It replaces the notice that told you how long stay awake had left when you came back after half an hour away.
 - The focus outline no longer paints over the taskbar or a docked bar: like at a display's edges, it stops at the work area, so a window resting on the taskbar shows only its thin inner line there. A maximized or fullscreen window, with no side left outside, gets its outline drawn inside instead, so with a big window on each display you still see which one has focus.
 - **Keybindings** marks a `Win` + mouse hotkey, such as `Win` + scroll, with ⚠ and asks before assigning it while Cascade Kingdom's click to focus uses `Win`, since that key takes `Win` + mouse presses over windows first. Modules can flag such clashes for any hotkey the same way.

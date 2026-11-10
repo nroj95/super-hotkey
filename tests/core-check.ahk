@@ -116,7 +116,6 @@ class CoreChecks {
         app.InitializeCatalog()
         manager := app.manager
         power := app.modules["power-up-utilities"]
-        this.Assert(power.realSleep, "the sleep hotkey sleeps for real by default, even where Away Mode is allowed")
         try {
             manager.SetPaused(true)
             manager.Start()
@@ -139,6 +138,9 @@ class CoreChecks {
                 && manager.actions["core.status"].category = "Global"
                 && SuiteModule(app, "test").StatusLines().Length = 0,
                 "Pause + Pause shows what is hidden or running, and a module adds nothing unless it says so")
+            this.Assert(configuration["power-up-utilities.system.sleep"].bindings[1] = Keybindings.Parse("Pause + Escape").signature
+                && configuration["power-up-utilities.system.lock"].bindings[1] = "",
+                "sleep stays on Pause + Escape, and locking, which Win + L does everywhere, has no hotkey")
             this.Assert(configuration["wonder-windows.focus-up"].bindings[1] = Keybindings.Parse("Win + PgUp").signature
                 && configuration["wonder-windows.focus-down"].bindings[1] = Keybindings.Parse("Win + PgDn").signature,
                 "focus moves up and down with Win + PgUp/PgDn")

@@ -697,7 +697,7 @@ class KeybindingsChecks {
             "Wonder Windows lists Help, minimizing and big windows, then zone mode and resizing, Windows keys beside their Shift twins, and focus and stacks")
         this.AssertDisplaySequence(rows, [
             "power-up-utilities.help",
-            "power-up-utilities.system.sleep", "power-up-utilities.system.stay-awake",
+            "power-up-utilities.system.sleep", "power-up-utilities.system.lock", "power-up-utilities.system.stay-awake",
             "power-up-utilities.system.allow-sleep",
             "power-up-utilities.terminal.copy", "power-up-utilities.terminal.clear",
             "power-up-utilities.system.keep-speakers-awake"],

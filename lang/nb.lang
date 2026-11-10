@@ -196,7 +196,7 @@ SYSTEM UTILITIES
 Pause + Escape puts your computer to sleep once you let go of every key, so none stays stuck after waking.
 =
 
-It sleeps for real even where Away Mode is allowed to replace sleep; Settings can leave that to Windows.
+If it only darkens the screens, set Allow Away Mode Policy to No in Power Options, and it sleeps for real.
 =
 
 STAY AWAKE
