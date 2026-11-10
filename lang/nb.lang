@@ -182,8 +182,8 @@ For more reliable sleep, turn off Windows' Away Mode and let only your keyboard 
 
 ; modules/secret-layers/module.ahk
 
-show Secret Layers help
-= vis hjelp for Secret Layers
+Secret Layers help
+= hjelp for Secret Layers
 
 Secret Layers - Settings
 = Secret Layers - Innstillinger
@@ -291,3 +291,8 @@ Win + Alt with an arrow stacks the active window onto its nearest neighbor in th
 
 Win + Enter cycles through maximized or fullscreen windows, minimized or not; add Shift to cycle backward. Finish with Win + Backspace to quickly get back to your normal windows.
 =
+
+; stale
+
+show Secret Layers help
+= vis hjelp for Secret Layers

@@ -191,7 +191,7 @@ class SuiteApplication {
         ; The one action that still answers while suspended, so it can resume.
         this.manager.AddAction("core.suspend", "suspend / resume Super Hotkey", ObjBindMethod(this, "SuspendEvent"),
             ["Pause + F4"], {category: "Global", whilePaused: true})
-        this.manager.AddAction("core.verbose-log", "turn verbose logging on / off",
+        this.manager.AddAction("core.verbose-log", "toggle verbose logging",
             ObjBindMethod(this, "LogShortcutEvent", "verbose"), [], {category: "Global"})
         for id in SuiteApplication.KeybindingsOrder
             this.modules[id].Register(this.manager)

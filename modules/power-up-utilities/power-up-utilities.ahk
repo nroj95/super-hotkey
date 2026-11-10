@@ -33,12 +33,12 @@ class PowerUpUtilities extends SuiteModule {
     ; Registration order is the Keybindings display order.
     Register(manager) {
         this.manager := manager
-        manager.AddAction("power-up-utilities.help", "show Power-Up Utilities help",
+        manager.AddAction("power-up-utilities.help", "Power-Up Utilities help",
             ObjBindMethod(this.app, "HelpShortcutEvent", this.id), ["Pause + H"],
             {category: "Power-Up Utilities", available: (*) => this.app.ModuleActive(this.id)})
-        this.AddAction("awake", "system.stay-awake", "stay awake, then sleep: 30 min, 1, 2, 4, 8 h, no limit",
+        this.AddAction("awake", "system.stay-awake", "stay awake, then sleep",
             "awake-step", "", "Pause + End")
-        this.AddAction("awake", "system.allow-sleep", "stop staying awake, without sleeping",
+        this.AddAction("awake", "system.allow-sleep", "cancel stay awake",
             "awake-end", "", "Pause + Shift + End")
         ; Terminal copy shares Caps + C with F23: the Terminal scope wins there.
         this.AddAction("terminal", "terminal.copy", "copy terminal buffer as Markdown",
@@ -46,16 +46,16 @@ class PowerUpUtilities extends SuiteModule {
         this.AddAction("terminal", "terminal.clear", "clear terminal buffer",
             "terminal-clear", "", "Caps + K", true)
         ; Few speakers need it, so it has no default hotkey.
-        this.AddAction("speakers", "system.keep-speakers-awake", "keep speakers awake: on / off",
+        this.AddAction("speakers", "system.keep-speakers-awake", "toggle keep speakers awake",
             "speakers", "", "")
         ; Sleeping and locking end the main list.
         this.AddAction("sleep", "system.sleep", "put computer to sleep", "sleep", "", "Pause + Escape")
         ; Win + L does the same everywhere, so it has no default hotkey.
-        this.AddAction("lock", "system.lock", "lock the computer", "lock", "", "")
+        this.AddAction("lock", "system.lock", "lock computer", "lock", "", "")
         ; The few text actions come before the long runs of virtual keys.
         this.AddAction("text", "text.apostrophe", "insert curly apostrophe (’)", "text", "’", "Pause + '", true)
         this.AddAction("text", "text.en-dash", "insert en dash (–)", "text", "–", "Pause + -", true)
-        this.AddAction("text", "text.nbsp", "insert HTML entity (&nbsp;)", "text", "&nbsp;", "Pause + N", true)
+        this.AddAction("text", "text.nbsp", "insert &nbsp;", "text", "&nbsp;", "Pause + N", true)
         this.AddAction("text", "text.sharp-s", "insert sharp s (ß)", "text", "ß", "Pause + S", true)
         this.AddAction("text", "text.timestamp", "insert timestamp", "timestamp", "", "Pause + T", true)
         for index, key in ["Q", "W", "E", "R", "A", "S", "D", "F", "Z", "X", "C", "V"] {

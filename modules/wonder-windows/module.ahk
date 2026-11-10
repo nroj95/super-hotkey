@@ -35,27 +35,27 @@ class WonderWindowsModule extends SuiteModule {
     Register(manager) {
         this.manager := manager
         manager.RegisterScope("zone-cycling", WW_IsCyclingZones)
-        manager.AddAction("wonder-windows.help", "show Wonder Windows help",
+        manager.AddAction("wonder-windows.help", "Wonder Windows help",
             ObjBindMethod(this.app, "HelpShortcutEvent", this.id), ["Ctrl + Alt + H", "Caps + Win + H"],
             {category: "Wonder Windows", available: ObjBindMethod(this, "Available")})
-        this.Add("minimize", "minimize active window", WW_MinimizeActiveWindow, ["Win + Backspace"])
+        this.Add("minimize", "minimize window", WW_MinimizeActiveWindow, ["Win + Backspace"])
         this.Add("restore-minimized", "restore last minimized window", WW_RestoreMinimizedWindow,
             ["Win + Shift + Backspace"])
-        this.Add("cycle-expanded-next", "show next maximized or fullscreen window",
+        this.Add("cycle-expanded-next", "next maximized / fullscreen",
             WW_CycleMaximizedFullscreenWindows, ["Win + Enter"], ["next"])
-        this.Add("cycle-expanded-previous", "show previous maximized or fullscreen window",
+        this.Add("cycle-expanded-previous", "previous maximized / fullscreen",
             WW_CycleMaximizedFullscreenWindows, ["Win + Shift + Enter"], ["previous"])
         arrange := "Arrange your windows"
-        this.Add("zones-from-left", "left half, then zone mode", WW_ZoneSide, ["Win + Left"], ["left"],
+        this.Add("zones-from-left", "move left in zones", WW_ZoneSide, ["Win + Left"], ["left"],
             {section: arrange, replaces: ["Win + Left"]})
-        this.Add("zones-from-right", "right half, then zone mode", WW_ZoneSide, ["Win + Right"], ["right"],
+        this.Add("zones-from-right", "move right in zones", WW_ZoneSide, ["Win + Right"], ["right"],
             {section: arrange, replaces: ["Win + Right"]})
-        this.Add("zone-row-up", "zone mode: top half, then slide up", WW_ZoneRow, ["Win + Up"],
+        this.Add("zone-row-up", "move up in zones", WW_ZoneRow, ["Win + Up"],
             ["up"], {section: arrange, scope: "zone-cycling"})
-        this.Add("zone-row-down", "zone mode: bottom half, then slide down", WW_ZoneRow, ["Win + Down"],
+        this.Add("zone-row-down", "move down in zones", WW_ZoneRow, ["Win + Down"],
             ["down"], {section: arrange, scope: "zone-cycling"})
         for side in ["left", "right", "up", "down"]
-            this.Add("zone-edge-" side, "resize window one step, " side, WW_ZoneEdge,
+            this.Add("zone-edge-" side, "resize " side, WW_ZoneEdge,
                 ["Win + Shift + " side], [side], {section: arrange, replaces: ["Win + Shift + " side]})
         ; Each key beside its Shift twin. The display-wide ones answer from any window.
         keys := "Better Windows keys"
@@ -65,30 +65,30 @@ class WonderWindowsModule extends SuiteModule {
             , {section: keys, replaces: ["Win + Down"]})
         this.Add("full-height", "toggle full height", WW_ToggleFullHeight, ["Win + Alt + Enter"],
             , {section: keys})
-        this.Add("minimize-all", "minimize all windows on this display", WW_MinimizeAllWindows, ["Win + M"],
+        this.Add("minimize-all", "minimize all (this display)", WW_MinimizeAllWindows, ["Win + M"],
             , {section: keys, replaces: ["Win + M"], anyWindow: true})
-        this.Add("restore-all", "restore windows minimized on this display", WW_RestoreAllWindows,
+        this.Add("restore-all", "restore all (this display)", WW_RestoreAllWindows,
             ["Win + Shift + M"], , {section: keys, replaces: ["Win + Shift + M"], anyWindow: true})
-        this.Add("minimize-others", "minimize other windows on this display", WW_MinimizeOtherWindows,
+        this.Add("minimize-others", "minimize others (this display)", WW_MinimizeOtherWindows,
             ["Win + Home"], , {section: keys, replaces: ["Win + Home"], anyWindow: true})
-        this.Add("restore-others", "restore windows behind the active window", WW_RestoreOtherWindows,
+        this.Add("restore-others", "restore behind active window", WW_RestoreOtherWindows,
             ["Win + Shift + Home"], , {section: keys, anyWindow: true})
-        this.Add("minimize-everywhere", "minimize all windows on every display", WW_MinimizeEveryDisplay,
+        this.Add("minimize-everywhere", "minimize all (all displays)", WW_MinimizeEveryDisplay,
             ["Win + D"], , {section: keys, replaces: ["Win + D"], anyWindow: true})
-        this.Add("restore-everywhere", "restore windows minimized on every display", WW_RestoreEveryDisplay,
+        this.Add("restore-everywhere", "restore all (all displays)", WW_RestoreEveryDisplay,
             ["Win + Shift + D"], , {section: keys, anyWindow: true})
         focus := "Focus and stacks"
-        this.Add("focus-up", "focus previous visible window", WW_CycleWindowFocus, ["Win + PgUp", "Pause + PgUp"], ["up"],
+        this.Add("focus-up", "focus previous window", WW_CycleWindowFocus, ["Win + PgUp", "Pause + PgUp"], ["up"],
             {section: focus})
-        this.Add("focus-down", "focus next visible window", WW_CycleWindowFocus, ["Win + PgDn", "Pause + PgDn"], ["down"],
+        this.Add("focus-down", "focus next window", WW_CycleWindowFocus, ["Win + PgDn", "Pause + PgDn"], ["down"],
             {section: focus})
         ; Like focus, previous on PgUp before next on PgDn.
-        this.Add("cycle-stacked-previous", "previous window in current stack", WW_CycleMonitorWindows,
+        this.Add("cycle-stacked-previous", "previous window in stack", WW_CycleMonitorWindows,
             ["Win + Shift + PgUp"], ["previous"], {section: focus})
-        this.Add("cycle-stacked", "next window in current stack", WW_CycleMonitorWindows, ["Win + Shift + PgDn"],
+        this.Add("cycle-stacked", "next window in stack", WW_CycleMonitorWindows, ["Win + Shift + PgDn"],
             , {section: focus})
         for side in [["up", "above"], ["down", "below"], ["left", "to the left"], ["right", "to the right"]]
-            this.Add("move-onto-" side[1], "stack on nearest window " side[2],
+            this.Add("move-onto-" side[1], "stack on window " side[2],
                 WW_MoveOntoWindow, ["Win + Alt + " side[1], "Caps + Win + " side[1]], [side[1]], {section: focus})
     }
 

@@ -668,7 +668,7 @@ class CoreChecks {
                 && core.secondary.Text = "Ctrl + Alt + K"
                 && core.primary.Enabled,
                 "disabled Secret Layers marks only the Caps binding and leaves it editable")
-            manager.editor.window["search"].Value := "show Paper Pad help"
+            manager.editor.window["search"].Value := "Paper Pad help"
             manager.editor.Render()
             paper := manager.editor.visibleRows[2].primary
             this.Assert(InStr(paper.Text, "⚠ Pause + F12") = 1 && paper.Enabled,

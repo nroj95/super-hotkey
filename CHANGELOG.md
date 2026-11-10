@@ -17,10 +17,11 @@
 
 ### Changes
 
+- **Keybindings** names are shorter, so fewer are cut off: help actions read like *Paper Pad help*, display scope reads *(this display)*, on/off pairs start with *toggle*, and Wonder Windows' zone keys read *move left in zones* and *resize left*. Only names changed, so your hotkeys stay as they were.
 - Logs are safer to share in a bug report. Your profile folder is written as `%USERPROFILE%`, so your user name never appears, and verbose logs give the length of another program's window title instead of the title itself, which can hold an email subject or a document name.
 - Every module's Help is shorter and lighter: it opens with why the module exists, shows the ideas and leaves the rest to explore, and Wonder Windows and Cascade Kingdom end with a favorite hotkey. Settings pages word their choices more plainly, and the Modules page describes each module as the README does. Keybindings' search box says to click a hotkey to record it and right-click to type it.
 - **Wonder Windows:** focus also steps through the windows on screen with `Pause + PgUp/PgDn`, beside `Win + PgUp/PgDn`.
-- **Power-Up Utilities:** *lock the computer* locks it as `Win + L` does, for anyone who wants it on an easier key. It has no default hotkey.
+- **Power-Up Utilities:** *lock computer* locks it as `Win + L` does, for anyone who wants it on an easier key. It has no default hotkey.
 - `Pause + Pause` shows what is out of sight in one notice: how long stay awake has left, whether speakers are kept awake, windows minimized on your display, cascade windows hidden there with `Caps + M`, and verbose logging. With nothing to report it says *Nothing to show here*. Each module adds its own lines, and only while it is on. It replaces the notice that told you how long stay awake had left when you came back after half an hour away.
 - The focus outline no longer paints over the taskbar or a docked bar: like at a display's edges, it stops at the work area, so a window resting on the taskbar shows only its thin inner line there. A maximized or fullscreen window, with no side left outside, gets its outline drawn inside instead, so with a big window on each display you still see which one has focus.
 - **Keybindings** marks a `Win` + mouse hotkey, such as `Win` + scroll, with ⚠ and asks before assigning it while Cascade Kingdom's click to focus uses `Win`, since that key takes `Win` + mouse presses over windows first. Modules can flag such clashes for any hotkey the same way.

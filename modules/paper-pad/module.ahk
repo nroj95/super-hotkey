@@ -15,14 +15,14 @@ class PaperPadModule extends SuiteModule {
     ; the editor scope, so they never take Win + arrows from other windows.
     Register(manager) {
         this.manager := manager
-        manager.AddAction("paper-pad.help", "show Paper Pad help",
+        manager.AddAction("paper-pad.help", "Paper Pad help",
             ObjBindMethod(this.app, "HelpShortcutEvent", this.id), ["Pause + F12"],
             {category: "Paper Pad", available: ObjBindMethod(this, "Available")})
-        manager.AddAction("paper-pad.toggle", "show / hide Paper Pad", ObjBindMethod(this, "Event", "toggle"),
+        manager.AddAction("paper-pad.toggle", "toggle Paper Pad", ObjBindMethod(this, "Event", "toggle"),
             ["Win + F12", "Caps + F12"], {category: "Paper Pad", available: ObjBindMethod(this, "Available")})
         ; Showing and hiding, then page navigation, then the destructive delete.
         for item in [
-            ["hide", "hide Paper Pad / dismiss completion", ["Escape"]],
+            ["hide", "hide Paper Pad", ["Escape"]],
             ["previous", "previous page", ["Win + Left", "Win + PgUp"]],
             ["next", "next page", ["Win + Right", "Win + PgDn"]],
             ["delete", "move page to Recycle Bin", ["Win + F4"]]

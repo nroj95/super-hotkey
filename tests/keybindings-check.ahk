@@ -120,7 +120,7 @@ class KeybindingsChecks {
                     "ordinary fallback is never warned: " label)
                 this.Assert(coreButtons.primary.Enabled,
                     "inactive bindings remain clickable for reassignment: " label)
-                manager.editor.window["search"].Value := "show Paper Pad help"
+                manager.editor.window["search"].Value := "Paper Pad help"
                 manager.editor.Render()
                 paperButton := manager.editor.visibleRows[2].primary
                 this.Assert(InStr(paperButton.Text, "⚠") = 1 ? !flags[2] : flags[2],
