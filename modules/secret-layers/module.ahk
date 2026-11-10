@@ -18,7 +18,7 @@ class SecretLayersModule extends SuiteModule {
 
     Register(manager) {
         manager.AddAction("secret-layers.help", T("show Secret Layers help"),
-            ObjBindMethod(this.app, "HelpShortcutEvent", this.id), [],
+            ObjBindMethod(this.app, "HelpShortcutEvent", this.id), ["Pause + L"],
             {category: "Secret Layers", available: ObjBindMethod(this, "Available")})
         if this.Available() && this.app.activeLayers["caps"]
             this.capsToggle := CapsLockShiftToggle()

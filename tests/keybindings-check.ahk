@@ -866,9 +866,10 @@ class KeybindingsChecks {
                 = Keybindings.Parse("Pause + F12").signature
                 && saved["paper-pad.help"].bindings[2] = "",
                 "Paper Pad Help defaults to Pause + F12")
-            this.Assert(saved["secret-layers.help"].bindings[1] = ""
+            this.Assert(saved["secret-layers.help"].bindings[1]
+                = Keybindings.Parse("Pause + L").signature
                 && saved["secret-layers.help"].bindings[2] = "",
-                "Secret Layers Help remains unassigned by default")
+                "Secret Layers Help defaults to Pause + L")
             this.Assert(saved["cascade-kingdom.help"].bindings[1]
                 = Keybindings.Parse("Caps + H").signature
                 && saved["wonder-windows.help"].bindings[1]
@@ -878,8 +879,8 @@ class KeybindingsChecks {
                 "existing module Help shortcuts retain their original defaults")
             this.Assert(this.RouteExists(manager, "paper-pad.help"),
                 "Paper Pad Help registers its default Pause + F12 shortcut")
-            this.Assert(!this.RouteExists(manager, "secret-layers.help"),
-                "unassigned Secret Layers Help installs no shortcut")
+            this.Assert(this.RouteExists(manager, "secret-layers.help"),
+                "Secret Layers Help registers its default Pause + L shortcut")
             this.Assert(InStr(app.modules["secret-layers"].HelpText(), "WHY I MADE THIS") = 1
                 && !InStr(app.modules["secret-layers"].HelpText(), "CURRENT SAVED SHORTCUTS"),
                 "Secret Layers help provides a practical guide without a shortcut inventory")
