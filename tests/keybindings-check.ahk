@@ -694,7 +694,7 @@ class KeybindingsChecks {
             "wonder-windows.focus-up", "wonder-windows.focus-down",
             "wonder-windows.cycle-stacked", "wonder-windows.cycle-stacked-previous",
             "wonder-windows.cycle-expanded-next", "wonder-windows.cycle-expanded-previous"],
-            "Wonder Windows lists zone mode, then arranging, Windows keys beside their Shift twins, and focus")
+            "Wonder Windows lists zone mode and resizing, then stacking and minimizing, Windows keys beside their Shift twins, and focus")
         this.AssertDisplaySequence(rows, [
             "power-up-utilities.help",
             "power-up-utilities.system.sleep", "power-up-utilities.system.stay-awake",
@@ -735,6 +735,12 @@ class KeybindingsChecks {
         for index, heading in expectedWonder
             wonderOrdered := wonderOrdered && wonderHeadings.Has(index) && wonderHeadings[index] = heading
         this.Assert(wonderOrdered, "Wonder Windows subcategories follow the sections of its guide")
+        topOnlyHelp := false
+        for index, row in rows
+            if row.id = "" && row.label = "Wonder Windows"
+                topOnlyHelp := index + 2 <= rows.Length && rows[index + 1].id = "wonder-windows.help"
+                    && rows[index + 2].id = "" && rows[index + 2].label = "Wonder Windows / Arrange your windows"
+        this.Assert(topOnlyHelp, "only Help sits at the top of Wonder Windows; zone mode and resizing are arranging")
     }
 
     static RouteExists(manager, actionId) {

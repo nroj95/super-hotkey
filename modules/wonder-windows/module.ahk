@@ -36,18 +36,20 @@ class WonderWindowsModule extends SuiteModule {
         manager.AddAction("wonder-windows.help", "show Wonder Windows help",
             ObjBindMethod(this.app, "HelpShortcutEvent", this.id), ["Ctrl + Alt + H", "Caps + Win + H"],
             {category: "Wonder Windows", available: ObjBindMethod(this, "Available")})
+        ; Everything that places, sizes, stacks or minimizes a window is
+        ; arranging; only Help stays at the top.
+        arrange := "Arrange your windows"
         this.Add("zones-from-left", "left half, then zone mode", WW_ZoneSide, ["Win + Left"], ["left"],
-            {replaces: ["Win + Left"]})
+            {section: arrange, replaces: ["Win + Left"]})
         this.Add("zones-from-right", "right half, then zone mode", WW_ZoneSide, ["Win + Right"], ["right"],
-            {replaces: ["Win + Right"]})
+            {section: arrange, replaces: ["Win + Right"]})
         this.Add("zone-row-up", "zone mode: top half, then slide up", WW_ZoneRow, ["Win + Up"],
-            ["up"], {scope: "zone-cycling"})
+            ["up"], {section: arrange, scope: "zone-cycling"})
         this.Add("zone-row-down", "zone mode: bottom half, then slide down", WW_ZoneRow, ["Win + Down"],
-            ["down"], {scope: "zone-cycling"})
+            ["down"], {section: arrange, scope: "zone-cycling"})
         for side in ["left", "right", "up", "down"]
             this.Add("zone-edge-" side, "resize window one step, " side, WW_ZoneEdge,
-                ["Win + Shift + " side], [side], {replaces: ["Win + Shift + " side]})
-        arrange := "Arrange your windows"
+                ["Win + Shift + " side], [side], {section: arrange, replaces: ["Win + Shift + " side]})
         for side in [["up", "above"], ["down", "below"], ["left", "to the left"], ["right", "to the right"]]
             this.Add("move-onto-" side[1], "stack on nearest window " side[2],
                 WW_MoveOntoWindow, ["Win + Alt + " side[1], "Caps + Win + " side[1]], [side[1]], {section: arrange})
