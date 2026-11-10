@@ -46,8 +46,23 @@ class SuiteChecks {
         SuiteNotice.Destroy()
     }
 
+    ; Every run starts from the primary display, wherever the terminal that
+    ; started it is: a small window there takes focus first, so the working
+    ; display, notices and pages begin there, as unpositioned test windows do.
+    static anchor := 0
+
+    static FocusPrimary() {
+        MonitorGetWorkArea(MonitorGetPrimary(), &left, &top)
+        this.anchor := SuiteGui("-MinimizeBox", "Super Hotkey checks")
+        this.anchor.AddText("w260", "Super Hotkey checks are running.")
+        this.anchor.Show("NA x" (left + 40) " y" (top + 40))
+        ; The suite's log does not exist yet, so not ActivateWindow, which logs.
+        WinActivate("ahk_id " this.anchor.Hwnd)
+    }
+
     static Run() {
         this.WarnHandsOff()
+        this.FocusPrimary()
         DirCreate this.directory
         CoreChecks.Run()
         KeybindingsChecks.Run()
@@ -72,6 +87,8 @@ SHW_RunSuiteChecks() {
     finally {
         if IsObject(Keybindings.Current)
             try Keybindings.Current.Stop()
+        if SuiteChecks.anchor
+            try SuiteChecks.anchor.Destroy()
         try DirDelete(SuiteChecks.directory, true)
     }
     ExitApp(result)
