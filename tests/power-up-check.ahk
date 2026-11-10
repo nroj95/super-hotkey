@@ -167,11 +167,11 @@ class PowerUpChecks {
             idle := 5000
             awake.Advance()
             this.Assert(!slept() && awake.index && awake.waiting
-                && statuses[-1] = "Sleeping once you leave the computer alone",
-                "someone using the computer keeps it awake when the time runs out")
+                && statuses[-1] = "Sleeping when you step away" && this.ShownEverywhere("Sleeping when you step away"),
+                "someone using the computer keeps it awake when the time runs out, and every display says so")
             idle := PU_StayAwake.IdleMs
             awake.Advance()
-            this.Assert(slept() && !awake.index, "and it sleeps once they leave it alone for a minute")
+            this.Assert(slept() && !awake.index, "and it sleeps once they leave it alone for 30 seconds")
             start(-PU_StayAwake.LateSeconds - 60)
             awake.Advance()
             this.Assert(!slept() && !awake.index, "a computer asleep when the time ran out stays awake on waking")
@@ -192,7 +192,7 @@ class PowerUpChecks {
             start(7200)
             this.Assert(awake.StatusText() = "Sleeping in 2 h", "the status says how long a timed stay awake has left")
             awake.waiting := true
-            this.Assert(awake.StatusText() = "Sleeping once you leave the computer alone",
+            this.Assert(awake.StatusText() = "Sleeping when you step away",
                 "and that it waits for the computer to be left alone")
             awake.waiting := false, awake.deadline := ""
             this.Assert(awake.StatusText() = "Awake until turned off", "and that no limit stays awake")

@@ -37,9 +37,10 @@ class PU_Utilities {
 ;
 ; The last minute warns twice, at 60 and 30 seconds, on every display. At the
 ; end, someone still using the computer keeps it awake until they have left
-; it alone for a minute; a locked computer sleeps at once. A computer that
-; was asleep when the time ran out stays awake on waking: someone woke it.
-; The deadline is wall-clock time, so time asleep counts. How long is left
+; it alone for 30 seconds, and every display says so; a locked computer
+; sleeps at once. A computer that was asleep when the time ran out stays
+; awake on waking: someone woke it. The deadline is wall-clock time, so time
+; asleep counts. How long is left
 ; shows on request, in the suite's status notice, never as news.
 class PU_StayAwake {
     ; Minutes; 0 means no limit.
@@ -48,8 +49,9 @@ class PU_StayAwake {
     static NoticeMs := 1400
     ; Seconds before the end that warn, first to last.
     static Warnings := [60, 30]
-    ; Input this recent means someone is at the computer.
-    static IdleMs := 60000
+    ; Input this recent means someone is at the computer. They have had both
+    ; warnings by then, so half a minute tells them from someone who left.
+    static IdleMs := 30000
     ; A run-out noticed this many seconds late happened while asleep.
     static LateSeconds := 10
 
@@ -69,7 +71,7 @@ class PU_StayAwake {
         if !this.index
             return ""
         if this.waiting
-            return "Sleeping once you leave the computer alone"
+            return "Sleeping when you step away"
         if this.deadline = ""
             return "Awake until turned off"
         return "Sleeping in " PU_StayAwake.DescribeLeft(Max(0, DateDiff(this.deadline, A_NowUTC, "Seconds")))
@@ -155,15 +157,17 @@ class PU_StayAwake {
         SetTimer(this.timer, -(remaining - next) * 1000)
     }
 
-    ; Sleeps once nobody has touched the computer for a minute, at once when
-    ; it is locked.
+    ; Sleeps once nobody has touched the computer for IdleMs, at once when
+    ; it is locked. Waiting for someone still using it says so once, on every
+    ; display like the warnings, so the countdown never just stops.
     SleepWhenIdle() {
         app := this.module.app
         idle := this.IdleTime()
         if !app.sessionLocked && idle < PU_StayAwake.IdleMs {
             if !this.waitingShown {
                 this.waitingShown := true
-                this.module.SetTrayStatus("Sleeping once you leave the computer alone")
+                SuiteNotice.ShowEverywhere("awake", "Sleeping when you step away")
+                this.module.SetTrayStatus("Sleeping when you step away")
                 this.module.Report("stay awake ran out while in use; sleeping once idle")
             }
             SetTimer(this.timer, -(PU_StayAwake.IdleMs - idle))

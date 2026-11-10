@@ -265,7 +265,7 @@ class SuiteApplication {
         text := ""
         for line in lines
             text .= (A_Index > 1 ? "`n" : "") line
-        SuiteNotice.Show("status", text != "" ? text : "Nothing hidden or running", 1400)
+        SuiteNotice.Show("status", text != "" ? text : "Nothing to show here", 1400)
     }
 
     LogShortcutEvent(kind, event) {
