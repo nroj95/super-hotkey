@@ -306,6 +306,7 @@ class WonderWindowsModule extends SuiteModule {
         Settings can add sixths or fourths, or leave out fourths or thirds, separately along the display's long and short side; halves and full are always there.
         Win + Shift with an arrow works outside zone mode too: it starts zone mode from where the window is, snapped to the closest stops, and resizes it at once; a maximized window starts from its full size.
         Outside zone mode, Win + Up and Down maximize and restore.
+        Moving a window with Win and the arrows places it for good, as dragging it would, so Win + Down leaves it there; once Win + Shift resizes it, Win + Down takes it back to where it was just before. A cascade window always goes back to its cascade.
 
         ARRANGE YOUR WINDOWS
         Win + Backspace minimizes the active window; focus stays on that display while it has windows left, then moves to the next display.

@@ -183,7 +183,8 @@ class WonderWindowsChecks {
     ; Win + Down takes a window back to normal size without minimizing, also
     ; after a restart; Win + Up maximizes without placing the window by hand;
     ; Win + Shift + an arrow resizes from anywhere, starting zone mode; Win +
-    ; Alt + Enter toggles full height.
+    ; Alt + Enter toggles full height; zone mode moves alone place a window
+    ; outside a cascade for good.
     static NormalSizeAndResize() {
         window := SuiteGui("+Resize", "Normal size check")
         try {
@@ -229,6 +230,19 @@ class WonderWindowsChecks {
             this.Assert(WW_RectanglesMatch(WW_GetWindowLayoutRectangle(hwnd), zoned, 3) && SuiteWindowOwnership.IsManual(hwnd),
                 "full height from a zone goes back to that zone")
             WW_RestoreToNormalSize()
+            WW_ZoneSide("left")
+            moved := WW_GetWindowLayoutRectangle(hwnd)
+            WW_EndZoneCycle()
+            WW_RestoreToNormalSize()
+            this.Assert(WW_RectanglesMatch(WW_GetWindowLayoutRectangle(hwnd), moved, 3) && !SuiteWindowOwnership.IsManual(hwnd),
+                "Win + Down leaves a window outside a cascade where zone mode only moved it")
+            WW_ZoneSide("right")
+            moved := WW_GetWindowLayoutRectangle(hwnd)
+            WW_ZoneEdge("left")
+            WW_EndZoneCycle()
+            WW_RestoreToNormalSize()
+            this.Assert(WW_RectanglesMatch(WW_GetWindowLayoutRectangle(hwnd), moved, 3) && !SuiteWindowOwnership.IsManual(hwnd),
+                "after a move and a resize, Win + Down goes back to where the move left it")
             ; After a restart, a lent window is held again but its normal
             ; rectangle is gone.
             SuiteWindowOwnership.Claim(hwnd)

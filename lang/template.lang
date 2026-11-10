@@ -364,6 +364,9 @@ Win + Shift with an arrow works outside zone mode too: it starts zone mode from 
 Outside zone mode, Win + Up and Down maximize and restore.
 =
 
+Moving a window with Win and the arrows places it for good, as dragging it would, so Win + Down leaves it there; once Win + Shift resizes it, Win + Down takes it back to where it was just before. A cascade window always goes back to its cascade.
+=
+
 ARRANGE YOUR WINDOWS
 =
 

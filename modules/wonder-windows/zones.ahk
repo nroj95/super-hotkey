@@ -70,7 +70,7 @@ WW_ZoneSide(side)
         session := WW_CurrentZoneSession(hwnd)
         if !IsObject(session) {
             session := {hwnd: hwnd, pid: WinGetPID(hwnd), work_area: WW_GetLayoutWorkArea(hwnd),
-                x0: side = "left" ? 0 : 1 / 2, x1: side = "left" ? 1 / 2 : 1, y0: 0, y1: 1}
+                x0: side = "left" ? 0 : 1 / 2, x1: side = "left" ? 1 / 2 : 1, y0: 0, y1: 1, resized: false}
             WW_zone_cycle := session
             SetTimer(WW_WatchZoneCycleRelease, 50)
             ; A maximized or fullscreen window was just restored: it starts at
@@ -284,7 +284,7 @@ WW_ZoneEdge(direction)
             if !hwnd
                 return
             session := {hwnd: hwnd, pid: WinGetPID(hwnd), work_area: WW_GetLayoutWorkArea(hwnd),
-                x0: 0, x1: 1, y0: 0, y1: 1}
+                x0: 0, x1: 1, y0: 0, y1: 1, resized: true}
             ; A maximized or fullscreen window starts from its full size.
             if !fresh_entry {
                 snapped := WW_ZoneSnap(WW_GetWindowLayoutRectangle(hwnd), session.work_area,
@@ -295,6 +295,11 @@ WW_ZoneEdge(direction)
             WW_zone_cycle := session
             SetTimer(WW_WatchZoneCycleRelease, 50)
             started := true
+        }
+        ; The first resize after moves: Win + Down comes back here.
+        if !session.resized {
+            session.resized := true
+            WW_PrepareWindowForPlacement(session.hwnd)
         }
         vertical := direction = "up" || direction = "down"
         toward_start := direction = "left" || direction = "up"
@@ -400,7 +405,9 @@ WW_ZoneSessionRectangle(session)
 
 ; Places the window on its span. A span covering the whole work area makes it
 ; truly maximized, so stacks, the big-window cycle, the focus outline and
-; cascades treat it as one; a smaller span un-maximizes it first.
+; cascades treat it as one; a smaller span un-maximizes it first. A trip of
+; moves alone places a window outside a cascade for good, as dragging it
+; would: Win + Down leaves it there. A cascade window stays lent.
 WW_ApplyZoneSession(session)
 {
     hwnd := session.hwnd
@@ -416,6 +423,16 @@ WW_ApplyZoneSession(session)
         WW_ForgetWindowLayoutCycle(hwnd)
         WinMaximize(hwnd)
     }
+    if !session.resized && !SuiteManagedWindows.IsLent(hwnd)
+        WW_PlaceForGood(hwnd)
+}
+
+; A window moved where it belongs: nothing for Win + Down to take back.
+WW_PlaceForGood(hwnd)
+{
+    global WW_normal_window_placements
+    try WW_normal_window_placements.Delete(hwnd)
+    SuiteWindowOwnership.Release(hwnd, false)
 }
 
 ; The zone-cycling input scope: true while zone mode runs.

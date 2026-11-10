@@ -63,6 +63,7 @@ class CascadeKingdomModule extends SuiteModule {
 
     ; SuiteManagedWindows: other modules leave these windows to Cascade Kingdom.
     ManagedMonitor(hwnd) => GetManagedCascadeMonitor(hwnd)
+    IsLentWindow(hwnd) => CascadeState.lentWindows.Has(hwnd)
 
     Stop(*) {
         ; A restart keeps the cascades; a dry run or a module that never
