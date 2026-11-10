@@ -680,21 +680,21 @@ class KeybindingsChecks {
             "Cascade Kingdom groups navigation, rotation and management")
         this.AssertDisplaySequence(rows, [
             "wonder-windows.help",
+            "wonder-windows.minimize", "wonder-windows.restore-minimized",
+            "wonder-windows.cycle-expanded-next", "wonder-windows.cycle-expanded-previous",
             "wonder-windows.zones-from-left", "wonder-windows.zones-from-right",
             "wonder-windows.zone-row-up", "wonder-windows.zone-row-down",
             "wonder-windows.zone-edge-left", "wonder-windows.zone-edge-right",
             "wonder-windows.zone-edge-up", "wonder-windows.zone-edge-down",
-            "wonder-windows.move-onto-up", "wonder-windows.move-onto-down",
-            "wonder-windows.move-onto-left", "wonder-windows.move-onto-right",
-            "wonder-windows.minimize", "wonder-windows.restore-minimized",
             "wonder-windows.maximize", "wonder-windows.restore", "wonder-windows.full-height",
             "wonder-windows.minimize-all", "wonder-windows.restore-all",
             "wonder-windows.minimize-others", "wonder-windows.restore-others",
             "wonder-windows.minimize-everywhere", "wonder-windows.restore-everywhere",
             "wonder-windows.focus-up", "wonder-windows.focus-down",
             "wonder-windows.cycle-stacked", "wonder-windows.cycle-stacked-previous",
-            "wonder-windows.cycle-expanded-next", "wonder-windows.cycle-expanded-previous"],
-            "Wonder Windows lists zone mode and resizing, then stacking and minimizing, Windows keys beside their Shift twins, and focus")
+            "wonder-windows.move-onto-up", "wonder-windows.move-onto-down",
+            "wonder-windows.move-onto-left", "wonder-windows.move-onto-right"],
+            "Wonder Windows lists Help, minimizing and big windows, then zone mode and resizing, Windows keys beside their Shift twins, and focus and stacks")
         this.AssertDisplaySequence(rows, [
             "power-up-utilities.help",
             "power-up-utilities.system.sleep", "power-up-utilities.system.stay-awake",
@@ -730,17 +730,18 @@ class KeybindingsChecks {
             if row.id = "" && InStr(row.label, "Wonder Windows") = 1
                 wonderHeadings.Push(row.label)
         expectedWonder := ["Wonder Windows", "Wonder Windows / Arrange your windows",
-            "Wonder Windows / Better Windows keys", "Wonder Windows / Focus, stacks and fullscreen"]
+            "Wonder Windows / Better Windows keys", "Wonder Windows / Focus and stacks"]
         wonderOrdered := wonderHeadings.Length = expectedWonder.Length
         for index, heading in expectedWonder
             wonderOrdered := wonderOrdered && wonderHeadings.Has(index) && wonderHeadings[index] = heading
         this.Assert(wonderOrdered, "Wonder Windows subcategories follow the sections of its guide")
-        topOnlyHelp := false
+        topEveryday := false
         for index, row in rows
             if row.id = "" && row.label = "Wonder Windows"
-                topOnlyHelp := index + 2 <= rows.Length && rows[index + 1].id = "wonder-windows.help"
-                    && rows[index + 2].id = "" && rows[index + 2].label = "Wonder Windows / Arrange your windows"
-        this.Assert(topOnlyHelp, "only Help sits at the top of Wonder Windows; zone mode and resizing are arranging")
+                topEveryday := index + 6 <= rows.Length && rows[index + 1].id = "wonder-windows.help"
+                    && rows[index + 5].id = "wonder-windows.cycle-expanded-previous"
+                    && rows[index + 6].id = "" && rows[index + 6].label = "Wonder Windows / Arrange your windows"
+        this.Assert(topEveryday, "the top of Wonder Windows holds Help, minimizing and the big-window cycle; zone mode and resizing are arranging")
     }
 
     static RouteExists(manager, actionId) {

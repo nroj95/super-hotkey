@@ -25,19 +25,26 @@ class WonderWindowsModule extends SuiteModule {
         SuiteWindowOwnership.OnRelease(WW_PrepareWindowForAdoption)
     }
 
-    ; Registration order is the Keybindings display order: Help and zone
-    ; mode, then one subcategory per section of the guide. replaces names the
-    ; Windows key an action improves. Zone mode's Up and Down answer only in
-    ; zone mode (the zone-cycling scope), so outside it Win + Up and Down
-    ; maximize and restore; the Shift arrows resize from anywhere.
+    ; Registration order is the Keybindings display order: Help and the
+    ; everyday keys for one window, minimizing it and showing the next big
+    ; window, then placing and sizing, Windows' own keys, and focus and stacks.
+    ; replaces names the Windows key an action improves. Zone mode's Up and
+    ; Down answer only in zone mode (the zone-cycling scope), so outside it
+    ; Win + Up and Down maximize and restore; the Shift arrows resize from
+    ; anywhere.
     Register(manager) {
         this.manager := manager
         manager.RegisterScope("zone-cycling", WW_IsCyclingZones)
         manager.AddAction("wonder-windows.help", "show Wonder Windows help",
             ObjBindMethod(this.app, "HelpShortcutEvent", this.id), ["Ctrl + Alt + H", "Caps + Win + H"],
             {category: "Wonder Windows", available: ObjBindMethod(this, "Available")})
-        ; Everything that places, sizes, stacks or minimizes a window is
-        ; arranging; only Help stays at the top.
+        this.Add("minimize", "minimize active window", WW_MinimizeActiveWindow, ["Win + Backspace"])
+        this.Add("restore-minimized", "restore last minimized window", WW_RestoreMinimizedWindow,
+            ["Win + Shift + Backspace"])
+        this.Add("cycle-expanded-next", "show next maximized or fullscreen window",
+            WW_CycleMaximizedFullscreenWindows, ["Win + Enter"], ["next"])
+        this.Add("cycle-expanded-previous", "show previous maximized or fullscreen window",
+            WW_CycleMaximizedFullscreenWindows, ["Win + Shift + Enter"], ["previous"])
         arrange := "Arrange your windows"
         this.Add("zones-from-left", "left half, then zone mode", WW_ZoneSide, ["Win + Left"], ["left"],
             {section: arrange, replaces: ["Win + Left"]})
@@ -50,13 +57,6 @@ class WonderWindowsModule extends SuiteModule {
         for side in ["left", "right", "up", "down"]
             this.Add("zone-edge-" side, "resize window one step, " side, WW_ZoneEdge,
                 ["Win + Shift + " side], [side], {section: arrange, replaces: ["Win + Shift + " side]})
-        for side in [["up", "above"], ["down", "below"], ["left", "to the left"], ["right", "to the right"]]
-            this.Add("move-onto-" side[1], "stack on nearest window " side[2],
-                WW_MoveOntoWindow, ["Win + Alt + " side[1], "Caps + Win + " side[1]], [side[1]], {section: arrange})
-        this.Add("minimize", "minimize active window", WW_MinimizeActiveWindow, ["Win + Backspace"],
-            , {section: arrange})
-        this.Add("restore-minimized", "restore last minimized window", WW_RestoreMinimizedWindow,
-            ["Win + Shift + Backspace"], , {section: arrange})
         ; Each key beside its Shift twin. The display-wide ones answer from any window.
         keys := "Better Windows keys"
         this.Add("maximize", "maximize, then upper / lower half", WW_MaximizeWindowTarget, ["Win + Up"],
@@ -77,7 +77,7 @@ class WonderWindowsModule extends SuiteModule {
             ["Win + D"], , {section: keys, replaces: ["Win + D"], anyWindow: true})
         this.Add("restore-everywhere", "restore windows minimized on every display", WW_RestoreEveryDisplay,
             ["Win + Shift + D"], , {section: keys, anyWindow: true})
-        focus := "Focus, stacks and fullscreen"
+        focus := "Focus and stacks"
         this.Add("focus-up", "focus previous visible window", WW_CycleWindowFocus, ["Win + PgUp"], ["up"],
             {section: focus})
         this.Add("focus-down", "focus next visible window", WW_CycleWindowFocus, ["Win + PgDn"], ["down"],
@@ -86,12 +86,9 @@ class WonderWindowsModule extends SuiteModule {
             , {section: focus})
         this.Add("cycle-stacked-previous", "cycle windows in current stack backwards", WW_CycleMonitorWindows,
             ["Win + Shift + PgUp"], ["previous"], {section: focus})
-        this.Add("cycle-expanded-next", "show next maximized or fullscreen window",
-            WW_CycleMaximizedFullscreenWindows, ["Win + Enter"], ["next"],
-            {section: focus})
-        this.Add("cycle-expanded-previous", "show previous maximized or fullscreen window",
-            WW_CycleMaximizedFullscreenWindows, ["Win + Shift + Enter"],
-            ["previous"], {section: focus})
+        for side in [["up", "above"], ["down", "below"], ["left", "to the left"], ["right", "to the right"]]
+            this.Add("move-onto-" side[1], "stack on nearest window " side[2],
+                WW_MoveOntoWindow, ["Win + Alt + " side[1], "Caps + Win + " side[1]], [side[1]], {section: focus})
     }
 
     ; section is the Keybindings subcategory. anyWindow drops the check that
