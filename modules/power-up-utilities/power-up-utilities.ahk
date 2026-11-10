@@ -40,7 +40,6 @@ class PowerUpUtilities extends SuiteModule {
             ObjBindMethod(this.app, "HelpShortcutEvent", this.id), ["Pause + H"],
             {category: "Power-Up Utilities", available: (*) => this.app.ModuleActive(this.id)})
         this.AddAction("sleep", "system.sleep", "put computer to sleep", "sleep", "", "Pause + Escape")
-        this.AddAction("displays", "system.displays-off", "turn off the displays", "displays-off", "", "Pause + Pause")
         this.AddAction("awake", "system.stay-awake", "stay awake, then sleep: 30 min, 1, 2, 4, 8 h, no limit",
             "awake-step", "", "Pause + End")
         this.AddAction("awake", "system.allow-sleep", "stop staying awake, without sleeping",
@@ -323,7 +322,6 @@ class PowerUpUtilities extends SuiteModule {
                 case "terminal-copy": this.terminal.Copy(job)
                 case "terminal-clear": this.terminal.Clear(job)
                 case "sleep": this.utilities.SleepComputer(job)
-                case "displays-off": this.utilities.DisplaysOff(job)
                 default: throw Error("Unknown action kind: " job.action.kind)
             }
         }
@@ -342,9 +340,8 @@ class PowerUpUtilities extends SuiteModule {
     ; Macros wait for every modifier, which would turn typed characters into
     ; shortcuts. A held Caps or Pause never holds them back, so a layer types
     ; like a real key. Text types while its own key is down, which the hotkey
-    ; keeps from the app; other macros wait for it to come up. Sleep and
-    ; turning the displays off also wait for the layer keys, so none can stay
-    ; stuck down after waking, nor wake the displays by coming up.
+    ; keeps from the app; other macros wait for it to come up. Sleep also
+    ; waits for the layer keys, so none can stay stuck down after waking.
     InputsReleased(event) {
         kind := this.catalog.Has(event.actionId) ? this.catalog[event.actionId].kind : ""
         if kind != "text" && kind != "timestamp" && !InStr(event.key, "Wheel")
@@ -358,7 +355,7 @@ class PowerUpUtilities extends SuiteModule {
 
     static BlockingKeys(kind) {
         keys := ["Ctrl", "Alt", "Shift", "LWin", "RWin"]
-        if kind = "sleep" || kind = "displays-off"
+        if kind = "sleep"
             keys.Push("CapsLock", "Pause", "CtrlBreak")
         return keys
     }
@@ -389,7 +386,6 @@ class PowerUpUtilities extends SuiteModule {
         SYSTEM UTILITIES
         Pause + Escape puts your computer to sleep once you let go of every key, so none stays stuck after waking.
         It sleeps for real even where Away Mode is allowed to replace sleep; Settings can leave that to Windows.
-        Pause + Pause turns the displays off, as Windows' screen timeout does, for a break or to save power, and any touch wakes them; off is also the kindest to an OLED screen.
 
         STAY AWAKE
         Pause + End keeps the computer awake for 30 minutes and then puts it to sleep.
@@ -400,7 +396,7 @@ class PowerUpUtilities extends SuiteModule {
         Pause + Shift + End stops staying awake without sleeping, and Windows' own sleep settings take over again.
         The tray icon's tooltip shows until when.
         The screen still turns off and locks as usual, and choosing Sleep or closing a laptop lid still sleeps.
-        So when you leave work running, lock with Win + L or turn the screens off with Pause + Pause: it keeps running until the time is up.
+        So when you leave work running, lock with Win + L: it keeps running until the time is up.
         Suspending or exiting Super Hotkey ends it without sleeping.
 
         KEEP SPEAKERS AWAKE

@@ -1,6 +1,5 @@
 ; =============================================================================
-; utilities.ahk - the sleep hotkey, turning the displays off and stay
-; awake's steps and sleep timer; simple text actions live in dispatch, keeping speakers awake
+; utilities.ahk - the sleep hotkey and stay awake's steps and sleep timer; simple text actions live in dispatch, keeping speakers awake
 ; in speakers.ahk
 ; =============================================================================
 ; Sleeping and the stay awake request itself live in core (SuiteSleep,
@@ -16,17 +15,6 @@ class PU_Utilities {
         if !this.app.JobValid(job) || !this.app.InputsReleased(job.event)
             return
         SuiteSleep.Now(!this.app.realSleep)
-    }
-
-    ; Turns the displays off as Windows' own screen timeout does; any touch,
-    ; a moved mouse included, wakes them, as Windows decides.
-    DisplaysOff(job) {
-        if !this.app.JobValid(job) || !this.app.InputsReleased(job.event)
-            return
-        try SendMessage(0x0112, 0xF170, 2, , "Program Manager") ; WM_SYSCOMMAND, SC_MONITORPOWER, off
-        catch
-            DllCall("PostMessage", "ptr", 0xFFFF, "uint", 0x0112, "ptr", 0xF170, "ptr", 2) ; HWND_BROADCAST
-        this.app.Report("displays off")
     }
 }
 

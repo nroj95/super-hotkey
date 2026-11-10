@@ -8,7 +8,7 @@ class PowerUpChecks {
         this.SleepPolicyRecovery()
         this.StayAwakeCycles()
         this.BlockingKeys()
-        this.DisplaysOff()
+        this.SleepKeys()
         this.SpeakersAwake()
     }
 
@@ -67,12 +67,12 @@ class PowerUpChecks {
         this.Assert(off && nudges() = 3, "switched off, it says so, is kept, and nudges nothing")
     }
 
-    static DisplaysOff() {
-        offKeys := ""
-        for key in PowerUpUtilities.BlockingKeys("displays-off")
-            offKeys .= key " "
-        this.Assert(InStr(offKeys, "CapsLock") && InStr(offKeys, "Shift"),
-            "turning the displays off waits for every key, so Caps coming up doesn't wake them")
+    static SleepKeys() {
+        sleepKeys := ""
+        for key in PowerUpUtilities.BlockingKeys("sleep")
+            sleepKeys .= key " "
+        this.Assert(InStr(sleepKeys, "CapsLock") && InStr(sleepKeys, "Shift"),
+            "sleep waits for every key, so none stays stuck down after waking")
     }
 
     static Assert(condition, label) => SuiteChecks.Assert(condition, label)

@@ -199,9 +199,6 @@ Pause + Escape puts your computer to sleep once you let go of every key, so none
 It sleeps for real even where Away Mode is allowed to replace sleep; Settings can leave that to Windows.
 =
 
-Pause + Pause turns the displays off, as Windows' screen timeout does, for a break or to save power, and any touch wakes them; off is also the kindest to an OLED screen.
-=
-
 STAY AWAKE
 =
 
@@ -229,7 +226,7 @@ The tray icon's tooltip shows until when.
 The screen still turns off and locks as usual, and choosing Sleep or closing a laptop lid still sleeps.
 =
 
-So when you leave work running, lock with Win + L or turn the screens off with Pause + Pause: it keeps running until the time is up.
+So when you leave work running, lock with Win + L: it keeps running until the time is up.
 =
 
 Suspending or exiting Super Hotkey ends it without sleeping.
