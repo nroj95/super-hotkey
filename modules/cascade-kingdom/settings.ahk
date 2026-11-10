@@ -28,7 +28,8 @@ CascadeState.slotTolerance := 56
 ; Drops reach much farther, so the slots a drop can take catch a dragged
 ; window easily; empty slots past the end show no guide and catch nothing.
 ; On release, the visible top-left, or top-right when mirrored, must be
-; within this distance on both axes; the closest slot wins.
+; within this distance on both axes of the slot whose guide it sits inside;
+; see CascadeDropLandingSlot.
 CascadeState.dropTolerance := 200
 
 ; Restore requests can finish before their native/DWM rectangles settle.

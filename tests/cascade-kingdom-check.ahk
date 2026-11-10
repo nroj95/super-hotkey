@@ -628,6 +628,21 @@ class CascadeChecks {
             reach := CascadeState.dropTolerance + 1
             this.Assert(Landing(slots[1], reach, -reach) = 0,
                 "a drop beyond the drop reach takes the window out")
+            ; Slot 1 is 28 px right of and 24 px below slot 2. Nearer to slot 1's
+            ; corner in a straight line, these corners are still inside slot 2's L.
+            this.Assert(Landing(slots[2], 40, 10) = 2 && Landing(slots[2], 10, 40) = 2,
+                "a corner straight right of or below a guide stays with it until it passes the next guide on both axes")
+            this.Assert(Landing(slots[2], 30, 26) = 1,
+                "a corner past the next guide's corner on both axes takes that guide")
+            this.Assert(Landing(slots[1], reach, 0) = 0,
+                "a corner inside a guide's angle but beyond reach takes the window out")
+            ; Mirrored, slot 1 is 28 px left of and 24 px below slot 2.
+            CascadeState.mirrored := true
+            MonitorGetWorkAreaPixels(monitor, &workLeft, &workTop, &workRight, &workBottom)
+            geometry := BuildCanonicalCascadeGeometry(workLeft, workTop, workRight, workBottom)
+            mirrored := geometry.slots
+            this.Assert(Landing(mirrored[2], -40, 10) = 2 && Landing(mirrored[2], -30, 26) = 1,
+                "mirrored, a corner belongs to the guide whose angle opens down and to the left around it")
         }
         finally {
             InitializeCascadeState()
