@@ -122,7 +122,6 @@ class CascadeKingdomModule extends SuiteModule {
             . "`nBigger windows leave room for fewer slots."
             . "`nCaps and Pause need Secret Layers."
             . "`nActive tabs and drop guides use the Windows accent color."
-            . "`nChoosing one display takes windows on the others out of their cascades, without moving them."
             . "`nClick Apply to use these settings.")
         rows.Show(ui, key, [["Apply", ObjBindMethod(this, "SaveSettings", ui)],
             ["Back", ObjBindMethod(ui, "BackToHelp", this.id)]])

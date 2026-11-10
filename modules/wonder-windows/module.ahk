@@ -255,9 +255,9 @@ class WonderWindowsModule extends SuiteModule {
                     rows.window.AddCheckbox("x" (x + (index - 1) * 170) " y" y " v" prefix pair[1], pair[2])
                         .Value := WW_zone_stops[side][StrLower(pair[1])]
         }
-        rows.Caption("The extra sizes zone mode offers; halves and full size are always there. The long side is a"
+        rows.Caption("Halves and full size are always there. The long side is a"
             . " display's width in landscape and its height in portrait.")
-        rows.Checkbox("Give Windows its own keys back when you reassign or clear them", "vgiveBack")
+        rows.Checkbox("Give Windows back its own keys when you reassign or clear them", "vgiveBack")
             .Value := this.givesBackWindowsKeys
         rows.Caption("Win + Left, Right, Up, Down, Shift + the arrows, M, Shift + M, Home and D. Unchecked, those keys do nothing"
             . " once you reassign or clear them, so Windows' own versions never surprise you.", true)
