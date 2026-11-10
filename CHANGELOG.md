@@ -1,10 +1,12 @@
 # Changelog
 
-## Unreleased
+## v1.0.0-beta.5
+
+Zone mode replaces the old snapping, cascades take a double-click and drop guides that land where they point, `Pause + Pause` shows what's running or hidden, and every Help page is lighter. Galaxy Rhythm leaves to become its own project.
 
 ### Breaking changes
 
-- **Power-Up Utilities:** `Pause + Escape` now sleeps as Start's Sleep does. Where the power plan allows Away Mode and a program asks for it, that only darkens the screens; set *Allow Away Mode Policy* to No in Power Options, and it sleeps for real. The *Sleep for real* setting is gone with it, and Super Hotkey no longer changes the Away Mode setting for a moment while it sleeps. Stay awake running out sleeps the same way.
+- **Power-Up Utilities:** `Pause + Escape` now sleeps as Start's Sleep does. Where the power plan allows Away Mode and a program asks for it, that only darkens the screens; turn off Away Mode in Windows' power settings, and it sleeps for real. The *Sleep for real* setting is gone with it, and Super Hotkey no longer changes the Away Mode setting for a moment while it sleeps. Stay awake running out sleeps the same way.
 - **Power-Up Utilities:** *turn off the displays* (`Pause + Pause`) is removed. `Win + L` locks the computer, which keeps working while it stays awake, and Windows turns the screens off on its own about a minute later by default, so the habit works on any PC. `Pause + Pause` now shows what is hidden or running instead, and a hotkey you gave the removed action is not carried over.
 - **Galaxy Rhythm** is removed, with its bedtime messages, fade to sleep and energy bar, since it isn't about hotkeys. Super Hotkey now has five modules, all on by default, and `Pause + G` is free. Its settings and state in `%LOCALAPPDATA%\nroj\SuperHotkey\galaxy-rhythm` are left as they are.
 - **Cascade Kingdom:** dropping a window onto a slot no longer adds it; `Caps + Insert` and the new double-click do. Dragging a window outside a cascade shows no guides. Dragging a window in a cascade shows them, as before: dropped on one, it takes that slot, on any display. Dropped anywhere else, it leaves the cascade where you dropped it, now at the size, or maximized, as it was before joining, instead of cascade-sized. Resizing it by any edge now always takes it out, where and as large as you made it.
@@ -30,7 +32,7 @@
 - Display choices in **Cascade Kingdom** and **Paper Pad** settings are now numbered as Windows Settings numbers them. They used the number in the display's device name, which Settings doesn't follow, so with two displays the numbers could be swapped. Your chosen display stays the same.
 - **Cascade Kingdom:** while you drag a window in a cascade, drop guides show only on the slots it can take, those the cascade can fill, and the guide of the slot it will take lights up in your accent color, twice as long and thick as the rest, and the others show in your inactive tab color, as faint as inactive focus tabs. Guides grow with the cascade window, so they scale with the display and the window size: on a 1080p display a faint guide is about 52 px long and 7 px thick and the lit one twice that, where they were 20 and 40 px long and 2 and 4 px thick before. Focus tabs hide while guides show, so a full-side tab no longer lies under the guides, and return when you drop. With no guide lit, letting go takes the window out. Slots also catch a dropped window from much farther, 200 px from their corner instead of 56, so it takes a bigger move to drag a window out. The slot a drop takes follows the guides' L shape: your window's corner belongs to the guide whose angle it sits inside, with each guide's corner in the middle of its band, so the lit guide changes along straight horizontal and vertical lines instead of diagonal ones, and a corner just short of a guide still takes it. Past either end of the cascade the corner stays with that end: above or left of the whole cascade, the top guide takes it. A window dragged off its slot swaps with the nearest window instead of sliding back into its own gap, and the lit slot is always where it lands.
 - With three or more displays, a notice for a display that a game in exclusive fullscreen covers now shows on every other display instead of only the next one.
-- **Wonder Windows:** Keybindings regroups the module. Its top holds Help with the everyday keys for one window: minimizing (`Win + Backspace`) and showing the next big window (`Win + Enter`), each beside its `Shift` twin. *Arrange your windows* holds zone mode and the `Win + Shift` resizes, and *Focus and stacks*, formerly *Focus, stacks and fullscreen*, now also holds stacking onto the nearest window. Its stack pair is named *previous* and *next window in current stack*, previous first, like focus.
+- **Wonder Windows:** Keybindings regroups the module. Its top holds Help with the everyday keys for one window: minimizing (`Win + Backspace`) and showing the next big window (`Win + Enter`), each beside its `Shift` twin. *Arrange your windows* holds zone mode and the `Win + Shift` resizes, and *Focus and stacks*, formerly *Focus, stacks and fullscreen*, now also holds stacking onto a window. Its stack pair is named *previous* and *next window in stack*, previous first, like focus.
 - **Secret Layers:** `Pause + L` opens its Help by default, like the other modules' Help hotkeys. Saved keybindings keep what you had, so assign it in Keybindings, or use **Restore defaults** there, to get it.
 - **Cascade Kingdom:** *Window size* in Settings makes cascade windows 70, 75, 80, 85 or 90 % of the display's width and height, 80 % as before by default. Bigger windows leave room for fewer slots: on a 1080p display about 13 at 70 % and 3 at 90 %. Apply rearranges every cascade at once, with its focus tabs and drop guides, and windows from slots that no longer fit close up into the ones left.
 - **Cascade Kingdom:** hold `Caps` and double-click anywhere on a window to add it to its display's cascade, as `Caps + Insert` does; keep holding to add more. Double-clicking a window already in a cascade takes it out, back to where it was, as `Caps + Shift + Insert` does. While `Caps` is held, a click only focuses a window, and no click, drag, scroll or other mouse button reaches what is inside it. The taskbar, the desktop, Start and focus tabs work as usual. *Click to focus while holding* in Settings picks `Pause` or `Win` instead, or turns it off. `Caps` and `Pause` need Secret Layers; `Win` works without it.
@@ -38,6 +40,18 @@
 ### Fixes
 
 - **Keybindings** no longer beeps when you scroll fast: the list redraws once per burst of wheel turns instead of on every turn.
+
+### Install
+
+Install [AutoHotkey v2](https://www.autohotkey.com/) **64-bit**, download and extract the source code below, and run `super-hotkey.ahk`. Settings and logs live in `%LOCALAPPDATA%\nroj\SuperHotkey`; this version keeps those from earlier betas.
+
+### Known limitations
+
+- PowerToys FancyZones isn't supported; disable it in PowerToys while using Super Hotkey.
+- Paper Pad needs Notepad3 and asks you to install it or locate it when it can't find it.
+- Sleep works as Windows' own does: where Away Mode is allowed, `Pause + Escape` and stay awake running out may only darken the screens until you turn Away Mode off.
+- Keep speakers awake was measured on one set of speakers; if yours still fall asleep, nudge more often or switch to the chime in Power-Up Utilities' Settings.
+- The recording in the README still shows v1.0.0-beta.1.
 
 ## v1.0.0-beta.4
 

@@ -39,7 +39,7 @@ class SuiteModule {
 
 class SuiteApplication {
     static Name := "Super Hotkey"
-    static Version := "1.0.0-beta.4"
+    static Version := "1.0.0-beta.5"
     ; Keybindings lists the compact Paper Pad section right after Global.
     static KeybindingsOrder := ["paper-pad", "cascade-kingdom", "wonder-windows",
         "power-up-utilities", "secret-layers"]
