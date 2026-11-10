@@ -4,11 +4,14 @@
 ; a target and the empty slots past its end show none. Like the focus tabs,
 ; the slot a drop would take shows in the accent color, opaque, and the
 ; others in the inactive tab color at its opacity; with none lit, releasing
-; takes the window out. The lit guide is also twice as long and thick, so it
-; stands out among guides only a few pixels apart. Arms grow with the cascade
-; window, so guides scale with the display and the chosen window size; strokes
-; scale with DPI. Long arms never cross: slots step diagonally, so each
-; corner's arms run parallel to its neighbours'.
+; takes the window out. The lit guide is also twice as long and at least
+; twice as thick, so it stands out among guides only a few pixels apart. Arms
+; grow with the cascade window, so guides scale with the display and the
+; chosen window size, and strokes are an eighth of their arm, faint ones at
+; most a third of a slot step so their gaps stay clear. Long arms never
+; cross: slots step diagonally, so each corner's arms run parallel to its
+; neighbours'. Focus tabs hide while guides show, since a full-side tab
+; lies where the guides of neighbouring slots do, and return after the drop.
 class CascadeDropGuides {
     static windows := []
     static signature := ""
@@ -60,8 +63,9 @@ class CascadeDropGuides {
     ; cascade window's height, and never shorter than 20 px at 96 DPI.
     static Show(slots, dpi, highlight, mirror_width := 0, window_height := 0) {
         size := Max(12, ScaleForDpi(20, dpi), Round(window_height / 16))
-        thickness := Max(3, ScaleForDpi(3, dpi))
-        lit_size := size * 2, lit_thickness := thickness * 2
+        ; An eighth of the arm, capped so parallel faint arms keep clear gaps.
+        thickness := Max(3, ScaleForDpi(3, dpi), Min(Round(size / 8), CascadeState.stepY // 3))
+        lit_size := size * 2, lit_thickness := Max(thickness * 2, Round(lit_size / 8))
         active := SuiteAccentColor()
         inactive := CascadeState.focusCornerInactiveSlotColor
         signature := size ":" thickness ":" active ":" inactive ":" highlight ":" mirror_width
@@ -100,13 +104,18 @@ class CascadeDropGuides {
             loop Max(0, this.windows.Length - slots.Length)
                 this.windows[slots.Length + A_Index].Hide()
             this.signature := signature
+            for hwnd in CascadeState.focusCornerOverlays
+                HideFocusCornerOverlay(hwnd)
         }
         finally Critical(previous_critical)
     }
 
+    static Shown() => this.signature != ""
+
     static Hide() {
         if this.signature = "" && !this.windows.Length
             return
+        shown := this.Shown()
         previous_critical := Critical("On")
         try {
             for window in this.windows
@@ -114,6 +123,8 @@ class CascadeDropGuides {
             this.signature := ""
         }
         finally Critical(previous_critical)
+        if shown
+            QueueFocusCornerUpdate()
     }
 
     static Destroy() {

@@ -337,25 +337,33 @@ CascadeDropSlots(drag, target)
 ; The slot a drop takes there, or 0 when the drop takes the window out. Like
 ; its guide's L, a slot owns the window's corner while the corner sits inside
 ; its angle: right of and below the slot's corner, or left of and below it
-; when mirrored. The lowest such slot wins, so slots meet along straight
-; horizontal and vertical lines, never diagonal ones, and past the last guide
-; the corner stays with it. A corner inside no angle, above or beside the
-; whole staircase, takes the nearest slot. Either way the slot must be within
-; reach on both axes. A window already in that slot moves on, as compaction
-; keeps the dropped window there, so a window dragged off its slot swaps with
-; a near neighbour instead of sliding back into its own gap.
+; when mirrored, with the angle's tip moved half a step back toward the
+; previous slot, so each guide's corner sits in the middle of its own band.
+; The lowest such slot wins, so slots meet along straight horizontal and
+; vertical lines, never diagonal ones. Past either end of the staircase the
+; corner stays with that end: below and beside the last guide with the last,
+; and inside no angle, above or beside the whole staircase, with the top one.
+; Either way the slot must be within reach on both axes. A window already in
+; that slot moves on, as compaction keeps the dropped window there, so a
+; window dragged off its slot swaps with a near neighbour instead of sliding
+; back into its own gap.
 CascadeDropLandingSlot(drag, target, frame_y)
 {
     slots := CascadeDropSlots(drag, target)
     reach := CascadeState.dropTolerance
-    best := 0
-    for index, slot in slots
-        if slot[2] <= frame_y && (CascadeState.mirrored ? slot[1] >= target.x : slot[1] <= target.x)
+    half_x := CascadeState.stepX // 2, half_y := CascadeState.stepY // 2
+    best := 0, top := 0
+    for index, slot in slots {
+        if !top || slot[2] < slots[top][2]
+            top := index
+        if slot[2] - half_y <= frame_y
+            && (CascadeState.mirrored ? slot[1] + half_x >= target.x : slot[1] - half_x <= target.x)
             && (!best || slot[2] > slots[best][2])
             best := index
-    if !best
-        return FindNearestCascadeSlot(target.x, frame_y, slots, reach)
-    return frame_y - slots[best][2] <= reach && Abs(target.x - slots[best][1]) <= reach ? best : 0
+    }
+    if !best && !(best := top)
+        return 0
+    return Abs(frame_y - slots[best][2]) <= reach && Abs(target.x - slots[best][1]) <= reach ? best : 0
 }
 
 CompleteCascadeWindowDrop(drag)

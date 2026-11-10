@@ -3,7 +3,7 @@
 ; outside its right edge at the top, mirrored. The highest slot's left tab and
 ; the lowest slot's right tab run along the whole side. A mirrored cascade
 ; swaps all of it left for right. A cascade holding one window shows no tabs:
-; there is nothing to switch to.
+; there is nothing to switch to. While a drag shows drop guides, no tabs show.
 
 ; =============================================================================
 ; overlay updates
@@ -62,6 +62,12 @@ UpdateFocusCornerOverlays()
             || membership_generation != CascadeState.membershipGeneration
         {
             QueueFocusCornerUpdate()
+            return
+        }
+        ; Drop guides replace the tabs until the drop; hiding them queues an update.
+        if CascadeDropGuides.Shown() {
+            for hwnd in CascadeState.focusCornerOverlays
+                HideFocusCornerOverlay(hwnd)
             return
         }
         ShowFocusTabTargets(scene, ChooseFocusTabTargets(scene, z_ranks, active_hwnd),

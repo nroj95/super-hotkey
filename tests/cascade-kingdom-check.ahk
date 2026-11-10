@@ -619,7 +619,7 @@ class CascadeChecks {
                 {monitor: monitor, geometry: geometry})
             this.Assert(usable.Length = 3 && usable[3][1] = slots[3][1] && usable[3][2] = slots[3][2],
                 "guides mark only the slots the cascade can fill")
-            this.Assert(Landing(slots[2], 100, -100) = 2,
+            this.Assert(Landing(slots[2], 100, 10) = 2,
                 "a drop 100 px off an occupied slot takes it, and its window moves on")
             this.Assert(Landing(slots[below], 0, 0) = 1,
                 "a drop on an empty slot below the center swaps with the center instead of sliding back")
@@ -634,6 +634,12 @@ class CascadeChecks {
                 "a corner straight right of or below a guide stays with it until it passes the next guide on both axes")
             this.Assert(Landing(slots[2], 30, 26) = 1,
                 "a corner past the next guide's corner on both axes takes that guide")
+            this.Assert(Landing(slots[2], -5, -5) = 2 && Landing(slots[2], 16, 14) = 1,
+                "each guide's corner sits in the middle of its band: a little short of it still takes it")
+            ; Above the whole staircase and right of its top: nearer the second
+            ; guide's corner in a straight line, but past the top end.
+            this.Assert(Landing(slots[2], 45, -60) = 3 && Landing(slots[3], -100, 50) = 3,
+                "a corner above or left of the whole staircase takes its top guide")
             this.Assert(Landing(slots[1], reach, 0) = 0,
                 "a corner inside a guide's angle but beyond reach takes the window out")
             ; Mirrored, slot 1 is 28 px left of and 24 px below slot 2.
@@ -641,7 +647,8 @@ class CascadeChecks {
             MonitorGetWorkAreaPixels(monitor, &workLeft, &workTop, &workRight, &workBottom)
             geometry := BuildCanonicalCascadeGeometry(workLeft, workTop, workRight, workBottom)
             mirrored := geometry.slots
-            this.Assert(Landing(mirrored[2], -40, 10) = 2 && Landing(mirrored[2], -30, 26) = 1,
+            this.Assert(Landing(mirrored[2], -40, 10) = 2 && Landing(mirrored[2], -30, 26) = 1
+                && Landing(mirrored[2], 5, -5) = 2,
                 "mirrored, a corner belongs to the guide whose angle opens down and to the left around it")
         }
         finally {
@@ -702,8 +709,22 @@ class CascadeChecks {
             CascadeDropGuides.Show(slots, 96, 1, 0, 832)
             WinGetPosPixels(, , &litWidth, , first)
             WinGetPosPixels(, , &fadedWidth, , CascadeDropGuides.windows[2].Hwnd)
-            this.Assert(litWidth = 104 && fadedWidth = 52,
-                "guides grow with the cascade window: a sixteenth of its height, twice that when lit")
+            region := DllCall("gdi32\CreateRectRgn", "int", 0, "int", 0, "int", 0, "int", 0, "ptr")
+            try {
+                this.Assert(litWidth = 104 && fadedWidth = 52
+                    && region && DllCall("GetWindowRgn", "ptr", first, "ptr", region, "int")
+                    && DllCall("gdi32\PtInRegion", "ptr", region, "int", 13, "int", 60, "int")
+                    && !DllCall("gdi32\PtInRegion", "ptr", region, "int", 14, "int", 60, "int")
+                    && DllCall("GetWindowRgn", "ptr", CascadeDropGuides.windows[2].Hwnd, "ptr", region, "int")
+                    && DllCall("gdi32\PtInRegion", "ptr", region, "int", 6, "int", 30, "int")
+                    && !DllCall("gdi32\PtInRegion", "ptr", region, "int", 7, "int", 30, "int"),
+                    "guides grow with the cascade window: a sixteenth of its height and 7 px thick, twice that when lit")
+            }
+            finally {
+                if region
+                    DllCall("gdi32\DeleteObject", "ptr", region)
+            }
+            this.Assert(CascadeDropGuides.Shown(), "guides report that they show, so focus tabs stay hidden")
             CascadeDropGuides.Show(slots, 96, 1)
             CascadeDropGuides.Show(slots, 96, 1)
             this.Assert(CascadeDropGuides.windows[1].Hwnd = first,
