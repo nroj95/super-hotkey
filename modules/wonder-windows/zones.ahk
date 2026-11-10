@@ -25,11 +25,12 @@
 ;   Toward a side it hugs it shrinks, away from it it grows; a window as wide
 ;   or tall as the display shrinks toward the arrow; one in the middle grows.
 ;   Grown to the whole work area it is maximized, and shrinking restores it.
-; Plain arrows move and Shift arrows resize. Win + Shift + an arrow also
-; starts zone mode from where the window is, snapped to the closest stops in
-; place, a maximized window from its full size, and resizes it at once. Up
-; and Down answer only in zone mode (the zone-cycling scope), so outside it
-; Win + Up and Down maximize and restore.
+; Plain arrows move and Shift arrows resize. Only Win + Left or Right starts
+; zone mode. Win + Shift + an arrow outside it resizes along the arrow's axis
+; alone, snapped to the zone grid there, a maximized window from its full
+; size, and leaves the other axis and zone mode alone. Up and Down answer only
+; in zone mode (the zone-cycling scope), so outside it Win + Up and Down
+; maximize and restore.
 
 ; Where an edge may stop along the display's long or short side, as a
 ; fraction of the work area, from the pairs Settings turns on.
@@ -270,63 +271,56 @@ WW_ZoneRowSpan(span, direction, ladder := WW_ZoneLadder())
     return top = "" ? 0 : [top, top + height]
 }
 
-; Win + Shift + an arrow: one size bigger or smaller, starting zone mode from
-; where the window is when it isn't running.
+; Win + Shift + an arrow: one size bigger or smaller along the arrow's axis.
+; In zone mode it resizes the zone. Outside it, only that axis changes,
+; snapped to the zone grid and then resized; the other axis keeps its exact
+; place, and zone mode stays off, so only Win + Left or Right starts it. A
+; maximized or fullscreen window starts from its full size.
 WW_ZoneEdge(direction)
 {
-    global WW_zone_cycle
     Critical "On"
+    vertical := direction = "up" || direction = "down"
+    toward_start := direction = "left" || direction = "up"
     session := WW_CurrentZoneSession(WW_GetWindowControlTarget())
-    started := false
     try {
         if !IsObject(session) {
             hwnd := WW_GetPlacementTarget(&fresh_entry)
             if !hwnd
                 return
+            ; A one-press span, never registered as zone mode.
             session := {hwnd: hwnd, pid: WinGetPID(hwnd), work_area: WW_GetLayoutWorkArea(hwnd),
                 x0: 0, x1: 1, y0: 0, y1: 1, resized: true}
-            ; A maximized or fullscreen window starts from its full size.
             if !fresh_entry {
-                snapped := WW_ZoneSnap(WW_GetWindowLayoutRectangle(hwnd), session.work_area,
-                    WW_ZoneAxisLadder(session, false), WW_ZoneAxisLadder(session, true))
-                session.x0 := snapped.x[1], session.x1 := snapped.x[2]
-                session.y0 := snapped.y[1], session.y1 := snapped.y[2]
+                rect := WW_GetWindowLayoutRectangle(hwnd), area := session.work_area
+                width := area[3] - area[1], height := area[4] - area[2]
+                session.x0 := (rect[1] - area[1]) / width, session.x1 := (rect[1] + rect[3] - area[1]) / width
+                session.y0 := (rect[2] - area[2]) / height, session.y1 := (rect[2] + rect[4] - area[2]) / height
+                if vertical {
+                    snapped := WW_ZoneSnapSpan([session.y0, session.y1], WW_ZoneAxisLadder(session, true), 8 / height)
+                    session.y0 := snapped[1], session.y1 := snapped[2]
+                } else {
+                    snapped := WW_ZoneSnapSpan([session.x0, session.x1], WW_ZoneAxisLadder(session, false), 8 / width)
+                    session.x0 := snapped[1], session.x1 := snapped[2]
+                }
             }
-            WW_zone_cycle := session
-            SetTimer(WW_WatchZoneCycleRelease, 50)
-            started := true
         }
         ; The first resize after moves: Win + Down comes back here.
         if !session.resized {
             session.resized := true
             WW_PrepareWindowForPlacement(session.hwnd)
         }
-        vertical := direction = "up" || direction = "down"
-        toward_start := direction = "left" || direction = "up"
         span := WW_ZoneEdgeSpan(vertical ? [session.y0, session.y1] : [session.x0, session.x1], toward_start,
             WW_ZoneAxisLadder(session, vertical))
-        if !IsObject(span) && !started
+        if !IsObject(span)
             return
-        if IsObject(span) {
-            if vertical
-                session.y0 := span[1], session.y1 := span[2]
-            else
-                session.x0 := span[1], session.x1 := span[2]
-        }
+        if vertical
+            session.y0 := span[1], session.y1 := span[2]
+        else
+            session.x0 := span[1], session.x1 := span[2]
         WW_ApplyZoneSession(session)
     }
     catch Error as err
         WW_DebugError("Zone edge", err)
-}
-
-; A window at rect snapped in place onto the zone grid of area: {x, y}, each
-; span kept when it is on the grid and otherwise the closest size at the
-; place overlapping it most.
-WW_ZoneSnap(rect, area, across, down)
-{
-    width := area[3] - area[1], height := area[4] - area[2]
-    return {x: WW_ZoneSnapSpan([(rect[1] - area[1]) / width, (rect[1] + rect[3] - area[1]) / width], across, 8 / width),
-        y: WW_ZoneSnapSpan([(rect[2] - area[2]) / height, (rect[2] + rect[4] - area[2]) / height], down, 8 / height)}
 }
 
 ; A span on the grid: itself within tolerance, or else the closest size at the

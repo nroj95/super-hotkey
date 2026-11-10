@@ -182,7 +182,7 @@ class WonderWindowsChecks {
 
     ; Win + Down takes a window back to normal size without minimizing, also
     ; after a restart; Win + Up maximizes without placing the window by hand;
-    ; Win + Shift + an arrow resizes from anywhere, starting zone mode; Win +
+    ; Win + Shift + an arrow resizes one axis from anywhere, without zone mode; Win +
     ; Alt + Enter toggles full height; zone mode moves alone place a window
     ; outside a cascade for good.
     static NormalSizeAndResize() {
@@ -199,9 +199,14 @@ class WonderWindowsChecks {
             near(rect, expected) => WW_RectanglesMatch(rect, expected, 6)
             WW_ZoneEdge("right")
             placed := WW_GetWindowLayoutRectangle(hwnd)
-            this.Assert(WW_IsCyclingZones() && !WW_RectanglesMatch(placed, original, 3),
-                "Win + Shift + an arrow resizes a loose window and starts zone mode")
-            WW_EndZoneCycle()
+            this.Assert(!WW_IsCyclingZones() && Abs(placed[3] - original[3]) > 3
+                && Abs(placed[2] - original[2]) <= 1 && Abs(placed[4] - original[4]) <= 1,
+                "Win + Shift + Right resizes a loose window's width only, without starting zone mode")
+            WW_ZoneEdge("down")
+            resized := WW_GetWindowLayoutRectangle(hwnd)
+            this.Assert(!WW_IsCyclingZones() && Abs(resized[4] - placed[4]) > 3
+                && Abs(resized[1] - placed[1]) <= 1 && Abs(resized[3] - placed[3]) <= 1,
+                "Win + Shift + Down resizes its height only, leaving the width and left edge")
             returned := []
             handler := (hwnd, shape) => returned.Push(hwnd)
             SuiteWindowOwnership.OnReturn(handler)
@@ -262,6 +267,7 @@ class WonderWindowsChecks {
             this.Assert(WinGetMinMax(hwnd) = 0
                 && near(WW_GetWindowLayoutRectangle(hwnd), [area[1], area[2], width * 3 / 4, height]),
                 "Win + Shift + Left shrinks a maximized window from its full size, against the left")
+            this.Assert(!WW_IsCyclingZones(), "and still doesn't start zone mode")
             WW_EndZoneCycle()
             WW_RestoreToNormalSize()
         }
