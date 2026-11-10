@@ -658,31 +658,38 @@ class CascadeChecks {
             WinGetPosPixels(, , &fadedWidth, &fadedHeight, CascadeDropGuides.windows[2].Hwnd)
             this.Assert(litWidth = 40 && litHeight = 40 && fadedWidth = 20 && fadedHeight = 20,
                 "the lit guide is twice as long as the faint ones")
-            ; On screen: the lit stroke's fourth pixel column is accent, the fifth is not.
+            ; On screen: the lit stroke's sixth pixel column is accent, the eighth is not.
             WinGetPosPixels(&litX, &litY, , , first)
             previousCoordMode := A_CoordModePixel
             CoordMode("Pixel", "Screen")
             Sleep(100)  ; one composed frame, so the read sees what Windows drew
-            stroke := CallWithDpiContext(-3, PixelGetColor, litX + 3, litY + 30)
-            beside := CallWithDpiContext(-3, PixelGetColor, litX + 5, litY + 30)
+            stroke := CallWithDpiContext(-3, PixelGetColor, litX + 5, litY + 30)
+            beside := CallWithDpiContext(-3, PixelGetColor, litX + 7, litY + 30)
             CoordMode("Pixel", previousCoordMode)
             this.Assert(stroke = "0x" SuiteAccentColor() && beside != stroke,
-                "the lit guide paints a 4 px accent stroke on screen: " stroke " " beside)
+                "the lit guide paints a 6 px accent stroke on screen: " stroke " " beside)
             this.Assert(DllCall("GetForegroundWindow", "ptr") = foreground,
                 "showing guides does not steal focus")
             region := DllCall("gdi32\CreateRectRgn", "int", 0, "int", 0, "int", 0, "int", 0, "ptr")
             try {
                 this.Assert(region && DllCall("GetWindowRgn", "ptr", first, "ptr", region, "int")
-                    && DllCall("gdi32\PtInRegion", "ptr", region, "int", 3, "int", 30, "int")
-                    && DllCall("gdi32\PtInRegion", "ptr", region, "int", 30, "int", 3, "int")
-                    && !DllCall("gdi32\PtInRegion", "ptr", region, "int", 4, "int", 30, "int")
+                    && DllCall("gdi32\PtInRegion", "ptr", region, "int", 5, "int", 30, "int")
+                    && DllCall("gdi32\PtInRegion", "ptr", region, "int", 30, "int", 5, "int")
+                    && !DllCall("gdi32\PtInRegion", "ptr", region, "int", 6, "int", 30, "int")
                     && !DllCall("gdi32\PtInRegion", "ptr", region, "int", 10, "int", 10, "int"),
-                    "guide regions contain only the top and left strokes, 4 px thick when lit")
+                    "guide regions contain only the top and left strokes, 6 px thick when lit")
             }
             finally {
                 if region
                     DllCall("gdi32\DeleteObject", "ptr", region)
             }
+            ; An 80 % window on a 1080p work area: arms of 52 and 104 px.
+            CascadeDropGuides.Show(slots, 96, 1, 0, 832)
+            WinGetPosPixels(, , &litWidth, , first)
+            WinGetPosPixels(, , &fadedWidth, , CascadeDropGuides.windows[2].Hwnd)
+            this.Assert(litWidth = 104 && fadedWidth = 52,
+                "guides grow with the cascade window: a sixteenth of its height, twice that when lit")
+            CascadeDropGuides.Show(slots, 96, 1)
             CascadeDropGuides.Show(slots, 96, 1)
             this.Assert(CascadeDropGuides.windows[1].Hwnd = first,
                 "unchanged drag guides reuse their windows")

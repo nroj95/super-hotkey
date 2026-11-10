@@ -5,7 +5,10 @@
 ; the slot a drop would take shows in the accent color, opaque, and the
 ; others in the inactive tab color at its opacity; with none lit, releasing
 ; takes the window out. The lit guide is also twice as long and thick, so it
-; stands out among guides only a few pixels apart.
+; stands out among guides only a few pixels apart. Arms grow with the cascade
+; window, so guides scale with the display and the chosen window size; strokes
+; scale with DPI. Long arms never cross: slots step diagonally, so each
+; corner's arms run parallel to its neighbours'.
 class CascadeDropGuides {
     static windows := []
     static signature := ""
@@ -41,7 +44,7 @@ class CascadeDropGuides {
                 }
                 this.Show(CascadeDropSlots(drag, target), GetCascadeMonitorDpi(target.monitor),
                     CascadeDropLandingSlot(drag, target, frame_y),
-                    CascadeState.mirrored ? target.geometry.width : 0)
+                    CascadeState.mirrored ? target.geometry.width : 0, target.geometry.height)
             }
             finally Critical(previous_critical)
         }
@@ -53,10 +56,11 @@ class CascadeDropGuides {
 
     ; Each guide marks a slot's top-left corner, or with mirror_width the
     ; top-right corner of a window that wide there. highlight is the slot a
-    ; drop would take, or 0.
-    static Show(slots, dpi, highlight, mirror_width := 0) {
-        size := Max(12, ScaleForDpi(20, dpi))
-        thickness := Max(2, ScaleForDpi(2, dpi))
+    ; drop would take, or 0. A faint arm is a sixteenth of window_height, the
+    ; cascade window's height, and never shorter than 20 px at 96 DPI.
+    static Show(slots, dpi, highlight, mirror_width := 0, window_height := 0) {
+        size := Max(12, ScaleForDpi(20, dpi), Round(window_height / 16))
+        thickness := Max(3, ScaleForDpi(3, dpi))
         lit_size := size * 2, lit_thickness := thickness * 2
         active := SuiteAccentColor()
         inactive := CascadeState.focusCornerInactiveSlotColor
