@@ -25,7 +25,6 @@ class PowerUpUtilities extends SuiteModule {
         this.terminal := PU_Terminal(this)
         this.utilities := PU_Utilities(this)
         this.stayAwake := PU_StayAwake(this)
-        this.displaysCallback := ObjBindMethod(this, "DisplaysChanged")
         this.settingsPath := app.Settings.directory "\" this.id "\settings.ini"
         this.realSleep := IniRead(this.settingsPath, "Sleep", "Real", 1) != "0"
         this.speakers := PU_Speakers(this, this.settingsPath)
@@ -86,17 +85,17 @@ class PowerUpUtilities extends SuiteModule {
     }
 
     Start() {
-        SuiteDisplays.OnChange(this.displaysCallback)
         this.speakers.Start()
     }
 
-    ; The displays going off counts as leaving; coming back on counts as
-    ; returning only at the desktop, since unlocking resumes the module.
-    DisplaysChanged(on) {
-        if !on
-            this.stayAwake.Left()
-        else if !this.app.sessionLocked && !this.app.systemSuspended && !this.app.suspended
-            this.stayAwake.Returned()
+    ; Staying awake and keeping speakers awake, for the status notice.
+    StatusLines() {
+        lines := []
+        if (text := this.stayAwake.StatusText()) != ""
+            lines.Push(text)
+        if this.speakers.on
+            lines.Push("Keeping speakers awake")
+        return lines
     }
 
     ; Core restores an interrupted sleep transaction.
@@ -104,7 +103,6 @@ class PowerUpUtilities extends SuiteModule {
         if this.stopping
             return
         this.stopping := true
-        SuiteDisplays.OffChange(this.displaysCallback)
         this.CancelWork()
         this.stayAwake.End()
         try this.speakers.Stop()
@@ -112,19 +110,16 @@ class PowerUpUtilities extends SuiteModule {
 
     ; Suspending Super Hotkey hands everything back to Windows, staying awake
     ; included, without sleeping, and stops nudging the speakers; a locked
-    ; session or system sleep keeps staying awake, and counts as leaving.
+    ; session or system sleep keeps staying awake.
     Suspend() {
         if this.app.suspended {
             this.stayAwake.End()
             try this.speakers.Silence()
-        } else
-            this.stayAwake.Left()
+        }
     }
 
-    ; Back at the desktop: say how long stay awake has left after a long
-    ; break, and wake the speakers.
+    ; Back at the desktop: wake the speakers.
     Resume() {
-        this.stayAwake.Returned()
         this.speakers.Check()
     }
 
@@ -391,7 +386,7 @@ class PowerUpUtilities extends SuiteModule {
         Pause + End keeps the computer awake for 30 minutes and then puts it to sleep.
         Press again while its notice shows for 1, 2, 4 or 8 hours or no limit, counted from now; once the notice has gone, the next press starts over at 30 minutes.
         A minute before the end, and again at 30 seconds, a notice on every display warns you; Pause + End then gives you more time.
-        Back after half an hour or more, unlocking or waking the screens shows how long is left.
+        Pause + Pause shows how long is left, along with anything else running or hidden.
         If you're still using the computer when the time runs out, it waits until you've left it alone for a minute; locked, it sleeps on time.
         Pause + Shift + End stops staying awake without sleeping, and Windows' own sleep settings take over again.
         The tray icon's tooltip shows until when.

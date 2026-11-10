@@ -65,6 +65,21 @@ class CascadeKingdomModule extends SuiteModule {
     ManagedMonitor(hwnd) => GetManagedCascadeMonitor(hwnd)
     IsLentWindow(hwnd) => CascadeState.lentWindows.Has(hwnd)
 
+    ; Cascade windows Caps + M hid on the working display, for the status notice.
+    StatusLines() {
+        monitor := SuiteWorkingMonitor.Get(), count := 0
+        for target in CascadeState.minimizedWindows {
+            try {
+                if target.monitor = monitor && IsSameMinimizedCascadeWindow(target)
+                    && WinGetMinMax(target.hwnd) = -1
+                    count += 1
+            }
+        }
+        if !count
+            return []
+        return [count = 1 ? "1 cascade window hidden on this display" : count " cascade windows hidden on this display"]
+    }
+
     Stop(*) {
         ; A restart keeps the cascades; a dry run or a module that never
         ; started leaves the saved ones alone.

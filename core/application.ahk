@@ -34,6 +34,7 @@ class SuiteModule {
     RestoreSettings(window) => 0       ; fill the open Settings page with defaults; Apply saves them
     HelpText() => ""                   ; one sentence per line; see SuiteInterface.HelpParts
     HelpButtons() => []                ; extra Help footer buttons: [label, callback]
+    StatusLines() => []                ; short lines on what runs or hides out of sight; see ShowStatus
 }
 
 class SuiteApplication {
@@ -176,6 +177,8 @@ class SuiteApplication {
                 context: (*) => SuiteWindowOwnership.AllowsWonderWindows(SuiteWorkingMonitor.UserWindow())})
         this.manager.AddAction("core.focus-outline", "show focus outline", ObjBindMethod(this, "FocusOutlineEvent"),
             ["Caps + Caps"], {category: "Global"})
+        this.manager.AddAction("core.status", "show what's hidden or running", ObjBindMethod(this, "StatusEvent"),
+            ["Pause + Pause"], {category: "Global"})
         ; Listed in default-key order: F1 new log, F2 copy, F3 restart, F4 suspend,
         ; then the unassigned verbose logging switch. The new-log action keeps
         ; its old ID so assignments carry over.
@@ -233,6 +236,36 @@ class SuiteApplication {
         if IsSwitchableWindow(hwnd) && SuiteFocusBorder.Show(hwnd, "core")
             return
         SuiteNotice.Show("status", "No window has focus", 1400)
+    }
+
+    StatusEvent(event) {
+        if event.phase != "down"
+            return
+        if this.dryRun {
+            SuiteState.Log.Write("Core", "dry run: " event.actionId)
+            return
+        }
+        this.QueueInput(ObjBindMethod(this, "ShowStatus"))
+    }
+
+    ; What is out of sight, on request instead of as news: each enabled
+    ; module's lines, such as stay awake's time left or windows hidden on the
+    ; working display, then verbose logging, in one answer to the press.
+    ShowStatus(*) {
+        lines := []
+        for id in SuiteApplication.KeybindingsOrder {
+            if !this.ModuleActive(id)
+                continue
+            try lines.Push(this.modules[id].StatusLines()*)
+            catch Error as failure
+                SuiteState.Log.Error("Core / status: " id, failure)
+        }
+        if SuiteState.Log.verbose
+            lines.Push("Verbose logging on")
+        text := ""
+        for line in lines
+            text .= (A_Index > 1 ? "`n" : "") line
+        SuiteNotice.Show("status", text != "" ? text : "Nothing hidden or running", 1400)
     }
 
     LogShortcutEvent(kind, event) {

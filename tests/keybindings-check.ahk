@@ -238,6 +238,7 @@ class KeybindingsChecks {
             manager.Start()
             config := manager.GetConfiguration()
             config["core.focus-outline"].bindings[1] := ""
+            config["core.status"].bindings[1] := ""
             config["paper-pad.toggle"].bindings[1] := "Caps + Caps"
             config["paper-pad.help"].bindings[2] := "Pause + Pause"
             manager.Apply(config)
@@ -661,9 +662,9 @@ class KeybindingsChecks {
 
     static CheckDisplayOrder(rows) {
         this.AssertDisplaySequence(rows, [
-            "core.keybindings", "core.close-active", "core.focus-outline", "core.clear-log",
+            "core.keybindings", "core.close-active", "core.focus-outline", "core.status", "core.clear-log",
             "core.copy-log", "core.restart", "core.suspend", "core.verbose-log"],
-            "Global shortcuts group application first, then the keys in F1-F4 order, then unassigned verbose logging")
+            "Global shortcuts group application first, the Caps and Pause double-taps, the keys in F1-F4 order, then unassigned verbose logging")
         this.AssertDisplaySequence(rows, [
             "paper-pad.help", "paper-pad.toggle", "paper-pad.hide",
             "paper-pad.previous", "paper-pad.next", "paper-pad.delete"],

@@ -135,6 +135,10 @@ class CoreChecks {
             this.Assert(!configuration.Has("power-up-utilities.system.displays-off")
                 && configuration["power-up-utilities.system.keep-speakers-awake"].bindings[1] = "",
                 "turning the displays off is gone, and keeping speakers awake has no hotkey")
+            this.Assert(configuration["core.status"].bindings[1] = Keybindings.Parse("Pause + Pause").signature
+                && manager.actions["core.status"].category = "Global"
+                && SuiteModule(app, "test").StatusLines().Length = 0,
+                "Pause + Pause shows what is hidden or running, and a module adds nothing unless it says so")
             this.Assert(configuration["wonder-windows.focus-up"].bindings[1] = Keybindings.Parse("Win + PgUp").signature
                 && configuration["wonder-windows.focus-down"].bindings[1] = Keybindings.Parse("Win + PgDn").signature,
                 "focus moves up and down with Win + PgUp/PgDn")

@@ -109,6 +109,22 @@ class WonderWindowsModule extends SuiteModule {
 
     Available(*) => this.app.ModuleActive(this.id)
 
+    ; Windows minimized on the working display, for the status notice.
+    ; Cascade windows are left to Cascade Kingdom, which counts its own.
+    StatusLines() {
+        monitor := SuiteWorkingMonitor.Get(), count := 0
+        for hwnd in WinGetList() {
+            try {
+                if WinGetMinMax(hwnd) = -1 && IsSwitchableWindow(hwnd, true)
+                    && WindowMonitorIndex(hwnd) = monitor && !SuiteManagedWindows.Monitor(hwnd)
+                    count += 1
+            }
+        }
+        if !count
+            return []
+        return [count = 1 ? "1 window minimized on this display" : count " windows minimized on this display"]
+    }
+
     KeepsWindowsKeys(*) => !this.givesBackWindowsKeys
 
     WindowContext(*) => SuiteWindowOwnership.AllowsWonderWindows(SuiteWorkingMonitor.UserWindow())

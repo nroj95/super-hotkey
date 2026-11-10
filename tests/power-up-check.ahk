@@ -137,12 +137,6 @@ class PowerUpChecks {
                     return true
             return false
         }
-        awakeNotice() => SuiteNotice.notices.Has("awake-1") && SuiteNotice.notices["awake-1"].shown
-        back(minutesAway) {
-            awake.Left()
-            awake.lastSeen := DateAdd(A_NowUTC, -minutesAway * 60, "Seconds")
-            awake.Returned()
-        }
         try {
             start(600)
             awake.Advance()
@@ -190,33 +184,19 @@ class PowerUpChecks {
             awake.Advance()
             this.Assert(!slept(), "a stay awake already ended never sleeps")
 
-            ; Coming back after a long break says how long is left.
+            ; How long is left shows on request, in the status notice.
             this.Assert(PU_StayAwake.DescribeLeft(45 * 60) = "45 min" && PU_StayAwake.DescribeLeft(61) = "2 min"
                 && PU_StayAwake.DescribeLeft(72 * 60) = "1 h 12 min" && PU_StayAwake.DescribeLeft(7200) = "2 h",
                 "time left reads in whole minutes, rounded up")
             start(7200)
-            idle := 0
-            back(31)
-            this.Assert(this.ShownEverywhere("Sleeping in 2 h") && awake.lastSeen = "",
-                "back after half an hour, a timed stay awake shows how long is left on every display")
-            back(20)
-            this.Assert(!awakeNotice(), "a shorter break shows nothing")
-            awake.lastSeen := DateAdd(A_NowUTC, -3600, "Seconds"), first := awake.lastSeen
-            awake.Left()
-            this.Assert(awake.lastSeen = first, "leaving twice, as the displays go off before the lock, keeps the first")
-            awake.lastSeen := ""
-            idle := 600000
-            awake.Left()
-            this.Assert(DateDiff(A_NowUTC, awake.lastSeen, "Seconds") >= 599,
-                "time away counts from the last touch, not from when the displays went off")
-            awake.lastSeen := ""
-            start(45)
-            back(31)
-            this.Assert(!awakeNotice(), "the last minute leaves it to the warnings")
-            start(0)
-            awake.index := 6, awake.deadline := ""
-            back(31)
-            this.Assert(!awakeNotice(), "no limit shows nothing on return")
+            this.Assert(awake.StatusText() = "Sleeping in 2 h", "the status says how long a timed stay awake has left")
+            awake.waiting := true
+            this.Assert(awake.StatusText() = "Sleeping once you leave the computer alone",
+                "and that it waits for the computer to be left alone")
+            awake.waiting := false, awake.deadline := ""
+            this.Assert(awake.StatusText() = "Awake until turned off", "and that no limit stays awake")
+            awake.index := 0
+            this.Assert(awake.StatusText() = "", "staying awake off adds nothing")
         }
         finally {
             SetTimer(awake.timer, 0)

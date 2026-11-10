@@ -29,11 +29,8 @@ class PU_Utilities {
 ; end, someone still using the computer keeps it awake until they have left
 ; it alone for a minute; a locked computer sleeps at once. A computer that
 ; was asleep when the time ran out stays awake on waking: someone woke it.
-; The deadline is wall-clock time, so time asleep counts.
-;
-; Coming back after half an hour or more, by unlocking, waking the computer
-; or turning the displays back on, shows how long is left on every display.
-; The time away counts from the last touch before leaving.
+; The deadline is wall-clock time, so time asleep counts. How long is left
+; shows on request, in the suite's status notice, never as news.
 class PU_StayAwake {
     ; Minutes; 0 means no limit.
     static Durations := [30, 60, 120, 240, 480, 0]
@@ -45,8 +42,6 @@ class PU_StayAwake {
     static IdleMs := 60000
     ; A run-out noticed this many seconds late happened while asleep.
     static LateSeconds := 10
-    ; Away this long, coming back shows how long is left.
-    static AwaySeconds := 1800
 
     __New(module) {
         this.module := module
@@ -56,32 +51,18 @@ class PU_StayAwake {
         this.warned := 0  ; how many of Warnings have passed
         this.waiting := false  ; ran out while someone was at the computer
         this.waitingShown := false  ; the tray already says so
-        this.lastSeen := ""  ; A_NowUTC of the last touch before leaving
         this.timer := ObjBindMethod(this, "Advance")
     }
 
-    ; Locked, asleep or with the displays off: remember the last touch, the
-    ; first time only, since the displays often go off before the lock.
-    Left() {
-        if this.lastSeen = ""
-            this.lastSeen := DateAdd(A_NowUTC, -(this.IdleTime() // 1000), "Seconds")
-    }
-
-    ; Unlocked, awake or with the displays back on, at the desktop: after half
-    ; an hour away, a timed stay awake says how long is left. The last minute
-    ; has its own warnings.
-    Returned() {
-        if this.lastSeen = ""
-            return
-        away := DateDiff(A_NowUTC, this.lastSeen, "Seconds")
-        this.lastSeen := ""
-        if away < PU_StayAwake.AwaySeconds || !this.index || this.deadline = "" || this.waiting
-            return
-        remaining := DateDiff(this.deadline, A_NowUTC, "Seconds")
-        if remaining <= PU_StayAwake.Warnings[1]
-            return
-        SuiteNotice.ShowEverywhere("awake", "Sleeping in " PU_StayAwake.DescribeLeft(remaining))
-        this.module.Report("back after " away // 60 " min; " remaining // 60 " min left")
+    ; What staying awake is doing now, for the status notice, or "" when off.
+    StatusText() {
+        if !this.index
+            return ""
+        if this.waiting
+            return "Sleeping once you leave the computer alone"
+        if this.deadline = ""
+            return "Awake until turned off"
+        return "Sleeping in " PU_StayAwake.DescribeLeft(Max(0, DateDiff(this.deadline, A_NowUTC, "Seconds")))
     }
 
     ; Whole minutes, rounded up: "45 min", "2 h", "1 h 12 min".
