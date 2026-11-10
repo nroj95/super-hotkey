@@ -888,7 +888,7 @@ class KeybindingsChecks {
                 "Paper Pad Help registers its default Pause + F12 shortcut")
             this.Assert(this.RouteExists(manager, "secret-layers.help"),
                 "Secret Layers Help registers its default Pause + L shortcut")
-            this.Assert(InStr(app.modules["secret-layers"].HelpText(), "WHY I MADE THIS") = 1
+            this.Assert(RegExMatch(app.modules["secret-layers"].HelpText(), "^\s*\(?\s*WHY\s")
                 && !InStr(app.modules["secret-layers"].HelpText(), "CURRENT SAVED SHORTCUTS"),
                 "Secret Layers help provides a practical guide without a shortcut inventory")
             filtered := Keybindings.DisplayRows(manager.Catalog(), "paper-pad.")

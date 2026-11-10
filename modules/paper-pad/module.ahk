@@ -105,7 +105,7 @@ class PaperPadModule extends SuiteModule {
         rows.Field("Notes folder", "Edit", "w530 vfolder",
             IniRead(path, "Paths", "NotesDirectory", PaperPadController.DefaultNotesDirectory))
         rows.Field("Notepad3 executable", "Edit", "w530 veditor", IniRead(path, "Paths", "Notepad3Executable", ""))
-        rows.Caption("Leave the executable blank for automatic detection.")
+        rows.Caption("Leave blank to find Notepad3 automatically.")
         choices := ui.DisplayChoices(IniRead(path, "Window", "Monitor", "Primary"))
         this.displayChoices := choices.values
         rows.Field("Display", "DropDownList", "w380 vdisplay", choices.names).Choose(choices.selected)
@@ -172,27 +172,18 @@ class PaperPadModule extends SuiteModule {
 
     HelpText() => "
     (
-        WHY I MADE THIS
-        I wanted a place to quickly jot down anything, anytime, without worrying about saving files or finding notes buried in windows and tabs.
-        Something I could open and hide instantly, easily switch between notes, and keep my ideas organized and separate from the clutter of everyday project work.
+        WHY
+        Inspired by Yakuake, the drop-down terminal on Linux, I wanted a similar drawer for notes: somewhere to jot things down without digging through windows and tabs.
 
         YOUR OWN QUICK-NOTES DRAWER
-        Paper Pad opens a dedicated Notepad3 window without taking over your ordinary editor sessions.
-        Use Open pad below or the configurable toggle hotkey.
-        Notepad3's Ctrl + N creates a timestamped page automatically.
+        Paper Pad uses a dedicated Notepad3 window that stays on top while open and out of the way when hidden.
+        Make it appear with Win + F12 and press again to hide it.
+        Ctrl + N creates a new timestamped page.
+        Move back and forth between your pages with Win + Left/Right.
         Page navigation shortcuts work only inside the editor.
 
-        PAGES ARE REAL FILES
-        New pages receive timestamped filenames.
-        They remain ordinary files in your notes folder, and Save As can rename a page within that folder.
-        If you type before a native New is attached, use Save As to preserve it.
-        Hiding Paper Pad preserves undo history, but switching pages clears it.
-        You can still inspect and back up these files in an ordinary file manager.
-
-        SAVING AND RELOADING
-        Paper Pad automatically saves changes when switching pages, hiding or exiting.
+        SAVING AND SETTINGS
+        Paper Pad automatically saves changes when switching pages or hiding the drawer.
         Settings lets you choose your Notepad3 executable, notes folder, display and drawer size.
-        Changing paths never moves existing notes.
-        Notepad3 controls external-file reloads, which may replace unsaved text.
     )"
 }

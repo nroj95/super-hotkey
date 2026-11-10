@@ -9,11 +9,12 @@ class SuiteSettings {
     static ModuleNames := Map("cascade-kingdom", "Cascade Kingdom", "wonder-windows", "Wonder Windows",
         "power-up-utilities", "Power-Up Utilities", "paper-pad", "Paper Pad",
         "secret-layers", "Secret Layers")
-    static ModuleDescriptions := Map("cascade-kingdom", "Automatic window placement and cascades.",
-        "wonder-windows", "Window hotkeys, layouts, stretching and navigation.",
-        "power-up-utilities", "Extra keyboard, text and system actions.",
-        "paper-pad", "A persistent Notepad3 drawer for quick notes.",
-        "secret-layers", "Independent CapsLock and Pause hotkey layers.")
+    ; The README's module table says the same.
+    static ModuleDescriptions := Map("cascade-kingdom", "Keep many windows in an overlapping cascade.",
+        "wonder-windows", "Position, resize, stack and cycle windows.",
+        "power-up-utilities", "Extra keys, text shortcuts and system utilities.",
+        "paper-pad", "A quick-notes drawer using Notepad3.",
+        "secret-layers", "Use CapsLock and Pause as extra keyboard layers.")
 
     ; Defaults apply to unreadable settings only after a recovery copy succeeds.
     ; If preservation fails, stop before any subsequent save can replace them.

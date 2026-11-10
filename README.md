@@ -101,17 +101,17 @@ If you prefer mouse-driven zoning, [ScreenGrid](https://github.com/TtesseractT/S
 
 ## Troubleshooting
 
-**Sleep only darkens the screens, or the computer wakes by itself.** Turn off Windows' Away Mode, and let only your keyboard wake the computer.
+**Sleep only darkens the screens, or the computer wakes by itself.** Super Hotkey sleeps exactly as Start's Sleep does, both with `Pause + Escape` and when stay awake runs out, so these come from Windows' own settings: turn off Away Mode, and let nothing but your keyboard wake the computer.
 
 **Something behaves oddly.** `Pause + F4` suspends Super Hotkey, so you can check whether it's the cause. `Pause + F3` restarts it.
 
 **Found a bug?** I'd love to fix it:
 
 1. Turn on **Verbose logging** in the tray menu for more detail. It switches off again when Super Hotkey restarts.
-2. Press `Pause + F1` to start a new log, then do what goes wrong.
+2. Press `Pause + F1` to start a new log, then reproduce the bug.
 3. Press `Pause + F2` to copy the log, and paste it into a [GitHub issue](https://github.com/nroj95/super-hotkey/issues) with a few words about what you expected.
 
-Verbose logs include window titles, so read the log before you post it and remove anything private.
+Verbose logs include window titles and program paths, which can show your user name, so read the log before you post it and remove anything private.
 
 ## Develop
 

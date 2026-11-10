@@ -353,17 +353,18 @@ class InterfaceChecks {
                     "help explains usage without listing every keybinding: " id)
                 firstHeading := Map("cascade-kingdom", "ADD A WINDOW",
                     "wonder-windows", "ZONE MODE",
-                    "power-up-utilities", "MORE KEYS WITHOUT A NEW KEYBOARD",
+                    "power-up-utilities", "STAY AWAKE",
                     "paper-pad", "YOUR OWN QUICK-NOTES DRAWER",
                     "secret-layers", "HOLD A KEY FOR MORE HOTKEYS")
-                this.Assert(parts.Length >= 4 && parts[1].heading && parts[1].control.Text = "WHY I MADE THIS"
+                this.Assert(parts.Length >= 4 && parts[1].heading && parts[1].control.Text = "WHY"
                     && !parts[2].heading && parts[3].heading && parts[3].control.Text = firstHeading[id]
                     && !InStr(guide, "GETTING STARTED"),
                     "each module starts with a personal introduction: " id)
+                if id = "wonder-windows" || id = "cascade-kingdom"
+                    this.Assert(parts.Length >= 2 && parts[-2].heading && parts[-2].control.Text = "MY FAVORITE HOTKEY",
+                        "the favorite hotkey shows as its own heading: " id)
                 this.Assert(!InStr(guide, "`r") && !InStr(parts[2].control.Text, "`n"),
                     "a paragraph's sentences join into one line the page wraps: " id)
-                this.Assert(StrLen(guide) >= 600,
-                    "each Help guide provides substantial practical usage details: " id)
                 if id = "cascade-kingdom"
                     this.Assert(InStr(guide, "Caps + Shift + Insert to take it out again") > 0,
                         "Cascade Kingdom explains how to take a window out again")

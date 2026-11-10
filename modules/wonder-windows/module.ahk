@@ -255,12 +255,12 @@ class WonderWindowsModule extends SuiteModule {
                     rows.window.AddCheckbox("x" (x + (index - 1) * 170) " y" y " v" prefix pair[1], pair[2])
                         .Value := WW_zone_stops[side][StrLower(pair[1])]
         }
-        rows.Caption("The stops Shift steps through in zone mode, besides halves and full. The long side is a"
+        rows.Caption("The extra sizes zone mode offers; halves and full size are always there. The long side is a"
             . " display's width in landscape and its height in portrait.")
-        rows.Checkbox("Give Windows back its own keys when you move or clear their actions", "vgiveBack")
+        rows.Checkbox("Give Windows its own keys back when you reassign or clear them", "vgiveBack")
             .Value := this.givesBackWindowsKeys
-        rows.Caption("Win + Left, Right, Up, Down, Shift + the arrows, M, Shift + M, Home and D. Unchecked, they do nothing"
-            . " once moved or cleared, so Windows' own versions never surprise you.", true)
+        rows.Caption("Win + Left, Right, Up, Down, Shift + the arrows, M, Shift + M, Home and D. Unchecked, those keys do nothing"
+            . " once you reassign or clear them, so Windows' own versions never surprise you.", true)
         status := WW_IsFancyZonesRunning() ? "running, not supported" : "not running, you're all set!"
         rows.Field("FancyZones:", "Text", "w540 vfancyZonesStatus c" WonderWindowsModule.StatusColor(status), status)
         rows.Text("FancyZones also moves windows and takes hotkeys, so it isn't supported; disable it in PowerToys.")
@@ -305,46 +305,33 @@ class WonderWindowsModule extends SuiteModule {
 
     HelpText() => "
     (
-        WHY I MADE THIS
-        Windows already has window-management shortcuts, but I found many of them frustrating or incomplete.
-        I wanted something more powerful, consistent and predictable, without constantly reaching for the mouse.
+        WHY
+        My take on Windows' built-in `Win` key shortcuts, with more predictable ways to position, resize and switch between windows.
 
         ZONE MODE
-        Win + Left or Right starts zone mode, which lasts while you hold Win.
-        Like Windows, the first press puts the window against that side, but at its own size, or the closest zone size; a maximized window becomes that half.
-        In zone mode a window sits only where both its edges land on stops: halves, fourths and thirds, so a half sits left, in the middle or right, and windows always fit together.
-        Left and Right slide it to its next place; past the side, they move it to the next display that way, onto the facing side, and from the last display around to the first, as Windows does.
-        Down and Up make it the bottom or top quarter, as Windows does, then slide it the same way, and past the edge on to a display above or below, if one touches it.
-        Along a display's short side, the height on a landscape display, only halves and thirds count by default, since fourths are too thin there, so a half moves straight between top and bottom.
-        Plain arrows move the window, and Shift with an arrow resizes it: one size bigger or smaller, snapped into the place that size fits that overlaps it most, ties going toward the arrow.
-        Toward the side it hugs it shrinks and away from it it grows; a window as wide or tall as the display shrinks toward the arrow, and one in the middle grows, so a middle third becomes the middle half.
-        Grown to the whole display, the window is maximized; shrink it again while you still hold Win and it is restored.
-        Settings can add sixths or fourths, or leave out fourths or thirds, separately along the display's long and short side; halves and full are always there.
-        Win + Shift with an arrow works outside zone mode too: it starts zone mode from where the window is, snapped to the closest stops, and resizes it at once; a maximized window starts from its full size.
-        Outside zone mode, Win + Up and Down maximize and restore.
-        Moving a window with Win and the arrows places it for good, as dragging it would, so Win + Down leaves it there; once Win + Shift resizes it, Win + Down takes it back to where it was just before. A cascade window always goes back to its cascade.
+        Win + Left or Right starts zone mode; keep holding Win.
+        Use the arrows to move the window between stops, and add Shift to resize it.
+        It starts out feeling like Windows' own snapping, but with more sizes than halves.
+        Positions and sizes line up, so your windows fit together like puzzle pieces.
+        Unlike zone apps that make you choose a layout first, you arrange your windows as you go.
 
-        ARRANGE YOUR WINDOWS
-        Win + Backspace minimizes the active window; focus stays on that display while it has windows left, then moves to the next display.
-        Win + Shift + Backspace brings back the windows it minimized, newest first.
-
-        BETTER WINDOWS KEYS
-        Windows' own keys work as you know them, with fewer surprises.
+        IMPROVED STOCK WINDOWS KEYS
+        Windows' own keys mostly work as you know them, with fewer surprises.
         Win + M, Win + Home and Win + D take Shift to bring back what they minimized, however much you do in between.
-        They act on your display only, except Win + D, which reaches every display, and focus stays on your display.
+        They act on your display only, except Win + D, which reaches every display.
         Win + Up maximizes the window, then steps to the upper and lower half.
-        Win + Down takes it back to normal size, out of maximized or fullscreen, a zone, a half or full height; it never minimizes.
-        Win + Alt + Enter stretches the window to the full height of your display and back; a maximized window is already full height, so it only says so.
-        A cascade window keeps its place in its cascade while it's maximized, minimized, in a zone, a half or full height, and Win + Down puts it back there.
+        Win + Down takes a window back to normal size, out of maximized or fullscreen, or after resizing it; it never minimizes.
+        Win + Backspace minimizes the active window; add Shift to bring back the last one minimized this way.
+        Win + Alt + Enter stretches the window to the full height of your display and back.
+        Windows puts this on Win + Shift + Up, but here Shift with the arrows always resizes.
 
-        FOCUS, STACKS AND FULLSCREEN
-        Win + PgDn and PgUp step focus through every window on screen in reading order: displays left to right, columns left to right, top before bottom, and outline the window they reach; double-tap Caps to outline where you are.
-        A stack of overlapping windows counts once, as its front window.
-        Move a window onto its nearest neighbor to stack it in front.
-        Win + Shift + PgDn brings forward the next window stacked with the active one, and Win + Shift + PgUp the previous one.
-        Layout actions exit F11 fullscreen before repositioning a window.
-        Win + Enter shows the next maximized or fullscreen window on your display, minimized or not, and minimizes the others there, so one big window is out at a time; add Shift to go back.
-        Keybindings below shows the current hotkey for each action.
+        FOCUS AND STACKS
+        Win + PgDn and PgUp step focus through the visible windows in reading order. Double-tap Caps to outline where you are.
+        Win + Shift + PgDn/PgUp cycles through windows stacked together with the active one.
+        Win + Alt with an arrow stacks the active window onto its nearest neighbor in that direction, taking its size.
+
+        MY FAVORITE HOTKEY
+        Win + Enter cycles through maximized or fullscreen windows, minimized or not; add Shift to cycle backward. Finish with Win + Backspace to quickly get back to your normal windows.
     )"
 }
 

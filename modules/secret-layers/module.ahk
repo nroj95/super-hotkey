@@ -47,7 +47,7 @@ class SecretLayersModule extends SuiteModule {
             return
         settings := this.app.Settings
         rows := SuitePageRows(ui.NewWindow(key, T("Secret Layers - Settings"), true), 600)
-        rows.Text(T("Modules is the master switch. These choices control each layer independently."))
+        rows.Text(T("Turn each layer on or off here. Secret Layers must also be on in Modules."))
         rows.Checkbox(T("Enable Pause layer"), "vpause").Value := settings.layers["pause"]
         rows.Checkbox(T("Enable CapsLock layer"), "vcaps").Value := settings.layers["caps"]
         rows.Caption(T("Double-tap Shift to toggle Caps Lock while this layer is enabled."), true)
@@ -76,19 +76,16 @@ class SecretLayersModule extends SuiteModule {
 
     HelpText() => "
     (
-        WHY I MADE THIS
+        WHY
         I wanted to get more out of my existing keyboard.
         CapsLock and Pause seemed like perfect candidates for unlocking an entirely new set of shortcuts without adding more keys.
 
         HOLD A KEY FOR MORE HOTKEYS
         Hold CapsLock or Pause, then press another key to run its assigned action.
-        A short tap instead arms the next key for 1.4 seconds, so you don't need to hold both keys at once.
-        Tap the same key again to cancel the layer or trigger an assigned double-tap action.
-        Only one layer can be active at a time.
+        Or tap it first and press the other key within 1.4 seconds, without holding both at once.
+        Turn off the layers and the keys work normally again.
 
         TOGGLE CAPS LOCK
         Double-tap Shift to toggle Caps Lock while its layer is enabled.
-        Only two quick taps of the same Shift key count, without another key in between.
-        Turn off the CapsLock layer and the key works normally again.
     )"
 }

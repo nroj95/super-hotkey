@@ -77,7 +77,7 @@ class KeybindingsEditor {
         }
         this.search := window.AddEdit("x210 y13 w400 vsearch")
         DllCall("SendMessageW", "ptr", this.search.Hwnd, "uint", 0x1501, ; EM_SETCUEBANNER
-            "uptr", 1, "str", "Search… (LMB to record, RMB to type)", "ptr")
+            "uptr", 1, "str", "Search… (click a hotkey to record it, right-click to type it)", "ptr")
         this.search.OnEvent("Change", ObjBindMethod(this, "SearchChanged"))
         this.rowPool := []
         this.visibleRows := []

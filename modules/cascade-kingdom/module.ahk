@@ -116,12 +116,13 @@ class CascadeKingdomModule extends SuiteModule {
         colors := []
         for name in CascadeState.focusTabColorPresets
             colors.Push(name)
-        rows.Field("Inactive-slot tab color", "DropDownList", "w210 vinactiveColor", colors)
+        rows.Field("Inactive tab color", "DropDownList", "w210 vinactiveColor", colors)
             .Choose(CascadeState.focusCornerInactiveSlotColorName)
-        rows.Text("Window size is a share of the display's width and height; bigger windows leave room for fewer slots."
+        rows.Text("Window size is a percentage of the display's width and height."
+            . "`nBigger windows leave room for fewer slots."
             . "`nCaps and Pause need Secret Layers."
             . "`nActive tabs and drop guides use the Windows accent color."
-            . "`nDisplay changes release other displays without moving windows."
+            . "`nChoosing one display takes windows on the others out of their cascades, without moving them."
             . "`nClick Apply to use these settings.")
         rows.Show(ui, key, [["Apply", ObjBindMethod(this, "SaveSettings", ui)],
             ["Back", ObjBindMethod(ui, "BackToHelp", this.id)]])
@@ -187,32 +188,29 @@ class CascadeKingdomModule extends SuiteModule {
 
     HelpText() => "
     (
-        WHY I MADE THIS
-        I wanted an easier way to manage lots of open windows: keep them large and neatly organized, switch between them effortlessly, and avoid digging through a messy pile of overlapping windows.
+        WHY
+        Sometimes, I want my windows large, organized and easy to switch between.
 
         ADD A WINDOW
         Press Caps + Insert to add the active window, and Caps + Shift + Insert to take it out again: it returns to where it was before it joined.
         Or hold Caps and double-click anywhere on a window to add it, and double-click it again to take it out, back to where it was.
         While Caps is held, clicks only focus windows and never reach what is inside them.
-        Settings can use Pause or Win for this instead, or turn it off.
-        Caps and Pause need Secret Layers; Win works without it.
-        With one display selected in Settings, added windows move there.
-        A disconnected selected display pauses adding until it returns or you change Settings.
+        Cascaded windows will get sorted automatically so the cascade stays compact and tidy.
 
         MOVE A WINDOW
-        Dragging a window in a cascade shows corner guides on the slots it can take: those the cascade can fill.
-        The bigger guide in your accent color is the slot it will take, on this display or another, and releasing moves it there.
+        Dragging a window in a cascade shows corner guides on the available slots. The bigger guide is the slot it will take.
         It swaps with the window there instead of sliding back into its own place.
-        With no guide lit, releasing leaves the cascade where you dropped it, at the size it had before it joined.
-        With one display selected in Settings, dragging a window to another display takes it out too.
-        Resizing it by any edge also takes it out, as large and where you left it.
+        Release with no guide lit to take the window out of the cascade; it stays where you dropped it, at the size it had before it joined.
+        Resizing a window by any edge also takes it out of the cascade, keeping its new size and place.
 
         FOCUS TABS
         Each slot has a focus tab on both sides: at the lower left and the upper right.
         Click either to select a slot.
-        Click again to cycle windows sharing that slot.
+        Click again to cycle windows sharing that slot (if your cascade has multiple layers of windows).
         Active tabs and drop guides use your Windows accent color; choose the inactive tab color in Settings.
-        A cascade of one window shows no tabs.
+
+        MY FAVORITE HOTKEY
+        Caps + M hides the cascade on your display when you're not using it; Caps + Shift + M brings it back.
     )"
 }
 

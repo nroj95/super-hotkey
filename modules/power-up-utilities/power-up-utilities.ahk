@@ -129,8 +129,8 @@ class PowerUpUtilities extends SuiteModule {
             return
         rows := SuitePageRows(ui.NewWindow(key, "Power-Up Utilities - Settings", true), 640)
         rows.Heading("Keep speakers awake")
-        rows.Text("Keep speakers awake, an action you can give a hotkey in Keybindings, nudges speakers"
-            . " that fall asleep in silence while you're at the computer.")
+        rows.Text("Nudges speakers that fall asleep in silence while you're at the computer."
+            . " Give it a hotkey in Keybindings to turn it on or off.")
         y := rows.y
         rows.Field("Nudge every", "Edit", "w60 Number vminutes")
         rows.window.AddUpDown("Range1-" PU_Speakers.MinutesLimit, this.speakers.minutes)
@@ -359,41 +359,25 @@ class PowerUpUtilities extends SuiteModule {
 
     HelpText() => "
     (
-        WHY I MADE THIS
-        I wanted a collection of practical shortcuts for everyday tasks that didn't fit into the other modules.
-
-        MORE KEYS WITHOUT A NEW KEYBOARD
-        Send F13-F24 or Numpad 0-9 using shortcuts, even if your keyboard doesn't have those keys.
-        The virtual numpad is especially useful on compact keyboards without a number pad, while F13-F24 provides extra keys for shortcuts in compatible applications.
-        Held virtual keys are released when you release their triggering hotkey.
-
-        TEXT AND TERMINAL ACTIONS
-        Insert punctuation, special spaces or a yyyyMMdd-HHmmss timestamp.
-        Terminal copy and clear operate only in Windows Terminal and use its default Ctrl + Shift + A, C and K shortcuts.
-        Characters type as you press them and repeat while held, like real keys, so holding Pause and tapping - twice types two dashes.
-        Text waits while Shift, Ctrl, Alt or Win is held, and Terminal actions run once you let go.
-
-        SYSTEM UTILITIES
-        Pause + Escape puts your computer to sleep once you let go of every key, so none stays stuck after waking.
-        If it only darkens the screens, set Allow Away Mode Policy to No in Power Options, and it sleeps for real.
+        WHY
+        Practical shortcuts for everyday tasks that don't fit into the other modules.
 
         STAY AWAKE
-        Pause + End keeps the computer awake for 30 minutes and then puts it to sleep.
-        Press again while its notice shows for 1, 2, 4 or 8 hours or no limit, counted from now; once the notice has gone, the next press starts over at 30 minutes.
-        A minute before the end, and again at 30 seconds, a notice on every display warns you; Pause + End then gives you more time.
+        Pause + End keeps the computer awake for 30 minutes, then puts it to sleep once you're no longer using it.
+        Press again while its notice shows for 1, 2, 4 or 8 hours or no limit.
+        A minute before the end, and again at 30 seconds, a notice on every display warns you.
         Pause + Pause shows how long is left, along with anything else running or hidden.
-        If you're still using the computer when the time runs out, it waits until you've left it alone for a minute; locked, it sleeps on time.
         Pause + Shift + End stops staying awake without sleeping, and Windows' own sleep settings take over again.
-        The tray icon's tooltip shows until when.
-        The screen still turns off and locks as usual, and choosing Sleep or closing a laptop lid still sleeps.
+        The screen still turns off and locks as usual, and Sleep from Start and your laptop lid setting still work.
         So when you leave work running, lock with Win + L: it keeps running until the time is up.
-        Suspending or exiting Super Hotkey ends it without sleeping.
 
-        KEEP SPEAKERS AWAKE
-        Some speakers fall asleep after minutes of silence and wake a few seconds late, so notifications and the starts of videos go missing.
-        Keep speakers awake, an action you can give a hotkey in Keybindings, switches on a nudge every 8 minutes while you're at the computer, and stays on until you switch it off.
-        It also nudges them as you come back, so they're awake before anything plays.
-        The nudge is a 25 Hz tone too low for most speakers to play, sized to reach them at any Windows volume; muted, nothing plays.
-        Settings can nudge more often for speakers that fall asleep sooner, or play a soft chime for speakers the tone doesn't keep awake.
+        MORE KEYS WITHOUT A NEW KEYBOARD
+        Caps + QWER/ASDF/ZXCV sends F13–F24; Caps + 0–9 provides a virtual number pad, even if your keyboard lacks those keys.
+
+        HANDY EXTRAS
+        Insert symbols such as ’, – or ß, the HTML entity &nbsp; or a timestamp such as 20261110-203729.
+        Terminal copy and clear operate only in Windows Terminal and use its default Ctrl + Shift + A, C and K shortcuts.
+        Pause + Escape sleeps as Windows does, and locking is an action you can give a hotkey in Keybindings.
+        For more reliable sleep, turn off Windows' Away Mode and let only your keyboard wake the computer.
     )"
 }

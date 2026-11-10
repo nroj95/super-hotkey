@@ -17,6 +17,7 @@
 
 ### Changes
 
+- Every module's Help is shorter and lighter: it opens with why the module exists, shows the ideas and leaves the rest to explore, and Wonder Windows and Cascade Kingdom end with a favorite hotkey. Settings pages word their choices more plainly, and the Modules page describes each module as the README does. Keybindings' search box says to click a hotkey to record it and right-click to type it.
 - **Wonder Windows:** focus also steps through the windows on screen with `Pause + PgUp/PgDn`, beside `Win + PgUp/PgDn`.
 - **Power-Up Utilities:** *lock the computer* locks it as `Win + L` does, for anyone who wants it on an easier key. It has no default hotkey.
 - `Pause + Pause` shows what is out of sight in one notice: how long stay awake has left, whether speakers are kept awake, windows minimized on your display, cascade windows hidden there with `Caps + M`, and verbose logging. With nothing to report it says *Nothing hidden or running*. Each module adds its own lines, and only while it is on. It replaces the notice that told you how long stay awake had left when you came back after half an hour away.
