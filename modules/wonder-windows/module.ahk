@@ -27,9 +27,9 @@ class WonderWindowsModule extends SuiteModule {
 
     ; Registration order is the Keybindings display order: Help and zone
     ; mode, then one subcategory per section of the guide. replaces names the
-    ; Windows key an action improves. Zone mode's other keys answer only in
-    ; zone mode (the zone-cycling scope), so outside it those keys keep their
-    ; usual actions, and Windows keeps Win + Shift + Left and Right.
+    ; Windows key an action improves. Zone mode's Up and Down answer only in
+    ; zone mode (the zone-cycling scope), so outside it Win + Up and Down
+    ; maximize and restore; the Shift arrows resize from anywhere.
     Register(manager) {
         this.manager := manager
         manager.RegisterScope("zone-cycling", WW_IsCyclingZones)
@@ -44,10 +44,9 @@ class WonderWindowsModule extends SuiteModule {
             ["up"], {scope: "zone-cycling"})
         this.Add("zone-row-down", "zone mode: bottom half, then slide down", WW_ZoneRow, ["Win + Down"],
             ["down"], {scope: "zone-cycling"})
-        for side in [["left", "side edge left"], ["right", "side edge right"], ["up", "top or bottom edge up"],
-            ["down", "top or bottom edge down"]]
-            this.Add("zone-edge-" side[1], "zone mode: move the " side[2], WW_ZoneEdge,
-                ["Win + Shift + " side[1]], [side[1]], {scope: "zone-cycling"})
+        for side in ["left", "right", "up", "down"]
+            this.Add("zone-edge-" side, "resize window one step, " side, WW_ZoneEdge,
+                ["Win + Shift + " side], [side], {replaces: ["Win + Shift + " side]})
         arrange := "Arrange your windows"
         for side in [["up", "above"], ["down", "below"], ["left", "to the left"], ["right", "to the right"]]
             this.Add("move-onto-" side[1], "stack on nearest window " side[2],
@@ -62,10 +61,8 @@ class WonderWindowsModule extends SuiteModule {
             , {section: keys, replaces: ["Win + Up"]})
         this.Add("restore", "back to normal size", WW_RestoreToNormalSize, ["Win + Down"],
             , {section: keys, replaces: ["Win + Down"]})
-        this.Add("full-height", "toggle full height", WW_ToggleFullSpan, ["Win + Shift + Up"], ["height"],
-            {section: keys, replaces: ["Win + Shift + Up"]})
-        this.Add("full-width", "toggle full width", WW_ToggleFullSpan, ["Win + Shift + Down"], ["width"],
-            {section: keys, replaces: ["Win + Shift + Down"]})
+        this.Add("full-height", "toggle full height", WW_ToggleFullHeight, ["Win + Alt + Enter"],
+            , {section: keys})
         this.Add("minimize-all", "minimize all windows on this display", WW_MinimizeAllWindows, ["Win + M"],
             , {section: keys, replaces: ["Win + M"], anyWindow: true})
         this.Add("restore-all", "restore windows minimized on this display", WW_RestoreAllWindows,
@@ -246,7 +243,7 @@ class WonderWindowsModule extends SuiteModule {
             . " display's width in landscape and its height in portrait.")
         rows.Checkbox("Give Windows back its own keys when you move or clear their actions", "vgiveBack")
             .Value := this.givesBackWindowsKeys
-        rows.Caption("Win + Left, Right, Up, Down, M, Shift + M, Home and D. Unchecked, they do nothing"
+        rows.Caption("Win + Left, Right, Up, Down, Shift + the arrows, M, Shift + M, Home and D. Unchecked, they do nothing"
             . " once moved or cleared, so Windows' own versions never surprise you.", true)
         status := WW_IsFancyZonesRunning() ? "running, not supported" : "not running, you're all set!"
         rows.Field("FancyZones:", "Text", "w540 vfancyZonesStatus c" WonderWindowsModule.StatusColor(status), status)
@@ -307,7 +304,8 @@ class WonderWindowsModule extends SuiteModule {
         Toward the side it hugs it shrinks and away from it it grows; a window as wide or tall as the display shrinks toward the arrow, and one in the middle grows, so a middle third becomes the middle half.
         Grown to the whole display, the window is maximized; shrink it again while you still hold Win and it is restored.
         Settings can add sixths or fourths, or leave out fourths or thirds, separately along the display's long and short side; halves and full are always there.
-        Outside zone mode, Win + Up and Down maximize and restore, and Win + Shift + Left and Right stay Windows' own, moving windows between displays.
+        Win + Shift with an arrow works outside zone mode too: it starts zone mode from where the window is, snapped to the closest stops, and resizes it at once; a maximized window starts from its full size.
+        Outside zone mode, Win + Up and Down maximize and restore.
 
         ARRANGE YOUR WINDOWS
         Win + Backspace minimizes the active window; focus stays on that display while it has windows left, then moves to the next display.
@@ -318,9 +316,9 @@ class WonderWindowsModule extends SuiteModule {
         Win + M, Win + Home and Win + D take Shift to bring back what they minimized, however much you do in between.
         They act on your display only, except Win + D, which reaches every display, and focus stays on your display.
         Win + Up maximizes the window, then steps to the upper and lower half.
-        Win + Down takes it back to normal size, out of maximized or fullscreen, a zone, a half or a stretch; it never minimizes.
-        Win + Shift + Up stretches the window to the full height of the display and back, and Win + Shift + Down to the full width and back; each undoes only its own direction. A maximized window is already both, so they only say so.
-        A cascade window keeps its place in its cascade while it's maximized, minimized, in a zone, a half or a stretch, and Win + Down puts it back there.
+        Win + Down takes it back to normal size, out of maximized or fullscreen, a zone, a half or full height; it never minimizes.
+        Win + Alt + Enter stretches the window to the full height of your display and back; a maximized window is already full height, so it only says so.
+        A cascade window keeps its place in its cascade while it's maximized, minimized, in a zone, a half or full height, and Win + Down puts it back there.
 
         FOCUS, STACKS AND FULLSCREEN
         Win + PgDn and PgUp step focus through every window on screen in reading order: displays left to right, columns left to right, top before bottom, and outline the window they reach; double-tap Caps to outline where you are.
@@ -338,12 +336,11 @@ class WonderWindowsModule extends SuiteModule {
 ; the window manual.
 WW_PrepareWindowForAdoption(hwnd)
 {
-    global WW_layout_cycle_windows, WW_normal_window_placements
+    global WW_layout_cycle_windows, WW_normal_window_placements, WW_full_height_windows
     if !WW_SetNativeFullscreen(hwnd, false)
         return false
     WW_ForgetLogicalZone(hwnd)
-    WW_ForgetStretches(hwnd)
-    for states in [WW_layout_cycle_windows, WW_normal_window_placements]
+    for states in [WW_layout_cycle_windows, WW_normal_window_placements, WW_full_height_windows]
         if states.Has(hwnd)
             states.Delete(hwnd)
     return true

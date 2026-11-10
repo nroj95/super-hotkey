@@ -1,78 +1,57 @@
-; Wonder Windows full height and width, Win + Shift + Up and Down, and the
-; layout state they share with zones and maximize.
+; Wonder Windows full height, Win + Alt + Enter, and the layout state it
+; shares with zones, maximize and moving a window onto its neighbor: where a
+; window was before Wonder Windows placed it.
 
 ; =============================================================================
-; full height and full width
+; full height
 ; =============================================================================
 
-; Win + Shift + Up stretches the active window to the work area's full height,
-; keeping its width and left edge, and Win + Shift + Down to its full width,
-; keeping its height and top. The same key again takes back that direction
-; only, while the window is still where the toggle left it, so height and
-; width combine and undo in any order. Undoing the last one from the window's
-; original shape ends as Win + Down does, handing a lent cascade window back.
-; A maximized or fullscreen window stays as it is, with a notice.
-WW_ToggleFullSpan(axis)
+; Win + Alt + Enter stretches the active window to the work area's full
+; height, keeping its width and left edge. The same key again takes it back
+; while the window is still where the toggle left it; from the window's
+; original shape that ends as Win + Down does, handing a lent cascade window
+; back. A maximized or fullscreen window stays as it is, with a notice. Any
+; other placement forgets the way back.
+WW_ToggleFullHeight(*)
 {
     Critical "On"
-    global WW_full_span_windows
+    global WW_full_height_windows
 
     hwnd := WW_GetWindowControlTarget()
     if !hwnd
         return
 
     try {
-        ; A maximized or fullscreen window is already as tall and wide as it
-        ; gets: the key only says so.
+        ; A maximized or fullscreen window is already as tall as it gets: the
+        ; key only says so.
         if WinGetMinMax(hwnd) = 1 || WW_IsNativeFullscreen(hwnd) {
             SuiteNotice.Show("status", WW_IsNativeFullscreen(hwnd) ? "Already fullscreen" : "Already maximized", 1400)
             return
         }
-        fresh := WW_IsFreshPlacement(hwnd)
-        WW_PrepareWindowForPlacement(hwnd, false)
-        pid := WinGetPID(hwnd)
+        saved := WW_full_height_windows.Get(hwnd, 0)
+        fresh := !WW_IsPlacedWindow(hwnd)
+        WW_PrepareWindowForPlacement(hwnd)
         monitor := WindowMonitor(hwnd)
         work := WW_GetLayoutWorkArea(hwnd)
         current := WW_GetWindowLayoutRectangle(hwnd)
-        spans := WW_full_span_windows.Get(hwnd, 0)
-        if !IsObject(spans) || spans["pid"] != pid
-            spans := WW_full_span_windows[hwnd] := Map("pid", pid)
-        height := axis = "height"
-        if spans.Has(axis) {
-            saved := spans.Delete(axis)
-            if WW_IsPlacementStateCurrent(hwnd, saved, monitor, work)
-                && WW_RectanglesMatch(saved["applied"], current, 3) {
-                other := height ? "width" : "height"
-                if saved["fresh"] && !spans.Has(other) {
-                    WW_full_span_windows.Delete(hwnd)
-                    WW_RestoreWindowTarget()
-                    return
-                }
-                before := saved["before"]
-                WW_MoveWindowToVisibleRectangle(hwnd, height
-                    ? [current[1], before[2], current[3], before[4]]
-                    : [before[1], current[2], before[3], current[4]])
-                if spans.Has(other)
-                    spans[other]["applied"] := WW_GetWindowLayoutRectangle(hwnd)
+        if IsObject(saved) && WW_IsPlacementStateCurrent(hwnd, saved, monitor, work)
+            && WW_RectanglesMatch(saved["applied"], current, 3) {
+            if saved["fresh"] {
+                WW_RestoreWindowTarget()
                 return
             }
+            before := saved["before"]
+            WW_MoveWindowToVisibleRectangle(hwnd, [current[1], before[2], current[3], before[4]])
+            return
         }
-        target := height
-            ? [current[1], work[2], current[3], work[4] - work[2]]
-            : [work[1], current[2], work[3] - work[1], current[4]]
-        if !WW_MoveWindowToVisibleRectangle(hwnd, target)
+        if !WW_MoveWindowToVisibleRectangle(hwnd, [current[1], work[2], current[3], work[4] - work[2]])
             return
         WW_ForgetWindowLayoutCycle(hwnd)
-        applied := WW_GetWindowLayoutRectangle(hwnd)
-        spans[axis] := Map("pid", pid, "monitor", monitor, "work_area", work, "before", current,
-            "fresh", fresh || spans.Has(height ? "width" : "height") && spans[height ? "width" : "height"]["fresh"],
-            "applied", applied)
-        for other in ["height", "width"]
-            if other != axis && spans.Has(other)
-                spans[other]["applied"] := applied
+        WW_full_height_windows[hwnd] := Map("pid", WinGetPID(hwnd), "monitor", monitor, "work_area", work,
+            "before", current, "fresh", fresh, "applied", WW_GetWindowLayoutRectangle(hwnd))
     }
     catch Error as failure
-        WW_DebugError("Full " axis " toggle", failure)
+        WW_DebugError("Full height toggle", failure)
 }
 
 ; =============================================================================
@@ -174,8 +153,8 @@ WW_ForgetWindowLayoutCycle(hwnd)
 
 WW_PruneLayoutStates()
 {
-    global WW_layout_cycle_windows, WW_normal_window_placements, WW_full_span_windows
-    for states in [WW_layout_cycle_windows, WW_normal_window_placements, WW_full_span_windows] {
+    global WW_layout_cycle_windows, WW_normal_window_placements, WW_full_height_windows
+    for states in [WW_layout_cycle_windows, WW_normal_window_placements, WW_full_height_windows] {
         stale_hwnds := []
         for hwnd, entry in states {
             stale := !DllCall("IsWindow", "ptr", hwnd, "int")
@@ -193,17 +172,14 @@ WW_PruneLayoutStates()
     }
 }
 
-; forgetSpans: a zone or half replaces any stretch; the stretches keep each
-; other's way back.
-WW_PrepareWindowForPlacement(hwnd, forgetSpans := true)
+WW_PrepareWindowForPlacement(hwnd)
 {
     ; A failed F11 exit must never leave a fullscreen interface tiled.
     if !WW_SetNativeFullscreen(hwnd, false)
         throw Error("Could not exit native fullscreen before placement.")
     SuiteWindowOwnership.Claim(hwnd)
     WW_RememberNormalWindowPlacement(hwnd)
-    if forgetSpans
-        WW_ForgetStretches(hwnd)
+    WW_ForgetFullHeight(hwnd)
     if WinGetMinMax(hwnd) != 0
         WinRestore(hwnd)
 }
@@ -226,16 +202,16 @@ WW_IsPlacementStateCurrent(hwnd, saved, monitor_handle := 0, work_area := 0)
     }
 }
 
-; True when Wonder Windows has not placed the window yet: a full height or
-; width from here ends back at its original shape.
-WW_IsFreshPlacement(hwnd)
+; True when Wonder Windows has placed the window: full height from anywhere
+; else ends back at the window's original shape.
+WW_IsPlacedWindow(hwnd)
 {
     global WW_normal_window_placements
-    return !WW_normal_window_placements.Has(hwnd)
+    return WW_normal_window_placements.Has(hwnd)
 }
 
-WW_ForgetStretches(hwnd)
+WW_ForgetFullHeight(hwnd)
 {
-    global WW_full_span_windows
-    try WW_full_span_windows.Delete(hwnd)
+    global WW_full_height_windows
+    try WW_full_height_windows.Delete(hwnd)
 }

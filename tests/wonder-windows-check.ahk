@@ -10,7 +10,7 @@ class WonderWindowsChecks {
         this.ExpandedWindowCycle()
         this.MonitorWindowCycle()
         this.MinimizeAll()
-        this.FullSpanAndNormalSize()
+        this.NormalSizeAndResize()
         this.ZoneMode()
     }
 
@@ -180,46 +180,55 @@ class WonderWindowsChecks {
         }
     }
 
-    ; Win + Shift + Up and Down toggle full height and width, each undoing its
-    ; own direction; Win + Down takes a window back to
-    ; normal size without minimizing; Win + Up maximizes without placing the
-    ; window by hand.
-    static FullSpanAndNormalSize() {
-        window := SuiteGui("+Resize", "Full span check")
+    ; Win + Down takes a window back to normal size without minimizing, also
+    ; after a restart; Win + Up maximizes without placing the window by hand;
+    ; Win + Shift + an arrow resizes from anywhere, starting zone mode; Win +
+    ; Alt + Enter toggles full height.
+    static NormalSizeAndResize() {
+        window := SuiteGui("+Resize", "Normal size check")
         try {
             SuiteWindowOwnership.AllowArranging(window)
             window.Show("NA x200 y200 w400 h300")
             hwnd := window.Hwnd
             ActivateWindow(hwnd)
+            WW_EndZoneCycle()
             original := WW_GetWindowLayoutRectangle(hwnd)
-            work := WW_GetLayoutWorkArea(hwnd)
-            WW_ToggleFullSpan("height")
-            this.Assert(WW_RectanglesMatch(WW_GetWindowLayoutRectangle(hwnd),
-                [original[1], work[2], original[3], work[4] - work[2]], 3),
-                "Win + Shift + Up stretches to full height, keeping width and left edge")
-            WW_ToggleFullSpan("width")
-            this.Assert(WW_RectanglesMatch(WW_GetWindowLayoutRectangle(hwnd),
-                [work[1], work[2], work[3] - work[1], work[4] - work[2]], 3),
-                "Win + Shift + Down adds the full width")
-            WW_ToggleFullSpan("height")
-            this.Assert(WW_RectanglesMatch(WW_GetWindowLayoutRectangle(hwnd),
-                [work[1], original[2], work[3] - work[1], original[4]], 3),
-                "Win + Shift + Up again takes back only the height")
+            area := WW_GetLayoutWorkArea(hwnd)
+            width := area[3] - area[1], height := area[4] - area[2]
+            near(rect, expected) => WW_RectanglesMatch(rect, expected, 6)
+            WW_ZoneEdge("right")
+            placed := WW_GetWindowLayoutRectangle(hwnd)
+            this.Assert(WW_IsCyclingZones() && !WW_RectanglesMatch(placed, original, 3),
+                "Win + Shift + an arrow resizes a loose window and starts zone mode")
+            WW_EndZoneCycle()
             returned := []
             handler := (hwnd, shape) => returned.Push(hwnd)
             SuiteWindowOwnership.OnReturn(handler)
-            try WW_ToggleFullSpan("width")
+            try WW_RestoreToNormalSize()
+            finally SuiteWindowOwnership.OffReturn(handler)
+            this.Assert(WW_RectanglesMatch(WW_GetWindowLayoutRectangle(hwnd), original, 3) && WinGetMinMax(hwnd) = 0
+                && !SuiteWindowOwnership.IsManual(hwnd) && returned.Length = 1 && returned[1] = hwnd,
+                "Win + Down takes it back to normal size, handing a lent cascade window back")
+            WW_RestoreToNormalSize()
+            this.Assert(WinGetMinMax(hwnd) = 0, "Win + Down never minimizes a window at normal size")
+            WW_ToggleFullHeight()
+            this.Assert(near(WW_GetWindowLayoutRectangle(hwnd), [original[1], area[2], original[3], height]),
+                "Win + Alt + Enter stretches a window to full height, keeping its width and left edge")
+            returned := []
+            SuiteWindowOwnership.OnReturn(handler)
+            try WW_ToggleFullHeight()
             finally SuiteWindowOwnership.OffReturn(handler)
             this.Assert(WW_RectanglesMatch(WW_GetWindowLayoutRectangle(hwnd), original, 3)
                 && !SuiteWindowOwnership.IsManual(hwnd) && returned.Length = 1 && returned[1] = hwnd,
-                "undoing the last one puts the window back as it was, handing a lent cascade window back like Win + Down")
-            WW_ToggleFullSpan("height")
+                "Win + Alt + Enter again takes it back to its original shape, handing a lent cascade window back")
+            WW_ZoneEdge("right")
+            WW_EndZoneCycle()
+            zoned := WW_GetWindowLayoutRectangle(hwnd)
+            WW_ToggleFullHeight()
+            WW_ToggleFullHeight()
+            this.Assert(WW_RectanglesMatch(WW_GetWindowLayoutRectangle(hwnd), zoned, 3) && SuiteWindowOwnership.IsManual(hwnd),
+                "full height from a zone goes back to that zone")
             WW_RestoreToNormalSize()
-            this.Assert(WW_RectanglesMatch(WW_GetWindowLayoutRectangle(hwnd), original, 3)
-                && WinGetMinMax(hwnd) = 0,
-                "Win + Down takes a full-height window back to normal size")
-            WW_RestoreToNormalSize()
-            this.Assert(WinGetMinMax(hwnd) = 0, "Win + Down never minimizes a window at normal size")
             ; After a restart, a lent window is held again but its normal
             ; rectangle is gone.
             SuiteWindowOwnership.Claim(hwnd)
@@ -233,15 +242,19 @@ class WonderWindowsChecks {
             WW_MaximizeWindowTarget()
             this.Assert(WinGetMinMax(hwnd) = 1 && !SuiteWindowOwnership.IsManual(hwnd),
                 "Win + Up maximizes without placing the window by hand, so a cascade keeps it")
-            WW_ToggleFullSpan("height")
-            WW_ToggleFullSpan("width")
-            this.Assert(WinGetMinMax(hwnd) = 1 && SuiteNotice.notices.Has("status")
-                && SuiteNotice.notices["status"].text = "Already maximized",
-                "Win + Shift + Up and Down leave a maximized window maximized and say so")
+            WW_ToggleFullHeight()
+            this.Assert(WinGetMinMax(hwnd) = 1, "Win + Alt + Enter leaves a maximized window maximized")
+            WW_ZoneEdge("left")
+            this.Assert(WinGetMinMax(hwnd) = 0
+                && near(WW_GetWindowLayoutRectangle(hwnd), [area[1], area[2], width * 3 / 4, height]),
+                "Win + Shift + Left shrinks a maximized window from its full size, against the left")
+            WW_EndZoneCycle()
             WW_RestoreToNormalSize()
-            this.Assert(WinGetMinMax(hwnd) = 0, "Win + Down takes a maximized window back to normal size")
         }
-        finally window.Destroy()
+        finally {
+            WW_EndZoneCycle()
+            window.Destroy()
+        }
     }
 
     static Assert(condition, label) => SuiteChecks.Assert(condition, label)
@@ -439,13 +452,10 @@ class WonderWindowsChecks {
                 this.Assert(IsIgnoredByCascade(window.Hwnd), "suite GUI is marked before it can be cascaded")
                 SuiteWindowOwnership.Claim(window.Hwnd)
                 this.Assert(SuiteWindowOwnership.IsManual(window.Hwnd), "manual geometry ownership is recorded per HWND and process")
-                global WW_full_span_windows, WW_normal_window_placements
-                WW_full_span_windows[window.Hwnd] := Map("pid", WindowProcessId(window.Hwnd))
+                global WW_normal_window_placements
                 WW_normal_window_placements[window.Hwnd] := Map("pid", WindowProcessId(window.Hwnd))
                 this.Assert(SuiteWindowOwnership.Release(window.Hwnd) && !SuiteWindowOwnership.IsManual(window.Hwnd),
                     "explicit adoption releases manual ownership")
-                this.Assert(!WW_full_span_windows.Has(window.Hwnd),
-                    "adoption discards a stretch that would otherwise undo the new cascade")
                 this.Assert(!WW_normal_window_placements.Has(window.Hwnd),
                     "adoption starts a fresh manual-restore history")
                 returned := []

@@ -687,8 +687,7 @@ class KeybindingsChecks {
             "wonder-windows.move-onto-up", "wonder-windows.move-onto-down",
             "wonder-windows.move-onto-left", "wonder-windows.move-onto-right",
             "wonder-windows.minimize", "wonder-windows.restore-minimized",
-            "wonder-windows.maximize", "wonder-windows.restore",
-            "wonder-windows.full-height", "wonder-windows.full-width",
+            "wonder-windows.maximize", "wonder-windows.restore", "wonder-windows.full-height",
             "wonder-windows.minimize-all", "wonder-windows.restore-all",
             "wonder-windows.minimize-others", "wonder-windows.restore-others",
             "wonder-windows.minimize-everywhere", "wonder-windows.restore-everywhere",
@@ -799,9 +798,9 @@ class KeybindingsChecks {
                 && manager.actions["paper-pad.previous"].scope = "paper-pad",
                 "Wonder Windows is a global fallback for Paper Pad editor shortcuts")
             this.Assert(manager.actions["wonder-windows.zone-row-up"].scope = "zone-cycling"
-                && manager.actions["wonder-windows.zone-edge-left"].scope = "zone-cycling"
+                && manager.actions["wonder-windows.zone-edge-left"].scope = ""
                 && KeybindingsEditor.ContextTagText("zone-cycling") = "zone cycling only",
-                "zone mode's own keys answer only in zone mode, tagged in Keybindings")
+                "zone mode's Up and Down answer only in zone mode, tagged in Keybindings, and Win + Shift + arrows resize anywhere")
             probe := (binding) => binding.key = "WheelUp" ? "probe" : ""
             manager.AddBindingCheck(probe)
             try this.Assert(manager.BindingWarning(Keybindings.Parse("Win + WheelUp")) = "probe"

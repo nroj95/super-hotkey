@@ -9,7 +9,7 @@ WW_InitializeState() {
 
 WW_minimized_stack := []  ; windows minimized with Win + Backspace, newest first: {hwnd, pid}
 WW_minimized_all := Map()  ; per display device, windows minimized with Win + M, Win + Home or Win + D, front to back: {hwnd, pid}
-WW_full_span_windows := Map()  ; Win + Shift + Up and Down: per window, each direction's way back
+WW_full_height_windows := Map()  ; Win + Alt + Enter: per window, the way back
 WW_logical_zones := Map()
 WW_layout_cycle_windows := Map()
 WW_normal_window_placements := Map()

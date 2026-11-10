@@ -46,7 +46,7 @@ WW_MaximizeWindowTarget()
             ; Maximizing places nothing by hand: like the maximize button, it
             ; keeps a cascade window in its cascade, which keeps its slot
             ; until the window is restored.
-            WW_ForgetStretches(hwnd)
+            WW_ForgetFullHeight(hwnd)
             WW_ForgetWindowLayoutCycle(hwnd)
             WinMaximize(window)
         } else {
@@ -277,8 +277,8 @@ WW_RestoreMinimizedWindow()
 }
 
 ; Win + Down takes the active window back to normal size: a maximized or
-; fullscreen window, or one Wonder Windows placed in a zone, a half or a
-; stretch, returns to its normal rectangle, and a cascade window lent out
+; fullscreen window, or one Wonder Windows placed in a zone, a half or full
+; height, returns to its normal rectangle, and a cascade window lent out
 ; returns to its slot. It never minimizes, which is Win + Backspace's job; a
 ; window already at normal size says so.
 WW_RestoreToNormalSize()
@@ -320,7 +320,7 @@ WW_RestoreWindowTarget()
             if WinGetMinMax(hwnd) = 1
                 WinRestore(hwnd)
         }
-        WW_ForgetStretches(hwnd)
+        WW_ForgetFullHeight(hwnd)
         WW_ForgetWindowLayoutCycle(hwnd)
         WinActivate(hwnd)
         ; Back at its original shape, the window is no longer placed by hand;
@@ -334,7 +334,7 @@ WW_RestoreWindowTarget()
 }
 
 ; =============================================================================
-; normal rectangle before script-managed placement or stretch
+; normal rectangle before script-managed placement
 ; =============================================================================
 
 WW_RememberNormalWindowPlacement(hwnd)

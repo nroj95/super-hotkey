@@ -14,7 +14,7 @@ Use any module on its own or combine them.
 
 | Module | Purpose |
 | --- | --- |
-| [Wonder Windows](#wonder-windows) | Position, stretch, stack and cycle windows |
+| [Wonder Windows](#wonder-windows) | Position, size, stack and cycle windows |
 | [Cascade Kingdom](#cascade-kingdom) | Keep many windows in an overlapping cascade |
 | [Paper Pad](#paper-pad) | A quick-notes drawer using Notepad3 |
 | [Power-Up Utilities](#power-up-utilities) | Extra keys, text shortcuts and system utilities |
@@ -30,7 +30,7 @@ Windows can also sit side by side with others stacked behind them: `Win + Shift 
 
 For big windows, `Win + Enter` shows the next maximized or fullscreen window on your display and minimizes the others, so one is out at a time. Add `Shift` to go back.
 
-Windows' own keys work as you know them, with fewer surprises, and each has one job. `Win + Up` maximizes, then steps to the upper and lower half, and `Win + Down` takes a window back to normal size but never minimizes; `Win + Backspace` does that. `Win + Shift + Up` and `Win + Shift + Down` stretch a window to the full height or width of the display and back. `Win + M`, `Win + Home` and `Win + D` take `Shift` to bring back what they minimized, however much you do in between, and act on your display only, except `Win + D`, which reaches every display.
+Windows' own keys work as you know them, with fewer surprises, and each has one job. `Win + Up` maximizes, then steps to the upper and lower half, and `Win + Down` takes a window back to normal size but never minimizes; `Win + Backspace` does that. `Win + Shift` + an arrow resizes a window from anywhere, one zone size at a time, starting zone mode. `Win + Alt + Enter` stretches a window to the full height of the display and back. `Win + M`, `Win + Home` and `Win + D` take `Shift` to bring back what they minimized, however much you do in between, and act on your display only, except `Win + D`, which reaches every display.
 
 ### Cascade Kingdom
 

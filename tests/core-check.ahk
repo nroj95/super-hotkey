@@ -159,9 +159,9 @@ class CoreChecks {
             sig(text) => Keybindings.Parse(text).signature
             this.Assert(configuration["wonder-windows.cycle-stacked"].bindings[1] = sig("Win + Shift + PgDn")
                 && configuration["wonder-windows.cycle-stacked-previous"].bindings[1] = sig("Win + Shift + PgUp")
-                && configuration["wonder-windows.full-height"].bindings[1] = sig("Win + Shift + Up")
-                && configuration["wonder-windows.full-width"].bindings[1] = sig("Win + Shift + Down"),
-                "stacks cycle on Win + Shift + PgDn/PgUp, and Win + Shift + Up and Down toggle full height and width")
+                && configuration["wonder-windows.full-height"].bindings[1] = sig("Win + Alt + Enter")
+                && !configuration.Has("wonder-windows.full-width"),
+                "stacks cycle on Win + Shift + PgDn/PgUp, full height toggles on Win + Alt + Enter, and full width is gone")
             this.Assert(configuration["wonder-windows.cycle-expanded-next"].bindings[1] = sig("Win + Enter")
                 && configuration["wonder-windows.cycle-expanded-next"].bindings[2] = ""
                 && configuration["wonder-windows.cycle-expanded-previous"].bindings[1] = sig("Win + Shift + Enter")

@@ -358,7 +358,10 @@ Grown to the whole display, the window is maximized; shrink it again while you s
 Settings can add sixths or fourths, or leave out fourths or thirds, separately along the display's long and short side; halves and full are always there.
 =
 
-Outside zone mode, Win + Up and Down maximize and restore, and Win + Shift + Left and Right stay Windows' own, moving windows between displays.
+Win + Shift with an arrow works outside zone mode too: it starts zone mode from where the window is, snapped to the closest stops, and resizes it at once; a maximized window starts from its full size.
+=
+
+Outside zone mode, Win + Up and Down maximize and restore.
 =
 
 ARRANGE YOUR WINDOWS
@@ -385,13 +388,13 @@ They act on your display only, except Win + D, which reaches every display, and 
 Win + Up maximizes the window, then steps to the upper and lower half.
 =
 
-Win + Down takes it back to normal size, out of maximized or fullscreen, a zone, a half or a stretch; it never minimizes.
+Win + Down takes it back to normal size, out of maximized or fullscreen, a zone, a half or full height; it never minimizes.
 =
 
-Win + Shift + Up stretches the window to the full height of the display and back, and Win + Shift + Down to the full width and back; each undoes only its own direction. A maximized window is already both, so they only say so.
+Win + Alt + Enter stretches the window to the full height of your display and back; a maximized window is already full height, so it only says so.
 =
 
-A cascade window keeps its place in its cascade while it's maximized, minimized, in a zone, a half or a stretch, and Win + Down puts it back there.
+A cascade window keeps its place in its cascade while it's maximized, minimized, in a zone, a half or full height, and Win + Down puts it back there.
 =
 
 FOCUS, STACKS AND FULLSCREEN
