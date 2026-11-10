@@ -677,11 +677,19 @@ class InterfaceChecks {
             app.ui.ToggleHelp("paper-pad")
             this.Assert(app.ui.windows.Has("help:paper-pad"),
                 "the Help shortcut opens the page again")
-            app.ui.windows["help:paper-pad"].GetClientPos(, , &lastHelpW, &lastHelpH)
-            expectedHelpHeight := Max(480, app.ui.HelpContentHeight("paper-pad", 820) + SuiteInterface.FooterBand)
-            this.Assert(lastHelpW = 820 && lastHelpH = expectedHelpHeight
+            ; A page opens at its default size, up to OpenShare of the display, so
+            ; on a small one, such as CI's 1024 x 768, it may open narrower.
+            helpWindow := app.ui.windows["help:paper-pad"]
+            helpWindow.GetClientPos(, , &lastHelpW, &lastHelpH)
+            WinGetPos(, , &outerHelpW, &outerHelpH, "ahk_id " helpWindow.Hwnd)
+            MonitorGetWorkArea(SuiteWorkingMonitor.Get(helpWindow.Hwnd), &workLeft, &workTop, &workRight, &workBottom)
+            expectedHelpHeight := Max(480, app.ui.HelpContentHeight("paper-pad", lastHelpW) + SuiteInterface.FooterBand)
+            share := SuiteInterface.OpenShare
+            this.Assert((lastHelpW = 820 || outerHelpW <= (workRight - workLeft) * share + 1)
+                && (lastHelpH = expectedHelpHeight || outerHelpH <= (workBottom - workTop) * share + 1)
                 || app.ui.helpLayouts["paper-pad"].footer.bar.Visible,
-                "Help reopens at its content-based default regardless of prior resizing")
+                "Help reopens at its content-based default regardless of prior resizing ("
+                . lastHelpW "x" lastHelpH ", expected 820x" expectedHelpHeight ")")
             this.AssertCentered(app.ui.windows["help:paper-pad"], "reopened Paper Pad Help")
             app.ui.CloseWindow("help:paper-pad")
             this.Assert(IniRead(app.Settings.directory "\help-window.ini",
