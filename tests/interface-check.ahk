@@ -361,7 +361,7 @@ class InterfaceChecks {
                     && !InStr(guide, "GETTING STARTED"),
                     "each module starts with a personal introduction: " id)
                 if id = "wonder-windows" || id = "cascade-kingdom"
-                    this.Assert(parts.Length >= 2 && parts[-2].heading && parts[-2].control.Text = "MY FAVORITE HOTKEY",
+                    this.Assert(parts.Length >= 2 && parts[-2].heading && parts[-2].control.Text = "nroj95's FAVORITE HOTKEY",
                         "the favorite hotkey shows as its own heading: " id)
                 this.Assert(!InStr(guide, "`r") && !InStr(parts[2].control.Text, "`n"),
                     "a paragraph's sentences join into one line the page wraps: " id)

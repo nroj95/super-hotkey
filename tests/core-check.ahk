@@ -533,6 +533,10 @@ class CoreChecks {
                 && parts.Length = 2 && parts[1].heading && parts[1].text == "HVORFOR"
                 && parts[2].text == "En. To. Unknown.",
                 "a language translates text and guide lines, and leaves the rest English")
+            marked := SuiteInterface.HelpParts("# nroj95's PICK`nOne.`n`nNot a #heading.")
+            this.Assert(marked.Length = 3 && marked[1].heading && marked[1].text == "nroj95's PICK"
+                && !marked[2].heading && !marked[3].heading && marked[3].text == "Not a #heading.",
+                "a line starting with # is a heading shown without it, so a heading can hold lowercase")
         }
         finally SuiteLanguage.texts := saved
         found := false

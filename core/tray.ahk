@@ -617,10 +617,11 @@ class SuiteInterface {
     }
 
     ; A guide as modules write it: sections apart by blank lines, one sentence
-    ; per line, each section under an optional heading line in capitals.
-    ; Returns its parts in order: {text, heading}, a paragraph's sentences
-    ; joined into one line for the page to wrap. Each line is shown in the
-    ; suite's language; headings are found in the English.
+    ; per line, each section under an optional heading line: one in capitals,
+    ; or one starting with #, shown without it, for a heading that needs
+    ; lowercase, such as a name. Returns its parts in order: {text, heading},
+    ; a paragraph's sentences joined into one line for the page to wrap. Each
+    ; line is shown in the suite's language; headings are found in the English.
     static HelpParts(text) {
         parts := []
         paragraph := ""
@@ -631,8 +632,8 @@ class SuiteInterface {
                     parts.Push({text: paragraph, heading: false})
                 paragraph := ""
             }
-            else if paragraph = "" && line == StrUpper(line) && RegExMatch(line, "[A-Z]")
-                parts.Push({text: SuiteLanguage.Text(line), heading: true})
+            else if paragraph = "" && (SubStr(line, 1, 1) = "#" || line == StrUpper(line) && RegExMatch(line, "[A-Z]"))
+                parts.Push({text: RegExReplace(SuiteLanguage.Text(line), "^#\s*"), heading: true})
             else
                 paragraph .= (paragraph = "" ? "" : " ") SuiteLanguage.Text(line)
         }

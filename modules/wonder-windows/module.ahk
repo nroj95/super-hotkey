@@ -330,7 +330,7 @@ class WonderWindowsModule extends SuiteModule {
         Win + Shift + PgDn/PgUp cycles through windows stacked together with the active one.
         Win + Alt with an arrow stacks the active window onto its nearest neighbor in that direction, taking its size.
 
-        MY FAVORITE HOTKEY
+        # nroj95's FAVORITE HOTKEY
         Win + Enter cycles through maximized or fullscreen windows, minimized or not; add Shift to cycle backward. Finish with Win + Backspace to quickly get back to your normal windows.
     )"
 }
