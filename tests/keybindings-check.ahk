@@ -697,11 +697,11 @@ class KeybindingsChecks {
             "Wonder Windows lists Help, minimizing and big windows, then zone mode and resizing, Windows keys beside their Shift twins, and focus and stacks")
         this.AssertDisplaySequence(rows, [
             "power-up-utilities.help",
-            "power-up-utilities.system.sleep", "power-up-utilities.system.lock", "power-up-utilities.system.stay-awake",
-            "power-up-utilities.system.allow-sleep",
+            "power-up-utilities.system.stay-awake", "power-up-utilities.system.allow-sleep",
             "power-up-utilities.terminal.copy", "power-up-utilities.terminal.clear",
-            "power-up-utilities.system.keep-speakers-awake"],
-            "Power-Up Utilities groups system and Terminal controls, with keeping speakers awake last as an option")
+            "power-up-utilities.system.keep-speakers-awake",
+            "power-up-utilities.system.sleep", "power-up-utilities.system.lock"],
+            "Power-Up Utilities lists staying awake, Terminal and speakers, then sleeping and locking last")
         this.AssertDisplaySequence(rows, [
             "power-up-utilities.keyboard.f13", "power-up-utilities.keyboard.f18",
             "power-up-utilities.keyboard.f24"],

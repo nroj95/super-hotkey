@@ -36,9 +36,6 @@ class PowerUpUtilities extends SuiteModule {
         manager.AddAction("power-up-utilities.help", "show Power-Up Utilities help",
             ObjBindMethod(this.app, "HelpShortcutEvent", this.id), ["Pause + H"],
             {category: "Power-Up Utilities", available: (*) => this.app.ModuleActive(this.id)})
-        this.AddAction("sleep", "system.sleep", "put computer to sleep", "sleep", "", "Pause + Escape")
-        ; Win + L does the same everywhere, so it has no default hotkey.
-        this.AddAction("lock", "system.lock", "lock the computer", "lock", "", "")
         this.AddAction("awake", "system.stay-awake", "stay awake, then sleep: 30 min, 1, 2, 4, 8 h, no limit",
             "awake-step", "", "Pause + End")
         this.AddAction("awake", "system.allow-sleep", "stop staying awake, without sleeping",
@@ -48,9 +45,13 @@ class PowerUpUtilities extends SuiteModule {
             "terminal-copy", "", "Caps + C", true)
         this.AddAction("terminal", "terminal.clear", "clear terminal buffer",
             "terminal-clear", "", "Caps + K", true)
-        ; Few speakers need it, so it comes last, without a default hotkey.
+        ; Few speakers need it, so it has no default hotkey.
         this.AddAction("speakers", "system.keep-speakers-awake", "keep speakers awake: on / off",
             "speakers", "", "")
+        ; Sleeping and locking end the main list.
+        this.AddAction("sleep", "system.sleep", "put computer to sleep", "sleep", "", "Pause + Escape")
+        ; Win + L does the same everywhere, so it has no default hotkey.
+        this.AddAction("lock", "system.lock", "lock the computer", "lock", "", "")
         ; The few text actions come before the long runs of virtual keys.
         this.AddAction("text", "text.apostrophe", "insert curly apostrophe (’)", "text", "’", "Pause + '", true)
         this.AddAction("text", "text.en-dash", "insert en dash (–)", "text", "–", "Pause + -", true)
