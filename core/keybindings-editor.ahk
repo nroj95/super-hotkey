@@ -28,6 +28,7 @@ class KeybindingsEditor {
         this.renderedHeight := 0
         this.wheelCallback := ObjBindMethod(this, "_Wheel")
         this.scrollCallback := ObjBindMethod(this, "_VerticalScroll")
+        this.renderSoon := ObjBindMethod(this, "Render")
     }
 
     Title() {
@@ -311,7 +312,10 @@ class KeybindingsEditor {
         this.wheelRemainder += wheelDirection * wheelSteps * 120
         this.scrollPosition := Min(Max(this.scrollPosition + wheelDirection * wheelSteps * 3,
             0), maximum)
-        this.Render()
+        ; Redraw a moment later, once per burst: a wheel turn that arrives while
+        ; this handler still runs goes to Windows' default handling, which can
+        ; beep, so the handler only moves the position and returns at once.
+        SetTimer(this.renderSoon, -1)
         return 0
     }
 
@@ -570,6 +574,7 @@ class KeybindingsEditor {
         this.EndRecording()
         OnMessage(0x020A, this.wheelCallback, 0)
         OnMessage(0x0115, this.scrollCallback, 0)
+        SetTimer(this.renderSoon, 0)
         this.wheelRemainder := 0
         if IsObject(this.window) {
             SuiteFocusReturn.Destroy(this.window)

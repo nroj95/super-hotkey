@@ -34,6 +34,10 @@
 - **Cascade Kingdom:** *Window size* in Settings makes cascade windows 70, 75, 80, 85 or 90 % of the display's width and height, 80 % as before by default. Bigger windows leave room for fewer slots: on a 1080p display about 13 at 70 % and 3 at 90 %. Apply rearranges every cascade at once, with its focus tabs and drop guides, and windows from slots that no longer fit close up into the ones left.
 - **Cascade Kingdom:** hold `Caps` and double-click anywhere on a window to add it to its display's cascade, as `Caps + Insert` does; keep holding to add more. Double-clicking a window already in a cascade takes it out, back to where it was, as `Caps + Shift + Insert` does. While `Caps` is held, a click only focuses a window, and no click, drag, scroll or other mouse button reaches what is inside it. The taskbar, the desktop, Start and focus tabs work as usual. *Click to focus while holding* in Settings picks `Pause` or `Win` instead, or turns it off. `Caps` and `Pause` need Secret Layers; `Win` works without it.
 
+### Fixes
+
+- **Keybindings** no longer beeps when you scroll fast: the list redraws once per burst of wheel turns instead of on every turn.
+
 ## v1.0.0-beta.4
 
 Meet Galaxy Rhythm: gentle bedtimes and an energy bar for the day that rewards breaks, not less time at the computer. `Pause + Pause` turns the displays off, sleepy speakers can be kept awake, and every Settings page can restore its defaults.
