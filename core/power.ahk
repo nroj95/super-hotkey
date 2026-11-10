@@ -4,7 +4,8 @@
 ; =============================================================================
 ; Power-Up Utilities' hotkeys turn stay awake on and off, and any module may
 ; ask whether it is on. SuiteDisplays tells modules when the displays turn
-; off and on again, so they can tell when someone comes back. SuiteSleep puts the computer to sleep for whichever
+; off and on again, so they can tell when someone comes back, as keeping
+; speakers awake does. SuiteSleep puts the computer to sleep for whichever
 ; module asks, so far the sleep hotkey. Where the power plan lets Away Mode
 ; replace sleep, keeping the computer running with its screens dark, it
 ; sleeps for real unless the caller allows Away Mode, as the sleep hotkey may.
@@ -32,8 +33,8 @@ class SuiteStayAwake {
 }
 
 ; Whether the displays are on, from Windows' own notification
-; (GUID_CONSOLE_DISPLAY_STATE): they go off when the screen timeout or a
-; hotkey turns them off, and on again at a touch, so coming back to a
+; (GUID_CONSOLE_DISPLAY_STATE): they go off when the screen timeout turns
+; them off, and on again at a touch, so coming back to a
 ; computer left alone is an event, not something to poll for. A dimmed
 ; display counts as on. Handlers get (on) only when that changes.
 class SuiteDisplays {

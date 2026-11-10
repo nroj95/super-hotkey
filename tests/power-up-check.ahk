@@ -54,7 +54,7 @@ class PowerUpChecks {
         app.sessionLocked := false
         speakers.Check()
         this.Assert(nudges() = 3, "unlocked, it nudges at once, before anything plays")
-        speakers.displayOff := true
+        speakers.DisplaysChanged(false)  ; as core's display watcher reports it
         speakers.nudged -= 8 * 60000
         speakers.Check()
         speakers.displayOff := false

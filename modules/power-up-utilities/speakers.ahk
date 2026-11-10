@@ -31,8 +31,6 @@ class PU_Speakers {
     static Rate := 8000
     static ChimeVolume := 0.16
     static ChimeMs := 2500
-    ; GUID_CONSOLE_DISPLAY_STATE: the displays went off, on or dimmed.
-    static DisplayState := "{6FE69556-704A-47A0-8F24-C28D936FDA47}"
 
     __New(module, path) {
         this.module := module
@@ -47,22 +45,18 @@ class PU_Speakers {
         this.playing := false
         this.tone := 0         ; the tone's WAV, kept until it has played
         this.restore := 0      ; {endpoint, original, raised} while Windows' volume is raised
-        this.notification := 0
         this.checkCallback := ObjBindMethod(this, "Check")
         this.soonCallback := ObjBindMethod(this, "Check")
         this.doneCallback := ObjBindMethod(this, "Silence")
-        this.powerCallback := ObjBindMethod(this, "PowerSetting")
+        this.displaysCallback := ObjBindMethod(this, "DisplaysChanged")
     }
 
     static CleanMinutes(value) => IsInteger(value) && value >= 1 && value <= PU_Speakers.MinutesLimit
         ? Integer(value) : PU_Speakers.MinutesDefault
 
     Start() {
-        guid := Buffer(16, 0)
-        DllCall("Ole32\CLSIDFromString", "wstr", PU_Speakers.DisplayState, "ptr", guid)
-        OnMessage(0x0218, this.powerCallback) ; WM_POWERBROADCAST
-        this.notification := DllCall("RegisterPowerSettingNotification", "ptr", A_ScriptHwnd,
-            "ptr", guid, "uint", 0, "ptr")
+        this.displayOff := !SuiteDisplays.on
+        SuiteDisplays.OnChange(this.displaysCallback)
         SetTimer(this.checkCallback, PU_Speakers.CheckMs)
         this.Check()
     }
@@ -70,24 +64,15 @@ class PU_Speakers {
     Stop() {
         SetTimer(this.checkCallback, 0)
         SetTimer(this.soonCallback, 0)
-        OnMessage(0x0218, this.powerCallback, 0)
-        if this.notification
-            DllCall("UnregisterPowerSettingNotification", "ptr", this.notification)
-        this.notification := 0
+        SuiteDisplays.OffChange(this.displaysCallback)
         this.Silence()
     }
 
-    ; PBT_POWERSETTINGCHANGE for the display state: 0 off, 1 on, 2 dimmed.
-    ; Displays coming on mean the user is back: check at once.
-    PowerSetting(wParam, lParam, *) {
-        if wParam != 0x8013
-            return
-        guid := Buffer(78, 0)
-        DllCall("Ole32\StringFromGUID2", "ptr", lParam, "ptr", guid, "int", 39)
-        if StrGet(guid, "UTF-16") != PU_Speakers.DisplayState
-            return
-        this.displayOff := NumGet(lParam, 20, "uint") = 0
-        if !this.displayOff
+    ; From core's display watcher. Displays coming on mean the user is back:
+    ; check at once.
+    DisplaysChanged(on) {
+        this.displayOff := !on
+        if on
             SetTimer(this.soonCallback, -1)
     }
 
