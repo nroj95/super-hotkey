@@ -111,7 +111,7 @@ If you prefer mouse-driven zoning, [ScreenGrid](https://github.com/TtesseractT/S
 2. Press `Pause + F1` to start a new log, then reproduce the bug.
 3. Press `Pause + F2` to copy the log, and paste it into a [GitHub issue](https://github.com/nroj95/super-hotkey/issues) with a few words about what you expected.
 
-Verbose logs include window titles and program paths, which can show your user name, so read the log before you post it and remove anything private.
+Logs never include your user name or other programs' window titles, but verbose logs do show which programs you used, so read the log before you post it.
 
 ## Develop
 

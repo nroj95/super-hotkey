@@ -7,8 +7,13 @@
 ; and Windows' own tar.exe zips it there in the background, deleting the plain
 ; copy only once the zip is written. Archives are never pruned: logs zip to
 ; about an eighth of their size. An archive holding verbose lines, which record
-; window titles, is named with -verbose so the user can find and delete it.
-; Without tar.exe the plain .log stays in logs\, so nothing is lost.
+; which programs and windows were used, is named with -verbose so the user can
+; find and delete it. Without tar.exe the plain .log stays in logs\, so nothing
+; is lost.
+;
+; Logs get posted in bug reports, so no line names the user: the profile
+; folder, C:\Users\<name>, is written as %USERPROFILE%, and verbose window
+; descriptions give a title's length instead of its text (DescribeWindow).
 class SuiteLog {
     __New(directory, maximumBytes := 2097152, verbose := false) {
         DirCreate directory
@@ -17,6 +22,7 @@ class SuiteLog {
         this.maximumBytes := maximumBytes
         this.verbose := verbose
         this.writing := false
+        this.profile := EnvGet("USERPROFILE")
         ; Earlier versions kept one previous log beside the current one.
         if FileExist(this.path ".old")
             try this.Archive(this.path ".old", FileGetTime(this.path ".old"))
@@ -30,6 +36,8 @@ class SuiteLog {
             ; An open log viewer can block the rename; rotate on a later write instead.
             if FileExist(this.path) && FileGetSize(this.path) >= this.maximumBytes
                 try this.Archive(this.path)
+            if this.profile != ""
+                message := StrReplace(message, this.profile, "%USERPROFILE%")
             line := FormatTime(, "yyyyMMdd-HHmmss") " [" component "] " level ": " message "`n"
             ; FileOpen shares the file, so a viewer cannot block the write as with FileAppend.
             logFile := FileOpen(this.path, "a", "UTF-8-RAW")

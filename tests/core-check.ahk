@@ -308,6 +308,27 @@ class CoreChecks {
         this.Assert(InStr(FileRead(diagnosticLog.path, "UTF-8"), "written while viewed"), "an open log viewer cannot block log writes")
         diagnosticLog.StartNew()
         this.Assert(InStr(FileRead(diagnosticLog.path, "UTF-8"), "previous log archived as logs\debug-"), "a new log names the previous log's archive")
+        profile := EnvGet("USERPROFILE")
+        diagnosticLog.Write("Core", "path " profile "\AppData\Local\Programs\fixture.exe")
+        logged := FileRead(diagnosticLog.path, "UTF-8")
+        this.Assert(InStr(logged, "path %USERPROFILE%\AppData\Local\Programs\fixture.exe") && !InStr(logged, profile),
+            "log lines write the profile folder as %USERPROFILE%, never the user name")
+        saved := SuiteState.Log.verbose
+        own := SuiteGui(, "Describe fixture")
+        try {
+            SuiteState.Log.verbose := true
+            shell := DllCall("GetShellWindow", "ptr")
+            shellTitle := WinGetTitle(shell)
+            described := DescribeWindow(shell)
+            this.Assert(shellTitle != "" && !InStr(described, shellTitle)
+                && InStr(described, "title=(" StrLen(shellTitle) " characters)")
+                && InStr(DescribeWindow(own.Hwnd), 'title="Describe fixture"'),
+                "verbose logs give another program's title length, never its text, and the suite's own titles")
+        }
+        finally {
+            SuiteState.Log.verbose := saved
+            own.Destroy()
+        }
     }
 
     ; Damaged files fall back to defaults with a kept copy; unchanged

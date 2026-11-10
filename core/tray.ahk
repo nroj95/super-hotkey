@@ -895,7 +895,7 @@ class SuiteInterface {
             A_TrayMenu.Uncheck("Verbose logging")
     }
 
-    ; Verbose logging records window titles, so it lasts only until the
+    ; Verbose logging records which programs and windows are used, so it lasts only until the
     ; suite exits: forgotten, it never outlives the run it was meant for.
     ApplyVerbose(enabled) {
         SuiteState.Log.verbose := enabled

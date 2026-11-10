@@ -622,6 +622,9 @@ CaptureWindowShape(hwnd) {
 }
 
 ; A one-line window description for verbose logs; only the handle otherwise.
+; Titles often hold what the user is reading, such as an email subject or a
+; document name, so only the suite's own windows log theirs; any other window
+; logs its title's length, enough to tell an empty title from a real one.
 DescribeWindow(hwnd) {
     if !SuiteState.Log.verbose || !hwnd
         return "hwnd=" hwnd
@@ -629,7 +632,11 @@ DescribeWindow(hwnd) {
         return "hwnd=" hwnd " [invalid]"
     title := className := processName := processPath := ""
     minMax := style := exStyle := x := y := width := height := "?"
-    try title := StrReplace(StrReplace(WinGetTitle(hwnd), "`r", " "), "`n", " ")
+    try {
+        text := StrReplace(StrReplace(WinGetTitle(hwnd), "`r", " "), "`n", " ")
+        title := WinGetPID(hwnd) = DllCall("GetCurrentProcessId", "uint")
+            ? '"' text '"' : "(" StrLen(text) " characters)"
+    }
     try className := WinGetClass(hwnd)
     try processName := WinGetProcessName(hwnd)
     try processPath := WinGetProcessPath(hwnd)
@@ -640,7 +647,7 @@ DescribeWindow(hwnd) {
     try WinGetPosPixels(&x, &y, &width, &height, hwnd)
     catch
         x := y := width := height := "?"
-    return "hwnd=" hwnd ' exe="' processName '" class="' className '" title="' title '"'
+    return "hwnd=" hwnd ' exe="' processName '" class="' className '" title=' title
         . " minmax=" minMax " visible=" DllCall("IsWindowVisible", "ptr", hwnd, "int")
         . " iconic=" DllCall("IsIconic", "ptr", hwnd, "int") " cloaked=" IsWindowCloaked(hwnd)
         . " owner=" DllCall("GetWindow", "ptr", hwnd, "uint", 4, "ptr")
