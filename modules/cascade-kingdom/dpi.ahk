@@ -45,10 +45,11 @@ ReadCascadeDisplays()
         if !dpi
             throw Error("Could not read the monitor DPI.", , device)
         live_devices[device] := true
-        ; Mirroring changes every slot, so toggling it re-lays out like a display change.
+        ; Mirroring and the window size change every slot, so changing either
+        ; re-lays out like a display change.
         display_signature := device ":" left "," top "," right "," bottom
             . ":" work_left "," work_top "," work_right "," work_bottom ":" dpi
-            . (CascadeState.mirrored ? ":mirrored" : "")
+            . (CascadeState.mirrored ? ":mirrored" : "") . ":" CascadeState.windowSize "%"
         displays[monitor_index] := {
             device: device, dpi: dpi, signature: display_signature,
             left: left, top: top, right: right, bottom: bottom,

@@ -11,9 +11,11 @@ InitializeCascadeState()
 ; settings
 ; =============================================================================
 
-; Cascade windows use a predictable generic size instead of an app's remembered size.
-CascadeState.windowWidthRatio := 0.80
-CascadeState.windowHeightRatio := 0.80
+; Cascade windows use a predictable generic size instead of an app's remembered
+; size: this percentage of the work area's width and height. Bigger windows
+; leave room for fewer slots.
+; The saved choice is read with the other preferences below.
+CascadeState.windowSizeChoices := [70, 75, 80, 85, 90]
 
 ; First branch moves left/up from center; second branch moves right/down.
 ; A mirrored cascade swaps left and right.
@@ -132,6 +134,12 @@ CascadeState.restoreRequestDepth := 0
 CascadeState.closeBatches := Map()
 CascadeState.targetDisplay := IniRead(CascadeState.settingsPath, "Controls", "Display", "All")
 CascadeState.mirrored := IniRead(CascadeState.settingsPath, "Controls", "Mirrored", "0") = "1"
+; An unknown saved size falls back to 80 %.
+CascadeState.windowSize := 80
+saved_size := IniRead(CascadeState.settingsPath, "Controls", "WindowSize", "80")
+for size in CascadeState.windowSizeChoices
+    if saved_size = size
+        CascadeState.windowSize := size
 ; The key held for mouse-key clicks (see mouse-key.ahk), or Off.
 CascadeState.mouseKeyChoices := ["Caps", "Pause", "Win", "Off"]
 CascadeState.mouseKey := IniRead(CascadeState.settingsPath, "Controls", "ClickKey", "Caps")

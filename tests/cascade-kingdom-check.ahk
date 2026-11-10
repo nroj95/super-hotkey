@@ -1,7 +1,7 @@
 ; Cascade Kingdom: destinations, settings, stabilization, drop guides, focus tabs and
 ; their absence from a cascade of one window, adoption,
 ; compaction plans, home displays, the next-cascade order, covered cascades,
-; snapped-window drags, mirroring and cascades kept across restarts.
+; snapped-window drags, mirroring, the window size and cascades kept across restarts.
 ; Disposable preferences, dry-run inputs and test-owned windows only.
 class CascadeChecks {
     ; With Win as the click key, Win + mouse hotkeys are flagged in Keybindings,
@@ -37,6 +37,7 @@ class CascadeChecks {
         this.CoveredCascade()
         this.DragResize()
         this.Mirrored()
+        this.WindowSize()
         this.ShownWindows()
         this.Policy()
         this.Settings()
@@ -68,6 +69,24 @@ class CascadeChecks {
             this.Assert(target && target.x = left + 100, "a normal drop is judged by the top-left corner")
         }
         finally CascadeState.mirrored := false
+    }
+
+    ; The window size is a share of the work area, and bigger windows leave
+    ; room for fewer slots.
+    static WindowSize() {
+        try {
+            counts := Map()
+            for size in CascadeState.windowSizeChoices {
+                CascadeState.windowSize := size
+                geometry := BuildCanonicalCascadeGeometry(0, 0, 1920, 1040)
+                counts[size] := geometry.slots.Length
+                this.Assert(geometry.width = Floor(1920 * size / 100) && geometry.height = Floor(1040 * size / 100),
+                    "cascade windows at " size " % take that share of the work area")
+            }
+            this.Assert(counts[70] > counts[80] && counts[80] > counts[90] && counts[90] >= 1,
+                "bigger cascade windows leave room for fewer slots, and always at least one")
+        }
+        finally CascadeState.windowSize := 80
     }
 
     ; A window snapped to half a display, 1294 x 1395, was 2062 x 1117 before.
@@ -313,11 +332,14 @@ class CascadeChecks {
                 && CascadeState.focusCornerInactiveSlotAlpha = 128,
                 "cascade settings default to White inactive tabs at 50% opacity")
             this.Assert(!window["mirrored"].Value, "cascades step to the right by default")
+            this.Assert(window["windowSize"].Text = "80 %" && CascadeState.windowSize = 80,
+                "cascade windows take 80 % of the display by default")
             this.Assert(window["clickKey"].Text = "Caps" && CascadeState.mouseKey = "Caps",
                 "click to focus uses Caps by default")
             window["clickKey"].Choose("Win")
             window["inactiveColor"].Choose("Cyan")
             window["mirrored"].Value := true
+            window["windowSize"].Choose("90 %")
             ; Use a real device, not the dropdown index, in the saved preference.
             window["display"].Choose(2)
             expectedDisplay := cascade.displayChoices[2]
@@ -331,9 +353,10 @@ class CascadeChecks {
                 && !app.ui.pageLayouts["settings:cascade-kingdom"].apply.Enabled
                 && IniRead(path, "Controls", "Display") = expectedDisplay
                 && IniRead(path, "Controls", "Mirrored") = "1"
+                && IniRead(path, "Controls", "WindowSize") = "90" && CascadeState.windowSize = 90
                 && IniRead(path, "Controls", "ClickKey") = "Win" && CascadeState.mouseKey = "Win"
                 && IniRead(path, "FocusTabs", "InactiveSlotColor") = "Cyan",
-                "Apply persists the destination device, click key, mirroring and inactive tab color, and keeps Settings open")
+                "Apply persists the destination device, window size, click key, mirroring and inactive tab color, and keeps Settings open")
             ; No hold key is down during checks, and only the Win hotkey sees Win.
             CascadeState.mouseKey := "Off"
             off := MouseKeyHeld(false) || MouseKeyHeld(true)
@@ -346,13 +369,17 @@ class CascadeChecks {
             IniWrite("Win", path, "Controls", "ClickKey")
             InitializeCascadeState()
             this.Assert(CascadeState.targetDisplay = expectedDisplay && CascadeState.mirrored
-                && CascadeState.focusCornerInactiveSlotColorName = "Cyan",
+                && CascadeState.windowSize = 90 && CascadeState.focusCornerInactiveSlotColorName = "Cyan",
                 "cascade choices survive state initialization")
+            IniWrite("83", path, "Controls", "WindowSize")
+            InitializeCascadeState()
+            this.Assert(CascadeState.windowSize = 80, "an unknown saved window size falls back to 80 %")
             app.Settings.ResetModulePreferences(Map("cascade-kingdom", cascade.resetSections))
             this.Assert(IniRead(path, "FocusTabs", "InactiveSlotColor", "missing") = "missing"
                 && IniRead(path, "Controls", "Mirrored", "missing") = "missing"
-                && IniRead(path, "Controls", "ClickKey", "missing") = "missing",
-                "factory reset includes the click key, mirroring and the inactive tab color")
+                && IniRead(path, "Controls", "ClickKey", "missing") = "missing"
+                && IniRead(path, "Controls", "WindowSize", "missing") = "missing",
+                "factory reset includes the click key, mirroring, the window size and the inactive tab color")
             InitializeCascadeState()
             app.ui.ShowModuleSettings("paper-pad")
             window := app.ui.windows["settings:paper-pad"]

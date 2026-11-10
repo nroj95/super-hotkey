@@ -90,6 +90,10 @@ class CascadeKingdomModule extends SuiteModule {
         choices := ui.DisplayChoices(CascadeState.targetDisplay, true)
         this.displayChoices := choices.values
         rows.Field("Cascade on", "DropDownList", "w300 vdisplay", choices.names).Choose(choices.selected)
+        sizes := []
+        for size in CascadeState.windowSizeChoices
+            sizes.Push(size " %")
+        rows.Field("Window size", "DropDownList", "w120 vwindowSize", sizes).Choose(CascadeState.windowSize " %")
         rows.Field("Click to focus while holding", "DropDownList", "w120 vclickKey", CascadeState.mouseKeyChoices)
             .Choose(CascadeState.mouseKey)
         rows.Checkbox("Mirror: cascade toward the left", "vmirrored").Value := CascadeState.mirrored
@@ -99,7 +103,8 @@ class CascadeKingdomModule extends SuiteModule {
             colors.Push(name)
         rows.Field("Inactive-slot tab color", "DropDownList", "w210 vinactiveColor", colors)
             .Choose(CascadeState.focusCornerInactiveSlotColorName)
-        rows.Text("Caps and Pause need Secret Layers."
+        rows.Text("Window size is a share of the display's width and height; bigger windows leave room for fewer slots."
+            . "`nCaps and Pause need Secret Layers."
             . "`nActive tabs and drop guides use the Windows accent color."
             . "`nDisplay changes release other displays without moving windows."
             . "`nClick Apply to use these settings.")
@@ -109,6 +114,7 @@ class CascadeKingdomModule extends SuiteModule {
 
     RestoreSettings(window) {
         window["display"].Choose(SuiteInterface.DisplayIndex(this.displayChoices, "All"))
+        window["windowSize"].Choose("80 %")
         window["clickKey"].Choose("Caps")
         window["mirrored"].Value := 0
         window["tabs"].Value := 1
@@ -116,12 +122,14 @@ class CascadeKingdomModule extends SuiteModule {
     }
 
     ; Applies without a restart; routing changes first release in-flight work,
-    ; and mirroring re-lays out every cascade as a display change does.
+    ; and mirroring or a new window size re-lays out every cascade as a display
+    ; change does, moving windows from slots that no longer fit into the last one.
     SaveSettings(ui, *) {
         key := "settings:cascade-kingdom"
         window := ui.windows[key]
         try {
             display := this.displayChoices[window["display"].Value]
+            size := CascadeState.windowSizeChoices[window["windowSize"].Value]
             clickKey := window["clickKey"].Text
             if !IsCascadeMouseKeyChoice(clickKey)
                 throw ValueError("Select a valid click-to-focus key.")
@@ -131,12 +139,14 @@ class CascadeKingdomModule extends SuiteModule {
             if !CascadeState.focusTabColorPresets.Has(inactiveName)
                 throw ValueError("Select a valid inactive tab color.")
             this.app.Settings.WritePreferences(this.id, Map(
-                "Controls", Map("Display", display, "ClickKey", clickKey, "Mirrored", mirrored ? 1 : 0),
+                "Controls", Map("Display", display, "WindowSize", size, "ClickKey", clickKey,
+                    "Mirrored", mirrored ? 1 : 0),
                 "FocusTabs", Map("Visible", visible ? 1 : 0, "InactiveSlotColor", inactiveName)))
             CascadeState.mouseKey := clickKey
             CascadeState.mouseKeyLast := 0
-            if CascadeState.mirrored != mirrored {
+            if CascadeState.mirrored != mirrored || CascadeState.windowSize != size {
                 CascadeState.mirrored := mirrored
+                CascadeState.windowSize := size
                 QueueCascadeDisplayRefresh()
             }
             routingChanged := CascadeState.targetDisplay != display

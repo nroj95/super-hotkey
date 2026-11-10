@@ -175,13 +175,14 @@ BuildCanonicalCascadeGeometry(left, top, right, bottom)
     }
 }
 
-; The canonical cascade window size for a work area: a share of it, at least
-; the minimum size and never closer to its edges than the margin.
+; The canonical cascade window size for a work area: the chosen share of it, at
+; least the minimum size and never closer to its edges than the margin.
 GetCascadeWindowSize(work_width, work_height)
 {
+    share := CascadeState.windowSize / 100
     return [
-        Min(Max(CascadeState.minimumWidth, Floor(work_width * CascadeState.windowWidthRatio)), work_width - CascadeState.edgeMargin * 2),
-        Min(Max(CascadeState.minimumHeight, Floor(work_height * CascadeState.windowHeightRatio)), work_height - CascadeState.edgeMargin * 2)
+        Min(Max(CascadeState.minimumWidth, Floor(work_width * share)), work_width - CascadeState.edgeMargin * 2),
+        Min(Max(CascadeState.minimumHeight, Floor(work_height * share)), work_height - CascadeState.edgeMargin * 2)
     ]
 }
 
