@@ -71,7 +71,7 @@ class WonderWindowsModule extends SuiteModule {
             ["Win + Shift + M"], , {section: keys, replaces: ["Win + Shift + M"], anyWindow: true})
         this.Add("minimize-others", "minimize others (this display)", WW_MinimizeOtherWindows,
             ["Win + Home"], , {section: keys, replaces: ["Win + Home"], anyWindow: true})
-        this.Add("restore-others", "restore behind active window", WW_RestoreOtherWindows,
+        this.Add("restore-others", "restore others (this display)", WW_RestoreOtherWindows,
             ["Win + Shift + Home"], , {section: keys, anyWindow: true})
         this.Add("minimize-everywhere", "minimize all (all displays)", WW_MinimizeEveryDisplay,
             ["Win + D"], , {section: keys, replaces: ["Win + D"], anyWindow: true})

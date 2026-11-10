@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Changes
+
+- **Wonder Windows:** `Win + Shift + Home` is named *restore others (this display)* in Keybindings, matching *minimize others (this display)*.
+- **Cascade Kingdom:** Keybindings lists *gather all cascades*, which reaches every display, before the actions for this display.
+
 ## v1.0.0-beta.5
 
 Zone mode replaces the old snapping, cascades take a double-click and drop guides that land where they point, `Pause + Pause` shows what's running or hidden, and every Help page is lighter. Galaxy Rhythm leaves to become its own project.

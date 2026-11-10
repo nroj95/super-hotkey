@@ -675,7 +675,7 @@ class KeybindingsChecks {
             "cascade-kingdom.swap-up", "cascade-kingdom.swap-down",
             "cascade-kingdom.rotate-next",
             "cascade-kingdom.adopt", "cascade-kingdom.release",
-            "cascade-kingdom.minimize", "cascade-kingdom.restore", "cascade-kingdom.gather",
+            "cascade-kingdom.gather", "cascade-kingdom.minimize", "cascade-kingdom.restore",
             "cascade-kingdom.close-monitor"],
             "Cascade Kingdom groups navigation, rotation and management")
         this.AssertDisplaySequence(rows, [
