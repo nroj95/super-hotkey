@@ -142,8 +142,10 @@ class CoreChecks {
                 && configuration["power-up-utilities.system.lock"].bindings[1] = "",
                 "sleep stays on Pause + Escape, and locking, which Win + L does everywhere, has no hotkey")
             this.Assert(configuration["wonder-windows.focus-up"].bindings[1] = Keybindings.Parse("Win + PgUp").signature
-                && configuration["wonder-windows.focus-down"].bindings[1] = Keybindings.Parse("Win + PgDn").signature,
-                "focus moves up and down with Win + PgUp/PgDn")
+                && configuration["wonder-windows.focus-down"].bindings[1] = Keybindings.Parse("Win + PgDn").signature
+                && configuration["wonder-windows.focus-up"].bindings[2] = Keybindings.Parse("Pause + PgUp").signature
+                && configuration["wonder-windows.focus-down"].bindings[2] = Keybindings.Parse("Pause + PgDn").signature,
+                "focus moves up and down with Win + PgUp/PgDn, or Pause + PgUp/PgDn")
             this.Assert(configuration["paper-pad.previous"].bindings[2] = Keybindings.Parse("Win + PgUp").signature
                 && configuration["paper-pad.next"].bindings[2] = Keybindings.Parse("Win + PgDn").signature,
                 "Paper Pad pages follow the suite's PgUp = previous, PgDn = next")

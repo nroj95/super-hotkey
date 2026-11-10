@@ -78,9 +78,9 @@ class WonderWindowsModule extends SuiteModule {
         this.Add("restore-everywhere", "restore windows minimized on every display", WW_RestoreEveryDisplay,
             ["Win + Shift + D"], , {section: keys, anyWindow: true})
         focus := "Focus and stacks"
-        this.Add("focus-up", "focus previous visible window", WW_CycleWindowFocus, ["Win + PgUp"], ["up"],
+        this.Add("focus-up", "focus previous visible window", WW_CycleWindowFocus, ["Win + PgUp", "Pause + PgUp"], ["up"],
             {section: focus})
-        this.Add("focus-down", "focus next visible window", WW_CycleWindowFocus, ["Win + PgDn"], ["down"],
+        this.Add("focus-down", "focus next visible window", WW_CycleWindowFocus, ["Win + PgDn", "Pause + PgDn"], ["down"],
             {section: focus})
         this.Add("cycle-stacked", "cycle windows in current stack", WW_CycleMonitorWindows, ["Win + Shift + PgDn"],
             , {section: focus})

@@ -17,6 +17,7 @@
 
 ### Changes
 
+- **Wonder Windows:** focus also steps through the windows on screen with `Pause + PgUp/PgDn`, beside `Win + PgUp/PgDn`.
 - **Power-Up Utilities:** *lock the computer* locks it as `Win + L` does, for anyone who wants it on an easier key. It has no default hotkey.
 - `Pause + Pause` shows what is out of sight in one notice: how long stay awake has left, whether speakers are kept awake, windows minimized on your display, cascade windows hidden there with `Caps + M`, and verbose logging. With nothing to report it says *Nothing hidden or running*. Each module adds its own lines, and only while it is on. It replaces the notice that told you how long stay awake had left when you came back after half an hour away.
 - The focus outline no longer paints over the taskbar or a docked bar: like at a display's edges, it stops at the work area, so a window resting on the taskbar shows only its thin inner line there. A maximized or fullscreen window, with no side left outside, gets its outline drawn inside instead, so with a big window on each display you still see which one has focus.
