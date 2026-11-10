@@ -82,10 +82,11 @@ class WonderWindowsModule extends SuiteModule {
             {section: focus})
         this.Add("focus-down", "focus next visible window", WW_CycleWindowFocus, ["Win + PgDn", "Pause + PgDn"], ["down"],
             {section: focus})
-        this.Add("cycle-stacked", "cycle windows in current stack", WW_CycleMonitorWindows, ["Win + Shift + PgDn"],
-            , {section: focus})
-        this.Add("cycle-stacked-previous", "cycle windows in current stack backwards", WW_CycleMonitorWindows,
+        ; Like focus, previous on PgUp before next on PgDn.
+        this.Add("cycle-stacked-previous", "previous window in current stack", WW_CycleMonitorWindows,
             ["Win + Shift + PgUp"], ["previous"], {section: focus})
+        this.Add("cycle-stacked", "next window in current stack", WW_CycleMonitorWindows, ["Win + Shift + PgDn"],
+            , {section: focus})
         for side in [["up", "above"], ["down", "below"], ["left", "to the left"], ["right", "to the right"]]
             this.Add("move-onto-" side[1], "stack on nearest window " side[2],
                 WW_MoveOntoWindow, ["Win + Alt + " side[1], "Caps + Win + " side[1]], [side[1]], {section: focus})

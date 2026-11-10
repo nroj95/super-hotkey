@@ -691,7 +691,7 @@ class KeybindingsChecks {
             "wonder-windows.minimize-others", "wonder-windows.restore-others",
             "wonder-windows.minimize-everywhere", "wonder-windows.restore-everywhere",
             "wonder-windows.focus-up", "wonder-windows.focus-down",
-            "wonder-windows.cycle-stacked", "wonder-windows.cycle-stacked-previous",
+            "wonder-windows.cycle-stacked-previous", "wonder-windows.cycle-stacked",
             "wonder-windows.move-onto-up", "wonder-windows.move-onto-down",
             "wonder-windows.move-onto-left", "wonder-windows.move-onto-right"],
             "Wonder Windows lists Help, minimizing and big windows, then zone mode and resizing, Windows keys beside their Shift twins, and focus and stacks")
