@@ -147,6 +147,10 @@ class PowerUpUtilities extends SuiteModule {
         rows.window.AddUpDown("Range1-" PU_Breaks.MinutesLimit, this.breaks.minutes)
         rows.window.AddText("x" (SuitePageRows.FieldX + 68) " y" (y + 4) " w60", "min")
         rows.Field("Message", "Edit", "w300 vbreakMessage", this.breaks.Text)
+        rows.Field("At break time", "DropDownList", "w210 vbreakAction", PowerUpUtilities.BreakActionNames())
+            .Choose(PowerUpUtilities.BreakActionIndex(this.breaks.action))
+        rows.Caption("The screens turn off or the computer locks 10 seconds after the message,"
+            . " unless a fullscreen app or a presentation is running.")
         rows.Heading("Keep speakers awake")
         rows.Text("Nudges speakers that fall asleep in silence while you're at the computer."
             . " Give it a hotkey in Keybindings to turn it on or off.")
@@ -161,9 +165,20 @@ class PowerUpUtilities extends SuiteModule {
             ["Back", ObjBindMethod(ui, "BackToHelp", this.id)]])
     }
 
+    ; The break action choices, in PU_Breaks.Actions order.
+    static BreakActionNames() => ["Only show the message", "Turn off the screens", "Lock the computer"]
+
+    static BreakActionIndex(action) {
+        for index, name in PU_Breaks.Actions
+            if name = action
+                return index
+        return 1
+    }
+
     RestoreSettings(window) {
         window["breakMinutes"].Value := PU_Breaks.MinutesDefault
         window["breakMessage"].Value := PU_Breaks.MessageDefault
+        window["breakAction"].Choose(1)
         window["minutes"].Value := PU_Speakers.MinutesDefault
         window["chime"].Value := 0
     }
@@ -177,12 +192,13 @@ class PowerUpUtilities extends SuiteModule {
             message := Trim(StrReplace(StrReplace(window["breakMessage"].Value, "`r"), "`n", " "))
             if message = PU_Breaks.MessageDefault
                 message := ""
+            action := PU_Breaks.Actions[Max(1, window["breakAction"].Value)]
             minutes := PU_Speakers.CleanMinutes(window["minutes"].Value)
             chime := window["chime"].Value != 0
             this.app.Settings.WritePreferences(this.id,
-                Map("Breaks", Map("Minutes", breakMinutes, "Message", message),
+                Map("Breaks", Map("Minutes", breakMinutes, "Message", message, "Action", action),
                     "Speakers", Map("Minutes", minutes, "Chime", chime ? 1 : 0)))
-            this.breaks.Apply(breakMinutes, message)
+            this.breaks.Apply(breakMinutes, message, action)
             this.speakers.minutes := minutes
             this.speakers.chime := chime
             ui.Applied(key)
@@ -405,6 +421,7 @@ class PowerUpUtilities extends SuiteModule {
         BREAKS
         Pause + B reminds you to take a break every 45 minutes, on every display.
         Locking the computer or letting the screens go dark counts as a break, so the timer restarts when you're back.
+        Settings can also turn off the screens or lock the computer 10 seconds after the message.
 
         MORE KEYS WITHOUT A NEW KEYBOARD
         Caps + QWER/ASDF/ZXCV sends F13–F24; Caps + 0–9 provides a virtual number pad, even if your keyboard lacks those keys.

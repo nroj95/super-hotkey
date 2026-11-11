@@ -20,9 +20,13 @@ class PowerUpChecks {
         app := {suspended: false, systemSuspended: false, sessionLocked: false,
             ModuleActive: (app, id) => true,
             Settings: {WritePreferences: (settings, id, changes) => saved.Push(changes["Breaks"]["On"])}}
-        module := {app: app, id: "power-up-utilities", stopping: false,
+        module := {app: app, id: "power-up-utilities", stopping: false, dryRun: true,
             Report: (module, text) => reports.Push(text)}
         breaks := PU_Breaks(module, SuiteChecks.directory "\breaks\settings.ini")
+        busy := false, keysDown := false
+        breaks.DefineProp("Busy", {call: (*) => busy})
+        breaks.DefineProp("KeysDown", {call: (*) => keysDown})
+        acted := (action) => PowerUpChecks.CountOf(reports, "dry run: break " action)
         try {
             breaks.Restart()
             this.Assert(!breaks.on && !breaks.due && breaks.StatusText() = "",
@@ -50,11 +54,43 @@ class PowerUpChecks {
             this.Assert(!breaks.due, "the screens going dark stops the countdown")
             breaks.DisplaysChanged(true)
             this.Assert(breaks.StatusText() = "Break in 45 min", "and coming back starts it over")
-            breaks.Apply(60, "Stretch")
+            breaks.Apply(60, "Stretch", "message")
             this.Assert(breaks.Text = "Stretch" && breaks.StatusText() = "Break in 1 h",
                 "a new interval starts over, with the new message")
-            breaks.Apply(60, "")
+            breaks.Apply(60, "", "message")
             this.Assert(breaks.Text = "Time for a break", "an empty message falls back to the default")
+
+            ; Turning the screens off or locking follows the message, never in a check.
+            this.Assert(PU_Breaks.CleanAction("lock") = "lock" && PU_Breaks.CleanAction("screens") = "screens"
+                && PU_Breaks.CleanAction("x") = "message" && breaks.action = "message",
+                "the break action only shows the message unless chosen")
+            breaks.Remind(), this.ShownEverywhere("Time for a break")
+            breaks.Act()
+            this.Assert(!acted("screens") && !acted("lock"), "showing only the message does nothing more")
+            breaks.Apply(60, "", "screens")
+            breaks.Act()
+            this.Assert(acted("screens") = 1, "chosen, the screens turn off after the message")
+            breaks.Apply(60, "", "lock")
+            busy := true
+            breaks.Act()
+            busy := false
+            this.Assert(!acted("lock") && reports[-1] = "break lock skipped: fullscreen or presenting",
+                "a fullscreen app or a presentation keeps the screens on and the computer unlocked")
+            keysDown := true
+            breaks.Act()
+            this.Assert(!acted("lock"), "locking waits while a key is down")
+            keysDown := false
+            breaks.Act()
+            this.Assert(acted("lock") = 1, "and locks once every key is up")
+            breaks.Toggle(), SuiteNotice.Hide("status")
+            breaks.Act()
+            this.Assert(acted("lock") = 1, "turning the reminder off cancels the lock to come")
+            breaks.Toggle(), SuiteNotice.Hide("status")
+            app.sessionLocked := true
+            breaks.Act()
+            app.sessionLocked := false
+            this.Assert(acted("lock") = 1, "and so does leaving the computer first")
+            breaks.Apply(60, "", "message")
             breaks.Toggle()
             off := !breaks.on && saved[-1] = 0 && SuiteNotice.notices["status"].text = "Break reminder off"
             SuiteNotice.Hide("status")
