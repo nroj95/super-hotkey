@@ -150,7 +150,7 @@ class PowerUpUtilities extends SuiteModule {
         rows.Field("At break time", "DropDownList", "w210 vbreakAction", PowerUpUtilities.BreakActionNames())
             .Choose(PowerUpUtilities.BreakActionIndex(this.breaks.action))
         rows.Caption("The screens turn off or the computer locks 10 seconds after the message,"
-            . " unless a fullscreen app or a presentation is running.")
+            . " unless an app is in fullscreen.")
         rows.Heading("Keep speakers awake")
         rows.Text("Nudges speakers that fall asleep in silence while you're at the computer."
             . " Give it a hotkey in Keybindings to turn it on or off.")

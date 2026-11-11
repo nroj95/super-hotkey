@@ -4,7 +4,7 @@
 
 ### Changes
 
-- **Power-Up Utilities:** a break reminder. `Pause + B` turns it on, and every 45 minutes a message shows on every display. Locking the computer, the screens going dark, sleep and suspending Super Hotkey count as a break, so the timer restarts when you're back and nothing waits from while you were gone. `Pause + Pause` shows when the next one comes, and Settings changes the interval and the message. Settings can also turn off the screens or lock the computer 10 seconds after the message, except while a fullscreen app or a presentation is running; `Pause + B` in those seconds turns the reminder off and cancels it.
+- **Power-Up Utilities:** a break reminder. `Pause + B` turns it on, and every 45 minutes a message shows on every display. Locking the computer, the screens going dark, sleep and suspending Super Hotkey count as a break, so the timer restarts when you're back and nothing waits from while you were gone. `Pause + Pause` shows when the next one comes, and Settings changes the interval and the message. Settings can also turn off the screens or lock the computer 10 seconds after the message, except while an app is in fullscreen; `Pause + B` in those seconds turns the reminder off and cancels it.
 
 - **Wonder Windows:** `Win + Shift + Home` is named *restore others (this display)* in Keybindings, matching *minimize others (this display)*.
 - **Cascade Kingdom:** Keybindings lists *gather all cascades*, which reaches every display, before the actions for this display.
