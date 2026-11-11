@@ -147,10 +147,12 @@ class PowerUpUtilities extends SuiteModule {
         rows.window.AddUpDown("Range1-" PU_Breaks.MinutesLimit, this.breaks.minutes)
         rows.window.AddText("x" (SuitePageRows.FieldX + 68) " y" (y + 4) " w60", "min")
         rows.Field("Message", "Edit", "w300 vbreakMessage", this.breaks.Text)
-        rows.Field("At break time", "DropDownList", "w210 vbreakAction", PowerUpUtilities.BreakActionNames())
-            .Choose(PowerUpUtilities.BreakActionIndex(this.breaks.action))
-        rows.Caption("The screens turn off or the computer locks 10 seconds after the message,"
-            . " unless an app is in fullscreen.")
+        choice := rows.Field("At break time", "DropDownList", "w210 vbreakAction", PowerUpUtilities.BreakActionNames())
+        choice.Choose(PowerUpUtilities.BreakActionIndex(this.breaks.action))
+        ; Sized for the longest caption; the chosen action fills it in.
+        rows.Caption(PowerUpUtilities.BreakActionCaption("screens")).Name := "breakActionCaption"
+        choice.OnEvent("Change", (control, *) => PowerUpUtilities.ShowBreakActionCaption(control.Gui))
+        PowerUpUtilities.ShowBreakActionCaption(rows.window)
         rows.Heading("Keep speakers awake")
         rows.Text("Nudges speakers that fall asleep in silence while you're at the computer."
             . " Give it a hotkey in Keybindings to turn it on or off.")
@@ -168,6 +170,20 @@ class PowerUpUtilities extends SuiteModule {
     ; The break action choices, in PU_Breaks.Actions order.
     static BreakActionNames() => ["Only show the message", "Turn off the screens", "Lock the computer"]
 
+    ; What the chosen action does, under the list.
+    static BreakActionCaption(action) {
+        switch action {
+            case "screens": return "The screens turn off 10 seconds after the message, unless an app is in fullscreen."
+            case "lock": return "The computer locks 10 seconds after the message, unless an app is in fullscreen."
+            default: return "The message shows on every display for 3 seconds, and nothing else happens."
+        }
+    }
+
+    static ShowBreakActionCaption(window) {
+        window["breakActionCaption"].Text := PowerUpUtilities.BreakActionCaption(
+            PU_Breaks.Actions[Max(1, window["breakAction"].Value)])
+    }
+
     static BreakActionIndex(action) {
         for index, name in PU_Breaks.Actions
             if name = action
@@ -179,6 +195,7 @@ class PowerUpUtilities extends SuiteModule {
         window["breakMinutes"].Value := PU_Breaks.MinutesDefault
         window["breakMessage"].Value := PU_Breaks.MessageDefault
         window["breakAction"].Choose(1)
+        PowerUpUtilities.ShowBreakActionCaption(window)
         window["minutes"].Value := PU_Speakers.MinutesDefault
         window["chime"].Value := 0
     }
