@@ -22,6 +22,7 @@
 #Include "%A_ScriptDir%\modules\power-up-utilities\terminal.ahk"
 #Include "%A_ScriptDir%\modules\power-up-utilities\utilities.ahk"
 #Include "%A_ScriptDir%\modules\power-up-utilities\speakers.ahk"
+#Include "%A_ScriptDir%\modules\power-up-utilities\breaks.ahk"
 #Include "%A_ScriptDir%\modules\cascade-kingdom\commands.ahk"
 #Include "%A_ScriptDir%\modules\cascade-kingdom\controls.ahk"
 #Include "%A_ScriptDir%\modules\cascade-kingdom\debug.ahk"

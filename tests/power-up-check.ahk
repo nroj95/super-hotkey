@@ -9,6 +9,60 @@ class PowerUpChecks {
         this.BlockingKeys()
         this.SleepKeys()
         this.SpeakersAwake()
+        this.BreakReminder()
+    }
+
+    static BreakReminder() {
+        this.Assert(PU_Breaks.CleanMinutes("90") = 90 && PU_Breaks.CleanMinutes("0") = 45
+            && PU_Breaks.CleanMinutes("241") = 45 && PU_Breaks.CleanMinutes("x") = 45,
+            "a break reminder comes every 1 to 240 minutes, 45 by default")
+        reports := [], saved := []
+        app := {suspended: false, systemSuspended: false, sessionLocked: false,
+            ModuleActive: (app, id) => true,
+            Settings: {WritePreferences: (settings, id, changes) => saved.Push(changes["Breaks"]["On"])}}
+        module := {app: app, id: "power-up-utilities", stopping: false,
+            Report: (module, text) => reports.Push(text)}
+        breaks := PU_Breaks(module, SuiteChecks.directory "\breaks\settings.ini")
+        try {
+            breaks.Restart()
+            this.Assert(!breaks.on && !breaks.due && breaks.StatusText() = "",
+                "the break reminder starts off and adds nothing to the status")
+            breaks.Toggle()
+            on := breaks.on && saved[-1] = 1 && SuiteNotice.notices["status"].text = "Break reminder every 45 min"
+            SuiteNotice.Hide("status")
+            this.Assert(on && breaks.StatusText() = "Break in 45 min",
+                "switched on, it says so, is kept, and counts a whole interval")
+            breaks.due -= 44 * 60000
+            this.Assert(breaks.StatusText() = "Break in 1 min", "the status says when the next break comes")
+            breaks.Remind()
+            this.Assert(this.ShownEverywhere("Time for a break") && breaks.StatusText() = "Break in 45 min",
+                "a reminder shows on every display and the next one is a whole interval away")
+            app.sessionLocked := true
+            breaks.Pause()
+            breaks.Remind()
+            this.Assert(!breaks.due && !this.ShownEverywhere("Time for a break"),
+                "locked, the countdown stops and nothing shows")
+            app.sessionLocked := false
+            breaks.Restart()
+            this.Assert(breaks.StatusText() = "Break in 45 min", "unlocked, the wait starts over")
+            breaks.due -= 20 * 60000
+            breaks.DisplaysChanged(false)  ; as core's display watcher reports it
+            this.Assert(!breaks.due, "the screens going dark stops the countdown")
+            breaks.DisplaysChanged(true)
+            this.Assert(breaks.StatusText() = "Break in 45 min", "and coming back starts it over")
+            breaks.Apply(60, "Stretch")
+            this.Assert(breaks.Text = "Stretch" && breaks.StatusText() = "Break in 1 h",
+                "a new interval starts over, with the new message")
+            breaks.Apply(60, "")
+            this.Assert(breaks.Text = "Time for a break", "an empty message falls back to the default")
+            breaks.Toggle()
+            off := !breaks.on && saved[-1] = 0 && SuiteNotice.notices["status"].text = "Break reminder off"
+            SuiteNotice.Hide("status")
+            this.Assert(off && !breaks.due && breaks.StatusText() = "",
+                "switched off, it says so, is kept, and stops counting")
+        }
+        finally
+            breaks.Pause()
     }
 
     static SpeakersAwake() {

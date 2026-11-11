@@ -698,10 +698,11 @@ class KeybindingsChecks {
         this.AssertDisplaySequence(rows, [
             "power-up-utilities.help",
             "power-up-utilities.system.stay-awake", "power-up-utilities.system.allow-sleep",
+            "power-up-utilities.system.break-reminder",
             "power-up-utilities.terminal.copy", "power-up-utilities.terminal.clear",
             "power-up-utilities.system.keep-speakers-awake",
             "power-up-utilities.system.sleep", "power-up-utilities.system.lock"],
-            "Power-Up Utilities lists staying awake, Terminal and speakers, then sleeping and locking last")
+            "Power-Up Utilities lists staying awake, breaks, Terminal and speakers, then sleeping and locking last")
         this.AssertDisplaySequence(rows, [
             "power-up-utilities.keyboard.f13", "power-up-utilities.keyboard.f18",
             "power-up-utilities.keyboard.f24"],

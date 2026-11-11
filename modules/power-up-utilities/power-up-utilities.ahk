@@ -1,13 +1,13 @@
-; Power-Up Utilities: extra keys, text and Terminal macros, system actions and
-; the settings page for keeping speakers awake. Sleep works as Start's Sleep
-; does, and locking as Win + L does. Macros run once their trigger
-; key and modifiers are released, outside input callbacks, with Caps or Pause
-; still allowed down; staying awake and keeping speakers awake type nothing
-; and answer each press at once.
+; Power-Up Utilities: extra keys, text and Terminal macros, system actions, the
+; break reminder and the settings page for it and for keeping speakers awake.
+; Sleep works as Start's Sleep does, and locking as Win + L does. Macros run
+; once their trigger key and modifiers are released, outside input callbacks,
+; with Caps or Pause still allowed down; staying awake, the break reminder and
+; keeping speakers awake type nothing and answer each press at once.
 
 class PowerUpUtilities extends SuiteModule {
     hasSettings := true
-    resetSections := ["Speakers"]
+    resetSections := ["Breaks", "Speakers"]
 
     __New(app) {
         super.__New(app, "power-up-utilities")
@@ -26,6 +26,7 @@ class PowerUpUtilities extends SuiteModule {
         this.stayAwake := PU_StayAwake(this)
         this.settingsPath := app.Settings.directory "\" this.id "\settings.ini"
         this.speakers := PU_Speakers(this, this.settingsPath)
+        this.breaks := PU_Breaks(this, this.settingsPath)
     }
 
     dryRun => this.app.dryRun
@@ -40,6 +41,8 @@ class PowerUpUtilities extends SuiteModule {
             "awake-step", "", "Pause + End")
         this.AddAction("awake", "system.allow-sleep", "cancel stay awake",
             "awake-end", "", "Pause + Shift + End")
+        this.AddAction("breaks", "system.break-reminder", "toggle break reminder",
+            "breaks", "", "Pause + B")
         ; Terminal copy shares Caps + C with F23: the Terminal scope wins there.
         this.AddAction("terminal", "terminal.copy", "copy terminal buffer as Markdown",
             "terminal-copy", "", "Caps + C", true)
@@ -87,12 +90,16 @@ class PowerUpUtilities extends SuiteModule {
 
     Start() {
         this.speakers.Start()
+        this.breaks.Start()
     }
 
-    ; Staying awake and keeping speakers awake, for the status notice.
+    ; Staying awake, the next break and keeping speakers awake, for the
+    ; status notice.
     StatusLines() {
         lines := []
         if (text := this.stayAwake.StatusText()) != ""
+            lines.Push(text)
+        if (text := this.breaks.StatusText()) != ""
             lines.Push(text)
         if this.speakers.on
             lines.Push("Keeping speakers awake")
@@ -106,21 +113,24 @@ class PowerUpUtilities extends SuiteModule {
         this.CancelWork()
         this.stayAwake.End()
         try this.speakers.Stop()
+        this.breaks.Stop()
     }
 
     ; Suspending Super Hotkey hands everything back to Windows, staying awake
     ; included, without sleeping, and stops nudging the speakers; a locked
-    ; session or system sleep keeps staying awake.
+    ; session or system sleep keeps staying awake. Any of them is a break.
     Suspend() {
+        this.breaks.Pause()
         if this.app.suspended {
             this.stayAwake.End()
             try this.speakers.Silence()
         }
     }
 
-    ; Back at the desktop: wake the speakers.
+    ; Back at the desktop: wake the speakers and count to the next break.
     Resume() {
         this.speakers.Check()
+        this.breaks.Back()
     }
 
     ShowSettings(ui) {
@@ -128,6 +138,15 @@ class PowerUpUtilities extends SuiteModule {
         if ui.Existing(key)
             return
         rows := SuitePageRows(ui.NewWindow(key, "Power-Up Utilities - Settings", true), 640)
+        rows.Heading("Break reminder")
+        rows.Text("Shows a message on every display while you're at the computer."
+            . " Locking it or the screens turning off counts as a break and restarts the timer."
+            . " Its hotkey in Keybindings turns it on or off.")
+        y := rows.y
+        rows.Field("Remind every", "Edit", "w60 Number vbreakMinutes")
+        rows.window.AddUpDown("Range1-" PU_Breaks.MinutesLimit, this.breaks.minutes)
+        rows.window.AddText("x" (SuitePageRows.FieldX + 68) " y" (y + 4) " w60", "min")
+        rows.Field("Message", "Edit", "w300 vbreakMessage", this.breaks.Text)
         rows.Heading("Keep speakers awake")
         rows.Text("Nudges speakers that fall asleep in silence while you're at the computer."
             . " Give it a hotkey in Keybindings to turn it on or off.")
@@ -143,6 +162,8 @@ class PowerUpUtilities extends SuiteModule {
     }
 
     RestoreSettings(window) {
+        window["breakMinutes"].Value := PU_Breaks.MinutesDefault
+        window["breakMessage"].Value := PU_Breaks.MessageDefault
         window["minutes"].Value := PU_Speakers.MinutesDefault
         window["chime"].Value := 0
     }
@@ -151,10 +172,17 @@ class PowerUpUtilities extends SuiteModule {
         key := "settings:" this.id
         window := ui.windows[key]
         try {
+            breakMinutes := PU_Breaks.CleanMinutes(window["breakMinutes"].Value)
+            ; The default message is saved as empty, so it follows the default.
+            message := Trim(StrReplace(StrReplace(window["breakMessage"].Value, "`r"), "`n", " "))
+            if message = PU_Breaks.MessageDefault
+                message := ""
             minutes := PU_Speakers.CleanMinutes(window["minutes"].Value)
             chime := window["chime"].Value != 0
             this.app.Settings.WritePreferences(this.id,
-                Map("Speakers", Map("Minutes", minutes, "Chime", chime ? 1 : 0)))
+                Map("Breaks", Map("Minutes", breakMinutes, "Message", message),
+                    "Speakers", Map("Minutes", minutes, "Chime", chime ? 1 : 0)))
+            this.breaks.Apply(breakMinutes, message)
             this.speakers.minutes := minutes
             this.speakers.chime := chime
             ui.Applied(key)
@@ -215,9 +243,10 @@ class PowerUpUtilities extends SuiteModule {
         typing := action.kind = "text" || action.kind = "timestamp"
         if !(event.phase = "down" || event.phase = "repeat" && typing) || !this.CanDispatch(event.actionId)
             return
-        ; Staying awake and keeping speakers awake type nothing, so each press
-        ; answers at once, with Pause still held for the next step.
-        if InStr(action.kind, "awake-") = 1 || action.kind = "speakers" {
+        ; Staying awake, the break reminder and keeping speakers awake type
+        ; nothing, so each press answers at once, with Pause still held for
+        ; the next step.
+        if InStr(action.kind, "awake-") = 1 || action.kind = "speakers" || action.kind = "breaks" {
             if this.dryRun {
                 this.Report("dry run: " event.actionId " via " event.binding)
                 return
@@ -225,13 +254,16 @@ class PowerUpUtilities extends SuiteModule {
             try {
                 if action.kind = "speakers"
                     this.speakers.Toggle()
+                else if action.kind = "breaks"
+                    this.breaks.Toggle()
                 else if action.kind = "awake-end"
                     this.stayAwake.AllowSleep()
                 else
                     this.stayAwake.Step()
             }
             catch Error as failure
-                SuiteState.Log.Error("Power-Up Utilities / " (action.kind = "speakers" ? "speakers" : "stay awake"), failure)
+                SuiteState.Log.Error("Power-Up Utilities / " (InStr(action.kind, "awake-") = 1
+                    ? "stay awake" : action.kind), failure)
             return
         }
         if this.pending.Count >= 16
@@ -369,6 +401,10 @@ class PowerUpUtilities extends SuiteModule {
         Pause + Pause shows how long is left.
 
         For more reliable sleep, turn off Windows' Away Mode and let only your keyboard wake the computer.
+
+        BREAKS
+        Pause + B reminds you to take a break every 45 minutes, on every display.
+        Locking the computer or letting the screens go dark counts as a break, so the timer restarts when you're back.
 
         MORE KEYS WITHOUT A NEW KEYBOARD
         Caps + QWER/ASDF/ZXCV sends F13–F24; Caps + 0–9 provides a virtual number pad, even if your keyboard lacks those keys.
