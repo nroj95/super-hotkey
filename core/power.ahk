@@ -1,13 +1,14 @@
 ; =============================================================================
 ; power.ahk - staying awake, the displays turning on and off, and sleeping
-; the computer, shared by every module
+; and restarting the computer, shared by every module
 ; =============================================================================
 ; Power-Up Utilities' hotkeys turn stay awake on and off, and any module may
 ; ask whether it is on. SuiteDisplays tells modules when the displays turn
 ; off and on again, so they can tell when someone comes back, as keeping
 ; speakers awake does. SuiteSleep puts the computer to sleep for whichever
 ; module asks, so far the sleep hotkey and stay awake running out, as Start's
-; Sleep does. The application starts and stops it; a dry run never starts it.
+; Sleep does, and SuiteRestart restarts it as Update and restart does. The
+; application starts and stops both; a dry run never starts them.
 ; =============================================================================
 
 ; Asks Windows not to idle-sleep, the request a backup or a video call makes.
@@ -107,48 +108,83 @@ class SuiteSleep {
             throw Error("Sleep is unavailable before the suite starts or in a dry run.")
         ; Expire queued work and release held output first.
         SuiteState.App.CancelInputs()
-        token := 0
-        previousPrivileges := Buffer(16, 0)
-        adjusted := false
-        try {
-            ; SetSuspendState requires SeShutdownPrivilege. Enable it only in
-            ; this process token and restore its prior state when the call returns.
-            process := DllCall("GetCurrentProcess", "ptr")
-            if !DllCall("Advapi32\OpenProcessToken", "ptr", process,
-                "uint", 0x28, "ptr*", &token, "int") ; TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY
-                throw OSError(A_LastError, "OpenProcessToken")
-            privileges := Buffer(16, 0)
-            NumPut("uint", 1, privileges, 0)
-            NumPut("uint", 2, privileges, 12) ; SE_PRIVILEGE_ENABLED
-            if !DllCall("Advapi32\LookupPrivilegeValueW", "ptr", 0,
-                "str", "SeShutdownPrivilege", "ptr", privileges.Ptr + 4, "int")
-                throw OSError(A_LastError, "LookupPrivilegeValueW")
-            previousLength := 0
-            DllCall("SetLastError", "uint", 0)
-            success := DllCall("Advapi32\AdjustTokenPrivileges", "ptr", token,
-                "int", false, "ptr", privileges, "uint", previousPrivileges.Size,
-                "ptr", previousPrivileges, "uint*", &previousLength, "int")
-            privilegeError := A_LastError
-            if !success || privilegeError
-                throw OSError(privilegeError, "AdjustTokenPrivileges",
-                    "Windows did not grant sleep permission; no elevation was attempted.")
-            adjusted := true
-            ; BOOLEAN is one byte. FALSE for the last argument preserves wake events.
-            if !DllCall("PowrProf\SetSuspendState", "uchar", 0, "uchar", 0,
-                "uchar", 0, "uchar")
-                throw OSError(A_LastError, "SetSuspendState", "Windows could not enter sleep.")
-        }
-        finally {
-            if token {
-                if adjusted && NumGet(previousPrivileges, 0, "uint") {
-                    restored := DllCall("Advapi32\AdjustTokenPrivileges", "ptr", token,
-                        "int", false, "ptr", previousPrivileges, "uint", 0,
-                        "ptr", 0, "ptr", 0, "int")
-                    if !restored
-                        SuiteState.Log.Write("Core", "could not restore the previous shutdown-privilege state")
-                }
-                DllCall("CloseHandle", "ptr", token)
+        SuiteWithShutdownPrivilege(() => SuiteSleep._Suspend())
+    }
+
+    static _Suspend() {
+        ; BOOLEAN is one byte. FALSE for the last argument preserves wake events.
+        if !DllCall("PowrProf\SetSuspendState", "uchar", 0, "uchar", 0,
+            "uchar", 0, "uchar")
+            throw OSError(A_LastError, "SetSuspendState", "Windows could not enter sleep.")
+    }
+}
+
+; Restarts as Start's Update and restart does, installing pending updates. It
+; forces nothing: an app still open gets Windows' usual request to close and
+; can still hold the restart up. Only a started suite restarts, never a dry run.
+class SuiteRestart {
+    static started := false
+
+    static Start() => this.started := true
+    static Stop(*) => this.started := false
+
+    static Now() {
+        if !this.started
+            throw Error("Restart is unavailable before the suite starts or in a dry run.")
+        SuiteState.App.CancelInputs()
+        SuiteWithShutdownPrivilege(() => SuiteRestart._Initiate())
+    }
+
+    static _Initiate() {
+        ; SHUTDOWN_RESTART | SHUTDOWN_INSTALL_UPDATES, no grace period, and
+        ; SHTDN_REASON_FLAG_PLANNED with the major and minor reason Other.
+        result := DllCall("Advapi32\InitiateShutdownW", "ptr", 0, "ptr", 0, "uint", 0,
+            "uint", 0x44, "uint", 0x80000000, "uint")
+        if result
+            throw OSError(result, "InitiateShutdownW", "Windows could not restart.")
+    }
+}
+
+; Calls action with SeShutdownPrivilege enabled in this process token only,
+; then restores the privilege's earlier state. Sleeping and restarting both
+; need it; no elevation is attempted.
+SuiteWithShutdownPrivilege(action) {
+    token := 0
+    previousPrivileges := Buffer(16, 0)
+    adjusted := false
+    try {
+        process := DllCall("GetCurrentProcess", "ptr")
+        if !DllCall("Advapi32\OpenProcessToken", "ptr", process,
+            "uint", 0x28, "ptr*", &token, "int") ; TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY
+            throw OSError(A_LastError, "OpenProcessToken")
+        privileges := Buffer(16, 0)
+        NumPut("uint", 1, privileges, 0)
+        NumPut("uint", 2, privileges, 12) ; SE_PRIVILEGE_ENABLED
+        if !DllCall("Advapi32\LookupPrivilegeValueW", "ptr", 0,
+            "str", "SeShutdownPrivilege", "ptr", privileges.Ptr + 4, "int")
+            throw OSError(A_LastError, "LookupPrivilegeValueW")
+        previousLength := 0
+        DllCall("SetLastError", "uint", 0)
+        success := DllCall("Advapi32\AdjustTokenPrivileges", "ptr", token,
+            "int", false, "ptr", privileges, "uint", previousPrivileges.Size,
+            "ptr", previousPrivileges, "uint*", &previousLength, "int")
+        privilegeError := A_LastError
+        if !success || privilegeError
+            throw OSError(privilegeError, "AdjustTokenPrivileges",
+                "Windows did not grant shutdown permission; no elevation was attempted.")
+        adjusted := true
+        action()
+    }
+    finally {
+        if token {
+            if adjusted && NumGet(previousPrivileges, 0, "uint") {
+                restored := DllCall("Advapi32\AdjustTokenPrivileges", "ptr", token,
+                    "int", false, "ptr", previousPrivileges, "uint", 0,
+                    "ptr", 0, "ptr", 0, "int")
+                if !restored
+                    SuiteState.Log.Write("Core", "could not restore the previous shutdown-privilege state")
             }
+            DllCall("CloseHandle", "ptr", token)
         }
     }
 }

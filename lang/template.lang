@@ -157,6 +157,15 @@ Locking the computer or letting the screens go dark counts as a break, so the ti
 Settings can also turn off the screens or lock the computer 10 seconds after the message.
 =
 
+A TIDY RESTART
+=
+
+Pause + Shift + Win + Delete asks every window on every display to close, then restarts once none is left, installing pending updates.
+=
+
+Apps still ask about unsaved work, and a window still open after a minute cancels the restart, so Windows never has to restart anyway.
+=
+
 MORE KEYS WITHOUT A NEW KEYBOARD
 =
 

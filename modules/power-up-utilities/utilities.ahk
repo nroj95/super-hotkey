@@ -1,10 +1,10 @@
 ; =============================================================================
-; utilities.ahk - the sleep and lock hotkeys and stay awake's steps and sleep
-; timer; simple text actions live in dispatch, keeping speakers awake in
-; speakers.ahk
+; utilities.ahk - the sleep, lock and restart hotkeys and stay awake's steps
+; and sleep timer; simple text actions live in dispatch, keeping speakers
+; awake in speakers.ahk
 ; =============================================================================
-; Sleeping and the stay awake request itself live in core (SuiteSleep,
-; SuiteStayAwake), shared with every module.
+; Sleeping, restarting and the stay awake request itself live in core
+; (SuiteSleep, SuiteRestart, SuiteStayAwake), shared with every module.
 ; =============================================================================
 
 class PU_Utilities {
@@ -25,6 +25,110 @@ class PU_Utilities {
             return
         if !DllCall("LockWorkStation", "int")
             throw OSError(A_LastError, "LockWorkStation", "Windows could not lock the computer.")
+    }
+}
+
+; Closes every window on every display, as its close button would, and
+; restarts once none is left, so Windows never has to offer Restart anyway.
+; Its four-key default, Pause + Shift + Win + Delete, is hard to press by
+; accident, so it asks nothing first. Apps' own save prompts stay theirs to
+; answer. Nothing is forced: a window still open after WaitMs, such as one
+; running as administrator, which Windows keeps the suite from closing, or a
+; second press cancels the restart. A window hidden in the tray counts as
+; closed.
+class PU_Restart {
+    static WaitMs := 60000
+
+    __New(module) {
+        this.module := module
+        this.waiting := false
+        this.hook := 0
+        this.callback := 0
+        this.checkTimer := ObjBindMethod(this, "Check")
+        this.expireTimer := ObjBindMethod(this, "Expire")
+    }
+
+    Press() {
+        if this.waiting {
+            this.Stop("canceled by a second press")
+            SuiteNotice.Show("status", "Restart canceled", 1400)
+            return
+        }
+        this.callback := CallbackCreate(ObjBindMethod(this, "OnWindowEvent"), , 7)
+        ; EVENT_OBJECT_DESTROY through EVENT_OBJECT_HIDE, out of context.
+        this.hook := DllCall("SetWinEventHook", "uint", 0x8001, "uint", 0x8003, "ptr", 0,
+            "ptr", this.callback, "uint", 0, "uint", 0, "uint", 0, "ptr")
+        if !this.hook {
+            CallbackFree(this.callback)
+            this.callback := 0
+            this.module.Report("could not watch windows closing, so nothing was closed")
+            SuiteNotice.Show("status", "Restart unavailable: nothing was closed", 1400)
+            return
+        }
+        this.waiting := true
+        SetTimer(this.expireTimer, -PU_Restart.WaitMs)
+        windows := PU_Restart.OpenWindows()
+        this.module.Report("closing " windows.Length " windows, then restarting")
+        for hwnd in windows
+            if !DllCall("PostMessageW", "ptr", hwnd, "uint", 0x0010, "ptr", 0, "ptr", 0, "int") ; WM_CLOSE
+                this.module.Report("could not ask a window to close | " DescribeWindow(hwnd))
+        SuiteNotice.Show("status", "Closing every window, then restarting", 1400)
+        this.Check()
+    }
+
+    ; Every app window the user could switch to, minimized ones included.
+    static OpenWindows() {
+        windows := []
+        for hwnd in WinGetList()
+            if IsSwitchableWindow(hwnd, true)
+                windows.Push(hwnd)
+        return windows
+    }
+
+    ; Windows announces every window destroyed, shown or hidden; only queue
+    ; a check, which a burst of them shares.
+    OnWindowEvent(hook, event, hwnd, objectId, childId, thread, time) {
+        if this.waiting && !objectId && !childId
+            SetTimer(this.checkTimer, -1)
+    }
+
+    Check(*) {
+        if !this.waiting || PU_Restart.OpenWindows().Length
+            return
+        this.Stop("every window closed; restarting")
+        try SuiteRestart.Now()
+        catch Error as failure {
+            SuiteState.Log.Error("Power-Up Utilities / restart", failure)
+            SuiteNotice.ShowEverywhere("restart", failure.Message)
+        }
+    }
+
+    Expire(*) {
+        if !this.waiting
+            return
+        windows := PU_Restart.OpenWindows()
+        if !windows.Length
+            return this.Check()
+        this.Stop(windows.Length " windows still open after a minute; restart canceled")
+        title := ""
+        try title := WinGetTitle(windows[1])
+        SuiteNotice.ShowEverywhere("restart", windows.Length = 1
+            ? Format("Restart canceled: {1} is still open.", title)
+            : Format("Restart canceled: {1} and {2} more windows are still open.", title, windows.Length - 1))
+    }
+
+    ; Stops waiting, without restarting; safe when not waiting.
+    Stop(reason := "") {
+        SetTimer(this.expireTimer, 0)
+        SetTimer(this.checkTimer, 0)
+        if this.hook
+            DllCall("UnhookWinEvent", "ptr", this.hook)
+        if this.callback
+            CallbackFree(this.callback)
+        this.hook := this.callback := 0
+        if this.waiting && reason != ""
+            this.module.Report(reason)
+        this.waiting := false
     }
 }
 

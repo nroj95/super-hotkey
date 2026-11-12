@@ -111,6 +111,7 @@ class SuiteApplication {
             this.startupWarnings.Push(warning)
         if !this.dryRun {
             SuiteSleep.Start()
+            SuiteRestart.Start()
             SuiteWorkingMonitor.Start(this.manager)
             for id in SuiteSettings.ModuleOrder
                 if this.ModuleActive(id)
@@ -487,6 +488,7 @@ class SuiteApplication {
                 this.Cleanup(SuiteSettings.ModuleNames[id], ObjBindMethod(this.modules[id], "Stop", reason, code))
         this.Cleanup("Core / stay awake", (*) => SuiteStayAwake.Release())
         this.Cleanup("Core / sleep", (*) => SuiteSleep.Stop())
+        this.Cleanup("Core / restart", (*) => SuiteRestart.Stop())
         this.Cleanup("Core / displays", (*) => SuiteDisplays.Stop())
         this.Cleanup("Core / focus border", (*) => SuiteFocusBorder.Hide("", true))
         this.Cleanup("Core / working monitor", (*) => SuiteWorkingMonitor.Stop())

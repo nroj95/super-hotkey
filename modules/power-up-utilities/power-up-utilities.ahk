@@ -1,6 +1,7 @@
 ; Power-Up Utilities: extra keys, text and Terminal macros, system actions, the
 ; break reminder and the settings page for it and for keeping speakers awake.
-; Sleep works as Start's Sleep does, and locking as Win + L does. Macros run
+; Sleep works as Start's Sleep does, and locking as Win + L does; restarting
+; first closes every window and restarts only once none is left. Macros run
 ; once their trigger key and modifiers are released, outside input callbacks,
 ; with Caps or Pause still allowed down; staying awake, the break reminder and
 ; keeping speakers awake type nothing and answer each press at once.
@@ -23,6 +24,7 @@ class PowerUpUtilities extends SuiteModule {
         this.keyboard := PU_Keyboard(this)
         this.terminal := PU_Terminal(this)
         this.utilities := PU_Utilities(this)
+        this.restart := PU_Restart(this)
         this.stayAwake := PU_StayAwake(this)
         this.settingsPath := app.Settings.directory "\" this.id "\settings.ini"
         this.speakers := PU_Speakers(this, this.settingsPath)
@@ -51,10 +53,14 @@ class PowerUpUtilities extends SuiteModule {
         ; Few speakers need it, so it has no default hotkey.
         this.AddAction("speakers", "system.keep-speakers-awake", "toggle keep speakers awake",
             "speakers", "", "")
-        ; Sleeping and locking end the main list.
+        ; Sleeping, locking and restarting end the main list.
         this.AddAction("sleep", "system.sleep", "put computer to sleep", "sleep", "", "Pause + Escape")
         ; Win + L does the same everywhere, so it has no default hotkey.
         this.AddAction("lock", "system.lock", "lock computer", "lock", "", "")
+        ; Closing a window with Win + Delete, for every window, behind Pause and
+        ; Shift so no slip restarts the computer.
+        this.AddAction("restart", "system.restart", "close every window and restart", "restart", "",
+            "Pause + Shift + Win + Delete")
         ; The few text actions come before the long runs of virtual keys.
         this.AddAction("text", "text.apostrophe", "insert curly apostrophe (’)", "text", "’", "Pause + '", true)
         this.AddAction("text", "text.en-dash", "insert en dash (–)", "text", "–", "Pause + -", true)
@@ -111,6 +117,7 @@ class PowerUpUtilities extends SuiteModule {
             return
         this.stopping := true
         this.CancelWork()
+        this.restart.Stop("canceled: Power-Up Utilities stopped")
         this.stayAwake.End()
         try this.speakers.Stop()
         this.breaks.Stop()
@@ -118,9 +125,11 @@ class PowerUpUtilities extends SuiteModule {
 
     ; Suspending Super Hotkey hands everything back to Windows, staying awake
     ; included, without sleeping, and stops nudging the speakers; a locked
-    ; session or system sleep keeps staying awake. Any of them is a break.
+    ; session or system sleep keeps staying awake. Any of them is a break,
+    ; and cancels a restart still waiting for windows to close.
     Suspend() {
         this.breaks.Pause()
+        this.restart.Stop("canceled: suspended, locked or asleep")
         if this.app.suspended {
             this.stayAwake.End()
             try this.speakers.Silence()
@@ -376,6 +385,7 @@ class PowerUpUtilities extends SuiteModule {
                 case "terminal-clear": this.terminal.Clear(job)
                 case "sleep": this.utilities.SleepComputer(job)
                 case "lock": this.utilities.LockComputer(job)
+                case "restart": this.restart.Press()
                 default: throw Error("Unknown action kind: " job.action.kind)
             }
         }
@@ -439,6 +449,10 @@ class PowerUpUtilities extends SuiteModule {
         Pause + B reminds you to take a break every 45 minutes, on every display.
         Locking the computer or letting the screens go dark counts as a break, so the timer restarts when you're back.
         Settings can also turn off the screens or lock the computer 10 seconds after the message.
+
+        A TIDY RESTART
+        Pause + Shift + Win + Delete asks every window on every display to close, then restarts once none is left, installing pending updates.
+        Apps still ask about unsaved work, and a window still open after a minute cancels the restart, so Windows never has to restart anyway.
 
         MORE KEYS WITHOUT A NEW KEYBOARD
         Caps + QWER/ASDF/ZXCV sends F13–F24; Caps + 0–9 provides a virtual number pad, even if your keyboard lacks those keys.
