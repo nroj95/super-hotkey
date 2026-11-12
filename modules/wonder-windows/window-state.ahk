@@ -279,8 +279,9 @@ WW_RestoreMinimizedWindow()
 ; Win + Down takes the active window back to normal size: a maximized or
 ; fullscreen window, or one Wonder Windows placed in a zone, a half or full
 ; height, returns to its normal rectangle, and a cascade window lent out
-; returns to its slot. It never minimizes, which is Win + Backspace's job; a
-; window already at normal size says so.
+; returns to its slot. A placed window that was then maximized takes two
+; presses: back to its placed shape, then home. It never minimizes, which is
+; Win + Backspace's job; a window already at normal size says so.
 WW_RestoreToNormalSize()
 {
     global WW_normal_window_placements
@@ -308,9 +309,27 @@ WW_IsAtNormalPlacement(min_max, native_fullscreen, has_saved_placement)
 
 WW_RestoreWindowTarget()
 {
+    global WW_normal_window_placements
     Critical "On"
     hwnd := WW_GetWindowControlTarget()
-    if !hwnd || !WW_SetNativeFullscreen(hwnd, false)
+    if !hwnd
+        return
+
+    ; A maximized window placed by hand first steps back to the shape it was
+    ; maximized from, such as a half or a zone; the next press takes it home.
+    try {
+        if WinGetMinMax(hwnd) = 1 && !WW_IsNativeFullscreen(hwnd)
+            && (WW_normal_window_placements.Has(hwnd) || SuiteWindowOwnership.IsManual(hwnd)) {
+            WinRestore(hwnd)
+            WinActivate(hwnd)
+            return
+        }
+    }
+    catch Error as err {
+        WW_DebugError("Step back from maximized", err)
+        return
+    }
+    if !WW_SetNativeFullscreen(hwnd, false)
         return
 
     try {
