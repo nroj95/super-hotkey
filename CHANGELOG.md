@@ -8,6 +8,8 @@
 - **Power-Up Utilities:** a tidy restart. `Pause + Shift + Win + Delete` asks every window on every display to close, as its close button would, and restarts once none is left, installing pending updates as *Update and restart* does. Apps still ask about unsaved work. A window still open after a minute, such as one running as administrator, cancels the restart and is named on every display, and pressing the hotkey again cancels it too, so Windows never has to offer *Restart anyway*.
 
 - **Wonder Windows:** `Win + Down` on a window maximized from a zone or a half now first takes it back to that zone or half; the next press takes it back to where it was before.
+- **Wonder Windows:** `Win + Shift + M`, `Win + Shift + Home`, `Win + Shift + D` and `Win + Shift + Backspace` say *Nothing to bring back* when they have nothing to restore, instead of doing nothing without a word.
+- **Cascade Kingdom:** `Caps + M` says *No cascade here* on a display without a cascade to hide, and `Caps + Shift + M` says *No hidden cascade here* when nothing was hidden there.
 - **Wonder Windows:** `Win + Shift + Home` is named *restore others (this display)* in Keybindings, matching *minimize others (this display)*.
 - **Cascade Kingdom:** Keybindings lists *gather all cascades*, which reaches every display, before the actions for this display.
 - **Power-Up Utilities:** Help's stay awake section is shorter, with the tip to turn off Windows' Away Mode right beside it.

@@ -138,10 +138,13 @@ WW_RestoreEveryDisplay()
     Critical "On"
 
     working := SuiteWorkingMonitor.Get()
+    restored := 0
     Loop MonitorGetCount()
         if A_Index != working
-            WW_RestoreAllWindows(A_Index)
-    WW_RestoreAllWindows(working)
+            restored += WW_RestoreAllWindows(A_Index, , false)
+    restored += WW_RestoreAllWindows(working, , false)
+    if !restored
+        SuiteNotice.Show("status", "Nothing to bring back", 1400)
 }
 
 WW_MinimizeOtherWindows(windows?)
@@ -225,8 +228,9 @@ WW_FocusDesktopAfter(entries)
 
 ; Restores the working display's windows back to front, so the frontmost ends
 ; on top, and focuses it, or keeps keep in front and focused. Windows restored
-; or closed another way are skipped.
-WW_RestoreAllWindows(monitor?, keep := 0)
+; or closed another way are skipped; when none come back, a notice says so
+; unless notice is false. Returns how many came back.
+WW_RestoreAllWindows(monitor?, keep := 0, notice := true)
 {
     Critical "On"
 
@@ -237,6 +241,7 @@ WW_RestoreAllWindows(monitor?, keep := 0)
     if WW_minimized_all.Has(device)
         WW_minimized_all.Delete(device)
     front := 0
+    restored := 0
     Loop entries.Length {
         entry := entries[entries.Length - A_Index + 1]
         try {
@@ -245,15 +250,20 @@ WW_RestoreAllWindows(monitor?, keep := 0)
                 continue
             WinRestore("ahk_id " entry.hwnd)
             front := entry.hwnd
+            restored += 1
         }
         catch Error as err
             WW_DebugError("Restore all windows", err)
     }
     if keep || front
         ActivateWindow(keep || front)
+    if !restored && notice
+        SuiteNotice.Show("status", "Nothing to bring back here", 1400)
+    return restored
 }
 
-; Windows restored or closed another way are skipped as they come up.
+; Windows restored or closed another way are skipped as they come up; when
+; none is left, a notice says so.
 WW_RestoreMinimizedWindow()
 {
     Critical "On"
@@ -274,6 +284,7 @@ WW_RestoreMinimizedWindow()
         catch Error as err
             WW_DebugError("Restore minimized window", err)
     }
+    SuiteNotice.Show("status", "Nothing to bring back", 1400)
 }
 
 ; Win + Down takes the active window back to normal size: a maximized or

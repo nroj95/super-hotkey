@@ -15,7 +15,8 @@ IsCascadeEnabled() {
 ; Both act on the display the user is on. Caps + M adds that display's visible
 ; cascade windows to the hidden list; Caps + Shift + M brings back the windows
 ; hidden from that display. A window restored, closed or released another way
-; leaves the list; a window minimized by hand never joins it.
+; leaves the list; a window minimized by hand never joins it. A press with
+; nothing to hide or bring back says so.
 RunCascadeMinimizeCommand(command)
 {
     if CascadeState.minimizeInProgress
@@ -81,6 +82,8 @@ MinimizeCascadeWindows(monitor)
 
     if added
         FocusAfterCascadeHide(monitor, CascadeState.minimizedWindows[1].hwnd)
+    else
+        SuiteNotice.Show("status", "No cascade here", 1400)
     DebugLog("Cascade windows minimized. | monitor=" monitor " | added=" added
         . " | saved-windows=" CascadeState.minimizedWindows.Length)
 }
@@ -139,6 +142,8 @@ RestoreMinimizedCascadeWindows(monitor)
     }
 
     CascadeState.minimizedWindows := kept
+    if !windows_to_restore.Length
+        SuiteNotice.Show("status", "No hidden cascade here", 1400)
     RestoreCascadeWindows(windows_to_restore)
     DebugLog("Cascade windows restored. | monitor=" monitor " | restored-windows=" windows_to_restore.Length)
 }
