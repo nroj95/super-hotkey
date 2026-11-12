@@ -110,8 +110,12 @@ class SuiteBufferedPaint {
     }
 }
 
-; Shows window centered on the working display at a client size of width x
+; Shows window centered on the primary display at a client size of width x
 ; height; a fitShare of 1 or less caps it at that share of the work area.
+; Pages open there, so they are found in one place, unlike notices, which
+; follow the working display. A page opened from another suite page, such as
+; Settings from Help, opens on that page's display instead, in case the user
+; moved it there.
 SuiteShowCentered(window, width, height, layoutCallback := 0, fitShare := 0) {
     SuiteFocusReturn.Remember()
     ; Size while hidden so the user only sees the correctly centered layout.
@@ -122,7 +126,10 @@ SuiteShowCentered(window, width, height, layoutCallback := 0, fitShare := 0) {
         throw OSError(A_LastError, "Center Super Hotkey window")
     outerWidth := NumGet(rect, 8, "int") - NumGet(rect, 0, "int")
     outerHeight := NumGet(rect, 12, "int") - NumGet(rect, 4, "int")
-    MonitorGetWorkArea(SuiteWorkingMonitor.Get(window.Hwnd), &left, &top, &right, &bottom)
+    from := DllCall("GetForegroundWindow", "ptr")
+    monitor := from != window.Hwnd && WinExist("ahk_id " from " ahk_pid " ProcessExist())
+        && WindowMonitorIndex(from) || MonitorGetPrimary()
+    MonitorGetWorkArea(monitor, &left, &top, &right, &bottom)
     if fitShare {
         fitted := SuiteFitClientSize(window, width, height, (right - left) * fitShare, (bottom - top) * fitShare)
         window.Show("Hide w" fitted.width " h" fitted.height)

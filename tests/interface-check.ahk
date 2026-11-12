@@ -38,7 +38,7 @@ class InterfaceChecks {
         rect := Buffer(16, 0)
         this.Assert(!!DllCall("GetWindowRect", "ptr", window.Hwnd, "ptr", rect, "int"),
             "window geometry is available: " label)
-        MonitorGetWorkArea(SuiteWorkingMonitor.Get(window.Hwnd), &left, &top, &right, &bottom)
+        MonitorGetWorkArea(MonitorGetPrimary(), &left, &top, &right, &bottom)
         x := NumGet(rect, 0, "int")
         y := NumGet(rect, 4, "int")
         w := NumGet(rect, 8, "int") - x
@@ -46,7 +46,7 @@ class InterfaceChecks {
         expectedX := left + Floor((right - left - w) / 2)
         expectedY := top + Floor((bottom - top - h) / 2)
         this.Assert(Abs(x - expectedX) <= 2 && Abs(y - expectedY) <= 2,
-            "window opens centered on the working monitor: " label)
+            "window opens centered on the primary display: " label)
     }
 
     static SettingsCheckboxes() {
@@ -371,7 +371,7 @@ class InterfaceChecks {
                 window.GetClientPos(, , &helpWidth, &helpHeight)
                 fullHeight := Max(480, app.ui.HelpContentHeight(id, 820) + SuiteInterface.FooterBand)
                 WinGetPos(, , &outerWidth, &outerHeight, "ahk_id " window.Hwnd)
-                MonitorGetWorkArea(SuiteWorkingMonitor.Get(window.Hwnd), &workLeft, &workTop, &workRight, &workBottom)
+                MonitorGetWorkArea(MonitorGetPrimary(), &workLeft, &workTop, &workRight, &workBottom)
                 scrolls := app.ui.helpLayouts[id].footer.bar.Visible
                 contentWidth := helpWidth - (scrolls ? app.ui.ScrollBarWidth(window) : 0)
                 this.Assert((helpWidth = 820 || outerWidth <= (workRight - workLeft) * 0.8 + 1)
@@ -570,7 +570,7 @@ class InterfaceChecks {
                     defaultW := app.ui.pageLayouts["settings:" id].width
                     defaultH := app.ui.pageLayouts["settings:" id].height
                     WinGetPos(, , &outerWidth, &outerHeight, "ahk_id " settings.Hwnd)
-                    MonitorGetWorkArea(SuiteWorkingMonitor.Get(settings.Hwnd), &workLeft, &workTop, &workRight, &workBottom)
+                    MonitorGetWorkArea(MonitorGetPrimary(), &workLeft, &workTop, &workRight, &workBottom)
                     pageScrolls := app.ui.pageLayouts["settings:" id].footer.bar.Visible
                     this.Assert((settingsW = defaultW || outerWidth <= (workRight - workLeft) * 0.8 + 1)
                         && (settingsH = defaultH && !pageScrolls
@@ -682,7 +682,7 @@ class InterfaceChecks {
             helpWindow := app.ui.windows["help:paper-pad"]
             helpWindow.GetClientPos(, , &lastHelpW, &lastHelpH)
             WinGetPos(, , &outerHelpW, &outerHelpH, "ahk_id " helpWindow.Hwnd)
-            MonitorGetWorkArea(SuiteWorkingMonitor.Get(helpWindow.Hwnd), &workLeft, &workTop, &workRight, &workBottom)
+            MonitorGetWorkArea(MonitorGetPrimary(), &workLeft, &workTop, &workRight, &workBottom)
             expectedHelpHeight := Max(480, app.ui.HelpContentHeight("paper-pad", lastHelpW) + SuiteInterface.FooterBand)
             share := SuiteInterface.OpenShare
             this.Assert((lastHelpW = 820 || outerHelpW <= (workRight - workLeft) * share + 1)

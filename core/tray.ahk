@@ -1,8 +1,9 @@
 ; =============================================================================
 ; One flat tray. Module entries open their guides; module settings, the log,
 ; module selection and the language are pages built with the shared helpers
-; below. Help and pages open at most 80 % of the working display and scroll
-; their content under a fixed footer.
+; below. Help and pages open centered on the primary display, or on the page
+; they were opened from, at most 80 % of it, and scroll their content under a
+; fixed footer.
 ; =============================================================================
 class SuiteInterface {
     __New(app) {
@@ -305,7 +306,7 @@ class SuiteInterface {
             }
     }
 
-    ; Opens a page at its full size, up to OpenShare of the working display;
+    ; Opens a page at its full size, up to OpenShare of its display;
     ; it can shrink to minHeight, and scrolls when shorter than its content.
     ShowPage(key, width, height, minWidth := 0, minHeight := 0) {
         window := this.windows[key]
