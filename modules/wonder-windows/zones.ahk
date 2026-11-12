@@ -30,7 +30,7 @@
 ; the zone grid there, a maximized window from its full size, and leaves the
 ; other axis exactly where it was. That axis stays loose until zone mode first
 ; moves or resizes along it, which snaps it to the grid as Win + Left or Right
-; would. Up and Down answer only in zone mode (the zone-cycling scope), so
+; would; with no step left that way, the snap alone is the press's step. Up and Down answer only in zone mode (the zone-cycling scope), so
 ; outside it Win + Up and Down maximize and restore.
 
 ; Where an edge may stop along the display's long or short side, as a
@@ -84,7 +84,7 @@ WW_ZoneSide(side)
             WW_ApplyZoneSession(session)
             return
         }
-        WW_TightenZoneAxis(session, false)
+        snapped := WW_TightenZoneAxis(session, false)
         width := session.x1 - session.x0
         left_edge := WW_ZoneSlide(session.x0, width, side, WW_ZoneAxisLadder(session, false))
         if left_edge = "" {
@@ -98,6 +98,8 @@ WW_ZoneSide(side)
             target := WW_NeighborDisplay(WindowMonitorIndex(hwnd), side, lefts)
             if !target {
                 WW_LogZone("at the side, with no display that way", session)
+                if snapped
+                    WW_ApplyZoneSession(session)
                 return
             }
             MonitorGetWorkAreaPixels(target, &left, &top, &right, &bottom)
@@ -217,7 +219,7 @@ WW_ZoneRow(direction)
         return
     }
     try {
-        WW_TightenZoneAxis(session, true)
+        snapped := WW_TightenZoneAxis(session, true)
         span := WW_ZoneRowSpan([session.y0, session.y1], direction, WW_ZoneAxisLadder(session, true))
         if !IsObject(span) {
             ; Past the top or bottom: on to a display touching that edge, onto
@@ -232,6 +234,8 @@ WW_ZoneRow(direction)
                 rect[1], rect[1] + rect[3], direction)
             if !target {
                 WW_LogZone("at the " (direction = "up" ? "top" : "bottom") ", with no display that way", session)
+                if snapped
+                    WW_ApplyZoneSession(session)
                 return
             }
             MonitorGetWorkAreaPixels(target, &left, &top, &right, &bottom)
@@ -305,7 +309,7 @@ WW_ZoneEdge(direction)
             }
             WW_StartZoneCycle(session)
         }
-        WW_TightenZoneAxis(session, vertical)
+        snapped := WW_TightenZoneAxis(session, vertical)
         ; The first resize after moves: Win + Down comes back here.
         if !session.resized {
             session.resized := true
@@ -315,6 +319,8 @@ WW_ZoneEdge(direction)
             WW_ZoneAxisLadder(session, vertical))
         if !IsObject(span) {
             WW_LogZone("no size left that way", session)
+            if snapped
+                WW_ApplyZoneSession(session)
             return
         }
         if vertical
@@ -329,23 +335,24 @@ WW_ZoneEdge(direction)
 
 ; Snaps the session's span along one axis to the zone grid the first time zone
 ; mode uses that axis, when a Win + Shift resize left it at the window's own
-; place.
+; place. True when the span moved, so a press with no step left still applies
+; the snap instead of keeping a span the window isn't on.
 WW_TightenZoneAxis(session, vertical)
 {
     axis := vertical ? "y" : "x"
     if !InStr(session.loose, axis)
-        return
+        return false
     session.loose := StrReplace(session.loose, axis)
     area := session.work_area
     tolerance := 8 / (vertical ? area[4] - area[2] : area[3] - area[1])
     ladder := WW_ZoneAxisLadder(session, vertical)
-    if vertical {
-        snapped := WW_ZoneSnapSpan([session.y0, session.y1], ladder, tolerance)
+    span := vertical ? [session.y0, session.y1] : [session.x0, session.x1]
+    snapped := WW_ZoneSnapSpan(span, ladder, tolerance)
+    if vertical
         session.y0 := snapped[1], session.y1 := snapped[2]
-    } else {
-        snapped := WW_ZoneSnapSpan([session.x0, session.x1], ladder, tolerance)
+    else
         session.x0 := snapped[1], session.x1 := snapped[2]
-    }
+    return Abs(snapped[1] - span[1]) > 0.0001 || Abs(snapped[2] - span[2]) > 0.0001
 }
 
 ; A span on the grid: itself within tolerance, or else the closest size at the

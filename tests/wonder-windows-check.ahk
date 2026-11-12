@@ -13,6 +13,32 @@ class WonderWindowsChecks {
         this.NormalSizeAndResize()
         this.ZoneMode()
         this.RefusedZoneSize()
+        this.LooseAxisSnaps()
+    }
+
+    ; A half-height window between the rows, resized with Win + Shift + Right:
+    ; Win + Up snaps it to the top half even with no step left above.
+    static LooseAxisSnaps() {
+        window := SuiteGui("+Resize -DPIScale", "Loose axis check")
+        try {
+            SuiteWindowOwnership.AllowArranging(window)
+            window.Show("NA x200 y200 w400 h300")
+            hwnd := window.Hwnd
+            area := WW_GetLayoutWorkArea(hwnd)
+            height := area[4] - area[2]
+            WW_MoveWindowToVisibleRectangle(hwnd, [area[1] + 200, area[2] + Round(height * 0.22), 400, Round(height / 2)])
+            ActivateWindow(hwnd)
+            WW_EndZoneCycle()
+            WW_ZoneEdge("right")
+            WW_ZoneRow("up")
+            rect := WW_GetWindowLayoutRectangle(hwnd)
+            this.Assert(Abs(rect[2] - area[2]) <= 3 && Abs(rect[4] - height / 2) <= 3,
+                "Win + Up after a Win + Shift resize snaps a window between the rows to the top half")
+        }
+        finally {
+            WW_EndZoneCycle()
+            window.Destroy()
+        }
     }
 
     ; An app wider than a third at its minimum, as Steam is, steps by the
