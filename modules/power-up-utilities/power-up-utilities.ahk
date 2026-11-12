@@ -452,7 +452,8 @@ class PowerUpUtilities extends SuiteModule {
 
         A TIDY RESTART
         Pause + Shift + Win + Delete asks every window on every display to close, then restarts once none is left, installing pending updates.
-        Apps still ask about unsaved work, and a window still open after a minute cancels the restart, so Windows never has to restart anyway.
+        Apps still ask about unsaved work, and a window still open after a minute cancels the restart.
+        No app is ever closed by force.
 
         MORE KEYS WITHOUT A NEW KEYBOARD
         Caps + QWER/ASDF/ZXCV sends F13–F24; Caps + 0–9 provides a virtual number pad, even if your keyboard lacks those keys.
