@@ -25,12 +25,13 @@
 ;   Toward a side it hugs it shrinks, away from it it grows; a window as wide
 ;   or tall as the display shrinks toward the arrow; one in the middle grows.
 ;   Grown to the whole work area it is maximized, and shrinking restores it.
-; Plain arrows move and Shift arrows resize. Only Win + Left or Right starts
-; zone mode. Win + Shift + an arrow outside it resizes along the arrow's axis
-; alone, snapped to the zone grid there, a maximized window from its full
-; size, and leaves the other axis and zone mode alone. Up and Down answer only
-; in zone mode (the zone-cycling scope), so outside it Win + Up and Down
-; maximize and restore.
+; Plain arrows move and Shift arrows resize. Win + Shift + an arrow outside
+; zone mode starts it too: it resizes along the arrow's axis alone, snapped to
+; the zone grid there, a maximized window from its full size, and leaves the
+; other axis exactly where it was. That axis stays loose until zone mode first
+; moves or resizes along it, which snaps it to the grid as Win + Left or Right
+; would. Up and Down answer only in zone mode (the zone-cycling scope), so
+; outside it Win + Up and Down maximize and restore.
 
 ; Where an edge may stop along the display's long or short side, as a
 ; fraction of the work area, from the pairs Settings turns on.
@@ -62,7 +63,6 @@ WW_BuildZoneLadder(sixths, fourths, thirds)
 ; sideways.
 WW_ZoneSide(side)
 {
-    global WW_zone_cycle
     Critical "On"
     hwnd := WW_GetPlacementTarget(&fresh_entry)
     if !hwnd
@@ -71,9 +71,8 @@ WW_ZoneSide(side)
         session := WW_CurrentZoneSession(hwnd)
         if !IsObject(session) {
             session := {hwnd: hwnd, pid: WinGetPID(hwnd), work_area: WW_GetLayoutWorkArea(hwnd),
-                x0: side = "left" ? 0 : 1 / 2, x1: side = "left" ? 1 / 2 : 1, y0: 0, y1: 1, resized: false}
-            WW_zone_cycle := session
-            SetTimer(WW_WatchZoneCycleRelease, 50)
+                x0: side = "left" ? 0 : 1 / 2, x1: side = "left" ? 1 / 2 : 1, y0: 0, y1: 1, resized: false, loose: ""}
+            WW_StartZoneCycle(session)
             ; A maximized or fullscreen window was just restored: it starts at
             ; a half, as in Windows. Any other starts from its own size.
             if !fresh_entry {
@@ -85,6 +84,7 @@ WW_ZoneSide(side)
             WW_ApplyZoneSession(session)
             return
         }
+        WW_TightenZoneAxis(session, false)
         width := session.x1 - session.x0
         left_edge := WW_ZoneSlide(session.x0, width, side, WW_ZoneAxisLadder(session, false))
         if left_edge = "" {
@@ -213,6 +213,7 @@ WW_ZoneRow(direction)
     if !IsObject(session)
         return
     try {
+        WW_TightenZoneAxis(session, true)
         span := WW_ZoneRowSpan([session.y0, session.y1], direction, WW_ZoneAxisLadder(session, true))
         if !IsObject(span) {
             ; Past the top or bottom: on to a display touching that edge, onto
@@ -271,11 +272,11 @@ WW_ZoneRowSpan(span, direction, ladder := WW_ZoneLadder())
     return top = "" ? 0 : [top, top + height]
 }
 
-; Win + Shift + an arrow: one size bigger or smaller along the arrow's axis.
-; In zone mode it resizes the zone. Outside it, only that axis changes,
-; snapped to the zone grid and then resized; the other axis keeps its exact
-; place, and zone mode stays off, so only Win + Left or Right starts it. A
-; maximized or fullscreen window starts from its full size.
+; Win + Shift + an arrow: one size bigger or smaller along the arrow's axis,
+; snapped to the zone grid first. Outside zone mode it starts it from the
+; window's exact place, both axes loose, so only the arrow's axis snaps and the
+; other keeps its place until a later move snaps it. A maximized or fullscreen
+; window starts from its full size.
 WW_ZoneEdge(direction)
 {
     Critical "On"
@@ -287,23 +288,18 @@ WW_ZoneEdge(direction)
             hwnd := WW_GetPlacementTarget(&fresh_entry)
             if !hwnd
                 return
-            ; A one-press span, never registered as zone mode.
             session := {hwnd: hwnd, pid: WinGetPID(hwnd), work_area: WW_GetLayoutWorkArea(hwnd),
-                x0: 0, x1: 1, y0: 0, y1: 1, resized: true}
+                x0: 0, x1: 1, y0: 0, y1: 1, resized: true, loose: ""}
             if !fresh_entry {
                 rect := WW_GetWindowLayoutRectangle(hwnd), area := session.work_area
                 width := area[3] - area[1], height := area[4] - area[2]
                 session.x0 := (rect[1] - area[1]) / width, session.x1 := (rect[1] + rect[3] - area[1]) / width
                 session.y0 := (rect[2] - area[2]) / height, session.y1 := (rect[2] + rect[4] - area[2]) / height
-                if vertical {
-                    snapped := WW_ZoneSnapSpan([session.y0, session.y1], WW_ZoneAxisLadder(session, true), 8 / height)
-                    session.y0 := snapped[1], session.y1 := snapped[2]
-                } else {
-                    snapped := WW_ZoneSnapSpan([session.x0, session.x1], WW_ZoneAxisLadder(session, false), 8 / width)
-                    session.x0 := snapped[1], session.x1 := snapped[2]
-                }
+                session.loose := "xy"
             }
+            WW_StartZoneCycle(session)
         }
+        WW_TightenZoneAxis(session, vertical)
         ; The first resize after moves: Win + Down comes back here.
         if !session.resized {
             session.resized := true
@@ -321,6 +317,27 @@ WW_ZoneEdge(direction)
     }
     catch Error as err
         WW_DebugError("Zone edge", err)
+}
+
+; Snaps the session's span along one axis to the zone grid the first time zone
+; mode uses that axis, when a Win + Shift resize left it at the window's own
+; place.
+WW_TightenZoneAxis(session, vertical)
+{
+    axis := vertical ? "y" : "x"
+    if !InStr(session.loose, axis)
+        return
+    session.loose := StrReplace(session.loose, axis)
+    area := session.work_area
+    tolerance := 8 / (vertical ? area[4] - area[2] : area[3] - area[1])
+    ladder := WW_ZoneAxisLadder(session, vertical)
+    if vertical {
+        snapped := WW_ZoneSnapSpan([session.y0, session.y1], ladder, tolerance)
+        session.y0 := snapped[1], session.y1 := snapped[2]
+    } else {
+        snapped := WW_ZoneSnapSpan([session.x0, session.x1], ladder, tolerance)
+        session.x0 := snapped[1], session.x1 := snapped[2]
+    }
 }
 
 ; A span on the grid: itself within tolerance, or else the closest size at the
@@ -442,6 +459,14 @@ WW_ModifiersReleased()
         if GetKeyState(key, "P")
             return false
     return true
+}
+
+; Zone mode runs on session until every modifier is released.
+WW_StartZoneCycle(session)
+{
+    global WW_zone_cycle
+    WW_zone_cycle := session
+    SetTimer(WW_WatchZoneCycleRelease, 50)
 }
 
 WW_WatchZoneCycleRelease()

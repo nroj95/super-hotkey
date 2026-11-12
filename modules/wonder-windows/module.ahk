@@ -31,7 +31,7 @@ class WonderWindowsModule extends SuiteModule {
     ; replaces names the Windows key an action improves. Zone mode's Up and
     ; Down answer only in zone mode (the zone-cycling scope), so outside it
     ; Win + Up and Down maximize and restore; the Shift arrows resize from
-    ; anywhere.
+    ; anywhere and start zone mode.
     Register(manager) {
         this.manager := manager
         manager.RegisterScope("zone-cycling", WW_IsCyclingZones)
@@ -309,7 +309,7 @@ class WonderWindowsModule extends SuiteModule {
         My take on Windows' built-in `Win` key shortcuts, with more predictable ways to position, resize and switch between windows.
 
         ZONE MODE
-        Win + Left or Right starts zone mode; keep holding Win.
+        Win + Left or Right starts zone mode, and so does resizing with Win + Shift and an arrow; keep holding Win.
         Use the arrows to move the window between stops, and add Shift to resize it.
         It starts out feeling like Windows' own snapping, but with more sizes than halves.
         Positions and sizes line up, so your windows fit together like puzzle pieces.

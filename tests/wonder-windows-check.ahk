@@ -182,9 +182,9 @@ class WonderWindowsChecks {
 
     ; Win + Down takes a window back to normal size without minimizing, also
     ; after a restart; Win + Up maximizes without placing the window by hand;
-    ; Win + Shift + an arrow resizes one axis from anywhere, without zone mode; Win +
-    ; Alt + Enter toggles full height; zone mode moves alone place a window
-    ; outside a cascade for good.
+    ; Win + Shift + an arrow resizes one axis from anywhere and starts zone mode,
+    ; whose next move snaps the other axis; Win + Alt + Enter toggles full
+    ; height; zone mode moves alone place a window outside a cascade for good.
     static NormalSizeAndResize() {
         window := SuiteGui("+Resize", "Normal size check")
         try {
@@ -199,14 +199,22 @@ class WonderWindowsChecks {
             near(rect, expected) => WW_RectanglesMatch(rect, expected, 6)
             WW_ZoneEdge("right")
             placed := WW_GetWindowLayoutRectangle(hwnd)
-            this.Assert(!WW_IsCyclingZones() && Abs(placed[3] - original[3]) > 3
+            this.Assert(WW_IsCyclingZones() && Abs(placed[3] - original[3]) > 3
                 && Abs(placed[2] - original[2]) <= 1 && Abs(placed[4] - original[4]) <= 1,
-                "Win + Shift + Right resizes a loose window's width only, without starting zone mode")
+                "Win + Shift + Right resizes a loose window's width only and starts zone mode")
+            WW_ZoneRow("down")
+            moved := WW_GetWindowLayoutRectangle(hwnd)
+            this.Assert(Abs(moved[1] - placed[1]) <= 1 && Abs(moved[3] - placed[3]) <= 1 && moved[2] > placed[2] + 3
+                && IsObject(WW_ZoneGridSpan([(moved[2] - area[2]) / height, (moved[2] + moved[4] - area[2]) / height],
+                    WW_ZoneLadder(width < height), 8 / height)),
+                "in that zone mode, Down snaps the height to the grid and moves it down, leaving the width")
+            placed := moved
             WW_ZoneEdge("down")
             resized := WW_GetWindowLayoutRectangle(hwnd)
-            this.Assert(!WW_IsCyclingZones() && Abs(resized[4] - placed[4]) > 3
+            this.Assert(Abs(resized[4] - placed[4]) > 3
                 && Abs(resized[1] - placed[1]) <= 1 && Abs(resized[3] - placed[3]) <= 1,
                 "Win + Shift + Down resizes its height only, leaving the width and left edge")
+            WW_EndZoneCycle()
             returned := []
             handler := (hwnd, shape) => returned.Push(hwnd)
             SuiteWindowOwnership.OnReturn(handler)
@@ -267,7 +275,7 @@ class WonderWindowsChecks {
             this.Assert(WinGetMinMax(hwnd) = 0
                 && near(WW_GetWindowLayoutRectangle(hwnd), [area[1], area[2], width * 3 / 4, height]),
                 "Win + Shift + Left shrinks a maximized window from its full size, against the left")
-            this.Assert(!WW_IsCyclingZones(), "and still doesn't start zone mode")
+            this.Assert(WW_IsCyclingZones(), "and starts zone mode")
             WW_EndZoneCycle()
             WW_RestoreToNormalSize()
         }

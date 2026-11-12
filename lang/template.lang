@@ -247,7 +247,7 @@ My take on Windows' built-in `Win` key shortcuts, with more predictable ways to 
 ZONE MODE
 =
 
-Win + Left or Right starts zone mode; keep holding Win.
+Win + Left or Right starts zone mode, and so does resizing with Win + Shift and an arrow; keep holding Win.
 =
 
 Use the arrows to move the window between stops, and add Shift to resize it.
