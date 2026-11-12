@@ -5,7 +5,8 @@
 ; =============================================================================
 
 ; The active window takes its neighbor's logical zone and stacks in front of
-; it, so Win + Enter can cycle the two. The neighbor stays where it is.
+; it, so Win + Enter can cycle the two. The neighbor stays where it is, on this
+; display or another one, as long as it lies that way.
 WW_MoveOntoWindow(direction)
 {
     Critical "On"
@@ -19,12 +20,11 @@ WW_MoveOntoWindow(direction)
 
     try {
         WW_PrepareWindowForPlacement(hwnd)
-        monitor := WindowMonitor(hwnd)
         WW_PruneLogicalZones()
-        target := WW_FindDirectionalTarget(hwnd, monitor, direction)
+        target := WW_FindDirectionalTarget(hwnd, direction)
         if !target
             return
-        if !WW_MoveWindowToZone(hwnd, WW_GetLogicalZone(target, monitor))
+        if !WW_MoveWindowToZone(hwnd, WW_GetLogicalZone(target))
             return
         WW_ForgetWindowLayoutCycle(hwnd)
         WinActivate("ahk_id " hwnd)
@@ -33,19 +33,21 @@ WW_MoveOntoWindow(direction)
         WW_DebugError("Move onto nearest window", err)
 }
 
-WW_FindDirectionalTarget(hwnd, monitor, direction)
+; Centers compare in virtual-screen pixels, so the nearest window may be on
+; another display.
+WW_FindDirectionalTarget(hwnd, direction)
 {
-    source := WW_GetLogicalZone(hwnd, monitor)
+    source := WW_GetLogicalZone(hwnd)
     sourceX := source[1] + source[3] / 2
     sourceY := source[2] + source[4] / 2
     bestHwnd := 0
     bestScore := 0
 
     for candidate in WinGetList() {
-        if candidate = hwnd || !WW_IsDirectionalCandidate(candidate, monitor)
+        if candidate = hwnd || !WW_IsDirectionalCandidate(candidate)
             continue
         try {
-            zone := WW_GetLogicalZone(candidate, monitor)
+            zone := WW_GetLogicalZone(candidate)
             deltaX := zone[1] + zone[3] / 2 - sourceX
             deltaY := zone[2] + zone[4] / 2 - sourceY
             score := WW_DirectionalScore(deltaX, deltaY, direction)
@@ -75,7 +77,7 @@ WW_DirectionalScore(deltaX, deltaY, direction)
     return -1
 }
 
-WW_IsDirectionalCandidate(hwnd, monitor_handle)
+WW_IsDirectionalCandidate(hwnd)
 {
     if !SuiteWindowOwnership.AllowsWonderWindows(hwnd)
         return false
@@ -133,18 +135,13 @@ WW_IsDirectionalCandidate(hwnd, monitor_handle)
     if IsShellSurfaceClass(class_name)
         return false
 
-    if IsWindowCloaked(hwnd)
-        return false
-
-    candidate_monitor := WindowMonitor(hwnd)
-
-    return candidate_monitor = monitor_handle
+    return !IsWindowCloaked(hwnd)
 }
 
 
 ; Intended positions remain distinct from what minimum-size windows can display.
 ; Forget an entry when the user or another application moves/resizes that window.
-WW_GetLogicalZone(hwnd, monitor := 0)
+WW_GetLogicalZone(hwnd)
 {
     global WW_logical_zones
     actual := WW_GetWindowLayoutRectangle(hwnd)
@@ -152,7 +149,7 @@ WW_GetLogicalZone(hwnd, monitor := 0)
         return actual
 
     saved := WW_logical_zones[hwnd]
-    if !WW_IsPlacementStateCurrent(hwnd, saved, monitor)
+    if !WW_IsPlacementStateCurrent(hwnd, saved)
         || !WW_LogicalZoneMarkerMatches(hwnd)
         || !WW_RectanglesMatch(actual, saved["applied"], 2) {
         WW_ForgetLogicalZone(hwnd)
@@ -221,10 +218,17 @@ WW_MoveWindowToZone(hwnd, zone)
     visible := WW_GetWindowLayoutRectangle(hwnd)
 
     try {
-        if WW_MoveWindowToVisibleRectangle(hwnd, zone)
-            && WW_WindowMatchesVisibleRectangle(hwnd, zone) {
-            WW_SaveLogicalZone(hwnd, zone)
-            return true
+        ; A window crossing onto a display with another scale resizes itself
+        ; for it, so one move more puts it where it should be.
+        display := WindowMonitor(hwnd)
+        loop 2 {
+            if WW_MoveWindowToVisibleRectangle(hwnd, zone)
+                && WW_WindowMatchesVisibleRectangle(hwnd, zone) {
+                WW_SaveLogicalZone(hwnd, zone)
+                return true
+            }
+            if WindowMonitor(hwnd) = display
+                break
         }
 
         ; A size-constrained app may silently clamp WinMove. Keep the size it
