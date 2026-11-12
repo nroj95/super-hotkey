@@ -433,9 +433,26 @@ WW_ApplyZoneSession(session)
     if full {
         WW_ForgetWindowLayoutCycle(hwnd)
         WinMaximize(hwnd)
-    }
+    } else
+        WW_KeepRefusedZoneSize(session)
     if !session.resized && !SuiteManagedWindows.IsLent(hwnd)
         WW_PlaceForGood(hwnd)
+}
+
+; An app with a minimum or maximum size, such as Steam, may refuse the span's
+; size, and the layout slides it back inside the work area. Along each axis it
+; refused, the session takes the size and place the window really has, so zone
+; mode steps by that size, the last place flush with the far side, instead of
+; by a zone the window never fits.
+WW_KeepRefusedZoneSize(session)
+{
+    rect := WW_GetWindowLayoutRectangle(session.hwnd), wanted := WW_ZoneSessionRectangle(session)
+    area := session.work_area
+    width := area[3] - area[1], height := area[4] - area[2]
+    if Abs(rect[3] - wanted[3]) > 8
+        session.x0 := (rect[1] - area[1]) / width, session.x1 := (rect[1] + rect[3] - area[1]) / width
+    if Abs(rect[4] - wanted[4]) > 8
+        session.y0 := (rect[2] - area[2]) / height, session.y1 := (rect[2] + rect[4] - area[2]) / height
 }
 
 ; A window moved where it belongs: nothing for Win + Down to take back.

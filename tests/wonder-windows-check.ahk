@@ -12,6 +12,42 @@ class WonderWindowsChecks {
         this.MinimizeAll()
         this.NormalSizeAndResize()
         this.ZoneMode()
+        this.RefusedZoneSize()
+    }
+
+    ; An app wider than a third at its minimum, as Steam is, steps by the
+    ; width it really has, never by thirds or fourths it can't fit.
+    static RefusedZoneSize() {
+        window := SuiteGui("+Resize -DPIScale", "Refused zone size check")
+        try {
+            SuiteWindowOwnership.AllowArranging(window)
+            window.Show("NA x200 y200 w300 h300")
+            hwnd := window.Hwnd
+            area := WW_GetLayoutWorkArea(hwnd)
+            width := area[3] - area[1]
+            window.Opt("+MinSize" Round(width * 0.4) "x")
+            window.Move(, , Round(width * 0.4))
+            ActivateWindow(hwnd)
+            WW_EndZoneCycle()
+            WW_ZoneSide("left")
+            first := WW_GetWindowLayoutRectangle(hwnd)
+            this.Assert(Abs(first[1] - area[1]) <= 2 && first[3] > width / 3 + 8,
+                "a window too wide for a third stays wider, against the left")
+            WW_ZoneEdge("left")
+            this.Assert(WW_RectanglesMatch(WW_GetWindowLayoutRectangle(hwnd), first, 3),
+                "Win + Shift + Left on it changes nothing")
+            WW_ZoneSide("right")
+            this.Assert(Abs(WW_GetWindowLayoutRectangle(hwnd)[1] - (area[1] + first[3])) <= 3,
+                "Right steps it by its own width, not by a third or a fourth")
+            WW_ZoneSide("right")
+            last := WW_GetWindowLayoutRectangle(hwnd)
+            this.Assert(Abs(last[1] + last[3] - area[3]) <= 3 && Abs(last[3] - first[3]) <= 3,
+                "and the next Right puts it flush with the right side")
+        }
+        finally {
+            WW_EndZoneCycle()
+            window.Destroy()
+        }
     }
 
     ; Zone mode: Win + Left/Right give a half, then while it runs Left/Right
