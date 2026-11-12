@@ -96,8 +96,10 @@ WW_ZoneSide(side)
                 lefts.Push(left)
             }
             target := WW_NeighborDisplay(WindowMonitorIndex(hwnd), side, lefts)
-            if !target
+            if !target {
+                WW_LogZone("at the side, with no display that way", session)
                 return
+            }
             MonitorGetWorkAreaPixels(target, &left, &top, &right, &bottom)
             session.work_area := [left, top, right, bottom]
             left_edge := side = "left" ? 1 - width : 0
@@ -210,8 +212,10 @@ WW_ZoneRow(direction)
 {
     Critical "On"
     session := WW_CurrentZoneSession(WW_GetWindowControlTarget())
-    if !IsObject(session)
+    if !IsObject(session) {
+        WW_DebugLog("Zone mode: Up or Down found no zone mode for the window.")
         return
+    }
     try {
         WW_TightenZoneAxis(session, true)
         span := WW_ZoneRowSpan([session.y0, session.y1], direction, WW_ZoneAxisLadder(session, true))
@@ -226,8 +230,10 @@ WW_ZoneRow(direction)
             }
             target := WW_VerticalNeighborDisplay(WindowMonitorIndex(session.hwnd), displays,
                 rect[1], rect[1] + rect[3], direction)
-            if !target
+            if !target {
+                WW_LogZone("at the " (direction = "up" ? "top" : "bottom") ", with no display that way", session)
                 return
+            }
             MonitorGetWorkAreaPixels(target, &left, &top, &right, &bottom)
             session.work_area := [left, top, right, bottom]
             height := session.y1 - session.y0
@@ -307,8 +313,10 @@ WW_ZoneEdge(direction)
         }
         span := WW_ZoneEdgeSpan(vertical ? [session.y0, session.y1] : [session.x0, session.x1], toward_start,
             WW_ZoneAxisLadder(session, vertical))
-        if !IsObject(span)
+        if !IsObject(span) {
+            WW_LogZone("no size left that way", session)
             return
+        }
         if vertical
             session.y0 := span[1], session.y1 := span[2]
         else
@@ -396,13 +404,30 @@ WW_CurrentZoneSession(hwnd)
 {
     global WW_zone_cycle
     session := WW_zone_cycle
-    if !hwnd || !IsObject(session) || session.hwnd != hwnd
+    if !hwnd || !IsObject(session)
         return 0
+    if session.hwnd != hwnd {
+        WW_DebugLog("Zone mode belongs to another window. | session-hwnd=" session.hwnd " | target=" DescribeWindow(hwnd))
+        return 0
+    }
     try {
         if WinGetPID(hwnd) = session.pid && WW_RectanglesMatch(session.work_area, WW_GetLayoutWorkArea(hwnd), 0)
             return session
     }
+    WW_LogZone("left behind: the window's process or display changed", session)
     return 0
+}
+
+; Verbose logs: what zone mode did, with the span it keeps beside the window's
+; real place.
+WW_LogZone(message, session)
+{
+    if !SuiteState.Log.verbose
+        return
+    area := session.work_area
+    WW_DebugLog("Zone mode " message ". | span=" Format("x {:.3f}-{:.3f} y {:.3f}-{:.3f}",
+        session.x0, session.x1, session.y0, session.y1) " | loose=" session.loose
+        . " | work=" area[1] "," area[2] "," area[3] "," area[4] " | " DescribeWindow(session.hwnd))
 }
 
 ; The session's span as a rectangle on its work area.
@@ -435,6 +460,7 @@ WW_ApplyZoneSession(session)
         WinMaximize(hwnd)
     } else
         WW_KeepRefusedZoneSize(session)
+    WW_LogZone("placed the window", session)
     if !session.resized && !SuiteManagedWindows.IsLent(hwnd)
         WW_PlaceForGood(hwnd)
 }
@@ -484,6 +510,7 @@ WW_StartZoneCycle(session)
     global WW_zone_cycle
     WW_zone_cycle := session
     SetTimer(WW_WatchZoneCycleRelease, 50)
+    WW_LogZone("started", session)
 }
 
 WW_WatchZoneCycleRelease()
@@ -495,6 +522,8 @@ WW_WatchZoneCycleRelease()
 WW_EndZoneCycle()
 {
     global WW_zone_cycle
+    if IsObject(WW_zone_cycle)
+        WW_DebugLog("Zone mode ended.")
     WW_zone_cycle := 0
     SetTimer(WW_WatchZoneCycleRelease, 0)
 }

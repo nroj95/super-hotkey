@@ -199,6 +199,8 @@ class WonderWindowsModule extends SuiteModule {
                 continue
             }
             this.pending.Delete(token)
+            if SuiteState.Log.verbose
+                WW_DebugLog("Key runs. | action=" job.event.actionId " | " DescribeWindow(foreground))
             try WW_RunWindowCommand(job.action.command, job.action.arguments*)
             catch Error as failure
                 SuiteState.Log.Error("Wonder Windows / " job.event.actionId, failure)
