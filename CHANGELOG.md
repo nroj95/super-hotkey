@@ -2,11 +2,14 @@
 
 ## Unreleased
 
+## v1.0.0-beta.6
+
+Power-Up Utilities gains a break reminder and a tidy restart that never forces an app closed. Zone mode starts from `Win + Shift` resizes and steps apps that won't shrink by their real size, and Super Hotkey's own pages open on the primary display.
+
 ### Changes
 
 - **Power-Up Utilities:** a break reminder. `Pause + B` turns it on, and every 45 minutes a message shows on every display. Locking the computer, the screens going dark, sleep and suspending Super Hotkey count as a break, so the timer restarts when you're back and nothing waits from while you were gone. `Pause + Pause` shows when the next one comes, and Settings changes the interval and the message. Settings can also turn off the screens or lock the computer 10 seconds after the message, except while an app is in fullscreen; `Pause + B` in those seconds turns the reminder off and cancels it.
 - **Power-Up Utilities:** a tidy restart. `Pause + Shift + Win + Delete` asks every window on every display to close, as its close button would, and restarts once none is left, installing pending updates as *Update and restart* does. Apps still ask about unsaved work. A window still open after a minute, such as one running as administrator, cancels the restart and is named on every display, and pressing the hotkey again cancels it too, so no app is ever closed by force, as Windows' *Restart anyway* would.
-
 - Settings, Help, Keybindings and the other Super Hotkey pages open on the primary display, so they are found in the same place whichever display you're working on. A page opened from another one, such as Settings from Help, still opens where that page is. Notices still show on the display you're working on.
 - **Wonder Windows:** resizing with `Win + Shift` and an arrow now starts zone mode too, so while you still hold `Win` the arrows move the window between zones. The resize still changes only the arrow's direction; the first move the other way snaps the window to the zones there. While you hold `Win`, `Win + Up/Down` move the window instead of maximizing it or undoing the resize; let go of `Win` first for those.
 - **Wonder Windows:** zone mode now moves an app that won't shrink to a zone, such as Steam, by the size it really has. It used to step by the zone it had asked for, so after `Win + Shift + Left` a window wider than a third stepped by fourths and stopped in places that looked random. Now it goes from the left side to one step of its own width and then flush right, and `Win + Shift` toward a size it refuses leaves it as it is.
@@ -17,6 +20,18 @@
 - **Wonder Windows:** `Win + Shift + Home` is named *restore others (this display)* in Keybindings, matching *minimize others (this display)*.
 - **Cascade Kingdom:** Keybindings lists *gather all cascades*, which reaches every display, before the actions for this display.
 - **Power-Up Utilities:** Help's stay awake section is shorter, with the tip to turn off Windows' Away Mode right beside it.
+
+### Install
+
+Install [AutoHotkey v2](https://www.autohotkey.com/) **64-bit**, download and extract the source code below, and run `super-hotkey.ahk`. Settings and logs live in `%LOCALAPPDATA%\nroj\SuperHotkey`; this version keeps those from earlier betas.
+
+### Known limitations
+
+- PowerToys FancyZones isn't supported; disable it in PowerToys while using Super Hotkey.
+- Paper Pad needs Notepad3 and asks you to install it or locate it when it can't find it.
+- Sleep works as Windows' own does: where Away Mode is allowed, `Pause + Escape` and stay awake running out may only darken the screens until you turn Away Mode off.
+- Keep speakers awake was measured on one set of speakers; if yours still fall asleep, nudge more often or switch to the chime in Power-Up Utilities' Settings.
+- The recording in the README still shows v1.0.0-beta.1.
 
 ## v1.0.0-beta.5
 
