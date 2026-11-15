@@ -21,10 +21,12 @@ class PowerUpChecks {
             ModuleActive: (app, id) => true,
             Settings: {WritePreferences: (settings, id, changes) => saved.Push(changes["Breaks"]["On"])}}
         module := {app: app, id: "power-up-utilities", stopping: false, dryRun: true,
-            Report: (module, text) => reports.Push(text)}
+            Report: (module, text) => reports.Push(text),
+            speakers: {Nudge: (*) => reports.Push("speakers nudged"), Silence: (*) => reports.Push("speakers silenced")}}
         breaks := PU_Breaks(module, SuiteChecks.directory "\breaks\settings.ini")
-        busy := false, keysDown := false
+        busy := false, keysDown := false, presenting := false
         breaks.DefineProp("Busy", {call: (*) => busy})
+        breaks.DefineProp("Presenting", {call: (*) => presenting})
         breaks.DefineProp("KeysDown", {call: (*) => keysDown})
         acted := (action) => PowerUpChecks.CountOf(reports, "dry run: break " action)
         try {
@@ -91,6 +93,38 @@ class PowerUpChecks {
             app.sessionLocked := false
             this.Assert(acted("lock") = 1, "and so does leaving the computer first")
             breaks.Apply(60, "", "message")
+
+            ; The sound, and the nudge that wakes the speakers for it, are only reported.
+            missing := ""
+            for , sound in PU_Breaks.SoundFiles
+                if !FileExist(A_WinDir "\Media\" sound.file)
+                    missing .= " " sound.file
+            this.Assert(missing = "" && PU_Breaks.Sounds.Length = PowerUpUtilities.BreakSoundNames().Length,
+                "every break sound Settings names ships with Windows" missing)
+            this.Assert(PU_Breaks.CleanSound("alarm1") = "alarm1" && PU_Breaks.CleanSound("none") = "none"
+                && PU_Breaks.CleanSound("x") = "proximity" && breaks.sound = "proximity",
+                "the break plays Proximity unless another sound or none is chosen")
+            breaks.Apply(60, "", "message", "none")
+            breaks.Lead(), breaks.Remind(), this.ShownEverywhere("Time for a break")
+            this.Assert(!PowerUpChecks.CountOf(reports, "speakers nudged")
+                && !PowerUpChecks.CountOf(reports, "dry run: break sound none"),
+                "without a sound, the speakers get no nudge and nothing plays")
+            breaks.Apply(60, "", "message", "calendar")
+            breaks.Lead(), breaks.Remind(), this.ShownEverywhere("Time for a break")
+            this.Assert(PowerUpChecks.CountOf(reports, "speakers nudged") = 1
+                && PowerUpChecks.CountOf(reports, "dry run: break sound calendar") = 1,
+                "with a sound, the speakers get a nudge before it and it plays with the message")
+            presenting := true
+            breaks.Lead(), breaks.Remind(), this.ShownEverywhere("Time for a break")
+            presenting := false
+            this.Assert(PowerUpChecks.CountOf(reports, "speakers nudged") = 1
+                && PowerUpChecks.CountOf(reports, "dry run: break sound calendar") = 1,
+                "a presentation gets the message without the nudge or the sound")
+            breaks.Preview("alarm2"), breaks.Preview("none")
+            this.Assert(PowerUpChecks.CountOf(reports, "dry run: break sound alarm2") = 1
+                && PowerUpChecks.CountOf(reports, "speakers nudged") = 1,
+                "Settings previews a chosen sound once, without a nudge")
+            breaks.Apply(60, "", "message", "none")
             breaks.Toggle()
             off := !breaks.on && saved[-1] = 0 && SuiteNotice.notices["status"].text = "Break reminder off"
             SuiteNotice.Hide("status")

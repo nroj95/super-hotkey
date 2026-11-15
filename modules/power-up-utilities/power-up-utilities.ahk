@@ -156,6 +156,10 @@ class PowerUpUtilities extends SuiteModule {
         rows.window.AddUpDown("Range1-" PU_Breaks.MinutesLimit, this.breaks.minutes)
         rows.window.AddText("x" (SuitePageRows.FieldX + 68) " y" (y + 4) " w60", "min")
         rows.Field("Message", "Edit", "w300 vbreakMessage", this.breaks.Text)
+        sound := rows.Field("Sound", "DropDownList", "w210 vbreakSound", PowerUpUtilities.BreakSoundNames())
+        sound.Choose(PowerUpUtilities.BreakSoundIndex(this.breaks.sound))
+        sound.OnEvent("Change", (control, *) => this.breaks.Preview(PU_Breaks.Sounds[Max(1, control.Value)]))
+        rows.Caption("Speakers get a nudge 5 seconds before, so sleeping ones don't miss the sound.")
         choice := rows.Field("At break time", "DropDownList", "w210 vbreakAction", PowerUpUtilities.BreakActionNames())
         choice.Choose(PowerUpUtilities.BreakActionIndex(this.breaks.action))
         ; Sized for the longest caption; the chosen action fills it in.
@@ -184,7 +188,7 @@ class PowerUpUtilities extends SuiteModule {
         switch action {
             case "screens": return "The screens turn off 10 seconds after the message, unless an app is in fullscreen."
             case "lock": return "The computer locks 10 seconds after the message, unless an app is in fullscreen."
-            default: return "The message shows on every display for 3 seconds, and nothing else happens."
+            default: return "Only the message shows, on every display for 3 seconds."
         }
     }
 
@@ -200,9 +204,21 @@ class PowerUpUtilities extends SuiteModule {
         return 1
     }
 
+    ; The break sound choices, in PU_Breaks.Sounds order.
+    static BreakSoundNames() => ["No sound", "Chimes", "Calendar", "Proximity", "Message nudge", "Tada", "Logon",
+        "Alarm 1", "Alarm 2", "Alarm 3", "Alarm 4", "Alarm 5", "Alarm 6", "Alarm 7", "Alarm 8", "Alarm 9", "Alarm 10"]
+
+    static BreakSoundIndex(sound) {
+        for index, name in PU_Breaks.Sounds
+            if name = sound
+                return index
+        return 1
+    }
+
     RestoreSettings(window) {
         window["breakMinutes"].Value := PU_Breaks.MinutesDefault
         window["breakMessage"].Value := PU_Breaks.MessageDefault
+        window["breakSound"].Choose(PowerUpUtilities.BreakSoundIndex(PU_Breaks.SoundDefault))
         window["breakAction"].Choose(1)
         PowerUpUtilities.ShowBreakActionCaption(window)
         window["minutes"].Value := PU_Speakers.MinutesDefault
@@ -219,12 +235,13 @@ class PowerUpUtilities extends SuiteModule {
             if message = PU_Breaks.MessageDefault
                 message := ""
             action := PU_Breaks.Actions[Max(1, window["breakAction"].Value)]
+            sound := PU_Breaks.Sounds[Max(1, window["breakSound"].Value)]
             minutes := PU_Speakers.CleanMinutes(window["minutes"].Value)
             chime := window["chime"].Value != 0
             this.app.Settings.WritePreferences(this.id,
-                Map("Breaks", Map("Minutes", breakMinutes, "Message", message, "Action", action),
+                Map("Breaks", Map("Minutes", breakMinutes, "Message", message, "Action", action, "Sound", sound),
                     "Speakers", Map("Minutes", minutes, "Chime", chime ? 1 : 0)))
-            this.breaks.Apply(breakMinutes, message, action)
+            this.breaks.Apply(breakMinutes, message, action, sound)
             this.speakers.minutes := minutes
             this.speakers.chime := chime
             ui.Applied(key)
@@ -449,6 +466,7 @@ class PowerUpUtilities extends SuiteModule {
         Pause + B reminds you to take a break every 45 minutes, on every display.
         Locking the computer or letting the screens go dark counts as a break, so the timer restarts when you're back.
         Settings can also turn off the screens or lock the computer 10 seconds after the message.
+        A soft sound plays with it, and a nudge 5 seconds before wakes sleeping speakers for it.
 
         A TIDY RESTART
         Pause + Shift + Win + Delete asks every window on every display to close, then restarts once none is left, installing pending updates.

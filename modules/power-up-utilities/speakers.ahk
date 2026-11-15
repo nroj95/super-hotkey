@@ -14,9 +14,11 @@
 ; A raised volume goes back once the nudge has played, and only if it is
 ; still the level set. Nudges play only while the user is at the unlocked
 ; computer with its displays on and Super Hotkey running, so away from it the
-; speakers may sleep, and a muted device gets none. The action switches it on
-; and off; settings.ini [Speakers] keeps that, Minutes and Chime. A dry run
-; plays nothing and reports each nudge.
+; speakers may sleep, and a muted device gets none. The break reminder also
+; nudges before its sound, which PlayFile plays at Windows' own volume, even
+; with keep speakers awake off. The action switches it on and off;
+; settings.ini [Speakers] keeps that, Minutes and Chime. A dry run plays
+; nothing and reports each nudge.
 ; =============================================================================
 
 class PU_Speakers {
@@ -184,6 +186,14 @@ class PU_Speakers {
         }
         finally Critical previousCritical
         Sleep(100)
+    }
+
+    ; A sound file at Windows' own volume, such as the break sound.
+    PlayFile(path, durationMs) {
+        if !FileExist(path)
+            throw Error("The sound was not found:`n" path)
+        this.Silence()
+        this.Play(path, 0x20003, durationMs) ; SND_FILENAME | SND_NODEFAULT | SND_ASYNC
     }
 
     Play(sound, flags, durationMs) {

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changes
+
+- **Power-Up Utilities:** the break reminder plays a sound with its message, Windows' soft Proximity chime by default, so you notice it while looking away from the screen. Settings offers 16 Windows sounds, from short chimes, Tada and Logon to Windows' ten alarms of 2 to 6 seconds, or no sound, and plays each once as you pick it. Five seconds before, speakers get the nudge that *keep speakers awake* uses, even with that turned off, so speakers asleep in silence wake in time and the sound isn't lost. Nothing plays during a presentation.
+
 ## v1.0.0-beta.6
 
 Power-Up Utilities gains a break reminder and a tidy restart that never forces an app closed. Zone mode starts from `Win + Shift` resizes and steps apps that won't shrink by their real size, and Super Hotkey's own pages open on the primary display.

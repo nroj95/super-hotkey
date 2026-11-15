@@ -11,14 +11,21 @@
 ; a presentation, and locking waits until no key the suite watches is down,
 ; as the lock action does. Turning the reminder off, or leaving, cancels it.
 ;
+; Sound, Proximity by default, plays a Windows sound, or none, with the message
+; at Windows' own volume, except during a presentation. LeadMs before it,
+; the speakers get keep speakers awake's nudge, its silent tone or chime as
+; that setting says, since sleeping speakers take seconds to wake and lose a
+; short sound entirely; speaker-standby.md has the measurements. Settings
+; previews a sound once as it is chosen.
+;
 ; Time away is a break: locking the computer, the displays turning off,
 ; sleep and suspending Super Hotkey stop the countdown, and coming back
 ; starts it over, so the next reminder is a whole interval away and none
 ; waits from while you were gone. The status notice (Pause + Pause) shows
 ; when the next one comes. The hotkey action switches it on and off;
 ; settings.ini [Breaks] keeps that, Minutes, Message, where empty means the
-; default, and Action. A dry run never starts it, and checks only report the
-; screens or lock action.
+; default, Action and Sound. A dry run never starts it, and checks only report
+; the screens or lock action, the nudge and the sound.
 ; =============================================================================
 
 class PU_Breaks {
@@ -30,6 +37,32 @@ class PU_Breaks {
     static Actions := ["message", "screens", "lock"]
     static ActionDelayMs := 10000
     static KeysRetryMs := 250
+    ; The sounds Settings offers, from C:\Windows\Media, each with its file's
+    ; length, silent tail included, so stopping it never cuts it short.
+    ; Sounds that mean something in Windows, such as errors, low battery or a
+    ; device plugged in, are left out, and so are the ringtones, which sound
+    ; like a call.
+    static Sounds := ["none", "chimes", "calendar", "proximity", "messagenudge", "tada", "logon",
+        "alarm1", "alarm2", "alarm3", "alarm4", "alarm5", "alarm6", "alarm7", "alarm8", "alarm9", "alarm10"]
+    static SoundDefault := "proximity"
+    static SoundFiles := Map("chimes", {file: "chimes.wav", ms: 1200},
+        "calendar", {file: "Windows Notify Calendar.wav", ms: 2000},
+        "proximity", {file: "Windows Proximity Notification.wav", ms: 1700},
+        "messagenudge", {file: "Windows Message Nudge.wav", ms: 1300},
+        "tada", {file: "tada.wav", ms: 1700},
+        "logon", {file: "Windows Logon.wav", ms: 4400},
+        "alarm1", {file: "Alarm01.wav", ms: 5600},
+        "alarm2", {file: "Alarm02.wav", ms: 3700},
+        "alarm3", {file: "Alarm03.wav", ms: 4000},
+        "alarm4", {file: "Alarm04.wav", ms: 4600},
+        "alarm5", {file: "Alarm05.wav", ms: 8300},
+        "alarm6", {file: "Alarm06.wav", ms: 6800},
+        "alarm7", {file: "Alarm07.wav", ms: 6400},
+        "alarm8", {file: "Alarm08.wav", ms: 5700},
+        "alarm9", {file: "Alarm09.wav", ms: 5500},
+        "alarm10", {file: "Alarm10.wav", ms: 3800})
+    ; The measured speakers lit up 1.2 s after a sound began; others take 3 to 5 s.
+    static LeadMs := 5000
 
     __New(module, path) {
         this.module := module
@@ -37,9 +70,11 @@ class PU_Breaks {
         this.minutes := PU_Breaks.CleanMinutes(IniRead(path, "Breaks", "Minutes", PU_Breaks.MinutesDefault))
         this.message := Trim(IniRead(path, "Breaks", "Message", ""))
         this.action := PU_Breaks.CleanAction(IniRead(path, "Breaks", "Action", "message"))
+        this.sound := PU_Breaks.CleanSound(IniRead(path, "Breaks", "Sound", PU_Breaks.SoundDefault))
         this.due := 0  ; A_TickCount when the next reminder shows, 0 while stopped
         this.displayOff := false
         this.timer := ObjBindMethod(this, "Remind")
+        this.leadTimer := ObjBindMethod(this, "Lead")
         this.actionTimer := ObjBindMethod(this, "Act")
         this.backCallback := ObjBindMethod(this, "Restart")
         this.displaysCallback := ObjBindMethod(this, "DisplaysChanged")
@@ -53,6 +88,13 @@ class PU_Breaks {
             if value = action
                 return action
         return "message"
+    }
+
+    static CleanSound(value) {
+        for sound in PU_Breaks.Sounds
+            if value = sound
+                return sound
+        return PU_Breaks.SoundDefault
     }
 
     Text => this.message != "" ? this.message : PU_Breaks.MessageDefault
@@ -81,11 +123,23 @@ class PU_Breaks {
             return this.Pause()
         this.due := A_TickCount + this.minutes * 60000
         SetTimer(this.timer, -this.minutes * 60000)
+        this.ScheduleLead()
     }
 
-    ; Stops the countdown and any screens or lock action still to come.
+    ; The speakers' nudge, LeadMs before a reminder with a sound.
+    ScheduleLead() {
+        SetTimer(this.leadTimer, 0)
+        if !this.due || this.sound = "none"
+            return
+        wait := this.due - A_TickCount - PU_Breaks.LeadMs
+        if wait > 0
+            SetTimer(this.leadTimer, -wait)
+    }
+
+    ; Stops the countdown, the nudge and any screens or lock action to come.
     Pause() {
         SetTimer(this.timer, 0)
+        SetTimer(this.leadTimer, 0)
         SetTimer(this.actionTimer, 0)
         SetTimer(this.backCallback, 0)
         this.due := 0
@@ -106,9 +160,49 @@ class PU_Breaks {
             return this.Pause()
         SuiteNotice.ShowEverywhere("breaks", this.Text)
         this.module.Report("break reminder shown")
+        this.PlaySound()
         this.Restart()
         if this.action != "message"
             SetTimer(this.actionTimer, -PU_Breaks.ActionDelayMs)
+    }
+
+    ; Wakes sleeping speakers for the sound to come.
+    Lead(*) {
+        SetTimer(this.leadTimer, 0)
+        if !this.Present() || this.sound = "none" || this.Presenting()
+            return
+        try this.module.speakers.Nudge()
+        catch Error as failure
+            SuiteState.Log.Error("Power-Up Utilities / breaks", failure)
+    }
+
+    PlaySound() {
+        if this.sound != "none" && !this.Presenting()
+            this.Play(this.sound)
+    }
+
+    ; Settings plays a sound once as it is chosen; no sound stops it.
+    Preview(sound) {
+        if sound != "none"
+            return this.Play(sound)
+        try this.module.speakers.Silence()
+    }
+
+    Play(sound) {
+        if this.module.dryRun {
+            this.module.Report("dry run: break sound " sound)
+            return
+        }
+        entry := PU_Breaks.SoundFiles[sound]
+        try this.module.speakers.PlayFile(A_WinDir "\Media\" entry.file, entry.ms)
+        catch Error as failure
+            SuiteState.Log.Error("Power-Up Utilities / breaks", failure)
+    }
+
+    ; QUNS_PRESENTATION_MODE; checks replace it.
+    Presenting() {
+        state := 0
+        return !DllCall("shell32\SHQueryUserNotificationState", "int*", &state, "int") && state = 4
     }
 
     ; Turns the screens off or locks, unless the user left, turned the
@@ -170,13 +264,16 @@ class PU_Breaks {
     }
 
     ; New choices from Settings; a new interval starts over.
-    Apply(minutes, message, action) {
+    Apply(minutes, message, action, sound := this.sound) {
         changed := minutes != this.minutes
         this.minutes := minutes
         this.message := message
         this.action := action
+        this.sound := sound
         if changed
             this.Restart()
+        else
+            this.ScheduleLead()
     }
 
     ; When the next reminder comes, for the status notice, or "" when stopped.
