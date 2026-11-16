@@ -2,8 +2,13 @@
 
 ## Unreleased
 
+### Breaking changes
+
+- **Power-Up Utilities:** the break reminder now locks the computer 10 seconds after its message by default, so the break really happens; as before, not while an app is in fullscreen. `Pause + B` says so as it turns the reminder on, such as *Break reminder every 45 min, then locks*, and pressing it within those 10 seconds turns the reminder off and cancels the lock. If you've applied Power-Up Utilities' Settings since the break reminder came, your choice stays; otherwise choose *Only show the message* under *At break time* to keep the old behavior.
+
 ### Changes
 
+- **Power-Up Utilities:** `Pause + Pause` is named in the break reminder's Help and the README, to show how long until the next break.
 - **Power-Up Utilities:** the break reminder plays a sound with its message, Windows' soft Proximity chime by default, so you notice it while looking away from the screen. Settings offers 16 Windows sounds, from short chimes, Tada and Logon to Windows' ten alarms of 2 to 6 seconds, or no sound, and plays each once as you pick it. Five seconds before, speakers get the nudge that *keep speakers awake* uses, even with that turned off, so speakers asleep in silence wake in time and the sound isn't lost. Nothing plays during a presentation.
 
 ## v1.0.0-beta.6

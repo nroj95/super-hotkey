@@ -4,9 +4,9 @@
 ; =============================================================================
 ; While it is on, a reminder shows on every display for 3 s every Minutes, 45
 ; by default: studies favor a short walk every half hour, while a reminder
-; that interrupts too often gets switched off. Action can also turn the
-; screens off or lock the computer ActionDelayMs after the message, as
-; Settings says; the notice shows only the message, which may be the user's
+; that interrupts too often gets switched off. ActionDelayMs after the
+; message, Action locks the computer by default, or turns the screens off or
+; does nothing more, as Settings says, and the turn-on notice names it; the notice shows only the message, which may be the user's
 ; own text. The action is skipped while Windows reports a fullscreen app or
 ; a presentation, and locking waits until no key the suite watches is down,
 ; as the lock action does. Turning the reminder off, or leaving, cancels it.
@@ -33,8 +33,10 @@ class PU_Breaks {
     static MinutesLimit := 240
     static MessageDefault := "Time for a break"
     static NoticeMs := 1400
-    ; What follows the message, in the order Settings lists them.
+    ; What follows the message, in the order Settings lists them. Locking is
+    ; the default: anyone who turns the reminder on wants the break to happen.
     static Actions := ["message", "screens", "lock"]
+    static ActionDefault := "lock"
     static ActionDelayMs := 10000
     static KeysRetryMs := 250
     ; The sounds Settings offers, from C:\Windows\Media, each with its file's
@@ -69,7 +71,7 @@ class PU_Breaks {
         this.on := IniRead(path, "Breaks", "On", 0) = "1"
         this.minutes := PU_Breaks.CleanMinutes(IniRead(path, "Breaks", "Minutes", PU_Breaks.MinutesDefault))
         this.message := Trim(IniRead(path, "Breaks", "Message", ""))
-        this.action := PU_Breaks.CleanAction(IniRead(path, "Breaks", "Action", "message"))
+        this.action := PU_Breaks.CleanAction(IniRead(path, "Breaks", "Action", PU_Breaks.ActionDefault))
         this.sound := PU_Breaks.CleanSound(IniRead(path, "Breaks", "Sound", PU_Breaks.SoundDefault))
         this.due := 0  ; A_TickCount when the next reminder shows, 0 while stopped
         this.displayOff := false
@@ -87,7 +89,7 @@ class PU_Breaks {
         for action in PU_Breaks.Actions
             if value = action
                 return action
-        return "message"
+        return PU_Breaks.ActionDefault
     }
 
     static CleanSound(value) {
@@ -257,10 +259,19 @@ class PU_Breaks {
         this.on := !this.on
         this.module.app.Settings.WritePreferences(this.module.id,
             Map("Breaks", Map("On", this.on ? 1 : 0)))
-        SuiteNotice.Show("status", this.on ? "Break reminder every " this.minutes " min" : "Break reminder off",
-            PU_Breaks.NoticeMs)
+        SuiteNotice.Show("status", this.on ? this.OnText() : "Break reminder off", PU_Breaks.NoticeMs)
         this.module.Report(this.on ? "break reminder on" : "break reminder off")
         this.Restart()
+    }
+
+    ; Switched on, the notice also says what follows the message, so the first
+    ; lock is no surprise.
+    OnText() {
+        switch this.action {
+            case "lock": return "Break reminder every " this.minutes " min, then locks"
+            case "screens": return "Break reminder every " this.minutes " min, then screens off"
+            default: return "Break reminder every " this.minutes " min"
+        }
     }
 
     ; New choices from Settings; a new interval starts over.

@@ -34,10 +34,11 @@ class PowerUpChecks {
             this.Assert(!breaks.on && !breaks.due && breaks.StatusText() = "",
                 "the break reminder starts off and adds nothing to the status")
             breaks.Toggle()
-            on := breaks.on && saved[-1] = 1 && SuiteNotice.notices["status"].text = "Break reminder every 45 min"
+            on := breaks.on && saved[-1] = 1 && breaks.action = "lock"
+                && SuiteNotice.notices["status"].text = "Break reminder every 45 min, then locks"
             SuiteNotice.Hide("status")
             this.Assert(on && breaks.StatusText() = "Break in 45 min",
-                "switched on, it says so, is kept, and counts a whole interval")
+                "switched on, it says so and that it locks, is kept, and counts a whole interval")
             breaks.due -= 44 * 60000
             this.Assert(breaks.StatusText() = "Break in 1 min", "the status says when the next break comes")
             breaks.Remind()
@@ -64,8 +65,8 @@ class PowerUpChecks {
 
             ; Turning the screens off or locking follows the message, never in a check.
             this.Assert(PU_Breaks.CleanAction("lock") = "lock" && PU_Breaks.CleanAction("screens") = "screens"
-                && PU_Breaks.CleanAction("x") = "message" && breaks.action = "message",
-                "the break action only shows the message unless chosen")
+                && PU_Breaks.CleanAction("message") = "message" && PU_Breaks.CleanAction("x") = "lock",
+                "the break locks the computer unless another action is chosen")
             breaks.Remind(), this.ShownEverywhere("Time for a break")
             breaks.Act()
             this.Assert(!acted("screens") && !acted("lock"), "showing only the message does nothing more")

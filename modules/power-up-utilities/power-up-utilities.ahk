@@ -219,7 +219,7 @@ class PowerUpUtilities extends SuiteModule {
         window["breakMinutes"].Value := PU_Breaks.MinutesDefault
         window["breakMessage"].Value := PU_Breaks.MessageDefault
         window["breakSound"].Choose(PowerUpUtilities.BreakSoundIndex(PU_Breaks.SoundDefault))
-        window["breakAction"].Choose(1)
+        window["breakAction"].Choose(PowerUpUtilities.BreakActionIndex(PU_Breaks.ActionDefault))
         PowerUpUtilities.ShowBreakActionCaption(window)
         window["minutes"].Value := PU_Speakers.MinutesDefault
         window["chime"].Value := 0
@@ -464,9 +464,10 @@ class PowerUpUtilities extends SuiteModule {
 
         BREAKS
         Pause + B reminds you to take a break every 45 minutes, on every display.
+        A soft sound plays with it, and the computer locks 10 seconds later, unless an app is in fullscreen.
         Locking the computer or letting the screens go dark counts as a break, so the timer restarts when you're back.
-        Settings can also turn off the screens or lock the computer 10 seconds after the message.
-        A soft sound plays with it, and a nudge 5 seconds before wakes sleeping speakers for it.
+        Pause + Pause shows how long until the next one.
+        Settings can turn off the screens instead, only show the message, or choose another sound.
 
         A TIDY RESTART
         Pause + Shift + Win + Delete asks every window on every display to close, then restarts once none is left, installing pending updates.
