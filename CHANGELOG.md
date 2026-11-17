@@ -9,6 +9,7 @@
 
 ### Changes
 
+- **Paper Pad:** a new Paper Pad turns off Notepad3's *Zoom: N%* tooltip, which covered the start of every page you switched to at a zoom other than 100%. An existing Paper Pad keeps its tooltip; to turn it off, add `ZoomTooltipTimeout=0` under `[Settings2]` in `%LOCALAPPDATA%\nroj\SuperHotkey\paper-pad\Notepad3.ini` while Super Hotkey is closed.
 - **Power-Up Utilities:** `Pause + Pause` is named in the break reminder's Help and the README, to show how long until the next break.
 - **Power-Up Utilities:** the break reminder plays a sound with its message, Windows' soft Proximity chime by default, so you notice it while looking away from the screen. Settings offers 16 Windows sounds, from short chimes, Tada and Logon to Windows' ten alarms of 2 to 6 seconds, or no sound, and plays each once as you pick it. Five seconds before, speakers get the nudge that *keep speakers awake* uses, even with that turned off, so speakers asleep in silence wake in time and the sound isn't lost. Nothing plays during a presentation.
 

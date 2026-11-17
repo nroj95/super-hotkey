@@ -112,8 +112,11 @@ class PaperPadController
         }
 
         ; Notepad3 owns this UTF-8 INI. Never rewrite its existing preferences.
+        ; A new profile turns off the zoom tooltip, which would otherwise cover
+        ; the start of every page loaded at a zoom other than 100%.
         if !FileExist(this.editor_profile)
-            FileAppend "[Notepad3]`n`n[Settings]`nSettingsVersion=5`n", this.editor_profile, "UTF-8-RAW"
+            FileAppend "[Notepad3]`n`n[Settings]`nSettingsVersion=5`n"
+                . "`n[Settings2]`nZoomTooltipTimeout=0`n", this.editor_profile, "UTF-8-RAW"
     }
 
     ReadMonitorTarget()
