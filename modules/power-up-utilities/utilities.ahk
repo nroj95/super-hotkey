@@ -135,8 +135,8 @@ class PU_Restart {
 ; Keeps the computer from idle sleep with the request a backup or a video call
 ; makes, then sleeps it when the chosen time runs out. Screens still turn off
 ; and lock, and Sleep chosen by hand, the lid and the battery stay Windows' to
-; decide. Pause + End steps through the durations while its notice shows and
-; starts over once it has gone; each step counts from now. Pause + Shift + End
+; decide. Pause + Home steps through the durations while its notice shows and
+; starts over once it has gone; each step counts from now. Pause + Shift + Home
 ; ends it without sleeping, back to Windows' own sleep rules.
 ;
 ; The last minute warns twice, at 60 and 30 seconds, on every display. At the

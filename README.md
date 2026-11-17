@@ -68,7 +68,7 @@ Practical shortcuts for everyday tasks that don't fit into the other modules.
 #### Get started
 
 - `Pause + H` opens the guide.
-- `Pause + End` keeps the computer awake for 30 minutes, then sleeps it once you're away. Press again while the notice is visible to choose 1, 2, 4 or 8 hours, or no limit. `Pause + Shift + End` stops the timer without sleeping.
+- `Pause + Home` keeps the computer awake for 30 minutes, then sleeps it once you're away. Press again while the notice is visible to choose 1, 2, 4 or 8 hours, or no limit. `Pause + Shift + Home` stops the timer without sleeping.
 - `Pause + B` reminds you to take a break every 45 minutes with a soft sound, and locks the computer 10 seconds later. Locking the computer or letting the screens go dark counts as one, so the timer restarts when you're back. `Pause + Pause` shows how long until the next one.
 - `Pause + T` inserts a timestamp; `Pause + -` inserts an en dash.
 - `Caps` with the `QWER`, `ASDF` and `ZXCV` keys sends F13–F24; `Caps + 0–9` provides a virtual number pad, even if your keyboard lacks those keys.

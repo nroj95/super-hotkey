@@ -734,7 +734,7 @@ class CoreChecks {
             power.DefineProp("InputsReleased", {Call: (self, event) => false})
             awake := {actionId: "power-up-utilities.system.stay-awake", slot: 1,
                 phase: "down", foregroundHwnd: 0, layer: "pause",
-                key: "End", binding: "Pause + End", modifiers: 0, oneShot: false}
+                key: "Home", binding: "Pause + Home", modifiers: 0, oneShot: false}
             power.Dispatch(awake)
             power.Dispatch(awake)
             logText := SuiteState.Log.Read()

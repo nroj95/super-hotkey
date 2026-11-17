@@ -4,6 +4,7 @@
 
 ### Breaking changes
 
+- **Power-Up Utilities:** stay awake moves from `End` to `Home`: `Pause + Home` keeps the computer awake and `Pause + Shift + Home` cancels it. Hotkeys you've already saved stay as they are; *Restore defaults* in Keybindings picks up the new ones.
 - **Power-Up Utilities:** the break reminder now locks the computer 10 seconds after its message by default, so the break really happens; as before, not while an app is in fullscreen. `Pause + B` says so as it turns the reminder on, such as *Break reminder every 45 min, then locks*, and pressing it within those 10 seconds turns the reminder off and cancels the lock. If you've applied Power-Up Utilities' Settings since the break reminder came, your choice stays; otherwise choose *Only show the message* under *At break time* to keep the old behavior.
 
 ### Changes

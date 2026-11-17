@@ -40,9 +40,9 @@ class PowerUpUtilities extends SuiteModule {
             ObjBindMethod(this.app, "HelpShortcutEvent", this.id), ["Pause + H"],
             {category: "Power-Up Utilities", available: (*) => this.app.ModuleActive(this.id)})
         this.AddAction("awake", "system.stay-awake", "stay awake, then sleep",
-            "awake-step", "", "Pause + End")
+            "awake-step", "", "Pause + Home")
         this.AddAction("awake", "system.allow-sleep", "cancel stay awake",
-            "awake-end", "", "Pause + Shift + End")
+            "awake-end", "", "Pause + Shift + Home")
         this.AddAction("breaks", "system.break-reminder", "toggle break reminder",
             "breaks", "", "Pause + B")
         ; Terminal copy shares Caps + C with F23: the Terminal scope wins there.
@@ -455,9 +455,9 @@ class PowerUpUtilities extends SuiteModule {
         Practical shortcuts for everyday tasks that don't fit into the other modules.
 
         STAY AWAKE
-        Pause + End keeps the computer awake for 30 minutes, then puts it to sleep once you're no longer using it.
+        Pause + Home keeps the computer awake for 30 minutes, then puts it to sleep once you're no longer using it.
         Press again while its notice shows for 1, 2, 4 or 8 hours or no limit.
-        Pause + Shift + End cancels it.
+        Pause + Shift + Home cancels it.
         Pause + Pause shows how long is left.
 
         For more reliable sleep, turn off Windows' Away Mode and let only your keyboard wake the computer.
