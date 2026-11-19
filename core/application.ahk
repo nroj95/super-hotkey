@@ -119,7 +119,11 @@ class SuiteApplication {
         }
         this.ui := SuiteInterface(this)
         this.ui.BuildTray()
-        OnMessage(0x0218, this.powerCallback)
+        ; Waking sends WM_POWERBROADCAST two or three times within a second:
+        ; the resume, the displays turning on and the resume by the user. A
+        ; message that comes while the previous one is still being handled is
+        ; dropped, so each gets a thread, or the displays seem to stay off.
+        OnMessage(0x0218, this.powerCallback, 3)
         OnMessage(0x02B1, this.sessionCallback)
         this.sessionNotifications := DllCall("Wtsapi32\WTSRegisterSessionNotification",
             "ptr", A_ScriptHwnd, "uint", 0, "int") != 0
