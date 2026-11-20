@@ -9,6 +9,7 @@
 
 ### Changes
 
+- **Paper Pad** and **Cascade Kingdom:** a display chosen in Settings now stays the same physical display after a restart. Windows can renumber its displays when the computer starts, so Paper Pad sometimes opened on, and Cascade Kingdom cascaded on, the other one. If yours moved, pick the display again in Settings and click Apply once.
 - **Paper Pad:** a new Paper Pad turns off Notepad3's *Zoom: N%* tooltip, which covered the start of every page you switched to at a zoom other than 100%. An existing Paper Pad keeps its tooltip; to turn it off, add `ZoomTooltipTimeout=0` under `[Settings2]` in `%LOCALAPPDATA%\nroj\SuperHotkey\paper-pad\Notepad3.ini` while Super Hotkey is closed.
 - **Power-Up Utilities:** the break reminder and *keep speakers awake* no longer stay paused after the computer wakes from sleep. Super Hotkey sometimes missed the screens turning back on, so `Pause + Pause` said *Nothing to show here* until the screens next turned off and on.
 - **Power-Up Utilities:** `Pause + Pause` is named in the break reminder's Help and the README, to show how long until the next break.

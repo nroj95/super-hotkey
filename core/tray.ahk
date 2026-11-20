@@ -398,8 +398,9 @@ class SuiteInterface {
     static DisplayIndex(values, value) {
         if value = "Primary"
             value := MonitorGetName(MonitorGetPrimary())
-        for index, name in values
-            if name = value
+        info := SuiteInterface.GetDisplayInfo()
+        for index, choice in values
+            if choice = value || SuiteInterface.DisplayDevice(choice, info) = value
                 return index
         return 1
     }
@@ -771,15 +772,18 @@ class SuiteInterface {
     ; shared helpers for module settings pages
     ; =========================================================================
 
-    ; Display dropdown entries; the stored value is the Windows device name.
-    ; Each display is numbered and listed as Windows' Identify numbers it.
+    ; Display dropdown entries; the stored value is the monitor's device path,
+    ; which stays with the physical display, since Windows can hand out the
+    ; \\.\DISPLAYn names in a new order after a restart. A display Windows
+    ; reports no path for is stored by its device name, and a device name saved
+    ; before paths still selects its display. Each display is numbered and
+    ; listed as Windows' Identify numbers it.
     DisplayChoices(selected, includeAll := false) {
         values := includeAll ? ["All"] : []
         names := includeAll ? ["All displays"] : []
-        info := this.GetDisplayInfo()
+        info := SuiteInterface.GetDisplayInfo()
         primary := MonitorGetPrimary()
-        if selected = "Primary"
-            selected := MonitorGetName(primary)
+        device := selected = "Primary" ? MonitorGetName(primary) : SuiteInterface.DisplayDevice(selected, info)
         displays := []
         loop MonitorGetCount() {
             try {
@@ -799,16 +803,15 @@ class SuiteInterface {
                 index -= 1
             }
         }
+        selectedIndex := includeAll && selected = "All" ? 1 : 0
         for display in displays {
-            values.Push(display.name)
+            values.Push(info.Has(display.name) && info[display.name].path != "" ? info[display.name].path : display.name)
             model := info.Has(display.name) && info[display.name].model != "" ? info[display.name].model : display.name
             names.Push("Display " display.number " - " model
                 . (display.primary ? " (primary)" : ""))
+            if display.name = device
+                selectedIndex := values.Length
         }
-        selectedIndex := 0
-        for index, name in values
-            if name = selected
-                selectedIndex := index
         if !selectedIndex {
             values.Push(selected)
             names.Push(selected " (unavailable)")
@@ -823,11 +826,24 @@ class SuiteInterface {
     static DisplayNumber(name, fallback) => RegExMatch(name, "i)^\\\\\.\\DISPLAY(\d+)$", &match)
         ? Integer(match[1]) : fallback
 
-    ; Device name -> {model, number} for each active display. Windows has no
-    ; API for the number Settings shows, and it is not the \\.\DISPLAYn digit;
-    ; Settings counts displays in connector order, by graphics adapter and
-    ; then target ID, so this does too.
-    GetDisplayInfo() {
+    ; The current device name of a saved display choice: a device path finds
+    ; the \\.\DISPLAYn its display has now, or "" while it is disconnected;
+    ; anything else, such as a device name or All, comes back as it is.
+    static DisplayDevice(value, info := 0) {
+        if !RegExMatch(value, "^\\\\\?\\")
+            return value
+        for name, display in IsObject(info) ? info : SuiteInterface.GetDisplayInfo()
+            if display.path = value
+                return name
+        return ""
+    }
+
+    ; Device name -> {model, number, path} for each active display. Windows
+    ; has no API for the number Settings shows, and it is not the \\.\DISPLAYn
+    ; digit; Settings counts displays in connector order, by graphics adapter
+    ; and then target ID, so this does too. The path is the monitor's device
+    ; interface path, the same after a restart while the cable stays in its port.
+    static GetDisplayInfo() {
         displays := Map()
         order := []
         pathCount := 0
@@ -862,9 +878,10 @@ class SuiteInterface {
             NumPut("Int64", NumGet(paths, offset + 20, "Int64"), target, 8)
             NumPut("UInt", NumGet(paths, offset + 28, "UInt"), target, 16)
 
-            model := DllCall("user32\DisplayConfigGetDeviceInfo", "Ptr", target, "Int")
-                ? "" : StrGet(target.Ptr + 36, "UTF-16")
-            entry := {name: display, model: model,
+            failed := DllCall("user32\DisplayConfigGetDeviceInfo", "Ptr", target, "Int")
+            model := failed ? "" : StrGet(target.Ptr + 36, "UTF-16")
+            path := failed ? "" : StrGet(target.Ptr + 164, "UTF-16")
+            entry := {name: display, model: model, path: path,
                 adapter: NumGet(paths, offset + 20, "Int64"), target: NumGet(paths, offset + 28, "UInt")}
             ; Few displays, so a simple insertion sort by adapter, then target.
             index := order.Length + 1
@@ -875,7 +892,7 @@ class SuiteInterface {
         }
 
         for index, entry in order
-            displays[entry.name] := {model: entry.model, number: index}
+            displays[entry.name] := {model: entry.model, number: index, path: entry.path}
         return displays
     }
 

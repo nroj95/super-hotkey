@@ -31,6 +31,7 @@ ReadCascadeDisplays()
     displays := Map()
     live_devices := Map()
     signature := ""
+    info := SuiteInterface.GetDisplayInfo()
     Loop MonitorGetCount() {
         monitor_index := A_Index
         device := MonitorGetName(monitor_index)
@@ -51,7 +52,8 @@ ReadCascadeDisplays()
             . ":" work_left "," work_top "," work_right "," work_bottom ":" dpi
             . (CascadeState.mirrored ? ":mirrored" : "") . ":" CascadeState.windowSize "%"
         displays[monitor_index] := {
-            device: device, dpi: dpi, signature: display_signature,
+            device: device, path: info.Has(device) ? info[device].path : "",
+            dpi: dpi, signature: display_signature,
             left: left, top: top, right: right, bottom: bottom,
             work_left: work_left, work_top: work_top,
             work_right: work_right, work_bottom: work_bottom,

@@ -270,7 +270,7 @@ class CascadeChecks {
         app.modules["cascade-kingdom"] := CascadeKingdomModule(app)
         previousCritical := Critical("On")
         try {
-            CascadeState.displays := Map(1, {device: "left"}, 2, {device: "right"})
+            CascadeState.displays := Map(1, {device: "left", path: ""}, 2, {device: "right", path: ""})
             this.Assert(ResolveCascadeDestination(2) = 2,
                 "All displays retains the requested destination")
             this.Assert(!CascadeState.history.Count && CascadeDisplayAllowed(1)
@@ -282,9 +282,14 @@ class CascadeChecks {
                 "a single display redirects adoption and excludes other drop zones")
             this.Assert(!CascadeDisplayAllowed(1) && CascadeDisplayAllowed(2),
                 "an excluded display cannot remain a drag destination")
-            CascadeState.displays := Map(1, {device: "right"}, 2, {device: "left"})
+            CascadeState.displays := Map(1, {device: "right", path: ""}, 2, {device: "left", path: ""})
             this.Assert(ResolveCascadeDestination(2) = 1,
                 "the selected destination follows device name through index changes")
+            CascadeState.targetDisplay := "\\?\DISPLAY#RIGHT"
+            CascadeState.displays := Map(1, {device: "\\.\DISPLAY1", path: "\\?\DISPLAY#LEFT"},
+                2, {device: "\\.\DISPLAY2", path: "\\?\DISPLAY#RIGHT"})
+            this.Assert(ResolveCascadeDestination(1) = 2,
+                "a saved device path finds its display whichever device name Windows gave it")
             CascadeState.targetDisplay := "disconnected"
             this.Assert(!ResolveCascadeDestination(1),
                 "a disconnected selected display never redirects onto another screen")
@@ -304,14 +309,15 @@ class CascadeChecks {
         try {
             choices := app.ui.DisplayChoices("Primary")
             this.Assert(choices.values.Length = MonitorGetCount()
-                && choices.values[choices.selected] = MonitorGetName(MonitorGetPrimary()),
+                && SuiteInterface.DisplayDevice(choices.values[choices.selected]) = MonitorGetName(MonitorGetPrimary()),
                 "Paper Pad lists each display once and defaults to the actual primary display")
             for value in choices.values
                 this.Assert(value != "Primary", "the duplicate primary-display alias is not a choice")
-            info := app.ui.GetDisplayInfo()
+            info := SuiteInterface.GetDisplayInfo()
             numbered := info.Count = choices.values.Length
             for index, value in choices.values
-                numbered := numbered && info.Has(value) && info[value].number = index
+                numbered := numbered && info.Has(device := SuiteInterface.DisplayDevice(value, info))
+                    && info[device].path = value && info[device].number = index
                     && InStr(choices.names[index], "Display " index " - ") = 1
             this.Assert(SuiteInterface.DisplayNumber("\\.\DISPLAY2", 1) = 2
                 && SuiteInterface.DisplayNumber("odd", 3) = 3,
@@ -385,7 +391,7 @@ class CascadeChecks {
             window := app.ui.windows["settings:paper-pad"]
             displays := app.modules["paper-pad"].displayChoices
             this.Assert(displays.Length = MonitorGetCount()
-                && displays[window["display"].Value] = MonitorGetName(MonitorGetPrimary()),
+                && SuiteInterface.DisplayDevice(displays[window["display"].Value]) = MonitorGetName(MonitorGetPrimary()),
                 "the Paper Pad dropdown uses the deduplicated primary selection")
         }
         finally app.ui.CloseAll()

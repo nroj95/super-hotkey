@@ -125,9 +125,10 @@ class PaperPadController
         if target = "" || StrLower(target) = "primary"
             return "Primary"
 
-        ; Explicit display choices are stored by Windows device name so the
-        ; selection remains pinned instead of following whichever display is main.
-        if RegExMatch(target, "i)^\\\\\.\\DISPLAY\d+$")
+        ; Explicit display choices are stored by monitor device path, or by
+        ; Windows device name before paths, so the selection remains pinned
+        ; instead of following whichever display is main.
+        if RegExMatch(target, "i)^\\\\\.\\DISPLAY\d+$|^\\\\\?\\")
             return target
 
         return "Primary"
@@ -1011,12 +1012,13 @@ class PaperPadController
         monitor_count := MonitorGetCount()
 
         if this.monitor_target != "Primary" {
+            device := SuiteInterface.DisplayDevice(this.monitor_target)
             loop monitor_count {
                 try monitor_name := MonitorGetName(A_Index)
                 catch
                     continue
 
-                if StrLower(monitor_name) = StrLower(this.monitor_target)
+                if monitor_name = device
                     return A_Index
             }
         }

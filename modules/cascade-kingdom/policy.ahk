@@ -4,8 +4,14 @@ ResolveCascadeDestination(preferred_monitor, displays := 0)
 {
     if CascadeState.targetDisplay = "All"
         return preferred_monitor
+    if !IsObject(displays)
+        displays := CascadeState.displays
     ; A missing selected display is not permission to move to another screen.
-    return FindCascadeMonitorDevice(CascadeState.targetDisplay, displays)
+    ; The setting names a monitor device path, or a device name saved before paths.
+    for monitor_index, display in displays
+        if display.device = CascadeState.targetDisplay || display.path = CascadeState.targetDisplay
+            return monitor_index
+    return 0
 }
 
 CascadeDisplayAllowed(monitor, displays := 0)
