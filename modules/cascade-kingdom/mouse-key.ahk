@@ -11,8 +11,8 @@
 ; - every other press, the wheel included, is swallowed, so a drag does
 ;   nothing until the key comes up;
 ; - every claimed press keeps its release, even after the key comes up;
-; - the taskbar, the desktop, Start, focus tabs and suite windows keep their
-;   clicks;
+; - the taskbar, the desktop, Start, focus tabs and every window of this
+;   process, message boxes included, keep their clicks;
 ; - with Caps or Pause, a claimed press uses the layer, so releasing the key
 ;   is never a tap; with Win, only the Win hotkey (#) takes the press, for
 ;   which AutoHotkey sends the menu mask key as Win comes up, after the key's
@@ -34,14 +34,17 @@ MouseKeyHeld(win)
 }
 
 ; The application window under the pointer, or 0 over shell surfaces and
-; suite windows.
+; suite windows. Every window of this process counts as a suite window,
+; AutoHotkey's own message boxes included, so a Caps that seems stuck can
+; never take the clicks that answer them.
 MouseKeyTarget()
 {
     MouseGetPosPixels(, , &hover_hwnd)
     hwnd := DllCall("GetAncestor", "ptr", hover_hwnd, "uint", 2, "ptr") ; GA_ROOT
     if !hwnd || IsShellSurfaceWindow(hwnd) || IsIgnoredByCascade(hwnd, true)
         return 0
-    try return IsShellHost(WinGetProcessName(hwnd)) ? 0 : hwnd
+    try return IsShellHost(WinGetProcessName(hwnd))
+        || WinGetPID(hwnd) = DllCall("GetCurrentProcessId", "uint") ? 0 : hwnd
     return 0
 }
 
