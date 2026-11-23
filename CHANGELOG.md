@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## v1.0.0-beta.7
+
+The break reminder plays a sound and locks the computer by default, stay awake moves to `Pause + Home`, and a display chosen in Settings stays the same physical display after a restart. The break reminder also keeps counting after the computer wakes from sleep.
+
 ### Breaking changes
 
 - **Power-Up Utilities:** stay awake moves from `End` to `Home`: `Pause + Home` keeps the computer awake and `Pause + Shift + Home` cancels it. Hotkeys you've already saved stay as they are; *Restore defaults* in Keybindings picks up the new ones.
@@ -9,12 +13,24 @@
 
 ### Changes
 
+- **Power-Up Utilities:** the break reminder plays a sound with its message, Windows' soft Proximity chime by default, so you notice it while looking away from the screen. Settings offers 16 Windows sounds, from short chimes, Tada and Logon to Windows' ten alarms of 2 to 6 seconds, or no sound, and plays each once as you pick it. Five seconds before, speakers get the nudge that *keep speakers awake* uses, even with that turned off, so speakers asleep in silence wake in time and the sound isn't lost. Nothing plays during a presentation.
 - **Paper Pad** and **Cascade Kingdom:** a display chosen in Settings now stays the same physical display after a restart. Windows can renumber its displays when the computer starts, so Paper Pad sometimes opened on, and Cascade Kingdom cascaded on, the other one. If yours moved, pick the display again in Settings and click Apply once.
 - **Paper Pad:** a new Paper Pad turns off Notepad3's *Zoom: N%* tooltip, which covered the start of every page you switched to at a zoom other than 100%. An existing Paper Pad keeps its tooltip; to turn it off, add `ZoomTooltipTimeout=0` under `[Settings2]` in `%LOCALAPPDATA%\nroj\SuperHotkey\paper-pad\Notepad3.ini` while Super Hotkey is closed.
+- **Power-Up Utilities:** `Pause + Pause` is named in the break reminder's Help and the README, to show how long until the next break.
 - **Power-Up Utilities:** the break reminder and *keep speakers awake* no longer stay paused after the computer wakes from sleep. Super Hotkey sometimes missed the screens turning back on, so `Pause + Pause` said *Nothing to show here* until the screens next turned off and on.
 - **Cascade Kingdom:** click to focus leaves every Super Hotkey window its clicks, AutoHotkey's own message boxes included. When Windows lost a key release and Caps seemed held, every click was swallowed, even on the warning about too many hotkeys at once, so the only way out was to close Super Hotkey from the taskbar. A tap of the click key ends such a hold.
-- **Power-Up Utilities:** `Pause + Pause` is named in the break reminder's Help and the README, to show how long until the next break.
-- **Power-Up Utilities:** the break reminder plays a sound with its message, Windows' soft Proximity chime by default, so you notice it while looking away from the screen. Settings offers 16 Windows sounds, from short chimes, Tada and Logon to Windows' ten alarms of 2 to 6 seconds, or no sound, and plays each once as you pick it. Five seconds before, speakers get the nudge that *keep speakers awake* uses, even with that turned off, so speakers asleep in silence wake in time and the sound isn't lost. Nothing plays during a presentation.
+
+### Install
+
+Install [AutoHotkey v2](https://www.autohotkey.com/) **64-bit**, download and extract the source code below, and run `super-hotkey.ahk`. Settings and logs live in `%LOCALAPPDATA%\nroj\SuperHotkey`; this version keeps those from earlier betas.
+
+### Known limitations
+
+- PowerToys FancyZones isn't supported; disable it in PowerToys while using Super Hotkey.
+- Paper Pad needs Notepad3 and asks you to install it or locate it when it can't find it.
+- Sleep works as Windows' own does: where Away Mode is allowed, `Pause + Escape` and stay awake running out may only darken the screens until you turn Away Mode off.
+- Keep speakers awake was measured on one set of speakers; if yours still fall asleep, nudge more often or switch to the chime in Power-Up Utilities' Settings.
+- The recording in the README still shows v1.0.0-beta.1.
 
 ## v1.0.0-beta.6
 
