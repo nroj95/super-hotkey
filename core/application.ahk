@@ -443,6 +443,7 @@ class SuiteApplication {
             this.SuspendModules()
         } else if event = 8 {
             this.sessionLocked := false
+            SuiteDisplays.Unlocked()
             SetTimer(this.resumeCallback, -500)
         }
     }

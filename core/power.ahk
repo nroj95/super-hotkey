@@ -34,7 +34,8 @@ class SuiteStayAwake {
 ; (GUID_CONSOLE_DISPLAY_STATE): they go off when the screen timeout turns
 ; them off, and on again at a touch, so coming back to a
 ; computer left alone is an event, not something to poll for. A dimmed
-; display counts as on. Handlers get (on) only when that changes.
+; display counts as on, and so does unlocking, in case waking from sleep
+; brought no display-on message. Handlers get (on) only when that changes.
 class SuiteDisplays {
     static Guid := "{6FE69556-704A-47A0-8F24-C28D936FDA47}"
     static handle := 0
@@ -81,7 +82,20 @@ class SuiteDisplays {
         if DllCall("ntdll\RtlCompareMemory", "ptr", setting, "ptr", guid, "uptr", 16, "uptr") != 16
             || NumGet(setting, 16, "uint") < 4
             return
-        on := NumGet(setting, 20, "uint") != 0
+        this.Set(NumGet(setting, 20, "uint") != 0)
+    }
+
+    ; Unlocking takes someone at a lit display. Waking from sleep sometimes
+    ; brings no display-on message, which left the displays counted as off
+    ; until they next turned off and on, so an unlock counts as on.
+    static Unlocked() {
+        if !this.handle || this.on
+            return
+        SuiteState.Log.Write("Core", "displays counted as on at unlock; Windows sent no display-on message")
+        this.Set(true)
+    }
+
+    static Set(on) {
         if on = this.on
             return
         this.on := on
